@@ -33,6 +33,8 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
     while (Date.now() < deadline) {
       const lock = await c.getMailboxLock('INBOX');
       try {
+        // IMAP NOOP es necesario para refrescar la bandeja y detectar correos nuevos
+        await c.noop();
         const todos = await c.search({ from: 'mts.notificaciones@icbf.gov.co' }, { uid: true });
         
         // Iterar de más nuevo a más viejo
