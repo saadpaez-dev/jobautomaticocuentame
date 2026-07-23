@@ -81,6 +81,19 @@ async function main() {
   if (opcion > 0) {
     asociaciones = [asociaciones[opcion - 1]];
   }
+
+  console.log(c.cyan('\n  📋 ¿Qué acción realizar con el reporte descargado?'));
+  console.log(c.amarillo(`  1. Dejar por defecto (Original)`));
+  console.log(c.amarillo(`  2. Preparar reporte (Elimina col A-F, ordena A-Z y agrega filtro)`));
+  
+  let opcionPreparar = -1;
+  while (opcionPreparar < 1 || opcionPreparar > 2) {
+    const respuestaPrep = readline.question(c.negrita('\n  👉 Ingresa la opcion (1 o 2) [por defecto 1]: '));
+    if (respuestaPrep.trim() === '') opcionPreparar = 1;
+    else opcionPreparar = parseInt(respuestaPrep, 10);
+    if (isNaN(opcionPreparar)) opcionPreparar = -1;
+  }
+  const prepararExcel = (opcionPreparar === 2);
   
   console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
   const browser = await chromium.launch({
@@ -278,6 +291,17 @@ async function main() {
             const savePath = path.join(reportesDir, fileName);
             await download.saveAs(savePath);
             console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
+
+            if (prepararExcel) {
+                console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
+                const { execSync } = require('child_process');
+                try {
+                    const psScript = path.join(__dirname, 'preparar_excel.ps1');
+                    execSync(`powershell -ExecutionPolicy Bypass -File "${psScript}" -FilePath "${savePath}"`, { stdio: 'inherit' });
+                } catch (psError) {
+                    console.log(c.rojo(`    ⚠️ Hubo un problema al preparar el excel: ${psError.message}`));
+                }
+            }
         } else {
             console.log(c.rojo(`    ⚠️ No se encontró el botón de exportar. ¿Falló la generación del reporte?`));
         }
