@@ -156,20 +156,26 @@ async function main() {
             try {
                 const btn = reportFrame.locator(`#${id}_ddDropDownButton`);
                 await btn.waitFor({ state: 'visible', timeout: 5000 });
-                await btn.click();
+                // Playwright click() auto-waits for element to be enabled
+                await btn.click({ timeout: 15000 });
                 
                 const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
                 await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
                 
-                const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const labelLocator = divDropdown.locator('label').filter({ hasText: new RegExp(`^\\s*${escapedText}\\s*$`, 'i') }).first();
+                let labelLocator;
+                if (valueOrText === '(Select All)') {
+                    labelLocator = divDropdown.locator('label').filter({ hasText: '(Select All)' }).first();
+                } else {
+                    const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    labelLocator = divDropdown.locator('label').filter({ hasText: new RegExp(`^\\s*${escapedText}\\s*$`, 'i') }).first();
+                }
+
                 await labelLocator.waitFor({ state: 'visible', timeout: 5000 });
-                
                 await labelLocator.click();
                 
                 // Cerrar menú y disparar postback
                 await reportFrame.locator('body').click();
-                await page.waitForTimeout(2000); 
+                await page.waitForTimeout(3000); 
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar múltiple en ${id}: ${e.message}`));
             }
@@ -201,7 +207,7 @@ async function main() {
                 const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
                 if (!(await chkLocator.isChecked())) {
                     await chkLocator.check();
-                    await page.waitForTimeout(1000);
+                    await page.waitForTimeout(2000);
                 }
             } catch(e) {}
         } else if (opcionReporte === 2) {
@@ -218,7 +224,9 @@ async function main() {
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota, D.C.');
+            // Municipio en el Nutricional (oRp=1177) ES MULTI-SELECT! (a diferencia del otro reporte)
+            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
+            
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', asc.vigenciaContrato || '2026');
             
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', '(Select All)');
