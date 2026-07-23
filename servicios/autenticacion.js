@@ -24,9 +24,10 @@ async function login(page, credenciales) {
   // Llenar usuario y contraseña
   await page.locator('input[type="text"]').first().fill(usuario);
   await page.locator('input[type="password"]').first().fill(password);
-  await page.locator('input[value="Iniciar Sesión"], input[type="submit"]').first().click();
-
-  await page.waitForTimeout(3000);
+  await Promise.all([
+    page.waitForLoadState('networkidle'),
+    page.locator('input[value="Iniciar Sesión"], input[type="submit"]').first().click()
+  ]);
 
   // Verificar si la cuenta fue bloqueada por intentos fallidos
   const contenidoTras = await page.content();
@@ -51,9 +52,10 @@ async function login(page, credenciales) {
     await campoCodigo.fill(codigo);
 
     // Click en botón "Verificar Código"
-    await page.locator('input[value="Verificar Código"], button:has-text("Verificar"), input[value*="Verificar"]').first().click();
-
-    await page.waitForTimeout(3000);
+    await Promise.all([
+      page.waitForLoadState('networkidle'),
+      page.locator('input[value="Verificar Código"], button:has-text("Verificar"), input[value*="Verificar"]').first().click()
+    ]);
   }
 
   // Verificar si pide selección de asociación/entidad
@@ -64,9 +66,10 @@ async function login(page, credenciales) {
     if (selectores.length > 0) {
       // Seleccionar la primera opción válida (index 1 porque 0 es "Seleccione")
       await selectores[0].selectOption({ index: 1 });
-      await page.waitForTimeout(1000);
-      await page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click();
-      await page.waitForTimeout(4000);
+      await Promise.all([
+        page.waitForLoadState('networkidle'),
+        page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
+      ]);
     }
   }
 

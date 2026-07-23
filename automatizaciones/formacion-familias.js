@@ -154,23 +154,25 @@ async function registrarFormacion(page, jardin, config) {
   if (!submenuVisible) {
     console.log('  👉 Desplegando menú "Rub online"...');
     await page.locator('text="Rub online"').first().click();
-    await page.waitForTimeout(1000); // Esperar que la animación del menú termine
+    await menuDestino.waitFor({ state: 'visible', timeout: 5000 });
   }
 
   // Navegar al menú: Seguimiento formación a padres/cuidadores
   console.log('  👉 Clic en "Seguimiento formación a padres/cuidadores"...');
-  await menuDestino.click();
-  await page.waitForTimeout(2000); // Darle tiempo a que cargue la vista de lista
+  await Promise.all([
+    page.waitForLoadState('networkidle'),
+    menuDestino.click()
+  ]);
 
   // Todo el formulario carga dentro de un iframe en la plataforma
   const frame = page.frameLocator('iframe').last();
 
   // Click en botón Nuevo (+)
   console.log('  👉 Clic en el botón Nuevo (+)...');
-  await frame.locator('#btnNuevo').click();
-  
-  // Esperar a que la página procese el clic de Nuevo
-  await page.waitForTimeout(3000);
+  await Promise.all([
+    page.waitForLoadState('networkidle'),
+    frame.locator('#btnNuevo').click()
+  ]);
 
   // Seleccionar la unidad de servicio usando la lupa
   console.log('  👉 Haciendo clic en la lupa para buscar la Unidad de Servicio...');
@@ -180,7 +182,6 @@ async function registrarFormacion(page, jardin, config) {
   // Esperar que el formulario se autocomplete con los datos del jardín
   // Y verificar que la interfaz cambió al modo de registro completo
   console.log('  👉 Esperando a que cargue el resto de campos (Observaciones, Beneficiarios)...');
-  await page.waitForTimeout(2000);
   const campoObsParaVerificar = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
   await campoObsParaVerificar.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {
     throw new Error('No se cargaron los campos finales (como Observaciones) después de seleccionar la Unidad de Servicio.');
@@ -198,7 +199,6 @@ async function registrarFormacion(page, jardin, config) {
   const numerosFecha = hoy.replace(/\//g, '');
   await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 10 });
   await campoFechaFormacion.press('Tab');
-  await page.waitForTimeout(500);
 
   // Llenar Número de Horas
   const campoHoras = frame.locator('input[id*="Horas"], input[name*="Horas"]').first();
@@ -207,7 +207,6 @@ async function registrarFormacion(page, jardin, config) {
   // Seleccionar Tema Formación (dropdown)
   const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
   await dropdownTema.selectOption({ label: tema });
-  await page.waitForTimeout(500);
 
   // Seleccionar Tipo de Encuentro
   const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
@@ -227,8 +226,10 @@ async function registrarFormacion(page, jardin, config) {
 
   // Guardar (ícono disquete 💾)
   console.log('  👉 Haciendo clic en Guardar...');
-  await frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click();
-  await page.waitForTimeout(3000);
+  await Promise.all([
+    page.waitForLoadState('networkidle'),
+    frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click()
+  ]);
 
   // Verificar mensaje de éxito buscando en el iframe o en la página
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');

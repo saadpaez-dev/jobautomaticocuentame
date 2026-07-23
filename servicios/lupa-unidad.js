@@ -30,7 +30,7 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
   await popup.waitForLoadState('domcontentloaded');
 
   // 3. Buscar el campo "Código Unidad de Servicio" y escribir el código
-  await popup.waitForTimeout(1000);
+  await popup.waitForSelector('input[type="text"]', { state: 'visible', timeout: 10000 });
 
   // El campo de código es el primer input de texto del popup
   const camposCodigo = popup.locator('input[type="text"]');
@@ -40,12 +40,14 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
 
   // 4. Click en el botón buscar (la lupa del popup)
   const botonBuscar = popup.locator('a#btnBuscar, img[alt="Consultar"]').first();
-  await botonBuscar.click();
+  await Promise.all([
+    popup.waitForLoadState('networkidle'),
+    botonBuscar.click()
+  ]);
   
   // Esperar a que la tabla de resultados cargue después de la búsqueda
   console.log('  👉 Esperando resultados de búsqueda en la lupa...');
   await popup.waitForSelector('#cphCont_gvLupaAtencionBeneficiario', { state: 'visible', timeout: 15000 }).catch(() => {});
-  await popup.waitForTimeout(2000); // Pequeña pausa extra para asegurar que las filas se pintaron
 
   // 5. Intentar ir a la página 2 si existe (el contrato 2026 suele estar ahí)
   const encontradoEn2026 = await buscarYSeleccionar2026(popup);
@@ -56,8 +58,10 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
     const existePagina2 = await linkPagina2.count() > 0;
 
     if (existePagina2) {
-      await linkPagina2.click();
-      await popup.waitForTimeout(2000);
+      await Promise.all([
+        popup.waitForLoadState('networkidle'),
+        linkPagina2.click()
+      ]);
       const encontrado = await buscarYSeleccionar2026(popup);
 
       if (!encontrado) {
@@ -70,7 +74,8 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
 
   // Esperar que el popup se cierre y el formulario se autocomplete
   await popup.waitForEvent('close', { timeout: 10000 }).catch(() => {});
-  await page.waitForTimeout(2000);
+  // Al cerrarse el popup, la página principal puede estar procesando el postback
+  await page.waitForLoadState('networkidle');
 }
 
 /**
@@ -80,8 +85,8 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
  * @returns {Promise<boolean>} true si encontró y seleccionó la fila
  */
 async function buscarYSeleccionar2026(popup) {
-  // Buscar todas las filas de la tabla
-  const filas = popup.locator('table tr');
+  // Buscar todas las filas solo de la tabla de resultados
+  const filas = popup.locator('#cphCont_gvLupaAtencionBeneficiario tr');
   const total = await filas.count();
 
   for (let i = 0; i < total; i++) {
@@ -92,10 +97,10 @@ async function buscarYSeleccionar2026(popup) {
     const numCeldas = await celdas.count();
     let esFila2026 = false;
 
-    // Revisar si alguna celda tiene exactamente el texto "2026"
+    // Revisar si alguna celda tiene la palabra exacta "2026"
     for (let j = 0; j < numCeldas; j++) {
       const textoCelda = await celdas.nth(j).innerText().catch(() => '');
-      if (textoCelda.trim() === '2026') {
+      if (textoCelda.match(/\b2026\b/)) {
         esFila2026 = true;
         break;
       }
