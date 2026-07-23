@@ -188,7 +188,15 @@ async function registrarFormacion(page, jardin, config) {
 
   // Llenar Fecha Formación
   const campoFechaFormacion = frame.locator('input[id*="FechaFormacion"], input[name*="FechaFormacion"]').first();
-  await campoFechaFormacion.fill(hoy);
+  
+  // Hacemos clic exactamente en el borde izquierdo de la casilla (x: 5) 
+  // para forzar al cursor a ponerse al principio de los guiones de la máscara.
+  await campoFechaFormacion.click({ position: { x: 5, y: 5 } });
+  
+  // Limpiamos los slashes y enviamos los 8 números (ej: 23072026)
+  // con un retraso muy pequeño para que la máscara lo procese rápido.
+  const numerosFecha = hoy.replace(/\//g, '');
+  await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 10 });
   await campoFechaFormacion.press('Tab');
   await page.waitForTimeout(500);
 
