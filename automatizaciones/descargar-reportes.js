@@ -103,12 +103,10 @@ async function main() {
     // Obtener el frame del reporte
     await page.waitForTimeout(3000); // Dar tiempo al SSRS iframe a cargar
     
-    // El SSRS normalmente usa un iframe principal
-    // Vamos a buscar el frame. Si no hay frame, usaremos page.
-    let reportFrame = page.frames().find(f => f.url().includes('ReportViewer') || f.url().includes('ReportServer'));
+    // El contenido principal de Cuéntame se carga en un iframe llamado "frameContent"
+    let reportFrame = page.frame({ name: 'frameContent' });
     if (!reportFrame) {
-        // En algunos casos no es un iframe, o el iframe no tiene url distintiva.
-        // Asumimos que los elementos están en la página principal si no encontramos el frame
+        console.log(c.rojo('  ⚠️ No se encontró el iframe "frameContent". Usando la página principal...'));
         reportFrame = page; 
     }
 
@@ -153,6 +151,17 @@ async function main() {
       });
       console.log(c.cyan('  Textos en TD (posibles labels):'));
       console.log(tds.map(t => t.text).filter(t => t.includes('Unidad') || t.includes('Contrato') || t.includes('Dirección')));
+
+      // Check inner frames
+      const iframes = await reportFrame.evaluate(() => {
+        const results = [];
+        document.querySelectorAll('iframe').forEach(ifr => {
+           results.push({ id: ifr.id, name: ifr.name, src: ifr.src });
+        });
+        return results;
+      });
+      console.log(c.cyan('  Iframes internos dentro de frameContent:'));
+      console.table(iframes);
 
     } catch (e) {
       console.error('Error inspeccionando:', e);

@@ -1,0 +1,149 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" style="height: 100%; overflow: hidden;"><head><link rel="shortcut icon" href="../../../favicon.ico" type="image/x-icon"><link rel="icon" href="../../../favicon.ico" type="image/ico">
+    <script src="../../../Scripts/jq.min.js" type="text/javascript"></script>
+    <script src="../../../Scripts/jq_Layout.js" type="text/javascript"></script>
+    <link href="../../../Styles/layout-default.css" rel="stylesheet" type="text/css"><link href="../../../Styles/global.css" rel="stylesheet" type="text/css">
+    <script type="text/javascript">
+        $(document).ready(function () {
+
+            // Propiedades del panel Jquey----------------
+            $('body').layout({
+                south__size: 30,
+                south__slidable: false,
+                north__size: 75,
+                west__size: 231,
+                west__slidable: false,
+                north__slidable: false,
+                north__togglerLength_closed: "100%",
+                north__spacing_closed: 10,
+                north__togglerTip_open: "Ocultar",
+                north__togglerTip_closed: "Mostrar",
+                west__togglerTip_open: "Ocultar",
+                west__togglerTip_closed: "Mostrar",
+                west__togglerClass: "toggler",
+                north__togglerClass: "toggler",
+                west__resizerClass: "resizer",
+                north__resizerClass: "resizer",
+                south__resizable: false,
+                south__spacing_open: 0,
+                south__spacing_closed: 20,
+                north__resizable: false,
+                north__spacing_open: 0,
+                north__spacing_closed: 20
+
+
+
+            });
+            //END: Propiedades del panel Jquey----------------   
+
+            $('#ulMenuPrincipal > li > ul').eq(0).addClass('active').slideDown('normal');
+
+            $('.menu1').click(function (event) {
+                var elem = $(this).next();
+                if (elem.is('ul')) {
+                    event.preventDefault();
+                    $('#ulMenuPrincipal ul:visible').not(elem).slideUp();
+                    elem.slideToggle();
+                }
+            });
+
+            $('#ulMenuPrincipal li ul li a').click(function (event) {
+                var elem = $(this).next();
+                if (elem.is('ul')) {
+                    event.preventDefault();
+                    var elemhijo = $(this).children();
+                    elemhijo.not(elem).slideUp();
+                    elem.slideToggle();
+                }
+
+            });
+        });
+    </script>
+    <title>
+	.: ICBF - Cuéntame :.
+</title></head>
+<body style="overflow: hidden; position: relative; height: 100%; margin: 0px; padding: 0px; border-width: medium; border-style: none; border-color: currentcolor; border-image: none;">
+    <form method="post" action="./MasterPrincipal.aspx" id="form1">
+<div class="aspNetHidden">
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="">
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwUKMTI0MTIzNTMzMw9kFgICAw9kFggCAw8PFgIeBFRleHQFClNBQUQuUEFFWkdkZAIHDw8WAh8ABWhQSSBVU1VBUklPIEVBUyAtIEFTT0NJQUNJw5NOIERFIFBBRFJFUyBVU1VBUklPUyBERSBIT0dBUkVTIENPTVVOSVRBUklPUyBERSBCSUVORVNUQVIgREVMSUNJQVMgREVMIENBUk1FTmRkAgkPDxYCHwAFCjIzLzA3LzIwMjZkZAIXDw8WBB8ABScgVmVyc2nDs246IDMuMi4yNSAtIDE1LzA3LzIwMjYgMjI6NTI6NDYeB1Rvb2xUaXAFEzE1LzA3LzIwMjYgMjI6NTI6NDZkZGSuzPfNydCNeFCieMeya3Wvq7mSKKWSwlrg7EjFo1+G9w==">
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['form1'];
+if (!theForm) {
+    theForm = document.form1;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<div class="aspNetHidden">
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="AF79ECB1">
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="/wEdAARdFl9C6SB5VAxfkjQ3+NuXB1r5hrlcPdeBqbKECsjAj/o7e7hGr6+ZpSA+sC51NnyFknOQa+49hV5lmiIUZvbJuV4HLD2uKD5sOROqDUIDcl77Lh/ngHdan+I9NBRSCSI=">
+</div>
+        <div class="ui-layout-north ui-layout-pane ui-layout-pane-north open" pane="north" style="visibility: visible; display: block; position: absolute; margin: 0px; z-index: 2; inset: 0px 0px auto; width: auto; height: 75px;">
+            <table cellpadding="0" cellspacing="0" id="CabeceraPrincipal">
+                <tbody><tr>
+                    <td id="hL">
+                        <img src="../../../Image/main_2/lg.png" alt="Instituto Colombiano de Bienestar Familiar">
+                    </td>
+                    <td>
+                        <img id="ImgLogo" src="../../../Image/main/Logo_Cuentame.jpg">
+                    </td>
+                    <td id="hI">
+                        <span id="lblNombreUsuario" class="hIt">SAAD.PAEZG</span>
+                        <span id="lblSucursal"></span>
+                        <span id="lblRol">PI USUARIO EAS - ASOCIACIÓN DE PADRES USUARIOS DE HOGARES COMUNITARIOS DE BIENESTAR DELICIAS DEL CARMEN</span>
+                        <span id="lblFecha">23/07/2026</span>
+                    </td>
+                    <td id="hB">
+                        <a id="btnHome" href="javascript:__doPostBack('btnHome','')">
+                            </a><a href="../../../Page/General/Inicio/Default.html" target="frameContent">
+                                <img src="../../../Image/btn/home.png" width="23px" height="23px" alt="Inicio" title="Inicio">        
+                            </a>
+                        
+                        <a id="btnHelp" href="javascript:__doPostBack('btnHelp','')">
+                            <img src="../../../Image/btn/help.png" width="23px" height="23px" alt="Ayuda" title="Ayuda">
+                        </a>
+                        <a id="btnLogOut" href="javascript:__doPostBack('btnLogOut','')">
+                            <img src="../../../Image/btn/logout.png" width="23px" height="23px" alt="Cerrar Sesión" title="Cerrar Sesión">
+                        </a>
+                    </td>
+                </tr>
+            </tbody></table>
+        </div>
+        <div class="ui-layout-west ui-layout-pane ui-layout-pane-west open" pane="west" style="visibility: visible; display: block; position: absolute; margin: 0px; z-index: 2; inset: 75px auto 30px 0px; height: 846px; width: 231px;">
+            <ul id="ulMenuPrincipal" class="EstiloMenuUl"><li><a class="menu1 EstiloMenuUla">RUB ONLINE</a><ul class="EstiloMenuUl active" style="display: none;"><li><a class="desplegable">Rub online</a><ul class="EstiloMenuUl"><li><a class="desplegable">Contratos</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/ENTIDADCONTRATISTASITCO/List.aspx">Entidad administradora de servicio</a></li></ul></li><li><a class="desplegable">Unidad</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/UNIDADSERVICIO/List.aspx">Unidad de servicio</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/RegistroAsistencia/List.aspx">Registro de asistencia mensual - ram</a></li></ul></li><li><a class="desplegable">Talento humano</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/TALENTOHUMANO/List.aspx">Talento humano</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/VINCULARDESVINCULARTHUDS/List.aspx">Vinculacion/desvinculacion masiva de talento humano</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/FORMACIONYCUALIFICACION/List.aspx">Formación y cualificación</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/INFORMACIONTALENTOHUMANO/List.aspx">Informacion talento humano</a></li></ul></li><li><a class="desplegable">Beneficiario</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/BENEFICIARIO/List.aspx">Beneficiario</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/BeneficiarioGrupo/List.aspx">Asociar beneficiario grupo</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RubOnline/HojaVidaBeneficiario/List.aspx">Hoja de vida del beneficiario</a></li></ul></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/INFORMACIONBENEFICIARIO/List.aspx">Información beneficiario</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/SEGUIMIENTONUTRICION/List.aspx">Seguimiento nutricional</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/FORMACION/List.aspx">Seguimiento formación a padres/cuidadores</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/RUBONLINE/ENTREGAALIMENTOS/List.aspx">Entrega de alimentos</a></li></ul></li></ul></li><li><a class="menu1 EstiloMenuUla">REPORTES</a><ul class="EstiloMenuUl" style="display: block;"><li><a class="desplegable">Reportes</a><ul class="EstiloMenuUl" style="display: block;"><li><a class="desplegable">Atención integral y tradicional</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1296">Seguimiento nutricional</a></li></ul></li><li><a class="desplegable">Calidad de datos</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1161">Unidades de servicio</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1162">Beneficiario</a></li></ul></li><li><a class="desplegable">Contratos</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1168">Contratos</a></li></ul></li><li><a class="desplegable">Beneficiarios</a><ul class="EstiloMenuUl" style="display: block;"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1170">Beneficiarios vinculados</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1174">Beneficiarios con discapacidad</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1176">Beneficiarios por unidad de servicio</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1171">Formación a padres y/o cuidadores</a></li></ul></li><li><a class="desplegable">Seguimiento nutricional</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1169">Tomas nutricionales por beneficiario</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1177">Seguimiento nutricional de niños y niñas por toma</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1175">Seguimiento nutricional de mujer gestante y en periodo de lactancia</a></li></ul></li><li><a class="desplegable">Talento humano</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1164">Talento humano por servicio</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1267">Formacion y cualificacion del talento humano</a></li></ul></li><li><a class="desplegable">Unidad</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1178">Unidades de servicio</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1537">Informe de registro asistencia mensual</a></li></ul></li><li><a class="desplegable">Otros</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1413">Reporte registros cuéntame -rnec</a></li></ul></li></ul></li><li><a class="desplegable">Focalizados</a><ul class="EstiloMenuUl"><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1147">Beneficiarios focalizados atendidos</a></li><li><a class="EstiloMenuUla" target="frameContent" href="/Page/Reportes/TransversalReportes/List.aspx?oRp=1536">Reporte focalizados vs atendidos</a></li></ul></li></ul></li></ul>
+        </div>
+        <iframe src="../../../Page/General/Inicio/Default.html" id="frameContent" name="frameContent" class="ui-layout-center ui-layout-pane ui-layout-pane-center open" noresize="true" overflow="scroll" frameborder="0" marginheight="0" marginwidth="0" pane="center" style="visibility: visible; display: block; position: absolute; margin: 0px; z-index: 2; inset: 75px 0px 30px 237px; height: 846px; width: 1683px;">
+        </iframe>
+        <div class="ui-layout-south ui-layout-pane ui-layout-pane-south open" pane="south" style="visibility: visible; display: block; position: absolute; margin: 0px; z-index: 2; inset: auto 0px 0px; width: auto; height: 30px;">
+            <div id="piePrincipal">
+                <table cellpadding="0" cellspacing="0" id="pT">
+                    <tbody><tr>
+                        <td id="pTa">
+                            <a href="javascript:void(0);OpenAudit();">
+                                <span id="lblAuditoria"></span>
+                            </a>
+                        </td>
+                        <td>
+                            <span>© 2013 ICBF - </span>
+                            <span id="LblVersion" title="15/07/2026 22:52:46"> Versión: 3.2.25 - 15/07/2026 22:52:46</span>
+                        </td>
+                    </tr>
+                </tbody></table>
+            </div>
+        </div>
+    </form>
+
+<span id="" resizer="north" class="resizer resizer-north resizer-open resizer-north-open" style="position: absolute; padding: 0px; margin: 0px; font-size: 1px; text-align: left; overflow: hidden; z-index: 1; top: 75px; display: none;"><div id="" title="Ocultar" class="toggler toggler-north toggler-open toggler-north-open" style="position: absolute; display: block; padding: 0px; margin: 0px; overflow: hidden; text-align: center; font-size: 1px; cursor: pointer; z-index: 1;"></div></span><span id="" resizer="south" class="ui-layout-resizer ui-layout-resizer-south ui-layout-resizer-open ui-layout-resizer-south-open" style="position: absolute; padding: 0px; margin: 0px; font-size: 1px; text-align: left; overflow: hidden; z-index: 1; bottom: 30px; display: none;"><div id="" title="Close" class="ui-layout-toggler ui-layout-toggler-south ui-layout-toggler-open ui-layout-toggler-south-open" style="position: absolute; display: block; padding: 0px; margin: 0px; overflow: hidden; text-align: center; font-size: 1px; cursor: pointer; z-index: 1;"></div></span><span id="" resizer="west" class="resizer resizer-west resizer-open resizer-west-open" style="position: absolute; padding: 0px; margin: 0px; font-size: 1px; text-align: left; overflow: hidden; z-index: 1; left: 231px; height: 846px; width: 6px; top: 75px;"><div id="" title="Ocultar" class="toggler toggler-west toggler-open toggler-west-open" style="position: absolute; padding: 0px; margin: 0px; overflow: hidden; text-align: center; font-size: 1px; cursor: pointer; z-index: 1; height: 50px; width: 6px; top: 398px;"></div></span></body></html>
