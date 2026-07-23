@@ -294,6 +294,8 @@ async function main() {
 
             if (prepararExcel) {
                 console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
+                // Darle tiempo al sistema de archivos para cerrar y liberar el archivo
+                await page.waitForTimeout(2000);
                 const { execSync } = require('child_process');
                 try {
                     const psScript = path.join(__dirname, 'preparar_excel.ps1');

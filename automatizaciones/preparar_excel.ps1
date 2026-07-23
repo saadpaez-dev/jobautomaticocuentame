@@ -2,10 +2,19 @@ param (
     [Parameter(Mandatory=$true)][string]$FilePath
 )
 
-$FilePath = Resolve-Path $FilePath
-$FilePath = $FilePath.Path
+# Convertir ruta relativa a absoluta sin Resolve-Path (que falla si el archivo no existe aún)
+if (-not [System.IO.Path]::IsPathRooted($FilePath)) {
+    $FilePath = Join-Path (Get-Location).Path $FilePath
+}
+$FilePath = [System.IO.Path]::GetFullPath($FilePath)
 
-Write-Host "Preparando reporte en: $FilePath"
+# Verificar que el archivo existe
+if (-not (Test-Path $FilePath)) {
+    Write-Error "No se encontró el archivo: $FilePath"
+    exit 1
+}
+
+Write-Host "Preparando reporte en:"
 
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
