@@ -6,7 +6,7 @@
 
 const { ImapFlow } = require('imapflow');
 
-const TIMEOUT_MS = 90000;
+const TIMEOUT_MS = 180000;
 const POLL_INTERVAL_MS = 3000;
 
 /**
@@ -67,8 +67,7 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
   } finally {
     try { await c.logout(); } catch (_) {}
   }
-  
-  throw new Error('⏰ Tiempo agotado: no llegó el código 2FA en 90 segundos.');
+  throw new Error('⏰ Tiempo agotado: no llegó el código 2FA en 180 segundos.');
 }
 
 module.exports = { obtenerCodigo2FA };
