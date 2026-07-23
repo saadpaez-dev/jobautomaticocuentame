@@ -17,6 +17,18 @@ function leerJardines(rutaExcel) {
   const ws = wb.Sheets[wb.SheetNames[0]];
   const data = xlsx.utils.sheet_to_json(ws, { header: 1 });
 
+  // 1. Extraer contratos de las filas 1 a 7 (índice 1 a 7)
+  const asociacionesMetadata = [];
+  for (let i = 1; i <= 7; i++) {
+    const row = data[i];
+    if (row && row[0] && row[5]) {
+      const nombreLargo = String(row[0]).trim().toUpperCase();
+      const numeroContrato = String(row[5]).trim();
+      const vigenciaContrato = numeroContrato.slice(-4); // últimos 4 dígitos
+      asociacionesMetadata.push({ nombreLargo, numeroContrato, vigenciaContrato });
+    }
+  }
+
   const jardines = [];
   const codigosVistos = new Set();
 
@@ -35,13 +47,22 @@ function leerJardines(rutaExcel) {
     }
   }
 
-  // Agrupar por asociación manteniendo el orden
+  // Agrupar por asociación y asignar el contrato correspondiente
   const porAsociacion = {};
   for (const j of jardines) {
     if (!porAsociacion[j.asociacion]) {
-      porAsociacion[j.asociacion] = [];
+      // Buscar la metadata (el nombre corto 'j.asociacion' está contenido en el 'nombreLargo')
+      let metadata = asociacionesMetadata.find(m => m.nombreLargo.includes(j.asociacion));
+      
+      porAsociacion[j.asociacion] = {
+        nombreCorto: j.asociacion,
+        nombreLargo: metadata ? metadata.nombreLargo : '',
+        numeroContrato: metadata ? metadata.numeroContrato : '',
+        vigenciaContrato: metadata ? metadata.vigenciaContrato : '',
+        jardines: []
+      };
     }
-    porAsociacion[j.asociacion].push(j);
+    porAsociacion[j.asociacion].jardines.push(j);
   }
 
   return { jardines, porAsociacion };
