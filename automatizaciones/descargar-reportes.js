@@ -112,130 +112,55 @@ async function main() {
         reportFrame = page; 
     }
 
-    // 3. Iterar por cada asociación
-    for (const asc of asociaciones) {
-      console.log(c.amarillo(`\n  ▶ Procesando Asociación: ${asc.nombreCorto}`));
-      console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
+    // 3. Imprimir el HTML del frame para depurar
+    console.log(c.amarillo('\n  🔍 Inspeccionando el DOM del reporte (SSRS)...'));
+    
+    try {
+      const html = await reportFrame.content();
+      const dumpPath = path.join(reportesDir, 'debug_ssrs.html');
+      fs.writeFileSync(dumpPath, html, 'utf8');
+      console.log(c.verde(`  ✅ HTML guardado en: ${dumpPath}`));
       
-      if (!asc.numeroContrato) {
-        console.log(c.rojo(`    ⚠️ No se encontró contrato para esta asociación. Omitiendo...`));
-        continue;
-      }
+      const selects = await reportFrame.evaluate(() => {
+        const results = [];
+        document.querySelectorAll('select').forEach(sel => {
+           results.push({ id: sel.id, name: sel.name, title: sel.title });
+        });
+        return results;
+      });
+      console.log(c.cyan('  Selects encontrados en el iframe:'));
+      console.table(selects);
 
-      // Llenar formulario SSRS
-      // Función helper para seleccionar en dropdowns de SSRS (usualmente son selectores que están junto a su label)
-      // Como no conocemos los IDs exactos, usamos una estrategia que busca el <select> en el DOM.
-      // O, como SSRS usa IDs terminados en _ddValue, podemos intentar localizar por el contenido actual si es posible.
+      const labels = await reportFrame.evaluate(() => {
+        const results = [];
+        document.querySelectorAll('label').forEach(lbl => {
+           results.push({ text: lbl.textContent, for: lbl.htmlFor });
+        });
+        return results;
+      });
+      console.log(c.cyan('  Labels encontrados:'));
+      console.table(labels);
       
-      const seleccionarSSRS = async (labelName, valueOrText) => {
-          // Buscamos el div/span que contiene el texto del label exacto
-          // y luego tomamos el select más cercano o que le sigue.
-          // En SSRS los selects tienen IDs largos
-          try {
-              // Un enfoque robusto es evaluar en el navegador para encontrar el select que está cerca del label
-              const selectId = await reportFrame.evaluate((name) => {
-                  const td = Array.from(document.querySelectorAll('td')).find(el => el.textContent.trim() === name || el.textContent.trim() === name + ' *');
-                  if (!td) return null;
-                  // El select suele estar en un td hermano o padre cercano
-                  const select = td.parentElement.querySelector('select') || td.nextElementSibling?.querySelector('select');
-                  return select ? select.id : null;
-              }, labelName);
+      const tds = await reportFrame.evaluate(() => {
+        const results = [];
+        document.querySelectorAll('td').forEach(td => {
+           const txt = td.textContent.trim();
+           if (txt && txt.length < 30) {
+               results.push({ text: txt });
+           }
+        });
+        return results;
+      });
+      console.log(c.cyan('  Textos en TD (posibles labels):'));
+      console.log(tds.map(t => t.text).filter(t => t.includes('Unidad') || t.includes('Contrato') || t.includes('Dirección')));
 
-              if (selectId) {
-                  const selectLocator = reportFrame.locator(`#${selectId}`);
-                  await selectLocator.waitFor({ state: 'visible', timeout: 5000 });
-                  
-                  // Para SSRS a veces hay que seleccionar por label (texto)
-                  // Validar si valueOrText es numérico (como año) o texto
-                  await selectLocator.selectOption({ label: valueOrText });
-                  // SSRS requiere a veces esperar un postback de red si las dependencias se actualizan
-                  await page.waitForTimeout(2000); 
-              } else {
-                  console.log(c.rojo(`    ⚠️ No se encontró el campo: ${labelName}`));
-              }
-          } catch (e) {
-              console.log(c.rojo(`    ⚠️ Error al seleccionar ${labelName}: ${e.message}`));
-          }
-      };
-
-      // 3.1. Llenar los campos
-      await seleccionarSSRS('Tipo Unidad', 'Unidad de Servicio');
-      await seleccionarSSRS('Dirección', 'Dirección de Primera Infancia');
-      await seleccionarSSRS('Regional', 'Bogota D.C.');
-      await seleccionarSSRS('Centro Zonal de la UDS', 'CZ USAQUEN');
-      await seleccionarSSRS('Municipio', 'Bogota, D.C.');
-      await seleccionarSSRS('Vigencia Contrato', asc.vigenciaContrato);
-      
-      // Número Contrato
-      await seleccionarSSRS('Número Contrato', asc.numeroContrato);
-      
-      await seleccionarSSRS('Año de atención', '2026');
-
-      // 3.2. Código de la UDS -> Marcar checkbox NULL
-      console.log('    👉 Marcando casilla NULL en Código de la UDS...');
-      try {
-          const nullCheckboxId = await reportFrame.evaluate(() => {
-              const td = Array.from(document.querySelectorAll('td')).find(el => el.textContent.trim() === 'Código de la UDS');
-              if (!td) return null;
-              // El checkbox de NULL suele estar cerca del input text, con el texto "NULL"
-              const lbl = Array.from(td.parentElement.querySelectorAll('label')).find(l => l.textContent.trim() === 'NULL');
-              if (lbl && lbl.htmlFor) return lbl.htmlFor;
-              // Alternativa: buscar input type checkbox next to text
-              const chk = td.parentElement.querySelector('input[type="checkbox"]');
-              return chk ? chk.id : null;
-          });
-          
-          if (nullCheckboxId) {
-              const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
-              const isChecked = await chkLocator.isChecked();
-              if (!isChecked) {
-                  await chkLocator.check();
-                  await page.waitForTimeout(1000); // postback
-              }
-          }
-      } catch(e) {}
-
-      // 3.3. Clic en "Ver Reporte"
-      console.log('    👉 Generando reporte...');
-      // SSRS usa "View Report" o "Ver informe" en inputs type submit
-      const viewReportBtn = reportFrame.locator('input[type="submit"][value*="Report"], input[type="submit"][value*="informe"], input[type="submit"][value*="reporte"], input[name$="SubmitButton"]').first();
-      await viewReportBtn.click();
-      
-      // Esperar a que el spinner desaparezca o cargue el reporte
-      // En SSRS hay un div que dice "Loading..." o AsyncWait
-      console.log('    ⏳ Esperando a que el sistema procese el reporte (esto puede tardar unos minutos)...');
-      await page.waitForTimeout(10000); // Espera inicial obligatoria
-      // Detectar fin de carga (estrategia genérica)
-      await page.waitForLoadState('networkidle', { timeout: 120000 }).catch(()=> {}); 
-
-      // 3.4. Exportar a Excel
-      console.log('    👉 Iniciando descarga en Excel...');
-      
-      // SSRS Export Menu: Primero click en el icono de exportar (un disquete)
-      const exportMenu = reportFrame.locator('a[title*="Export"], a[title*="Exportar"], img[alt*="Export"]').first();
-      if (await exportMenu.isVisible()) {
-          await exportMenu.click();
-          await page.waitForTimeout(1000);
-          
-          // Preparar para recibir la descarga
-          const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
-          
-          // Clic en la opción de Excel
-          // Normalmente es un link con texto "Excel"
-          const excelOption = reportFrame.locator('a:has-text("Excel")').first();
-          await excelOption.click();
-          
-          const download = await downloadPromise;
-          const fileName = `Beneficiarios_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
-          const savePath = path.join(reportesDir, fileName);
-          await download.saveAs(savePath);
-          console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
-      } else {
-          console.log(c.rojo(`    ⚠️ No se encontró el botón de exportar. ¿Falló la generación del reporte?`));
-      }
-      
-      console.log('    --------------------------------------------------');
+    } catch (e) {
+      console.error('Error inspeccionando:', e);
     }
+    
+    console.log(c.rojo('\n  ⏸️ Deteniendo script aquí para analizar la consola.'));
+    await page.waitForTimeout(60000);
+    process.exit(0);
 
   } catch (err) {
     console.error(c.rojo(`\n❌ Error navegando al reporte:`), err.message);
