@@ -165,23 +165,33 @@ async function main() {
                 // Allow time for AJAX postback to populate the dropdown
                 await page.waitForTimeout(1500);
 
-                // Check if the exact value exists as a substring (case-insensitive)
-                const labelLocator = divDropdown.locator('label').filter({ hasText: new RegExp(valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first();
-                
+                const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = valueOrText === '(Select All)' 
+                    ? new RegExp('^\\(Select All\\)$', 'i') 
+                    : new RegExp(escapedText, 'i'); // Substring match
+
                 try {
-                    await labelLocator.waitFor({ state: 'visible', timeout: 8000 });
-                    await labelLocator.click();
-                } catch (timeoutErr) {
-                    // Log available options for debugging
-                    const labels = await divDropdown.locator('label').allInnerTexts();
-                    console.log(c.amarillo(`      ⚠️ No se encontró "${valueOrText}". Opciones disponibles: ${labels.join(', ')}`));
-                    throw timeoutErr;
+                    // Primero intentamos buscar el checkbox por su etiqueta semántica y hacerle check()
+                    const checkbox = divDropdown.getByRole('checkbox', { name: regex }).first();
+                    await checkbox.waitFor({ state: 'visible', timeout: 4000 });
+                    await checkbox.check({ force: true });
+                } catch (err) {
+                    // Si falla (por ej. SSRS no usa <label for=>), buscamos el texto y le hacemos click
+                    const textNode = divDropdown.getByText(regex).first();
+                    await textNode.waitFor({ state: 'visible', timeout: 4000 });
+                    await textNode.click({ force: true });
                 }
                 
                 // Cerrar menú y disparar postback
                 await reportFrame.locator('body').click();
                 await page.waitForTimeout(3000); 
             } catch (e) {
+                // Log available options for debugging si todo falla
+                try {
+                    const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
+                    const labels = await divDropdown.locator('label').allInnerTexts();
+                    console.log(c.amarillo(`      ⚠️ No se pudo seleccionar "${valueOrText}". Opciones vistas: ${labels.join(', ')}`));
+                } catch(ign) {}
                 console.log(c.rojo(`    ⚠️ Error al seleccionar múltiple en ${id}: ${e.message}`));
             }
         };
