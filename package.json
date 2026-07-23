@@ -9,6 +9,7 @@
   "scripts": {
     "captura": "node captura.js",
     "formacion": "node automatizaciones/formacion-familias.js",
+    "reportes": "node automatizaciones/descargar-reportes.js",
     "test-gmail": "node servicios/gmail-reader.js",
     "test-login": "node test-login.js",
     "test": "echo \"Error: no test specified\" && exit 1"
