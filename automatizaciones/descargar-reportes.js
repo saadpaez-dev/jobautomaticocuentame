@@ -110,66 +110,90 @@ async function main() {
         reportFrame = page; 
     }
 
-    // 3. Imprimir el HTML del frame para depurar
-    console.log(c.amarillo('\n  🔍 Inspeccionando el DOM del reporte (SSRS)...'));
-    
-    try {
-      const html = await reportFrame.content();
-      const dumpPath = path.join(reportesDir, 'debug_ssrs.html');
-      fs.writeFileSync(dumpPath, html, 'utf8');
-      console.log(c.verde(`  ✅ HTML guardado en: ${dumpPath}`));
+    // 3. Iterar por cada asociación
+    for (const asc of asociaciones) {
+      console.log(c.amarillo(`\n  ▶ Procesando Asociación: ${asc.nombreCorto}`));
+      console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
       
-      const selects = await reportFrame.evaluate(() => {
-        const results = [];
-        document.querySelectorAll('select').forEach(sel => {
-           results.push({ id: sel.id, name: sel.name, title: sel.title });
-        });
-        return results;
-      });
-      console.log(c.cyan('  Selects encontrados en el iframe:'));
-      console.table(selects);
+      if (!asc.numeroContrato) {
+        console.log(c.rojo(`    ⚠️ No se encontró contrato para esta asociación. Omitiendo...`));
+        continue;
+      }
 
-      const labels = await reportFrame.evaluate(() => {
-        const results = [];
-        document.querySelectorAll('label').forEach(lbl => {
-           results.push({ text: lbl.textContent, for: lbl.htmlFor });
-        });
-        return results;
-      });
-      console.log(c.cyan('  Labels encontrados:'));
-      console.table(labels);
+      // 3.1. Llenar los campos con IDs exactos
+      // Función helper simple
+      const seleccionarSSRS = async (id, valueOrText) => {
+          try {
+              const selectLocator = reportFrame.locator(`#${id}`);
+              await selectLocator.waitFor({ state: 'visible', timeout: 5000 });
+              await selectLocator.selectOption({ label: valueOrText });
+              // Esperar a que SSRS haga el postback y desbloquee el resto de selects
+              await page.waitForTimeout(2000); 
+          } catch (e) {
+              console.log(c.rojo(`    ⚠️ Error al seleccionar en ${id}: ${e.message}`));
+          }
+      };
+
+      await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Unidad de Servicio'); // Tipo Unidad
+      await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Dirección de Primera Infancia'); // Dirección
+      await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota D.C.'); // Regional
       
-      const tds = await reportFrame.evaluate(() => {
-        const results = [];
-        document.querySelectorAll('td').forEach(td => {
-           const txt = td.textContent.trim();
-           if (txt && txt.length < 30) {
-               results.push({ text: txt });
-           }
-        });
-        return results;
-      });
-      console.log(c.cyan('  Textos en TD (posibles labels):'));
-      console.log(tds.map(t => t.text).filter(t => t.includes('Unidad') || t.includes('Contrato') || t.includes('Dirección')));
+      // NOTA: Centro Zonal y Municipio aparecen como 'disabled' en el HTML inicial.
+      // Posiblemente se habiliten tras seleccionar Regional, SSRS hace refresh.
+      await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', 'CZ USAQUEN'); // Centro Zonal
+      await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13_ddValue', 'Bogota, D.C.'); // Municipio
+      
+      await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', asc.vigenciaContrato); // Vigencia Contrato
+      
+      // Número Contrato
+      await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato);
+      
+      await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19_ddValue', '2026'); // Año de atención
 
-      // Check inner frames
-      const iframes = await reportFrame.evaluate(() => {
-        const results = [];
-        document.querySelectorAll('iframe').forEach(ifr => {
-           results.push({ id: ifr.id, name: ifr.name, src: ifr.src });
-        });
-        return results;
-      });
-      console.log(c.cyan('  Iframes internos dentro de frameContent:'));
-      console.table(iframes);
+      // 3.2. Código de la UDS -> Marcar checkbox NULL
+      console.log('    👉 Marcando casilla NULL en Código de la UDS...');
+      try {
+          const nullCheckboxId = 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_cbNull';
+          const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
+          const isChecked = await chkLocator.isChecked();
+          if (!isChecked) {
+              await chkLocator.check();
+              await page.waitForTimeout(1000); // postback
+          }
+      } catch(e) {}
 
-    } catch (e) {
-      console.error('Error inspeccionando:', e);
+      // 3.3. Clic en "View Report"
+      console.log('    👉 Generando reporte...');
+      const viewReportBtn = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00');
+      await viewReportBtn.click();
+      
+      console.log('    ⏳ Esperando a que el sistema procese el reporte (esto puede tardar unos minutos)...');
+      await page.waitForTimeout(10000); 
+      await page.waitForLoadState('networkidle', { timeout: 120000 }).catch(()=> {}); 
+
+      // 3.4. Exportar a Excel
+      console.log('    👉 Iniciando descarga en Excel...');
+      
+      const exportMenu = reportFrame.locator('a[title="Export"], a[title="Exportar"], img[alt="Export"]').first();
+      if (await exportMenu.isVisible()) {
+          await exportMenu.click();
+          await page.waitForTimeout(1000);
+          
+          const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+          const excelOption = reportFrame.locator('a:has-text("Excel")').first();
+          await excelOption.click();
+          
+          const download = await downloadPromise;
+          const fileName = `Beneficiarios_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+          const savePath = path.join(reportesDir, fileName);
+          await download.saveAs(savePath);
+          console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
+      } else {
+          console.log(c.rojo(`    ⚠️ No se encontró el botón de exportar. ¿Falló la generación del reporte?`));
+      }
+      
+      console.log('    --------------------------------------------------');
     }
-    
-    console.log(c.rojo('\n  ⏸️ Deteniendo script aquí para analizar la consola.'));
-    await page.waitForTimeout(60000);
-    process.exit(0);
 
   } catch (err) {
     console.error(c.rojo(`\n❌ Error navegando al reporte:`), err.message);
