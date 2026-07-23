@@ -16,15 +16,17 @@
 /**
  * Selecciona la unidad de servicio del jardín usando la ventana emergente.
  * @param {import('playwright').Page} page - Página principal del formulario
+ * @param {import('playwright').FrameLocator} frame - Iframe principal donde está la lupa
  * @param {string} codigoJardin - Código Cuéntame del jardín (ej: "110011120318")
  */
-async function seleccionarUnidad(page, codigoJardin) {
-  // 1. Click en el ícono de lupa
-  const lupaSelector = 'img[src*="lupa"], a[href*="lupa"], input[type="image"]';
-  await page.locator(lupaSelector).first().click();
+async function seleccionarUnidad(page, frame, codigoJardin) {
+  // 1. Click en el ícono de lupa (dentro del iframe)
+  const lupaSelector = 'img[id*="imgBCodigoUsuario"], img[title*="Buscar"], img[src*="lupa"], img[src*="Buscar"]';
+  const lupaPromise = page.waitForEvent('popup', { timeout: 15000 });
+  await frame.locator(lupaSelector).first().click();
 
   // 2. Esperar que aparezca el popup
-  const popup = await page.waitForEvent('popup', { timeout: 10000 });
+  const popup = await lupaPromise;
   await popup.waitForLoadState('domcontentloaded');
 
   // 3. Buscar el campo "Código Unidad de Servicio" y escribir el código
@@ -37,16 +39,20 @@ async function seleccionarUnidad(page, codigoJardin) {
   await primerCampo.fill(codigoJardin);
 
   // 4. Click en el botón buscar (la lupa del popup)
-  const botonBuscar = popup.locator('img[src*="buscar"], img[src*="search"], input[type="image"], input[value*="Buscar"]').first();
+  const botonBuscar = popup.locator('a#btnBuscar, img[alt="Consultar"]').first();
   await botonBuscar.click();
-  await popup.waitForTimeout(2000);
+  
+  // Esperar a que la tabla de resultados cargue después de la búsqueda
+  console.log('  👉 Esperando resultados de búsqueda en la lupa...');
+  await popup.waitForSelector('#cphCont_gvLupaAtencionBeneficiario', { state: 'visible', timeout: 15000 }).catch(() => {});
+  await popup.waitForTimeout(2000); // Pequeña pausa extra para asegurar que las filas se pintaron
 
   // 5. Intentar ir a la página 2 si existe (el contrato 2026 suele estar ahí)
   const encontradoEn2026 = await buscarYSeleccionar2026(popup);
 
   if (!encontradoEn2026) {
     // Intentar en página 2
-    const linkPagina2 = popup.locator('a, span, td').filter({ hasText: /^\s*2\s*$/ }).first();
+    const linkPagina2 = popup.locator('a[href*="Page$2"], a').filter({ hasText: /^\s*2\s*$/ }).first();
     const existePagina2 = await linkPagina2.count() > 0;
 
     if (existePagina2) {
@@ -80,12 +86,25 @@ async function buscarYSeleccionar2026(popup) {
 
   for (let i = 0; i < total; i++) {
     const fila = filas.nth(i);
-    const textoFila = await fila.innerText().catch(() => '');
+    
+    // Buscar todas las celdas (td) de la fila
+    const celdas = fila.locator('td');
+    const numCeldas = await celdas.count();
+    let esFila2026 = false;
 
-    // Verificar si esta fila contiene "2026"
-    if (textoFila.includes('2026')) {
+    // Revisar si alguna celda tiene exactamente el texto "2026"
+    for (let j = 0; j < numCeldas; j++) {
+      const textoCelda = await celdas.nth(j).innerText().catch(() => '');
+      if (textoCelda.trim() === '2026') {
+        esFila2026 = true;
+        break;
+      }
+    }
+
+    // Verificar si esta fila corresponde a la vigencia 2026
+    if (esFila2026) {
       // Hacer click en el botón de detalle (primer enlace/botón de la fila)
-      const botonDetalle = fila.locator('a, input[type="button"], img').first();
+      const botonDetalle = fila.locator('input[type="image"][title="Detalle"], input[id*="btnInfo"]').first();
       const existe = await botonDetalle.count() > 0;
 
       if (existe) {
