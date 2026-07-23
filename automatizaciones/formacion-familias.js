@@ -286,43 +286,64 @@ async function main() {
     gmailAppPassword: GMAIL_APP_PASSWORD,
   });
 
-  // Resultados
+  // Resultados globales
   const exitosos = [];
-  const fallidos = [];
+  let fallidos = [...jardines];
   const total = jardines.length;
 
   console.log(c.negrita(c.cyan(`\n  🚀 Iniciando procesamiento de ${total} jardines...\n`)));
 
-  for (let i = 0; i < jardines.length; i++) {
-    const jardin = jardines[i];
-    const progreso = `[${String(i + 1).padStart(2, '0')}/${total}]`;
+  // Función interna para procesar una lista de jardines
+  async function procesarLista(lista) {
+    const nuevosFallidos = [];
+    for (let i = 0; i < lista.length; i++) {
+      const jardin = lista[i];
+      const progreso = `[${String(i + 1).padStart(2, '0')}/${lista.length}]`;
 
-    process.stdout.write(
-      `${c.gris(progreso)} ${c.negrita(jardin.nombre)} ${c.gris(`(${jardin.asociacion})`)} → `
-    );
+      process.stdout.write(
+        `${c.gris(progreso)} ${c.negrita(jardin.nombre)} ${c.gris(`(${jardin.asociacion})`)} → `
+      );
 
-    try {
-      const { exitoso, cantidadBenef } = await registrarFormacion(page, jardin, config);
+      try {
+        const { exitoso, cantidadBenef } = await registrarFormacion(page, jardin, config);
 
-      if (exitoso) {
-        console.log(c.verde(`✅ ${cantidadBenef} beneficiarios registrados`));
-        exitosos.push({ ...jardin, beneficiarios: cantidadBenef });
-      } else {
-        console.log(c.amarillo('⚠️  Guardado (sin confirmar cantidad)'));
-        exitosos.push({ ...jardin, beneficiarios: '?' });
+        if (exitoso) {
+          console.log(c.verde(`✅ ${cantidadBenef} beneficiarios registrados`));
+          exitosos.push({ ...jardin, beneficiarios: cantidadBenef });
+        } else {
+          console.log(c.amarillo('⚠️  Guardado (sin confirmar cantidad)'));
+          exitosos.push({ ...jardin, beneficiarios: '?' });
+        }
+      } catch (err) {
+        const mensaje = err.message || String(err);
+        console.log(c.rojo(`❌ Error: ${mensaje.slice(0, 80)}`));
+        nuevosFallidos.push({ ...jardin, error: mensaje });
+
+        // Intentar volver al inicio para continuar con el siguiente jardín
+        await page.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(2000);
       }
-    } catch (err) {
-      const mensaje = err.message || String(err);
-      console.log(c.rojo(`❌ Error: ${mensaje.slice(0, 80)}`));
-      fallidos.push({ ...jardin, error: mensaje });
 
-      // Intentar volver al inicio para continuar con el siguiente jardín
-      await page.goto(URL_FORMACION, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
-      await page.waitForTimeout(2000);
+      // Pausa entre jardines para no saturar el sistema
+      await page.waitForTimeout(1500);
     }
+    return nuevosFallidos;
+  }
 
-    // Pausa entre jardines para no saturar el sistema
-    await page.waitForTimeout(1500);
+  // Primera pasada
+  fallidos = await procesarLista(jardines);
+
+  // Ciclo de reintentos
+  while (fallidos.length > 0) {
+    console.log();
+    const respuesta = readline.question(c.amarillo(`  ⚠️ Quedaron ${fallidos.length} jardines con error. ¿Deseas reintentar SOLO los fallidos ahora? (s/n): `));
+    
+    if (respuesta.toLowerCase() === 's') {
+      console.log(c.cyan(`\n  🔄 Reintentando ${fallidos.length} jardines fallidos...\n`));
+      fallidos = await procesarLista(fallidos);
+    } else {
+      break;
+    }
   }
 
   // ── Resumen final ────────────────────────────────────────

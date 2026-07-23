@@ -20,13 +20,24 @@
  * @param {string} codigoJardin - Código Cuéntame del jardín (ej: "110011120318")
  */
 async function seleccionarUnidad(page, frame, codigoJardin) {
-  // 1. Click en el ícono de lupa (dentro del iframe)
+  // 1. Click en el ícono de lupa (dentro del iframe) con reintentos
   const lupaSelector = 'img[id*="imgBCodigoUsuario"], img[title*="Buscar"], img[src*="lupa"], img[src*="Buscar"]';
-  const lupaPromise = page.waitForEvent('popup', { timeout: 15000 });
-  await frame.locator(lupaSelector).first().click();
+  let popup = null;
+  
+  for (let i = 0; i < 3; i++) {
+    try {
+      const lupaPromise = page.waitForEvent('popup', { timeout: 5000 });
+      await frame.locator(lupaSelector).first().click({ force: true });
+      popup = await lupaPromise;
+      break; // Si abrió, salimos del ciclo de reintentos
+    } catch (e) {
+      console.log(`  ⚠️ Reintentando abrir la lupa (intento ${i + 2})...`);
+    }
+  }
 
-  // 2. Esperar que aparezca el popup
-  const popup = await lupaPromise;
+  if (!popup) {
+    throw new Error('No se pudo abrir la ventana de la lupa después de varios intentos.');
+  }
   await popup.waitForLoadState('domcontentloaded');
 
   // 3. Buscar el campo "Código Unidad de Servicio" y escribir el código
@@ -49,27 +60,30 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
   console.log('  👉 Esperando resultados de búsqueda en la lupa...');
   await popup.waitForSelector('#cphCont_gvLupaAtencionBeneficiario', { state: 'visible', timeout: 15000 }).catch(() => {});
 
-  // 5. Intentar ir a la página 2 si existe (el contrato 2026 suele estar ahí)
-  const encontradoEn2026 = await buscarYSeleccionar2026(popup);
+  let encontrado = await buscarYSeleccionar2026(popup);
+  let paginaSiguiente = 2;
 
-  if (!encontradoEn2026) {
-    // Intentar en página 2
-    const linkPagina2 = popup.locator('a[href*="Page$2"], a').filter({ hasText: /^\s*2\s*$/ }).first();
-    const existePagina2 = await linkPagina2.count() > 0;
+  while (!encontrado) {
+    // Buscar el link de la siguiente página (2, 3, 4...)
+    const linkPagina = popup.locator(`a[href*="Page$${paginaSiguiente}"], a`).filter({ hasText: new RegExp(`^\\s*${paginaSiguiente}\\s*$`) }).first();
+    const existePagina = await linkPagina.count() > 0;
 
-    if (existePagina2) {
-      await Promise.all([
-        popup.waitForLoadState('networkidle'),
-        linkPagina2.click()
-      ]);
-      const encontrado = await buscarYSeleccionar2026(popup);
-
-      if (!encontrado) {
-        throw new Error(`No se encontró vigencia 2026 para el jardín ${codigoJardin}`);
-      }
-    } else {
-      throw new Error(`No se encontró vigencia 2026 para el jardín ${codigoJardin}`);
+    if (!existePagina) {
+      break; // No hay más páginas para buscar
     }
+
+    console.log(`  👉 Buscando en la página ${paginaSiguiente} de resultados...`);
+    await Promise.all([
+      popup.waitForLoadState('networkidle'),
+      linkPagina.click()
+    ]);
+    
+    encontrado = await buscarYSeleccionar2026(popup);
+    paginaSiguiente++;
+  }
+
+  if (!encontrado) {
+    throw new Error(`No se encontró vigencia 2026 para el jardín ${codigoJardin}`);
   }
 
   // Esperar que el popup se cierre y el formulario se autocomplete
