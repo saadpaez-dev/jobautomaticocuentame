@@ -88,10 +88,9 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
     throw new Error(`No se encontró vigencia 2026 para el jardín ${codigoJardin}`);
   }
 
-  // Esperar que el popup se cierre y el formulario se autocomplete
-  await popup.waitForEvent('close', { timeout: 10000 }).catch(() => {});
-  // Al cerrarse el popup, la página principal puede estar procesando el postback
-  await page.waitForLoadState('networkidle');
+  // Ya no esperamos a que el popup se cierre ni usamos networkidle aquí, 
+  // porque el script principal (formacion-familias.js) ya usa una espera inteligente
+  // waitFor({ state: 'visible' }) en el campo de observaciones, lo que es mucho más rápido y seguro.
 }
 
 /**
