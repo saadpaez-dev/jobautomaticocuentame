@@ -56,39 +56,47 @@ async function login(page, credenciales) {
       page.waitForLoadState('networkidle'),
       page.locator('input[value="Verificar Código"], button:has-text("Verificar"), input[value*="Verificar"]').first().click()
     ]);
+    // Darle tiempo extra a ASP.NET para asimilar el 2FA
+    await page.waitForTimeout(3000);
   }
 
   // Verificar si pide selección de asociación/entidad
   const contenidoFinal = await page.content();
   if (contenidoFinal.includes('Seleccione la entidad')) {
     console.log('  🏢 Seleccionando entidad (asociación)...');
-    const selectores = await page.locator('select').all();
-    if (selectores.length > 0) {
-      if (credenciales.nombreAsociacion) {
-        // Buscar la opción que contenga el nombre corto de la asociación (ignorando mayúsculas/minúsculas)
-        const nameToSearch = credenciales.nombreAsociacion.toUpperCase();
-        console.log(`  Buscando asociación que coincida con: ${nameToSearch}`);
-        const opciones = await selectores[0].locator('option').allInnerTexts();
-        
-        let indexToSelect = 1; // Default
-        for (let i = 0; i < opciones.length; i++) {
-            if (opciones[i].toUpperCase().includes(nameToSearch)) {
-                indexToSelect = i;
-                console.log(`  ✅ Encontrada coincidencia en el menú: ${opciones[i]}`);
-                break;
-            }
-        }
-        await selectores[0].selectOption({ index: indexToSelect });
-      } else {
-        // Seleccionar la primera opción válida si no se especifica
-        await selectores[0].selectOption({ index: 1 });
-      }
+    
+    // Esperar a que el select esté visible y habilitado
+    const selectLocator = page.locator('select').first();
+    await selectLocator.waitFor({ state: 'visible', timeout: 10000 });
+    
+    if (credenciales.nombreAsociacion) {
+      // Buscar la opción que contenga el nombre corto de la asociación (ignorando mayúsculas/minúsculas)
+      const nameToSearch = credenciales.nombreAsociacion.toUpperCase();
+      console.log(`  Buscando asociación que coincida con: ${nameToSearch}`);
+      const opciones = await selectLocator.locator('option').allInnerTexts();
       
-      await Promise.all([
-        page.waitForLoadState('networkidle'),
-        page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
-      ]);
+      let indexToSelect = 1; // Default
+      for (let i = 0; i < opciones.length; i++) {
+          if (opciones[i].toUpperCase().includes(nameToSearch)) {
+              indexToSelect = i;
+              console.log(`  ✅ Encontrada coincidencia en el menú: ${opciones[i]}`);
+              break;
+          }
+      }
+      await selectLocator.selectOption({ index: indexToSelect });
+    } else {
+      // Seleccionar la primera opción válida si no se especifica
+      await selectLocator.selectOption({ index: 1 });
     }
+    
+    // Darle tiempo al servidor si el dropdown tiene AutoPostBack
+    await page.waitForTimeout(2000);
+    
+    // Click en el botón Continuar
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
+      page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
+    ]);
   }
 
   // Verificar que entramos correctamente al menú principal
