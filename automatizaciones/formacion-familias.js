@@ -162,51 +162,55 @@ async function registrarFormacion(page, jardin, config) {
   await menuDestino.click();
   await page.waitForTimeout(2000); // Darle tiempo a que cargue la vista de lista
 
+  // Todo el formulario carga dentro de un iframe en la plataforma
+  const frame = page.frameLocator('iframe').last();
+
   // Click en botón Nuevo (+)
   console.log('  👉 Clic en el botón Nuevo (+)...');
-  const selectorNuevo = 'input[type="image"][src*="nuevo" i], input[type="image"][src*="add" i], input[type="image"][src*="agregar" i], img[src*="nuevo" i], img[src*="add" i], img[src*="agregar" i], img[title*="Nuevo" i], img[title*="Agregar" i]';
-  await page.locator(selectorNuevo).first().click();
+  await frame.locator('#btnNuevo').click();
   
-  // Esperar a que la interfaz cambie (debe aparecer el campo Observaciones o Apellido del Beneficiario)
-  console.log('  👉 Esperando a que cargue el formulario de registro...');
-  await page.waitForTimeout(2000); // Darle tiempo a la animación/carga
-  const campoObsParaVerificar = page.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
-  await campoObsParaVerificar.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {
-    throw new Error('No se pudo abrir el formulario de registro (no se encontró el campo Observaciones tras dar clic en Nuevo).');
-  });
+  // Esperar a que la página procese el clic de Nuevo
+  await page.waitForTimeout(3000);
 
   // Seleccionar la unidad de servicio usando la lupa
   console.log('  👉 Haciendo clic en la lupa para buscar la Unidad de Servicio...');
-  await seleccionarUnidad(page, jardin.codigo);
+  // Le pasamos la página (para el popup) y el frame (para el botón)
+  await seleccionarUnidad(page, frame, jardin.codigo);
 
   // Esperar que el formulario se autocomplete con los datos del jardín
+  // Y verificar que la interfaz cambió al modo de registro completo
+  console.log('  👉 Esperando a que cargue el resto de campos (Observaciones, Beneficiarios)...');
   await page.waitForTimeout(2000);
+  const campoObsParaVerificar = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
+  await campoObsParaVerificar.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {
+    throw new Error('No se cargaron los campos finales (como Observaciones) después de seleccionar la Unidad de Servicio.');
+  });
 
   // Llenar Fecha Formación
-  const campoFechaFormacion = page.locator('input[id*="FechaFormacion"], input[name*="FechaFormacion"]').first();
+  const campoFechaFormacion = frame.locator('input[id*="FechaFormacion"], input[name*="FechaFormacion"]').first();
   await campoFechaFormacion.fill(hoy);
   await campoFechaFormacion.press('Tab');
   await page.waitForTimeout(500);
 
   // Llenar Número de Horas
-  const campoHoras = page.locator('input[id*="Horas"], input[name*="Horas"]').first();
+  const campoHoras = frame.locator('input[id*="Horas"], input[name*="Horas"]').first();
   await campoHoras.fill(HORAS_FORMACION);
 
   // Seleccionar Tema Formación (dropdown)
-  const dropdownTema = page.locator('select[id*="Tema"], select[name*="Tema"]').first();
+  const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
   await dropdownTema.selectOption({ label: tema });
   await page.waitForTimeout(500);
 
   // Seleccionar Tipo de Encuentro
-  const dropdownEncuentro = page.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
+  const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
   await dropdownEncuentro.selectOption({ label: TIPO_ENCUENTRO });
 
   // Llenar Observaciones
-  const campoObs = page.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
+  const campoObs = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
   await campoObs.fill(observaciones);
 
   // Seleccionar TODOS los niños (checkbox del encabezado de la tabla)
-  const checkboxTodos = page.locator('input[type="checkbox"]').first();
+  const checkboxTodos = frame.locator('input[type="checkbox"]').first();
   const estaChecked = await checkboxTodos.isChecked().catch(() => false);
   if (!estaChecked) {
     await checkboxTodos.click();
@@ -214,17 +218,18 @@ async function registrarFormacion(page, jardin, config) {
   }
 
   // Guardar (ícono disquete 💾)
-  await page.locator('img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click();
+  console.log('  👉 Haciendo clic en Guardar...');
+  await frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click();
   await page.waitForTimeout(3000);
 
-  // Verificar mensaje de éxito
-  const contenido = await page.content();
-  const exitoso = contenido.includes('beneficiarios han sido ingresados') ||
-                  contenido.includes('registrado') ||
-                  contenido.includes('guardado');
+  // Verificar mensaje de éxito buscando en el iframe o en la página
+  const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');
+  const exitoso = contenidoFrame.includes('beneficiarios han sido ingresados') ||
+                  contenidoFrame.includes('registrado') ||
+                  contenidoFrame.includes('guardado');
 
   // Extraer cuántos beneficiarios se cargaron
-  const matchBenef = contenido.match(/(\d+)\s+beneficiarios\s+han\s+sido\s+ingresados/i);
+  const matchBenef = contenidoFrame.match(/(\d+)\s+beneficiarios\s+han\s+sido\s+ingresados/i);
   const cantidadBenef = matchBenef ? matchBenef[1] : '?';
 
   return { exitoso, cantidadBenef };
@@ -258,7 +263,8 @@ async function main() {
   const browser = await chromium.launch({
     headless: false, // visible para que puedas ver qué hace el bot
     slowMo: 100,     // pequeña pausa entre acciones para mayor estabilidad
-    args: ['--start-maximized']
+    args: ['--start-maximized'],
+    executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
   });
   const context = await browser.newContext({ viewport: null });
   const page = await context.newPage();
