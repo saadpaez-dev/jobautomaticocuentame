@@ -40,8 +40,13 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
           const uid = todos[i];
           const msg = await c.fetchOne(uid, { envelope: true }, { uid: true });
           
-          if (msg.envelope && msg.envelope.date && msg.envelope.date >= fechaInicio) {
-            // Este correo llegó DESPUÉS de que iniciamos el login
+          if (msg.envelope && msg.envelope.date) {
+            // Se le resta un buffer de 3 minutos (180000 ms) a la fecha de inicio
+            // por si el reloj del servidor de correo del ICBF está atrasado.
+            // Como leemos del más nuevo al más viejo, siempre agarra el último.
+            const fechaBuffer = new Date(fechaInicio.getTime() - 180000);
+            if (msg.envelope.date >= fechaBuffer) {
+              // Este correo llegó DESPUÉS de que iniciamos el login (o muy cerquita)
             const m = await c.fetchOne(uid, { bodyParts: ['1'] }, { uid: true });
             if (m.bodyParts && m.bodyParts.get('1')) {
               const html = Buffer.from(m.bodyParts.get('1').toString('ascii'), 'base64').toString('utf8');
@@ -53,6 +58,7 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
                 try { c.close(); } catch (_) {}
                 return match[1];
               }
+            }
             }
           }
         }
