@@ -163,6 +163,8 @@ async function registrarFormacion(page, jardin, config) {
     page.waitForLoadState('networkidle'),
     menuDestino.click()
   ]);
+  // Pausa adicional para no saturar el servidor con peticiones tan rápidas
+  await page.waitForTimeout(1000);
 
   // Todo el formulario carga dentro de un iframe en la plataforma
   const frame = page.frameLocator('iframe').last();
@@ -173,6 +175,8 @@ async function registrarFormacion(page, jardin, config) {
     page.waitForLoadState('networkidle'),
     frame.locator('#btnNuevo').click()
   ]);
+  // Pausa para que el servidor procese el modo inserción
+  await page.waitForTimeout(1000);
 
   // Seleccionar la unidad de servicio usando la lupa
   console.log('  👉 Haciendo clic en la lupa para buscar la Unidad de Servicio...');
@@ -230,6 +234,8 @@ async function registrarFormacion(page, jardin, config) {
     page.waitForLoadState('networkidle'),
     frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click()
   ]);
+  // Pausa para que la página renderice completamente el mensaje de éxito
+  await page.waitForTimeout(1000);
 
   // Verificar mensaje de éxito buscando en el iframe o en la página
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');
@@ -320,7 +326,7 @@ async function main() {
         nuevosFallidos.push({ ...jardin, error: mensaje });
 
         // Intentar volver al inicio para continuar con el siguiente jardín
-        await page.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+        await page.goto(URL_FORMACION, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
         await page.waitForTimeout(2000);
       }
 
