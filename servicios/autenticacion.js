@@ -64,8 +64,26 @@ async function login(page, credenciales) {
     console.log('  🏢 Seleccionando entidad (asociación)...');
     const selectores = await page.locator('select').all();
     if (selectores.length > 0) {
-      // Seleccionar la primera opción válida (index 1 porque 0 es "Seleccione")
-      await selectores[0].selectOption({ index: 1 });
+      if (credenciales.nombreAsociacion) {
+        // Buscar la opción que contenga el nombre corto de la asociación (ignorando mayúsculas/minúsculas)
+        const nameToSearch = credenciales.nombreAsociacion.toUpperCase();
+        console.log(`  Buscando asociación que coincida con: ${nameToSearch}`);
+        const opciones = await selectores[0].locator('option').allInnerTexts();
+        
+        let indexToSelect = 1; // Default
+        for (let i = 0; i < opciones.length; i++) {
+            if (opciones[i].toUpperCase().includes(nameToSearch)) {
+                indexToSelect = i;
+                console.log(`  ✅ Encontrada coincidencia en el menú: ${opciones[i]}`);
+                break;
+            }
+        }
+        await selectores[0].selectOption({ index: indexToSelect });
+      } else {
+        // Seleccionar la primera opción válida si no se especifica
+        await selectores[0].selectOption({ index: 1 });
+      }
+      
       await Promise.all([
         page.waitForLoadState('networkidle'),
         page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
