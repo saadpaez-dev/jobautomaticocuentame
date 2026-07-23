@@ -36,13 +36,30 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
   const { leerJardines } = require('../servicios/excel-reader');
+  const readline = require('readline-sync');
   
   // Cargar datos del Excel
   const RUTA_EXCEL = process.env.RUTA_EXCEL || 'C:\\GENERAL.xlsx';
   const { porAsociacion } = leerJardines(RUTA_EXCEL);
-  const asociaciones = Object.values(porAsociacion);
+  let asociaciones = Object.values(porAsociacion);
+  
+  console.log(c.cyan('\n  📋 Selecciona la Asociación para generar el reporte:'));
+  console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
+  asociaciones.forEach((asc, idx) => {
+    console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
+  });
+  
+  let opcion = -1;
+  while (opcion < 0 || opcion > asociaciones.length) {
+    const respuesta = readline.question(c.negrita('\n  👉 Ingresa el numero de la opcion: '));
+    opcion = parseInt(respuesta, 10);
+    if (isNaN(opcion)) opcion = -1;
+  }
+  
+  if (opcion > 0) {
+    asociaciones = [asociaciones[opcion - 1]];
+  }
   
   console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
   const browser = await chromium.launch({
