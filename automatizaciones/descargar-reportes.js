@@ -162,16 +162,21 @@ async function main() {
                 const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
                 await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
                 
-                let labelLocator;
-                if (valueOrText === '(Select All)') {
-                    labelLocator = divDropdown.locator('label').filter({ hasText: '(Select All)' }).first();
-                } else {
-                    const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    labelLocator = divDropdown.locator('label').filter({ hasText: new RegExp(`^\\s*${escapedText}\\s*$`, 'i') }).first();
-                }
+                // Allow time for AJAX postback to populate the dropdown
+                await page.waitForTimeout(1500);
 
-                await labelLocator.waitFor({ state: 'visible', timeout: 5000 });
-                await labelLocator.click();
+                // Check if the exact value exists as a substring (case-insensitive)
+                const labelLocator = divDropdown.locator('label').filter({ hasText: new RegExp(valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first();
+                
+                try {
+                    await labelLocator.waitFor({ state: 'visible', timeout: 8000 });
+                    await labelLocator.click();
+                } catch (timeoutErr) {
+                    // Log available options for debugging
+                    const labels = await divDropdown.locator('label').allInnerTexts();
+                    console.log(c.amarillo(`      ⚠️ No se encontró "${valueOrText}". Opciones disponibles: ${labels.join(', ')}`));
+                    throw timeoutErr;
+                }
                 
                 // Cerrar menú y disparar postback
                 await reportFrame.locator('body').click();
@@ -229,7 +234,7 @@ async function main() {
             
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', asc.vigenciaContrato || '2026');
             
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', '(Select All)');
+            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', asc.nombreCorto);
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 'Mensual');
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Select All)');
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
