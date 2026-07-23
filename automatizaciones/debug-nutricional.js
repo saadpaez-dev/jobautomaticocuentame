@@ -29,28 +29,14 @@ async function main() {
 
   console.log('Navegando a Seguimiento nutricional...');
   
-  // En base al screenshot, REPORTES es un menú principal (posiblemente mayúsculas)
-  const menuPrincipal = page.locator('text="REPORTES"').first();
-  await menuPrincipal.click().catch(() => page.locator('text="Reportes"').first().click());
-  await page.waitForTimeout(1000);
+  // En lugar de hacer clic en el menú (que es inestable), 
+  // vamos directo a la URL del reporte que nos reveló el log
+  await page.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
+    waitUntil: 'networkidle',
+    timeout: 60000
+  });
 
-  // El submenú también dice Reportes
-  const subMenu = page.locator('text="Reportes"').last();
-  if (await subMenu.isVisible()) {
-      await subMenu.click();
-      await page.waitForTimeout(1000);
-  }
-
-  // Expandir Seguimiento nutricional
-  const menuNutricional = page.locator('text="Seguimiento nutricional"').first();
-  if (await menuNutricional.isVisible()) {
-      await menuNutricional.click();
-      await page.waitForTimeout(1000);
-  }
-
-  // Clic en Seguimiento nutricional de niños y niñas por toma
-  const reporteFinal = page.locator('text="Seguimiento nutricional de niños y niñas por toma"').last();
-  await reporteFinal.click();
+  console.log('Esperando a que cargue el reporte...');
   await page.waitForTimeout(5000);
 
   console.log('Esperando iframe...');
