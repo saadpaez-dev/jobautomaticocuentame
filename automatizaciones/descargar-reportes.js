@@ -44,7 +44,28 @@ async function main() {
   const { porAsociacion } = leerJardines(RUTA_EXCEL);
   let asociaciones = Object.values(porAsociacion);
   
-  console.log(c.cyan('\n  📋 Selecciona la Asociación para generar el reporte:'));
+  console.log(c.cyan('\n  📋 Selecciona el Reporte a generar:'));
+  console.log(c.amarillo(`  1. Beneficiarios vinculados`));
+  console.log(c.amarillo(`  2. Seguimiento nutricional de niños y niñas por toma`));
+  
+  let opcionReporte = -1;
+  while (opcionReporte < 1 || opcionReporte > 2) {
+    const respuesta = readline.question(c.negrita('\n  👉 Ingresa el numero del reporte (1 o 2): '));
+    opcionReporte = parseInt(respuesta, 10);
+    if (isNaN(opcionReporte)) opcionReporte = -1;
+  }
+  
+  let seleccionToma = '(Select All)';
+  if (opcionReporte === 2) {
+    console.log(c.cyan('\n  📋 Selecciona el mes de Toma:'));
+    console.log(c.gris(`  Puedes escribir "(Select All)" o el nombre exacto como "Julio".`));
+    const respuestaToma = readline.question(c.negrita('\n  👉 Ingresa la Toma [por defecto (Select All)]: '));
+    if (respuestaToma.trim() !== '') {
+        seleccionToma = respuestaToma.trim();
+    }
+  }
+
+  console.log(c.cyan('\n  📋 Selecciona la Asociación para procesar:'));
   console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
   asociaciones.forEach((asc, idx) => {
     console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
@@ -131,32 +152,81 @@ async function main() {
             }
         };
 
-        await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Unidad de Servicio'); // Tipo Unidad
-        await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Dirección de Primera Infancia'); // Dirección
-        await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota D.C.'); // Regional
-        
-        // NOTA: Centro Zonal y Municipio aparecen como 'disabled' en el HTML inicial.
-        await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', 'CZ USAQUEN'); // Centro Zonal
-        await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13_ddValue', 'Bogota, D.C.'); // Municipio
-        
-        await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', asc.vigenciaContrato); // Vigencia Contrato
-        
-        // Número Contrato
-        await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato);
-        
-        await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19_ddValue', '2026'); // Año de atención
-
-        // Código de la UDS -> Marcar checkbox NULL
-        console.log('    👉 Marcando casilla NULL en Código de la UDS...');
-        try {
-            const nullCheckboxId = 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_cbNull';
-            const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
-            const isChecked = await chkLocator.isChecked();
-            if (!isChecked) {
-                await chkLocator.check();
-                await page.waitForTimeout(1000); // postback
+        const seleccionarSSRSMulti = async (id, valueOrText) => {
+            try {
+                const btn = reportFrame.locator(`#${id}_ddDropDownButton`);
+                await btn.waitFor({ state: 'visible', timeout: 5000 });
+                await btn.click();
+                
+                const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
+                await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
+                
+                const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const labelLocator = divDropdown.locator('label').filter({ hasText: new RegExp(`^\\s*${escapedText}\\s*$`, 'i') }).first();
+                await labelLocator.waitFor({ state: 'visible', timeout: 5000 });
+                
+                await labelLocator.click();
+                
+                // Cerrar menú y disparar postback
+                await reportFrame.locator('body').click();
+                await page.waitForTimeout(2000); 
+            } catch (e) {
+                console.log(c.rojo(`    ⚠️ Error al seleccionar múltiple en ${id}: ${e.message}`));
             }
-        } catch(e) {}
+        };
+
+        if (opcionReporte === 1) {
+            console.log('  🚀 Navegando a Reportes -> Beneficiarios vinculados...\n');
+            await page.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
+              waitUntil: 'networkidle',
+              timeout: 60000
+            });
+            console.log(c.verde('  ✅ Pantalla de reporte alcanzada...\n'));
+            await page.waitForTimeout(3000);
+            
+            reportFrame = page.frame({ name: 'frameContent' }) || page;
+
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Unidad de Servicio');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Dirección de Primera Infancia');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota D.C.');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', 'CZ USAQUEN');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13_ddValue', 'Bogota, D.C.');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', asc.vigenciaContrato);
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato);
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19_ddValue', '2026');
+            
+            console.log('    👉 Marcando casilla NULL en Código de la UDS...');
+            try {
+                const nullCheckboxId = 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_cbNull';
+                const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
+                if (!(await chkLocator.isChecked())) {
+                    await chkLocator.check();
+                    await page.waitForTimeout(1000);
+                }
+            } catch(e) {}
+        } else if (opcionReporte === 2) {
+            console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de niños y niñas...\n');
+            await page.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
+              waitUntil: 'networkidle',
+              timeout: 60000
+            });
+            console.log(c.verde('  ✅ Pantalla de reporte alcanzada...\n'));
+            await page.waitForTimeout(3000);
+            
+            reportFrame = page.frame({ name: 'frameContent' }) || page;
+
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota, D.C.');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', asc.vigenciaContrato || '2026');
+            
+            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', '(Select All)');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 'Mensual');
+            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Select All)');
+            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
+        }
 
         // Clic en "View Report"
         console.log('    👉 Generando reporte...');
@@ -180,7 +250,8 @@ async function main() {
             await excelOption.click();
             
             const download = await downloadPromise;
-            const fileName = `Beneficiarios_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+            const prefijo = opcionReporte === 1 ? 'Beneficiarios' : 'Nutricion';
+            const fileName = `${prefijo}_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
             const savePath = path.join(reportesDir, fileName);
             await download.saveAs(savePath);
             console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
