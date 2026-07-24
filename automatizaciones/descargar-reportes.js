@@ -196,7 +196,7 @@ async function main() {
                 await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
                 
                 // Allow time for AJAX postback to populate the dropdown
-                await page.waitForTimeout(1500);
+                await reportPage.waitForTimeout(1500);
 
                 const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regex = valueOrText === '(Select All)' 
@@ -217,7 +217,7 @@ async function main() {
                 
                 // Cerrar menú y disparar postback
                 await reportFrame.locator('body').click();
-                await page.waitForTimeout(3000); 
+                await reportPage.waitForTimeout(3000); 
             } catch (e) {
                 // Log available options for debugging si todo falla
                 try {
@@ -231,14 +231,14 @@ async function main() {
 
         if (opcionReporte === 1) {
             console.log('  🚀 Navegando a Reportes -> Beneficiarios vinculados...\n');
-            await page.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
-              waitUntil: 'networkidle',
-              timeout: 60000
+            await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
+              waitUntil: 'domcontentloaded',
+              timeout: 120000
             });
-            console.log(c.verde('  ✅ Pantalla de reporte alcanzada...\n'));
-            await page.waitForTimeout(3000);
+            console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
+            await reportPage.waitForTimeout(3000);
             
-            reportFrame = page.frame({ name: 'frameContent' }) || page;
+            reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
 
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Unidad de Servicio');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Dirección de Primera Infancia');
@@ -255,19 +255,20 @@ async function main() {
                 const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
                 if (!(await chkLocator.isChecked())) {
                     await chkLocator.check();
-                    await page.waitForTimeout(2000);
+                    // Esperar a que SSRS procese
+                    await reportPage.waitForTimeout(1500);
                 }
             } catch(e) {}
         } else if (opcionReporte === 2) {
             console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de niños y niñas...\n');
-            await page.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
-              waitUntil: 'networkidle',
-              timeout: 60000
+            await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
+              waitUntil: 'domcontentloaded',
+              timeout: 120000
             });
-            console.log(c.verde('  ✅ Pantalla de reporte alcanzada...\n'));
-            await page.waitForTimeout(3000);
+            console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
+            await reportPage.waitForTimeout(3000);
             
-            reportFrame = page.frame({ name: 'frameContent' }) || page;
+            reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
 
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
@@ -313,8 +314,8 @@ async function main() {
 
             if (prepararExcel) {
                 console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
-                // Darle tiempo al sistema de archivos para cerrar y liberar el archivo
-                await reportPage.waitForTimeout(2000);
+                // Darle tiempo al sistema a actualizar la UI tras el postback
+                await reportPage.waitForTimeout(3000); 
                 const { execSync } = require('child_process');
                 try {
                     const psScript = path.join(__dirname, 'preparar_excel.ps1');
