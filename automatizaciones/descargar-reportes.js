@@ -208,7 +208,7 @@ async function main() {
                 await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
                 
                 // Allow time for AJAX postback to populate the dropdown
-                await reportPage.waitForTimeout(1500);
+                await mainPage.waitForTimeout(2000);
 
                 const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regex = valueOrText === '(Select All)' 
