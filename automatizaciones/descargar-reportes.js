@@ -255,7 +255,7 @@ async function main() {
             // Municipio en el Nutricional (oRp=1177) ES MULTI-SELECT! (a diferencia del otro reporte)
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
             
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', asc.vigenciaContrato || '2026');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
             
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', asc.nombreCorto);
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 'Mensual');
