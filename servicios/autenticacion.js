@@ -14,7 +14,7 @@ const URL_LOGIN = 'https://rubonline.icbf.gov.co/DefaultF.aspx';
  * @param {import('playwright').Page} page
  * @param {object} credenciales
  */
-async function login(page, credenciales) {
+async function loginYLlegarARoles(page, credenciales) {
   const { usuario, password, gmailUser, gmailAppPassword } = credenciales;
 
   console.log('\n  🔐 Iniciando login en el sistema Cuéntame...');
@@ -63,15 +63,31 @@ async function login(page, credenciales) {
   // Verificar si pide selección de asociación/entidad
   const contenidoFinal = await page.content();
   if (contenidoFinal.includes('Seleccione la entidad')) {
+    return page.url(); // Retornamos la URL de roles para poder duplicar pestañas
+  }
+  
+  // Si no pide roles, verificamos que haya entrado directo
+  await verificarLoginExitoso(page);
+  return page.url();
+}
+
+/**
+ * Selecciona la asociación en la pantalla de roles y entra al sistema.
+ * @param {import('playwright').Page} page
+ * @param {string} nombreAsociacion 
+ */
+async function seleccionarRolYEntrar(page, nombreAsociacion) {
+  const contenidoFinal = await page.content();
+  if (contenidoFinal.includes('Seleccione la entidad')) {
     console.log('  🏢 Seleccionando entidad (asociación)...');
     
     // Esperar a que el select esté visible y habilitado
     const selectLocator = page.locator('select').first();
     await selectLocator.waitFor({ state: 'visible', timeout: 10000 });
     
-    if (credenciales.nombreAsociacion) {
+    if (nombreAsociacion) {
       // Buscar la opción que contenga el nombre corto de la asociación (ignorando mayúsculas/minúsculas)
-      const nameToSearch = credenciales.nombreAsociacion.toUpperCase();
+      const nameToSearch = nombreAsociacion.toUpperCase();
       console.log(`  Buscando asociación que coincida con: ${nameToSearch}`);
       const opciones = await selectLocator.locator('option').allInnerTexts();
       
@@ -99,6 +115,10 @@ async function login(page, credenciales) {
     ]);
   }
 
+  await verificarLoginExitoso(page);
+}
+
+async function verificarLoginExitoso(page) {
   // Verificar que entramos correctamente al menú principal
   const urlActual = page.url();
   if (!urlActual.includes('MasterPrincipal') && !urlActual.includes('General')) {
@@ -132,4 +152,12 @@ async function detectar2FA(page) {
   }
 }
 
-module.exports = { login };
+/**
+ * Mantiene la compatibilidad con el script original.
+ */
+async function login(page, credenciales) {
+  await loginYLlegarARoles(page, credenciales);
+  await seleccionarRolYEntrar(page, credenciales.nombreAsociacion);
+}
+
+module.exports = { login, loginYLlegarARoles, seleccionarRolYEntrar };

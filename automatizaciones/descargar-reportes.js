@@ -8,7 +8,7 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
 const path = require('path');
-const { login } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar } = require('../servicios/autenticacion');
 
 // ─────────────────────────────────────────────────────────────
 // Colores en terminal
@@ -109,30 +109,58 @@ async function main() {
       fs.mkdirSync(reportesDir, { recursive: true });
   }
 
+  // Filtrar asociaciones que tengan contrato para procesarlas
+  const ascValidas = asociaciones.filter(a => a.numeroContrato);
+
+  if (ascValidas.length === 0) {
+    console.log(c.rojo("  ⚠️ No hay asociaciones válidas con contrato."));
+    await browser.close();
+    return;
+  }
+
+  const context = await browser.newContext({ viewport: null });
+  const mainPage = await context.newPage();
+
+  console.log(c.amarillo(`\n======================================================`));
+  console.log(c.amarillo(`▶ Iniciando sesión única y 2FA...`));
+  console.log(c.amarillo(`======================================================`));
+
+  let rolesUrl;
+  try {
+    rolesUrl = await loginYLlegarARoles(mainPage, {
+      usuario: USUARIO,
+      password: PASSWORD,
+      gmailUser: GMAIL_USER,
+      gmailAppPassword: GMAIL_APP_PASSWORD
+    });
+  } catch (err) {
+    console.error(c.rojo(`  ❌ Error en login inicial: ${err.message}`));
+    await browser.close();
+    return;
+  }
+
+  // Duplicar pestañas para cada asociación (excepto la primera)
+  console.log(c.cyan(`\n  Duplicando pestañas para ${ascValidas.length} asociaciones...`));
+  const pages = [mainPage];
+  for (let i = 1; i < ascValidas.length; i++) {
+    const newPage = await context.newPage();
+    await newPage.goto(rolesUrl, { waitUntil: 'networkidle' });
+    pages.push(newPage);
+  }
+  console.log(c.verde('  ✅ Pestañas listas.\n'));
+
   // Iterar por cada asociación
-  for (const asc of asociaciones) {
+  for (let i = 0; i < ascValidas.length; i++) {
+      const asc = ascValidas[i];
+      const page = pages[i];
+
       console.log(c.amarillo(`\n======================================================`));
-      console.log(c.amarillo(`▶ Iniciando proceso para Asociación: ${asc.nombreCorto}`));
+      console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
       console.log(c.amarillo(`======================================================`));
       console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
-      
-      if (!asc.numeroContrato) {
-        console.log(c.rojo(`    ⚠️ No se encontró contrato para esta asociación. Omitiendo...`));
-        continue;
-      }
-
-      const context = await browser.newContext({ viewport: null });
-      const page = await context.newPage();
 
       try {
-        // 1. Iniciar sesión y pasar 2FA
-        await login(page, {
-          usuario: USUARIO,
-          password: PASSWORD,
-          gmailUser: GMAIL_USER,
-          gmailAppPassword: GMAIL_APP_PASSWORD,
-          nombreAsociacion: asc.nombreCorto
-        });
+        await seleccionarRolYEntrar(page, asc.nombreCorto);
 
         // 2. Navegar a Reportes -> Beneficiarios vinculados
         console.log('  🚀 Navegando al menú de reportes...\n');
@@ -308,15 +336,18 @@ async function main() {
             console.log(c.rojo(`    ⚠️ No se encontró el botón de exportar. ¿Falló la generación del reporte?`));
         }
         
-      } catch (err) {
-        console.error(c.rojo(`\n❌ Error procesando la asociación ${asc.nombreCorto}:`), err.message);
+      } catch (error) {
+        console.error(c.rojo(`\n  ❌ Ocurrió un error con ${asc.nombreCorto}:`), error.message);
       } finally {
-        console.log('    🧹 Cerrando sesión y limpiando contexto...');
-        await context.close();
+        // En vez de cerrar el context, solo cerramos la pestaña al terminar
+        await page.close().catch(() => {});
       }
-      
+  }
+
+  // Al finalizar todas, cerrar contexto
+  console.log(c.verde('\n  ✅ Todas las asociaciones procesadas. Cerrando navegador...'));
+  await context.close().catch(() => {});    
       console.log('    --------------------------------------------------');
-    }
 
   await browser.close();
 }
