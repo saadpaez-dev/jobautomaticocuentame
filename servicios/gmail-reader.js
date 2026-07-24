@@ -56,6 +56,17 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
               const match = text.match(/\b(\d{6})\b/);
               if (match && match[1]) {
                 console.log(`\n  ✅ Código 2FA recibido: ${match[1]}`);
+                
+                // Limpiar todos los correos de ICBF en la bandeja de entrada
+                if (todos && todos.length > 0) {
+                  try {
+                    await c.messageFlagsAdd(todos, ['\\Deleted'], { uid: true });
+                    console.log(`  🧹 Limpiados ${todos.length} correos de 2FA del buzón.`);
+                  } catch (errDel) {
+                    console.log(`  ⚠️ No se pudieron limpiar los correos: ${errDel.message}`);
+                  }
+                }
+                
                 lock.release();
                 try { c.close(); } catch (_) {}
                 return match[1];
