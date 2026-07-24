@@ -327,25 +327,31 @@ async function main() {
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
         } else if (opcionReporte === 3) {
             console.log('  🚀 Navegando a Informe de registro asistencia mensual...\n');
-            let menuFrame = mainPage.frame({ name: 'frameMenu' });
-            if (!menuFrame) {
-                console.log(c.amarillo('  ⚠️ frameMenu no encontrado por nombre. Buscando en todos los frames...'));
-                for (const f of mainPage.frames()) {
-                    console.log(`    - Frame encontrado: name="${f.name()}", url="${f.url()}"`);
-                    if (f.url().includes('Menu.aspx') || f.name().toLowerCase().includes('menu')) {
-                        menuFrame = f;
-                    }
+            let reportLink = mainPage.locator(`a:has-text("Informe de registro asistencia mensual"), span:has-text("Informe de registro asistencia mensual")`).first();
+            
+            if (await reportLink.count() === 0) {
+                // Try in frameContent
+                const contentFrame = mainPage.frame({ name: 'frameContent' });
+                if (contentFrame) {
+                    reportLink = contentFrame.locator(`a:has-text("Informe de registro asistencia mensual"), span:has-text("Informe de registro asistencia mensual")`).first();
                 }
             }
-            if (!menuFrame) throw new Error('No se encontró el menú lateral en ninguno de los frames disponibles.');
+
+            if (await reportLink.count() === 0) {
+                // Dump body text to debug
+                const text = await mainPage.locator('body').innerText();
+                console.log(c.amarillo('  ⚠️ Texto de la página principal (primeros 500 chars):\n' + text.substring(0, 500)));
+                throw new Error('No se encontró el enlace al reporte en el menú.');
+            }
             
-            const reportLink = menuFrame.locator(`a:has-text("Informe de registro asistencia mensual")`).first();
-            const href = await reportLink.getAttribute('href');
-            if (href) {
-                const absoluteUrl = new URL(href, 'https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx').href;
+            console.log('  👉 Haciendo clic en el menú del reporte...');
+            const href = await reportLink.getAttribute('href').catch(() => null);
+            if (href && href !== '#' && !href.startsWith('javascript')) {
+                const absoluteUrl = new URL(href, mainPage.url()).href;
                 await mainPage.goto(absoluteUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
             } else {
                 await reportLink.click({ force: true });
+                await mainPage.waitForTimeout(5000); // Wait for navigation or frame update
             }
             
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
