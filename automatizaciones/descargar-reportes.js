@@ -411,7 +411,7 @@ async function main() {
             await excelOption.click();
             
             const download = await downloadPromise;
-            const prefijo = opcionReporte === 1 ? 'Beneficiarios' : 'Nutricion';
+            const prefijo = opcionReporte === 1 ? 'Beneficiarios' : (opcionReporte === 2 ? 'Nutricion' : 'Asistencia');
             const fileName = `${prefijo}_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
             const savePath = path.join(reportesDir, fileName);
             await download.saveAs(savePath);
