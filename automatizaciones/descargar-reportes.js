@@ -139,45 +139,37 @@ async function main() {
     return;
   }
 
-  // Duplicar pestañas para cada asociación (excepto la primera)
-  console.log(c.cyan(`\n  Duplicando pestañas para ${ascValidas.length} asociaciones...`));
-  const pages = [mainPage];
-  for (let i = 1; i < ascValidas.length; i++) {
-    const newPage = await context.newPage();
-    await newPage.goto(rolesUrl, { waitUntil: 'networkidle' });
-    pages.push(newPage);
-  }
-  console.log(c.verde('  ✅ Pestañas listas.\n'));
-
   // Iterar por cada asociación
   for (let i = 0; i < ascValidas.length; i++) {
       const asc = ascValidas[i];
-      const page = pages[i];
 
       console.log(c.amarillo(`\n======================================================`));
       console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
       console.log(c.amarillo(`======================================================`));
       console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
 
+      let reportPage;
       try {
-        await seleccionarRolYEntrar(page, asc.nombreCorto);
+        // Al pasar 'true', la función forzará que se abra en una nueva pestaña
+        // dejando intacta la pestaña principal (mainPage) en la pantalla de Roles
+        reportPage = await seleccionarRolYEntrar(mainPage, asc.nombreCorto, true);
 
         // 2. Navegar a Reportes -> Beneficiarios vinculados
         console.log('  🚀 Navegando al menú de reportes...\n');
         
-        await page.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
-          waitUntil: 'networkidle',
-          timeout: 60000
+        await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
+          waitUntil: 'domcontentloaded',
+          timeout: 120000
         });
 
         console.log(c.verde('  ✅ Pantalla de reporte alcanzada. Iniciando descargas...\n'));
-        await page.waitForTimeout(3000); // Dar tiempo al SSRS iframe a cargar
+        await reportPage.waitForTimeout(3000); // Dar tiempo al SSRS iframe a cargar
         
         // El contenido principal de Cuéntame se carga en un iframe llamado "frameContent"
-        let reportFrame = page.frame({ name: 'frameContent' });
+        let reportFrame = reportPage.frame({ name: 'frameContent' });
         if (!reportFrame) {
             console.log(c.rojo('  ⚠️ No se encontró el iframe "frameContent". Usando la página principal...'));
-            reportFrame = page; 
+            reportFrame = reportPage; 
         }
 
         // Función helper simple
@@ -187,7 +179,7 @@ async function main() {
                 await selectLocator.waitFor({ state: 'visible', timeout: 5000 });
                 await selectLocator.selectOption({ label: valueOrText });
                 // Esperar a que SSRS haga el postback y desbloquee el resto de selects
-                await page.waitForTimeout(2000); 
+                await reportPage.waitForTimeout(2000); 
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar en ${id}: ${e.message}`));
             }
@@ -292,24 +284,23 @@ async function main() {
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
         }
 
-        // Clic en "View Report"
+        await reportPage.waitForTimeout(1000);
         console.log('    👉 Generando reporte...');
-        const viewReportBtn = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00');
-        await viewReportBtn.click();
         
-        console.log('    ⏳ Esperando a que el sistema procese el reporte (esto puede tardar unos minutos)...');
-        await page.waitForTimeout(10000); 
-        await page.waitForLoadState('networkidle', { timeout: 120000 }).catch(()=> {}); 
-
-        // Exportar a Excel
+        await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00').click();
+        console.log(c.cyan('    ⏳ Esperando a que el sistema procese el reporte (esto puede tardar unos minutos)...'));
+        
+        // Esperamos hasta 2 minutos a que aparezca el icono de exportar
+        const exportButton = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl05_ctl04_ctl00_ButtonImg');
+        await exportButton.waitFor({ state: 'visible', timeout: 120000 });
+        
         console.log('    👉 Iniciando descarga en Excel...');
-        
+        const downloadPromise = reportPage.waitForEvent('download', { timeout: 120000 });
         const exportMenu = reportFrame.locator('a[title="Export"], a[title="Exportar"], img[alt="Export"]').first();
         if (await exportMenu.isVisible()) {
             await exportMenu.click();
-            await page.waitForTimeout(1000);
+            await reportPage.waitForTimeout(1000);
             
-            const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
             const excelOption = reportFrame.locator('a:has-text("Excel")').first();
             await excelOption.click();
             
@@ -323,7 +314,7 @@ async function main() {
             if (prepararExcel) {
                 console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
                 // Darle tiempo al sistema de archivos para cerrar y liberar el archivo
-                await page.waitForTimeout(2000);
+                await reportPage.waitForTimeout(2000);
                 const { execSync } = require('child_process');
                 try {
                     const psScript = path.join(__dirname, 'preparar_excel.ps1');
@@ -340,14 +331,15 @@ async function main() {
         console.error(c.rojo(`\n  ❌ Ocurrió un error con ${asc.nombreCorto}:`), error.message);
       } finally {
         // En vez de cerrar el context, solo cerramos la pestaña al terminar
-        await page.close().catch(() => {});
+        if (reportPage) {
+          await reportPage.close().catch(() => {});
+        }
       }
   }
 
   // Al finalizar todas, cerrar contexto
   console.log(c.verde('\n  ✅ Todas las asociaciones procesadas. Cerrando navegador...'));
-  await context.close().catch(() => {});    
-      console.log('    --------------------------------------------------');
+  await context.close().catch(() => {});
 
   await browser.close();
 }

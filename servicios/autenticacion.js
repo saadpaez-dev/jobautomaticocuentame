@@ -75,8 +75,9 @@ async function loginYLlegarARoles(page, credenciales) {
  * Selecciona la asociación en la pantalla de roles y entra al sistema.
  * @param {import('playwright').Page} page
  * @param {string} nombreAsociacion 
+ * @param {boolean} [openInNewTab=false]
  */
-async function seleccionarRolYEntrar(page, nombreAsociacion) {
+async function seleccionarRolYEntrar(page, nombreAsociacion, openInNewTab = false) {
   const contenidoFinal = await page.content();
   if (contenidoFinal.includes('Seleccione la entidad')) {
     console.log('  🏢 Seleccionando entidad (asociación)...');
@@ -108,14 +109,30 @@ async function seleccionarRolYEntrar(page, nombreAsociacion) {
     // Darle tiempo al servidor si el dropdown tiene AutoPostBack
     await page.waitForTimeout(2000);
     
-    // Click en el botón Continuar
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
-      page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
-    ]);
+    if (openInNewTab) {
+        await page.evaluate(() => {
+            if (document.forms.length > 0) document.forms[0].target = '_blank';
+        });
+        const [newPage] = await Promise.all([
+            page.context().waitForEvent('page'),
+            page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
+        ]);
+        await newPage.waitForLoadState('domcontentloaded');
+        await verificarLoginExitoso(newPage);
+        return newPage;
+    } else {
+        // Click en el botón Continuar
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
+          page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
+        ]);
+        await verificarLoginExitoso(page);
+        return page;
+    }
   }
 
   await verificarLoginExitoso(page);
+  return page;
 }
 
 async function verificarLoginExitoso(page) {
