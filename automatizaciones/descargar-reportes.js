@@ -115,18 +115,24 @@ async function main() {
   
   asociaciones = asociacionesSeleccionadas;
 
-  console.log(c.cyan('\n  📋 ¿Qué acción realizar con el reporte descargado?'));
-  console.log(c.amarillo(`  1. Dejar por defecto (Original)`));
-  console.log(c.amarillo(`  2. Preparar reporte (Elimina col A-F, ordena A-Z y agrega filtro)`));
+  let prepararExcel = false;
   
-  let opcionPreparar = -1;
-  while (opcionPreparar < 1 || opcionPreparar > 2) {
-    const respuestaPrep = readline.question(c.negrita('\n  👉 Ingresa la opcion (1 o 2) [por defecto 1]: '));
-    if (respuestaPrep.trim() === '') opcionPreparar = 1;
-    else opcionPreparar = parseInt(respuestaPrep, 10);
-    if (isNaN(opcionPreparar)) opcionPreparar = -1;
+  if (opcionReporte === 1 || opcionReporte === 2) {
+      console.log(c.cyan('\n  📋 ¿Qué acción realizar con el reporte descargado?'));
+      console.log(c.amarillo(`  1. Dejar por defecto (Original)`));
+      console.log(c.amarillo(`  2. Preparar reporte (Elimina col A-F, ordena A-Z y agrega filtro)`));
+      
+      let opcionPreparar = -1;
+      while (opcionPreparar < 1 || opcionPreparar > 2) {
+        const respuestaPrep = readline.question(c.negrita('\n  👉 Ingresa la opcion (1 o 2) [por defecto 1]: '));
+        if (respuestaPrep.trim() === '') opcionPreparar = 1;
+        else opcionPreparar = parseInt(respuestaPrep, 10);
+        if (isNaN(opcionPreparar)) opcionPreparar = -1;
+      }
+      prepararExcel = (opcionPreparar === 2);
+  } else {
+      console.log(c.gris('\n  ℹ️ El reporte de Asistencia se descargará en su formato original (sin modificar).'));
   }
-  const prepararExcel = (opcionPreparar === 2);
   
   console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
   const browser = await chromium.launch({
