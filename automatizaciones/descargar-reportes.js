@@ -327,8 +327,17 @@ async function main() {
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
         } else if (opcionReporte === 3) {
             console.log('  🚀 Navegando a Informe de registro asistencia mensual...\n');
-            const menuFrame = mainPage.frame({ name: 'frameMenu' });
-            if (!menuFrame) throw new Error('No se encontró el menú lateral.');
+            let menuFrame = mainPage.frame({ name: 'frameMenu' });
+            if (!menuFrame) {
+                console.log(c.amarillo('  ⚠️ frameMenu no encontrado por nombre. Buscando en todos los frames...'));
+                for (const f of mainPage.frames()) {
+                    console.log(`    - Frame encontrado: name="${f.name()}", url="${f.url()}"`);
+                    if (f.url().includes('Menu.aspx') || f.name().toLowerCase().includes('menu')) {
+                        menuFrame = f;
+                    }
+                }
+            }
+            if (!menuFrame) throw new Error('No se encontró el menú lateral en ninguno de los frames disponibles.');
             
             const reportLink = menuFrame.locator(`a:has-text("Informe de registro asistencia mensual")`).first();
             const href = await reportLink.getAttribute('href');
