@@ -148,28 +148,25 @@ async function main() {
       console.log(c.amarillo(`======================================================`));
       console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
 
-      let reportPage;
       try {
-        // Al pasar 'true', la función forzará que se abra en una nueva pestaña
-        // dejando intacta la pestaña principal (mainPage) en la pantalla de Roles
-        reportPage = await seleccionarRolYEntrar(mainPage, asc.nombreCorto, true);
+        await seleccionarRolYEntrar(mainPage, asc.nombreCorto);
 
         // 2. Navegar a Reportes -> Beneficiarios vinculados
         console.log('  🚀 Navegando al menú de reportes...\n');
         
-        await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
+        await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
           waitUntil: 'domcontentloaded',
           timeout: 120000
         });
 
         console.log(c.verde('  ✅ Pantalla de reporte alcanzada. Iniciando descargas...\n'));
-        await reportPage.waitForTimeout(3000); // Dar tiempo al SSRS iframe a cargar
+        await mainPage.waitForTimeout(3000); // Dar tiempo al SSRS iframe a cargar
         
         // El contenido principal de Cuéntame se carga en un iframe llamado "frameContent"
-        let reportFrame = reportPage.frame({ name: 'frameContent' });
+        let reportFrame = mainPage.frame({ name: 'frameContent' });
         if (!reportFrame) {
             console.log(c.rojo('  ⚠️ No se encontró el iframe "frameContent". Usando la página principal...'));
-            reportFrame = reportPage; 
+            reportFrame = mainPage; 
         }
 
         // Función helper simple
@@ -217,7 +214,7 @@ async function main() {
                 
                 // Cerrar menú y disparar postback
                 await reportFrame.locator('body').click();
-                await reportPage.waitForTimeout(3000); 
+                await mainPage.waitForTimeout(3000); 
             } catch (e) {
                 // Log available options for debugging si todo falla
                 try {
@@ -231,14 +228,14 @@ async function main() {
 
         if (opcionReporte === 1) {
             console.log('  🚀 Navegando a Reportes -> Beneficiarios vinculados...\n');
-            await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
+            await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
               waitUntil: 'domcontentloaded',
               timeout: 120000
             });
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await reportPage.waitForTimeout(3000);
+            await mainPage.waitForTimeout(3000);
             
-            reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
+            reportFrame = mainPage.frame({ name: 'frameContent' }) || mainPage;
 
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Unidad de Servicio');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Dirección de Primera Infancia');
@@ -256,19 +253,19 @@ async function main() {
                 if (!(await chkLocator.isChecked())) {
                     await chkLocator.check();
                     // Esperar a que SSRS procese
-                    await reportPage.waitForTimeout(1500);
+                    await mainPage.waitForTimeout(1500);
                 }
             } catch(e) {}
         } else if (opcionReporte === 2) {
             console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de niños y niñas...\n');
-            await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
+            await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
               waitUntil: 'domcontentloaded',
               timeout: 120000
             });
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await reportPage.waitForTimeout(3000);
+            await mainPage.waitForTimeout(3000);
             
-            reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
+            reportFrame = mainPage.frame({ name: 'frameContent' }) || mainPage;
 
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
@@ -285,7 +282,7 @@ async function main() {
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
         }
 
-        await reportPage.waitForTimeout(1000);
+        await mainPage.waitForTimeout(1000);
         console.log('    👉 Generando reporte...');
         
         await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00').click();
@@ -296,11 +293,11 @@ async function main() {
         await exportButton.waitFor({ state: 'visible', timeout: 120000 });
         
         console.log('    👉 Iniciando descarga en Excel...');
-        const downloadPromise = reportPage.waitForEvent('download', { timeout: 120000 });
+        const downloadPromise = mainPage.waitForEvent('download', { timeout: 120000 });
         const exportMenu = reportFrame.locator('a[title="Export"], a[title="Exportar"], img[alt="Export"]').first();
         if (await exportMenu.isVisible()) {
             await exportMenu.click();
-            await reportPage.waitForTimeout(1000);
+            await mainPage.waitForTimeout(1000);
             
             const excelOption = reportFrame.locator('a:has-text("Excel")').first();
             await excelOption.click();
@@ -315,7 +312,7 @@ async function main() {
             if (prepararExcel) {
                 console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
                 // Darle tiempo al sistema a actualizar la UI tras el postback
-                await reportPage.waitForTimeout(3000); 
+                await mainPage.waitForTimeout(3000); 
                 const { execSync } = require('child_process');
                 try {
                     const psScript = path.join(__dirname, 'preparar_excel.ps1');
@@ -331,9 +328,15 @@ async function main() {
       } catch (error) {
         console.error(c.rojo(`\n  ❌ Ocurrió un error con ${asc.nombreCorto}:`), error.message);
       } finally {
-        // En vez de cerrar el context, solo cerramos la pestaña al terminar
-        if (reportPage) {
-          await reportPage.close().catch(() => {});
+        // Volver a la pantalla de Roles si no es la última iteración
+        if (i < ascValidas.length - 1) {
+            console.log(c.gris(`\n    🔙 Regresando a la pantalla de selección de roles...`));
+            try {
+                await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                await mainPage.waitForTimeout(2000);
+            } catch (navError) {
+                console.error(c.rojo(`    ⚠️ Error al intentar volver a Roles: ${navError.message}`));
+            }
         }
       }
   }
