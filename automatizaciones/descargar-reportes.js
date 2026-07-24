@@ -199,23 +199,9 @@ async function main() {
       try {
         await seleccionarRolYEntrar(mainPage, asc.nombreCorto);
 
-        // 2. Navegar a Reportes -> Beneficiarios vinculados
-        console.log('  🚀 Navegando al menú de reportes...\n');
-        
-        await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
-          waitUntil: 'domcontentloaded',
-          timeout: 120000
-        });
-
-        console.log(c.verde('  ✅ Pantalla de reporte alcanzada. Iniciando descargas...\n'));
-        await mainPage.waitForTimeout(3000); // Dar tiempo al SSRS iframe a cargar
-        
-        // El contenido principal de Cuéntame se carga en un iframe llamado "frameContent"
-        let reportFrame = mainPage.frame({ name: 'frameContent' });
-        if (!reportFrame) {
-            console.log(c.rojo('  ⚠️ No se encontró el iframe "frameContent". Usando la página principal...'));
-            reportFrame = mainPage; 
-        }
+        // Definimos la variable para que las funciones helper la capturen.
+        // Se inicializa apuntando a mainPage y luego cada reporte la reasigna a frameContent si existe.
+        let reportFrame = mainPage;
 
         // Función helper simple
         const seleccionarSSRS = async (id, valueOrText) => {
