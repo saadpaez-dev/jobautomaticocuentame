@@ -47,15 +47,17 @@ async function main() {
   console.log(c.cyan('\n  📋 Selecciona el Reporte a generar:'));
   console.log(c.amarillo(`  1. Beneficiarios vinculados`));
   console.log(c.amarillo(`  2. Seguimiento nutricional de niños y niñas por toma`));
+  console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
   
   let opcionReporte = -1;
-  while (opcionReporte < 1 || opcionReporte > 2) {
-    const respuesta = readline.question(c.negrita('\n  👉 Ingresa el numero del reporte (1 o 2): '));
+  while (opcionReporte < 1 || opcionReporte > 3) {
+    const respuesta = readline.question(c.negrita('\n  👉 Ingresa el numero del reporte (1, 2 o 3): '));
     opcionReporte = parseInt(respuesta, 10);
     if (isNaN(opcionReporte)) opcionReporte = -1;
   }
   
   let seleccionToma = '(Select All)';
+  let mesAtencion = '(Select All)';
   if (opcionReporte === 2) {
     console.log(c.cyan('\n  📋 Selecciona el mes de Toma:'));
     console.log(c.gris(`  Puedes escribir "(Select All)" o el nombre exacto como "Julio".`));
@@ -63,8 +65,23 @@ async function main() {
     if (respuestaToma.trim() !== '') {
         seleccionToma = respuestaToma.trim();
     }
+  } else if (opcionReporte === 3) {
+    console.log(c.cyan('\n  📋 Selecciona el Mes de Atención:'));
+    const meses = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    meses.forEach((m, idx) => console.log(`  ${idx + 1}. ${m}`));
+    
+    let opcionMes = -1;
+    while (opcionMes < 1 || opcionMes > meses.length) {
+      const respMes = readline.question(c.negrita('\n  👉 Ingresa el numero del mes (1-12): '));
+      opcionMes = parseInt(respMes, 10);
+      if (isNaN(opcionMes)) opcionMes = -1;
+    }
+    mesAtencion = meses[opcionMes - 1];
   }
-
+  
   console.log(c.cyan('\n  📋 Selecciona la Asociación para procesar:'));
   console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
   asociaciones.forEach((asc, idx) => {
@@ -205,7 +222,11 @@ async function main() {
             try {
                 const selectLocator = reportFrame.locator(`#${id}`);
                 await selectLocator.waitFor({ state: 'visible', timeout: 5000 });
-                await selectLocator.selectOption({ label: valueOrText });
+                if (typeof valueOrText === 'number') {
+                    await selectLocator.selectOption({ index: valueOrText });
+                } else {
+                    await selectLocator.selectOption({ label: valueOrText });
+                }
                 // Esperar a que SSRS haga el postback y desbloquee el resto de selects
                 await mainPage.waitForTimeout(2000); 
             } catch (e) {
@@ -226,21 +247,28 @@ async function main() {
                 // Allow time for AJAX postback to populate the dropdown
                 await mainPage.waitForTimeout(2000);
 
-                const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = valueOrText === '(Select All)' 
-                    ? new RegExp('^\\(Select All\\)$', 'i') 
-                    : new RegExp(escapedText, 'i'); // Substring match
+                if (valueOrText === '(Check All)') {
+                    const checkboxes = await divDropdown.locator('input[type="checkbox"]').all();
+                    for (const chk of checkboxes) {
+                        if (!(await chk.isChecked())) {
+                            await chk.check({ force: true });
+                        }
+                    }
+                } else {
+                    const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = valueOrText === '(Select All)' 
+                        ? new RegExp('^\\(Select All\\)$', 'i') 
+                        : new RegExp(escapedText, 'i'); // Substring match
 
-                try {
-                    // Primero intentamos buscar el checkbox por su etiqueta semántica y hacerle check()
-                    const checkbox = divDropdown.getByRole('checkbox', { name: regex }).first();
-                    await checkbox.waitFor({ state: 'visible', timeout: 4000 });
-                    await checkbox.check({ force: true });
-                } catch (err) {
-                    // Si falla (por ej. SSRS no usa <label for=>), buscamos el texto y le hacemos click
-                    const textNode = divDropdown.getByText(regex).first();
-                    await textNode.waitFor({ state: 'visible', timeout: 4000 });
-                    await textNode.click({ force: true });
+                    try {
+                        const checkbox = divDropdown.getByRole('checkbox', { name: regex }).first();
+                        await checkbox.waitFor({ state: 'visible', timeout: 4000 });
+                        await checkbox.check({ force: true });
+                    } catch (err) {
+                        const textNode = divDropdown.getByText(regex).first();
+                        await textNode.waitFor({ state: 'visible', timeout: 4000 });
+                        await textNode.click({ force: true });
+                    }
                 }
                 
                 // Cerrar menú y disparar postback
@@ -311,7 +339,50 @@ async function main() {
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Select All)');
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
+        } else if (opcionReporte === 3) {
+            console.log('  🚀 Navegando a Informe de registro asistencia mensual...\n');
+            const menuFrame = mainPage.frame({ name: 'frameMenu' });
+            if (!menuFrame) throw new Error('No se encontró el menú lateral.');
+            
+            const reportLink = menuFrame.locator(`a:has-text("Informe de registro asistencia mensual")`).first();
+            const href = await reportLink.getAttribute('href');
+            if (href) {
+                const absoluteUrl = new URL(href, 'https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx').href;
+                await mainPage.goto(absoluteUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
+            } else {
+                await reportLink.click({ force: true });
+            }
+            
+            console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
+            await mainPage.waitForTimeout(3000);
+            
+            reportFrame = mainPage.frame({ name: 'frameContent' }) || mainPage;
+
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', '2024');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', asc.numeroContrato);
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
+            
+            // Servicio* (marcar todos los que estén)
+            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Check All)');
+            
+            // Centro Zonal de la UDS* (seleccionamos el primero disponible)
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', 1);
+            
+            // Municipio UDS (seleccionamos el primero disponible o Bogota D.C.)
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 1);
+            
+            // Unidad de servicio*
+            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', '(Select All)');
+            
+            // Mes de Atención*
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', mesAtencion);
+            
+            // Estado*
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl23_ddValue', 'Todos');
         }
+
 
         await mainPage.waitForTimeout(1000);
         console.log('    👉 Generando reporte...');
