@@ -191,7 +191,7 @@ async function main() {
                 await selectLocator.waitFor({ state: 'visible', timeout: 5000 });
                 await selectLocator.selectOption({ label: valueOrText });
                 // Esperar a que SSRS haga el postback y desbloquee el resto de selects
-                await reportPage.waitForTimeout(2000); 
+                await mainPage.waitForTimeout(2000); 
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar en ${id}: ${e.message}`));
             }
