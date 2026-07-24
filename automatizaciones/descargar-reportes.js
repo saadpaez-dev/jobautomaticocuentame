@@ -71,16 +71,32 @@ async function main() {
     console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
   });
   
-  let opcion = -1;
-  while (opcion < 0 || opcion > asociaciones.length) {
-    const respuesta = readline.question(c.negrita('\n  👉 Ingresa el numero de la opcion: '));
-    opcion = parseInt(respuesta, 10);
-    if (isNaN(opcion)) opcion = -1;
+  let asociacionesSeleccionadas = [];
+  while (asociacionesSeleccionadas.length === 0) {
+    console.log(c.gris('  (Puedes ingresar varios números separados por coma, ej: 1,3,4)'));
+    const respuesta = readline.question(c.negrita('\n  👉 Ingresa el numero de la(s) opcion(es): '));
+    
+    const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
+    
+    if (partes.length === 0) continue;
+
+    if (partes.includes(0)) {
+        asociacionesSeleccionadas = asociaciones;
+        break;
+    }
+
+    const invalidos = partes.filter(n => n < 1 || n > asociaciones.length);
+    if (invalidos.length > 0) {
+        console.log(c.rojo(`  ⚠️ Opciones inválidas: ${invalidos.join(', ')}`));
+        continue;
+    }
+
+    // Filtrar duplicados en caso de que el usuario repita números
+    const partesUnicas = [...new Set(partes)];
+    asociacionesSeleccionadas = partesUnicas.map(n => asociaciones[n - 1]);
   }
   
-  if (opcion > 0) {
-    asociaciones = [asociaciones[opcion - 1]];
-  }
+  asociaciones = asociacionesSeleccionadas;
 
   console.log(c.cyan('\n  📋 ¿Qué acción realizar con el reporte descargado?'));
   console.log(c.amarillo(`  1. Dejar por defecto (Original)`));
