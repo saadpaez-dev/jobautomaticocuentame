@@ -126,6 +126,7 @@ async function main() {
   console.log(c.amarillo(`======================================================`));
 
   let rolesUrl;
+  let rolesHtml;
   try {
     rolesUrl = await loginYLlegarARoles(mainPage, {
       usuario: USUARIO,
@@ -133,6 +134,8 @@ async function main() {
       gmailUser: GMAIL_USER,
       gmailAppPassword: GMAIL_APP_PASSWORD
     });
+    // Guardar el estado del DOM de la pantalla de roles
+    rolesHtml = await mainPage.content();
   } catch (err) {
     console.error(c.rojo(`  ❌ Error en login inicial: ${err.message}`));
     await browser.close();
@@ -142,6 +145,18 @@ async function main() {
   // Iterar por cada asociación
   for (let i = 0; i < ascValidas.length; i++) {
       const asc = ascValidas[i];
+
+      if (i > 0) {
+          console.log(c.gris(`\n    🔙 Restaurando la pantalla de selección de roles desde la memoria...`));
+          try {
+              await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+              // Inyectar el HTML guardado para recrear el formulario con su __VIEWSTATE
+              await mainPage.setContent(rolesHtml);
+              await mainPage.waitForTimeout(1500);
+          } catch (navError) {
+              console.error(c.rojo(`    ⚠️ Error al intentar restaurar Roles: ${navError.message}`));
+          }
+      }
 
       console.log(c.amarillo(`\n======================================================`));
       console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
@@ -328,16 +343,7 @@ async function main() {
       } catch (error) {
         console.error(c.rojo(`\n  ❌ Ocurrió un error con ${asc.nombreCorto}:`), error.message);
       } finally {
-        // Volver a la pantalla de Roles si no es la última iteración
-        if (i < ascValidas.length - 1) {
-            console.log(c.gris(`\n    🔙 Regresando a la pantalla de selección de roles...`));
-            try {
-                await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-                await mainPage.waitForTimeout(2000);
-            } catch (navError) {
-                console.error(c.rojo(`    ⚠️ Error al intentar volver a Roles: ${navError.message}`));
-            }
-        }
+        // La limpieza se maneja al inicio de la siguiente iteración
       }
   }
 
