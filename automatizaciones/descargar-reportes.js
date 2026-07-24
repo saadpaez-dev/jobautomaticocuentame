@@ -179,6 +179,11 @@ async function main() {
   for (let i = 0; i < ascValidas.length; i++) {
       const asc = ascValidas[i];
 
+      // Corrección manual de contrato solicitada por el usuario
+      if (asc.nombreCorto && asc.nombreCorto.toUpperCase().includes('VERBENAL')) {
+          asc.numeroContrato = '11027492024';
+      }
+
       if (i > 0) {
           console.log(c.gris(`\n    🔙 Restaurando la pantalla de selección de roles desde la memoria...`));
           try {
@@ -368,11 +373,11 @@ async function main() {
             // Servicio* (marcar todos los que estén)
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Check All)');
             
-            // Centro Zonal de la UDS* (seleccionamos el primero disponible)
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', 1);
+            // Centro Zonal de la UDS* siempre "CZ USAQUEN"
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', 'CZ USAQUEN');
             
-            // Municipio UDS (seleccionamos el primero disponible o Bogota D.C.)
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 1);
+            // Municipio UDS - En la imagen se ve deshabilitado y vacío, así que lo saltamos.
+            // await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 1);
             
             // Unidad de servicio*
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', '(Select All)');
