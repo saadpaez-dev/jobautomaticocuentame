@@ -37,11 +37,11 @@ async function main() {
   console.log(c.cyan('\n  📋 Configuración de Asistencia (RAM)'));
   
   const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const mesIndex = readline.keyInSelect(meses, c.negrita('  👉 Selecciona el mes a diligenciar: '), { cancel: false });
+  const mesIndex = readline.keyInSelect(meses, c.negrita('  > Selecciona el mes a diligenciar: '), { cancel: false });
   const mesAtencion = meses[mesIndex];
 
-  let diaInicio = readline.questionInt(c.negrita('  👉 ¿Desde qué día del mes deseas empezar a llenar? (ej: 1, 15): '), { defaultInput: '1' });
-  let diasIgnorarStr = readline.question(c.negrita('  👉 Días a ignorar (separados por coma, ej: 20,25) o ENTER para ninguno: '));
+  let diaInicio = readline.questionInt(c.negrita('  > Desde que dia del mes deseas empezar a llenar? (ej: 1, 15): '), { defaultInput: '1' });
+  let diasIgnorarStr = readline.question(c.negrita('  > Dias a ignorar (separados por coma, ej: 20,25) o ENTER para ninguno: '));
   const diasIgnorar = diasIgnorarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 
   console.log(c.verde(`\n  Resumen: Mes [${mesAtencion}], Desde día [${diaInicio}], Ignorando [${diasIgnorar.join(', ')}]`));
@@ -288,7 +288,7 @@ async function main() {
 
             // MENÚ INTERACTIVO DE INASISTENCIAS
             while (true) {
-                const quiereFallas = readline.keyInYNStrict(c.negrita('    👉 ¿Desea registrar inasistencias manuales para ESTA UDS?'));
+                const quiereFallas = readline.keyInYNStrict(c.negrita('    > Desea registrar inasistencias manuales para ESTA UDS?'));
                 if (!quiereFallas) break;
 
                 console.log(c.cyan('\n    Leyendo lista de niños...'));
@@ -309,12 +309,12 @@ async function main() {
                 }
 
                 const opciones = listaNinos.map(n => n.nombre);
-                const ninoIndex = readline.keyInSelect(opciones, c.negrita('    👦 Seleccione el niño que faltó:'), { cancel: 'Cancelar / Siguiente UDS' });
+                const ninoIndex = readline.keyInSelect(opciones, c.negrita('    > Seleccione el nino que falto:'), { cancel: 'Cancelar / Siguiente UDS' });
                 
                 if (ninoIndex === -1) break;
 
                 const nino = listaNinos[ninoIndex];
-                const diasFaltaStr = readline.question(c.negrita(`    📅 ¿Qué días faltó ${nino.nombre}? (separados por coma, ej: 15,18): `));
+                const diasFaltaStr = readline.question(c.negrita(`    > Que dias falto ${nino.nombre}? (separados por coma, ej: 15,18): `));
                 const diasFalta = diasFaltaStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 
                 if (diasFalta.length > 0) {
