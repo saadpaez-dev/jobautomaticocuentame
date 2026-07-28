@@ -212,7 +212,7 @@ async function main() {
         await mainPage.waitForTimeout(3000);
 
         // Al navegar directo, el formulario queda en mainPage o en frameContent (si tiene iframe interno)
-        const contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+        let contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
         if (!contentFrame) throw new Error('No se encontró el frameContent.');
 
         console.log('  📝 Llenando filtros del RAM...');
@@ -415,6 +415,9 @@ async function main() {
             await mainPage.waitForTimeout(5000); 
             console.log(c.verde('    ✅ Guardado exitoso.'));
 
+            // Re-obtener el frame ya que la página pudo haber recargado al guardar
+            contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+
             // MENÚ INTERACTIVO DE INASISTENCIAS
             while (true) {
                 const quiereFallas = readline.keyInYNStrict(c.negrita('    > Desea registrar inasistencias manuales para ESTA UDS?'));
@@ -491,7 +494,8 @@ async function main() {
         } // fin loop UDS
         } // fin loop SERVICIOS
       } catch (err) {
-        console.error(c.rojo(`  ❌ Ocurrió un error con ${asc.nombreCorto}: ${err.message}`));
+        console.error(c.rojo(`  ❌ Ocurrió un error con ${asc.nombreCorto}: ${err && err.message ? err.message : err}`));
+        console.error(err); // Imprimir el stack trace completo para ayudar al debugging
       }
   }
 
