@@ -215,9 +215,9 @@ async function main() {
 
         console.log('  📝 Llenando filtros del RAM...');
         
-        async function selectDropdown(idSuffix, textOrIndex) {
+        async function selectDropdown(keyword, textOrIndex) {
             try {
-                const sel = contentFrame.locator(`select[id$="${idSuffix}"]`);
+                const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
                 if (await sel.count() === 0) return;
                 
                 const isEnabled = await sel.evaluate(s => !s.disabled);
@@ -245,21 +245,21 @@ async function main() {
                     }
                 }
             } catch (e) {
-                console.log(c.gris(`    (No se pudo seleccionar en ${idSuffix}: ${e.message})`));
+                console.log(c.gris(`    (No se pudo seleccionar en ${keyword}: ${e.message})`));
             }
         }
         
-        await selectDropdown('ddlIdDireccionesICBF', 'Primera Infancia');
-        await selectDropdown('ddlRegionales', 'Bogota');
-        await selectDropdown('ddlIdCentrosZonales', 'USAQUEN'); // A veces se requiere
-        await selectDropdown('ddlVigencia', '2024');
-        await selectDropdown('ddlContratos', asc.numeroContrato);
-        await selectDropdown('ddlIdServicios', 1); // 1 significa el primer servicio válido
-        await selectDropdown('ddlMeses', mesAtencion);
-        await selectDropdown('ddlEstados', 'Todos');
+        await selectDropdown('Direcciones', 'Primera Infancia');
+        await selectDropdown('Regional', 'Bogota');
+        await selectDropdown('Centro', 'USAQUEN'); // A veces se requiere
+        await selectDropdown('Vigencia', '2024');
+        await selectDropdown('Contrato', asc.numeroContrato);
+        await selectDropdown('Servicio', 1); // 1 significa el primer servicio válido
+        await selectDropdown('Mes', mesAtencion);
+        await selectDropdown('Estado', 'Todos');
 
         // Iterar por cada UDS
-        const udsLocator = contentFrame.locator(`select[id$="ddlUds"], select[id$="ddlUnidadesServicio"], select[id*="UDS"]`).first();
+        const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
         let udsOptions = [];
         if (await udsLocator.count() > 0) {
             udsOptions = await udsLocator.evaluate(s => {
