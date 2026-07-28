@@ -362,7 +362,7 @@ async function main() {
             }
 
             console.log('    ✅ Marcando asistencia (Llenado perfecto)...');
-            const rows = await contentFrame.locator('table.rgMasterTable tbody tr, table.mGrid tbody tr, table[id*="GridView"] tbody tr, table tbody tr').all();
+            const rows = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
             
             let ninosActivos = 0;
             let checksMarcados = 0;
@@ -371,7 +371,7 @@ async function main() {
                 const text = await row.innerText();
                 if (text.includes('Activo')) {
                     ninosActivos++;
-                    const cells = await row.locator('td').all();
+                    const cells = await row.locator(':scope > td').all();
                     // Columna 0: Beneficiario, 1: Periodo, 2: Estado, 3: Dia 1, ...
                     for (let cIdx = 3; cIdx < cells.length; cIdx++) {
                         const dayNumber = cIdx - 2; 
@@ -415,7 +415,7 @@ async function main() {
                 if (!quiereFallas) break;
 
                 console.log(c.cyan('\n    Leyendo lista de niños...'));
-                const filasNuevas = await contentFrame.locator('table.rgMasterTable tbody tr, table.mGrid tbody tr, table[id*="GridView"] tbody tr, table tbody tr').all();
+                const filasNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
                 
                 const listaNinos = [];
                 for (let j = 0; j < filasNuevas.length; j++) {
@@ -441,14 +441,14 @@ async function main() {
                 const diasFalta = diasFaltaStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 
                 if (diasFalta.length > 0) {
-                    const lapizNuevo = contentFrame.locator('input[type="image"], img').filter({ hasAttribute: 'src', value: /edit|lapiz/i }).first();
-                    if (await lapizNuevo.count()) {
+                    const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
+                    if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
                         await lapizNuevo.click();
                         await mainPage.waitForTimeout(2000);
                     }
 
                     let desmarcados = 0;
-                    const celdasFalla = await nino.row.locator('td').all();
+                    const celdasFalla = await nino.row.locator(':scope > td').all();
                     
                     for (const dia of diasFalta) {
                         const colIndex = dia + 2; 
