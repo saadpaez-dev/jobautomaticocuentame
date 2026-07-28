@@ -53,19 +53,39 @@ async function main() {
     process.exit(1);
   }
 
-  const opcionesNombres = ascValidas.map(a => a.nombreCorto);
-  opcionesNombres.unshift('TODAS LAS ASOCIACIONES');
+  console.log(c.cyan('\n  📋 Selecciona la Asociación para procesar:'));
+  console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
+  ascValidas.forEach((asc, idx) => {
+    console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
+  });
   
-  const seleccionAsc = readline.keyInSelect(opcionesNombres, c.negrita('  > Que asociacion deseas diligenciar?'), { cancel: 'Cancelar y salir' });
-  
-  if (seleccionAsc === -1) {
-      console.log(c.amarillo('\n  Operación cancelada.'));
-      process.exit(0);
-  }
-  
-  let ascAProcesar = ascValidas;
-  if (seleccionAsc > 0) {
-      ascAProcesar = [ascValidas[seleccionAsc - 1]];
+  let ascAProcesar = [];
+  while (ascAProcesar.length === 0) {
+    console.log(c.gris('  (Puedes ingresar varios números separados por coma, ej: 1,3,4)'));
+    const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es): '));
+    
+    if (respuesta.trim() === '') {
+        console.log(c.amarillo('\n  Operación cancelada.'));
+        process.exit(0);
+    }
+
+    const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
+    
+    if (partes.length === 0) continue;
+
+    if (partes.includes(0)) {
+        ascAProcesar = ascValidas;
+        break;
+    }
+
+    const invalidos = partes.filter(n => n < 1 || n > ascValidas.length);
+    if (invalidos.length > 0) {
+        console.log(c.rojo(`  ⚠️ Opciones inválidas: ${invalidos.join(', ')}`));
+        continue;
+    }
+
+    const partesUnicas = [...new Set(partes)];
+    ascAProcesar = partesUnicas.map(n => ascValidas[n - 1]);
   }
 
   console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
