@@ -70,6 +70,11 @@ async function main() {
 
   console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
   const browser = await chromium.launch({
+    headless: false,
+    slowMo: 50,
+    args: ['--start-maximized'],
+    executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+  });
 
   const context = await browser.newContext({ viewport: null });
   const mainPage = await context.newPage();
