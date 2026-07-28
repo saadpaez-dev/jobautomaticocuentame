@@ -51,7 +51,7 @@ async function main() {
   
   let opcionReporte = -1;
   while (opcionReporte < 1 || opcionReporte > 3) {
-    const respuesta = readline.question(c.negrita('\n  👉 Ingresa el numero del reporte (1, 2 o 3): '));
+    const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (1, 2 o 3): '));
     opcionReporte = parseInt(respuesta, 10);
     if (isNaN(opcionReporte)) opcionReporte = -1;
   }
@@ -61,7 +61,7 @@ async function main() {
   if (opcionReporte === 2) {
     console.log(c.cyan('\n  📋 Selecciona el mes de Toma:'));
     console.log(c.gris(`  Puedes escribir "(Select All)" o el nombre exacto como "Julio".`));
-    const respuestaToma = readline.question(c.negrita('\n  👉 Ingresa la Toma [por defecto (Select All)]: '));
+    const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto (Select All)]: '));
     if (respuestaToma.trim() !== '') {
         seleccionToma = respuestaToma.trim();
     }
@@ -75,7 +75,7 @@ async function main() {
     
     let opcionMes = -1;
     while (opcionMes < 1 || opcionMes > meses.length) {
-      const respMes = readline.question(c.negrita('\n  👉 Ingresa el numero del mes (1-12): '));
+      const respMes = readline.question(c.negrita('\n  > Ingresa el numero del mes (1-12): '));
       opcionMes = parseInt(respMes, 10);
       if (isNaN(opcionMes)) opcionMes = -1;
     }
@@ -91,7 +91,7 @@ async function main() {
   let asociacionesSeleccionadas = [];
   while (asociacionesSeleccionadas.length === 0) {
     console.log(c.gris('  (Puedes ingresar varios números separados por coma, ej: 1,3,4)'));
-    const respuesta = readline.question(c.negrita('\n  👉 Ingresa el numero de la(s) opcion(es): '));
+    const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es): '));
     
     const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
     
@@ -124,7 +124,7 @@ async function main() {
       
       let opcionPreparar = -1;
       while (opcionPreparar < 1 || opcionPreparar > 2) {
-        const respuestaPrep = readline.question(c.negrita('\n  👉 Ingresa la opcion (1 o 2) [por defecto 1]: '));
+        const respuestaPrep = readline.question(c.negrita('\n  > Ingresa la opcion (1 o 2) [por defecto 1]: '));
         if (respuestaPrep.trim() === '') opcionPreparar = 1;
         else opcionPreparar = parseInt(respuestaPrep, 10);
         if (isNaN(opcionPreparar)) opcionPreparar = -1;

@@ -125,7 +125,7 @@ async function main() {
   });
 
   console.log();
-  const seleccion = readline.questionInt(c.negrita('  Ingresa el número del proceso: '));
+  const seleccion = readline.questionInt(c.negrita('  Ingresa el numero del proceso: '));
   const proceso = PROCESOS.find((p) => p.id === seleccion);
 
   if (!proceso) {
@@ -157,7 +157,7 @@ async function main() {
   console.log('  5. Escribe ' + c.negrita('"fin"') + ' cuando termines.');
   console.log(c.amarillo('  ─────────────────────────────────────────────\n'));
 
-  readline.question(c.gris('  Presiona ENTER cuando estés listo para empezar...'));
+  readline.question(c.gris('  Presiona ENTER cuando estes listo para empezar...'));
   console.log();
 
   // ── 4. Bucle de captura ──────────────────────

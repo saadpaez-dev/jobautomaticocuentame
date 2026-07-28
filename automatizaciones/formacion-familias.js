@@ -90,7 +90,7 @@ function configurar(porAsociacion) {
   // Observaciones
   console.log(c.amarillo('  📝 OBSERVACIONES (texto que se repite en todos los jardines):'));
   console.log(c.gris(`     Por defecto: "${OBSERVACIONES_DEFAULT}"`));
-  const cambiarObs = readline.keyInYN('  ¿Quieres cambiar el texto de observaciones?');
+  const cambiarObs = readline.keyInYN('  Quieres cambiar el texto de observaciones?');
   const observaciones = cambiarObs
     ? readline.question('  Escribe el nuevo texto de observaciones: ').trim() || OBSERVACIONES_DEFAULT
     : OBSERVACIONES_DEFAULT;
@@ -131,7 +131,7 @@ function configurar(porAsociacion) {
   }
 
   console.log();
-  const confirmar = readline.keyInYN(c.negrita('  ¿Iniciar el bot ahora?'));
+  const confirmar = readline.keyInYN(c.negrita('  Iniciar el bot ahora?'));
   if (!confirmar) {
     console.log(c.amarillo('\n  Operación cancelada.\n'));
     process.exit(0);
@@ -342,7 +342,7 @@ async function main() {
   // Ciclo de reintentos
   while (fallidos.length > 0) {
     console.log();
-    const respuesta = readline.question(c.amarillo(`  ⚠️ Quedaron ${fallidos.length} jardines con error. ¿Deseas reintentar SOLO los fallidos ahora? (s/n): `));
+    const respuesta = readline.question(c.amarillo(`  ⚠️ Quedaron ${fallidos.length} jardines con error. Deseas reintentar SOLO los fallidos ahora? (s/n): `));
     
     if (respuesta.toLowerCase() === 's') {
       console.log(c.cyan(`\n  🔄 Reintentando ${fallidos.length} jardines fallidos...\n`));
