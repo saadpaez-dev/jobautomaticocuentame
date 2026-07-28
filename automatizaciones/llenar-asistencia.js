@@ -157,23 +157,15 @@ async function main() {
         
         console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
         
-        await mainPage.waitForTimeout(2000);
+        await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', {
+            waitUntil: 'domcontentloaded',
+            timeout: 60000
+        });
         
-        // Desplegar Unidad en mainPage directamente (ya no existe frameMenu)
-        const linkUnidad = mainPage.locator('a, span', { hasText: /^Unidad$/i }).first();
-        if (await linkUnidad.isVisible()) {
-            await linkUnidad.click();
-            await mainPage.waitForTimeout(1000);
-        }
-        
-        // Clic en RAM
-        const linkRAM = mainPage.locator('a, span', { hasText: /Registro de asistencia mensual - ram/i }).first();
-        await linkRAM.waitFor({ state: 'visible', timeout: 10000 });
-        await linkRAM.click();
-        
-        await mainPage.waitForTimeout(4000);
+        await mainPage.waitForTimeout(3000);
 
-        const contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent');
+        // Al navegar directo, el formulario queda en mainPage o en frameContent (si tiene iframe interno)
+        const contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
         if (!contentFrame) throw new Error('No se encontró el frameContent.');
 
         console.log('  📝 Llenando filtros del RAM...');
