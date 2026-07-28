@@ -36,15 +36,29 @@ async function main() {
 
   console.log(c.cyan('\n  📋 Configuración de Asistencia (RAM)'));
   
+  const modos = [
+    'Modo Completo (Llenar asistencias + Inasistencias al final)', 
+    'SOLO Inasistencias (Saltar llenado masivo)'
+  ];
+  const modoIndex = readline.keyInSelect(modos, c.negrita('  > Seleccione el modo de operación: '), { cancel: false });
+  const modoSoloInasistencias = (modoIndex === 1);
+
   const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const mesIndex = readline.keyInSelect(meses, c.negrita('  > Selecciona el mes a diligenciar: '), { cancel: false });
   const mesAtencion = meses[mesIndex];
 
-  let diaInicio = readline.questionInt(c.negrita('  > Desde que dia del mes deseas empezar a llenar? (ej: 1, 15): '), { defaultInput: '1' });
-  let diasIgnorarStr = readline.question(c.negrita('  > Dias a ignorar (separados por coma, ej: 20,25) o ENTER para ninguno: '));
-  const diasIgnorar = diasIgnorarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
-
-  console.log(c.verde(`\n  Resumen: Mes [${mesAtencion}], Desde día [${diaInicio}], Ignorando [${diasIgnorar.join(', ')}]`));
+  let diasALlenar = [];
+  if (!modoSoloInasistencias) {
+      let diasALlenarStr = readline.question(c.negrita('  > Días específicos a llenar (ej: 28, 29) o ENTER para TODO EL MES: '));
+      diasALlenar = diasALlenarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+      if (diasALlenar.length > 0) {
+          console.log(c.verde(`\n  Resumen: Modo [Completo], Mes [${mesAtencion}], Días [${diasALlenar.join(', ')}]`));
+      } else {
+          console.log(c.verde(`\n  Resumen: Modo [Completo], Mes [${mesAtencion}], Días [TODO EL MES]`));
+      }
+  } else {
+      console.log(c.verde(`\n  Resumen: Modo [SOLO Inasistencias], Mes [${mesAtencion}]`));
+  }
 
   const ascValidas = asociaciones.filter(a => a.numeroContrato);
 
@@ -259,6 +273,8 @@ async function main() {
         await selectDropdown('Mes', mesAtencion);
         await selectDropdown('Estado', 'Todos');
 
+        let todasLasUDSEncontradas = [];
+
         const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
         let serviciosOptions = [];
         if (await servicioLocator.count() > 0) {
@@ -326,6 +342,10 @@ async function main() {
 
         for (let u = 0; u < udsOptionsFiltradas.length; u++) {
             const uds = udsOptionsFiltradas[u];
+            todasLasUDSEncontradas.push({ servicio: serv, uds: uds });
+            
+            if (modoSoloInasistencias) continue;
+
             console.log(c.amarillo(`\n    ▶ Procesando UDS [${u+1}/${udsOptionsFiltradas.length}]: ${uds.text}`));
             
             // Seleccionar UDS
@@ -382,7 +402,7 @@ async function main() {
                     for (let cIdx = 3; cIdx < cells.length; cIdx++) {
                         const dayNumber = cIdx - 2; 
                         
-                        if (dayNumber >= diaInicio && !diasIgnorar.includes(dayNumber)) {
+                        if (diasALlenar.length === 0 || diasALlenar.includes(dayNumber)) {
                             const chk = cells[cIdx].locator('input[type="checkbox"]');
                             if (await chk.count() > 0) {
                                 const isEnabled = await chk.isEnabled();
@@ -418,81 +438,14 @@ async function main() {
             // Re-obtener el frame ya que la página pudo haber recargado al guardar
             contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
-            // MENÚ INTERACTIVO DE INASISTENCIAS
-            while (true) {
-                const quiereFallas = readline.keyInYNStrict(c.negrita('    > Desea registrar inasistencias manuales para ESTA UDS?'));
-                if (!quiereFallas) break;
 
-                console.log(c.cyan('\n    Leyendo lista de niños...'));
-                const filasNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
-                
-                const listaNinos = [];
-                for (let j = 0; j < filasNuevas.length; j++) {
-                    const rowText = await filasNuevas[j].innerText();
-                    const nombre = rowText.split('\t')[0].trim(); 
-                    if (nombre && rowText.includes('Activo')) {
-                        listaNinos.push({ idxOriginal: j, nombre: nombre, row: filasNuevas[j] });
-                    }
-                }
-
-                if (listaNinos.length === 0) {
-                    console.log(c.rojo('    ⚠️ No se encontraron niños activos en la tabla.'));
-                    break;
-                }
-
-                const opciones = listaNinos.map(n => n.nombre);
-                const ninoIndex = readline.keyInSelect(opciones, c.negrita('    > Seleccione el nino que falto:'), { cancel: 'Cancelar / Siguiente UDS' });
-                
-                if (ninoIndex === -1) break;
-
-                const nino = listaNinos[ninoIndex];
-                const diasFaltaStr = readline.question(c.negrita(`    > Que dias falto ${nino.nombre}? (separados por coma, ej: 15,18): `));
-                const diasFalta = diasFaltaStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
-
-                if (diasFalta.length > 0) {
-                    const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
-                    if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
-                        await lapizNuevo.click();
-                        await mainPage.waitForTimeout(2000);
-                    }
-
-                    let desmarcados = 0;
-                    const celdasFalla = await nino.row.locator(':scope > td').all();
-                    
-                    for (const dia of diasFalta) {
-                        const colIndex = dia + 2; 
-                        if (colIndex < celdasFalla.length) {
-                            const chk = celdasFalla[colIndex].locator('input[type="checkbox"]');
-                            if (await chk.count() > 0) {
-                                const isEnabled = await chk.isEnabled();
-                                const isChecked = await chk.isChecked();
-                                if (isEnabled && isChecked) {
-                                    await chk.uncheck();
-                                    desmarcados++;
-                                }
-                            }
-                        }
-                    }
-                    console.log(c.verde(`    ✔️ Se desmarcaron ${desmarcados} días para ${nino.nombre}.`));
-
-                    const discoNuevo = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
-                    if (await discoNuevo.count() > 0 && await discoNuevo.isVisible()) {
-                        await discoNuevo.click();
-                    } else {
-                         console.log(c.amarillo('    ⚠️ No se encontró el disco por nombre estándar, intentando genérico visible...'));
-                         const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
-                         if (await genericSave2.count() > 0) {
-                             await genericSave2.click();
-                         } else {
-                             console.log(c.amarillo('    ⚠️ Disco no encontrado, omitiendo o intentando continuar...'));
-                         }
-                    }
-                    await mainPage.waitForTimeout(3000);
-                    console.log(c.verde('    ✅ Inasistencia guardada.'));
-                }
-            } // fin interactivo
         } // fin loop UDS
         } // fin loop SERVICIOS
+
+        // FASE 2: INASISTENCIAS
+        if (todasLasUDSEncontradas.length > 0) {
+            await manejarInasistenciasAsociacion(mainPage, asc, todasLasUDSEncontradas);
+        }
       } catch (err) {
         console.error(c.rojo(`  ❌ Ocurrió un error con ${asc.nombreCorto}: ${err && err.message ? err.message : err}`));
         console.error(err); // Imprimir el stack trace completo para ayudar al debugging
@@ -504,3 +457,136 @@ async function main() {
 }
 
 main();
+
+
+async function manejarInasistenciasAsociacion(mainPage, asc, todasLasUDSEncontradas) {
+    while (true) {
+        console.log(c.cyan(`\n  --- MENÚ DE INASISTENCIAS: ${asc.nombreCorto} ---`));
+        const quiereFallas = readline.keyInYNStrict(c.negrita('  > Desea registrar inasistencias manuales en alguna UDS?'));
+        if (!quiereFallas) break;
+
+        const opcionesUds = todasLasUDSEncontradas.map(u => u.uds.text);
+        const udsIndex = readline.keyInSelect(opcionesUds, c.negrita('  > Seleccione la UDS: '), { cancel: 'Cancelar / Volver' });
+        
+        if (udsIndex === -1) continue;
+
+        const elegida = todasLasUDSEncontradas[udsIndex];
+        let contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+
+        // Navegar a esa UDS
+        console.log(c.amarillo(`    Navegando a ${elegida.uds.text}...`));
+        const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
+        await servicioLocator.selectOption(elegida.servicio.value);
+        await mainPage.waitForTimeout(2000);
+
+        const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
+        await udsLocator.selectOption(elegida.uds.value);
+        await mainPage.waitForTimeout(2000);
+
+        const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
+        if (await lupa.count() > 0 && await lupa.isVisible()) await lupa.click();
+        else {
+             const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
+             if (await genericBtn.count() > 0) await genericBtn.click();
+        }
+        await mainPage.waitForTimeout(4000);
+
+        while (true) {
+            console.log(c.cyan('\n    Leyendo lista de niños...'));
+            // Re-obtener el frame si se recargó
+            contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+
+            const filasNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
+            
+            const listaNinos = [];
+            for (let j = 0; j < filasNuevas.length; j++) {
+                const rowText = await filasNuevas[j].innerText();
+                const nombre = rowText.split('\t')[0].trim(); 
+                if (nombre && rowText.includes('Activo')) {
+                    listaNinos.push({ idxOriginal: j, nombre: nombre, row: filasNuevas[j] });
+                }
+            }
+
+            if (listaNinos.length === 0) {
+                console.log(c.rojo('    ⚠️ No se encontraron niños activos en la tabla.'));
+                break; // sale de este UDS
+            }
+
+            console.log(c.cyan('\n    --- Lista de Niños Activos ---'));
+            listaNinos.forEach(n => console.log(`      - ${n.nombre}`));
+
+            const inputFallas = readline.question(c.negrita('\n    > Ingrese nombre o apellido y los días de falla (ej: "Perez 15,18"). Deje vacío para cambiar de UDS: '));
+            if (!inputFallas.trim()) break;
+
+            const match = inputFallas.match(/^([^\d]+)([\d\s,]+)$/);
+            if (!match) {
+                 console.log(c.rojo('    ⚠️ Formato inválido. Use algo como "Perez 15, 18"'));
+                 continue;
+            }
+            
+            const nombreBuscado = match[1].trim().toUpperCase();
+            const diasFaltaStr = match[2];
+            const diasFalta = diasFaltaStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+
+            const ninosEncontrados = listaNinos.filter(n => n.nombre.toUpperCase().includes(nombreBuscado));
+            if (ninosEncontrados.length === 0) {
+                console.log(c.rojo(`    ⚠️ No se encontró ningún niño con "${nombreBuscado}"`));
+                continue;
+            }
+            if (ninosEncontrados.length > 1) {
+                console.log(c.amarillo(`    ⚠️ Se encontraron varios niños que coinciden con "${nombreBuscado}":`));
+                ninosEncontrados.forEach(n => console.log(`      - ${n.nombre}`));
+                console.log(c.amarillo(`    Por favor sea más específico.`));
+                continue;
+            }
+
+            const nino = ninosEncontrados[0];
+            if (diasFalta.length > 0) {
+                const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
+                if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
+                    await lapizNuevo.click();
+                    await mainPage.waitForTimeout(3000);
+                    // Reubicar row ya que la tabla cambió al entrar a edición!
+                    contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+                    const rowsNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
+                    if (nino.idxOriginal < rowsNuevas.length) {
+                        nino.row = rowsNuevas[nino.idxOriginal];
+                    }
+                }
+
+                let desmarcados = 0;
+                const celdasFalla = await nino.row.locator(':scope > td').all();
+                
+                for (const dia of diasFalta) {
+                    const colIndex = dia + 2; 
+                    if (colIndex < celdasFalla.length) {
+                        const chk = celdasFalla[colIndex].locator('input[type="checkbox"]');
+                        if (await chk.count() > 0) {
+                            const isEnabled = await chk.isEnabled();
+                            const isChecked = await chk.isChecked();
+                            if (isEnabled && isChecked) {
+                                await chk.uncheck();
+                                desmarcados++;
+                            }
+                        }
+                    }
+                }
+                console.log(c.verde(`    ✔️ Se desmarcaron ${desmarcados} días para ${nino.nombre}.`));
+
+                const discoNuevo = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
+                if (await discoNuevo.count() > 0 && await discoNuevo.isVisible()) {
+                    await discoNuevo.click();
+                } else {
+                     const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
+                     if (await genericSave2.count() > 0) {
+                         await genericSave2.click();
+                     } else {
+                         console.log(c.amarillo('    ⚠️ Disco no encontrado, omitiendo o intentando continuar...'));
+                     }
+                }
+                await mainPage.waitForTimeout(4000);
+                console.log(c.verde('    ✅ Inasistencia guardada.'));
+            }
+        }
+    }
+}
