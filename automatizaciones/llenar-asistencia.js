@@ -438,6 +438,19 @@ async function main() {
             // Re-obtener el frame ya que la página pudo haber recargado al guardar
             contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
+            console.log(c.gris('    🔄 Dando clic en la lupa para desbloquear el selector de jardines...'));
+            const lupaReinicio = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
+            if (await lupaReinicio.count() > 0 && await lupaReinicio.isVisible()) {
+                await lupaReinicio.click();
+            } else {
+                 const genericBtnRein = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
+                 if (await genericBtnRein.count() > 0) {
+                     await genericBtnRein.click();
+                 }
+            }
+            await mainPage.waitForTimeout(3000);
+
+
 
         } // fin loop UDS
         } // fin loop SERVICIOS
@@ -586,6 +599,19 @@ async function manejarInasistenciasAsociacion(mainPage, asc, todasLasUDSEncontra
                 }
                 await mainPage.waitForTimeout(4000);
                 console.log(c.verde('    ✅ Inasistencia guardada.'));
+
+                contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+                console.log(c.gris('    🔄 Dando clic en la lupa para desbloquear el selector de jardines...'));
+                const lupaReinicio2 = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
+                if (await lupaReinicio2.count() > 0 && await lupaReinicio2.isVisible()) {
+                    await lupaReinicio2.click();
+                } else {
+                     const genericBtnRein2 = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
+                     if (await genericBtnRein2.count() > 0) {
+                         await genericBtnRein2.click();
+                     }
+                }
+                await mainPage.waitForTimeout(3000);
             }
         }
     }
