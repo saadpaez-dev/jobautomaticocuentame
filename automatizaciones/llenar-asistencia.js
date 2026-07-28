@@ -88,6 +88,51 @@ async function main() {
     ascAProcesar = partesUnicas.map(n => ascValidas[n - 1]);
   }
 
+  // -------------------------------------------------------------
+  // NUEVO: Preguntar por Jardines (UDS) para cada Asociación elegida
+  // -------------------------------------------------------------
+  for (let a of ascAProcesar) {
+      if (!a.jardines || a.jardines.length === 0) {
+          console.log(c.amarillo(`\n  ⚠️ No hay jardines registrados en el Excel para ${a.nombreCorto}. Se procesarán todos los que aparezcan en Cuéntame.`));
+          continue;
+      }
+      
+      console.log(c.cyan(`\n  🏡 Selecciona los Jardines a procesar para: ${a.nombreCorto}`));
+      console.log(c.amarillo(`  0. 🌟 TODOS LOS JARDINES`));
+      a.jardines.forEach((jardin, idx) => {
+          console.log(`  ${idx + 1}. ${jardin.nombre} (Código: ${jardin.codigo})`);
+      });
+      
+      let jardinesSeleccionados = [];
+      while (jardinesSeleccionados.length === 0) {
+          console.log(c.gris('  (Puedes ingresar varios números separados por coma, ej: 1,3)'));
+          const resp = readline.question(c.negrita('  > Ingresa el numero de la(s) opcion(es): '));
+          
+          if (resp.trim() === '') {
+              console.log(c.amarillo('\n  Operación cancelada.'));
+              process.exit(0);
+          }
+          
+          const pts = resp.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
+          if (pts.length === 0) continue;
+          
+          if (pts.includes(0)) {
+              jardinesSeleccionados = a.jardines;
+              break;
+          }
+          
+          const invs = pts.filter(n => n < 1 || n > a.jardines.length);
+          if (invs.length > 0) {
+              console.log(c.rojo(`  ⚠️ Opciones inválidas: ${invs.join(', ')}`));
+              continue;
+          }
+          
+          const ptsUnicos = [...new Set(pts)];
+          jardinesSeleccionados = ptsUnicos.map(n => a.jardines[n - 1]);
+      }
+      a.jardinesAProcesar = jardinesSeleccionados;
+  }
+
   console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
   const browser = await chromium.launch({
     headless: false,
@@ -224,11 +269,31 @@ async function main() {
             });
         }
 
-        console.log(c.cyan(`  Encontradas ${udsOptions.length} Unidades de Servicio (UDS).`));
+        let udsOptionsFiltradas = udsOptions;
+        
+        // Si el usuario eligió jardines específicos, filtramos las opciones web
+        if (asc.jardinesAProcesar && asc.jardinesAProcesar.length > 0 && asc.jardinesAProcesar.length !== (asc.jardines ? asc.jardines.length : 0)) {
+            udsOptionsFiltradas = udsOptions.filter(webUds => {
+                // Buscamos si algún jardín seleccionado está en el texto del <select> de la web
+                return asc.jardinesAProcesar.some(jExcel => {
+                    const nombreWeb = webUds.text.toUpperCase();
+                    // Cuéntame a veces concatena el código y el nombre. Buscamos coincidencias razonables:
+                    return nombreWeb.includes(jExcel.codigo) || nombreWeb.includes(jExcel.nombre.toUpperCase());
+                });
+            });
+            console.log(c.cyan(`  Encontradas ${udsOptions.length} UDS. Filtradas a ${udsOptionsFiltradas.length} según tu selección.`));
+        } else {
+            console.log(c.cyan(`  Encontradas ${udsOptionsFiltradas.length} Unidades de Servicio (UDS).`));
+        }
 
-        for (let u = 0; u < udsOptions.length; u++) {
-            const uds = udsOptions[u];
-            console.log(c.amarillo(`\n    ▶ Procesando UDS [${u+1}/${udsOptions.length}]: ${uds.text}`));
+        if (udsOptionsFiltradas.length === 0) {
+             console.log(c.amarillo(`  ⚠️ No se encontraron UDS para procesar tras aplicar los filtros.`));
+             continue;
+        }
+
+        for (let u = 0; u < udsOptionsFiltradas.length; u++) {
+            const uds = udsOptionsFiltradas[u];
+            console.log(c.amarillo(`\n    ▶ Procesando UDS [${u+1}/${udsOptionsFiltradas.length}]: ${uds.text}`));
             
             // Seleccionar UDS
             await udsLocator.selectOption(uds.value);
