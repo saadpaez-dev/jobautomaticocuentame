@@ -169,56 +169,60 @@ async function main() {
         if (!contentFrame) throw new Error('No se encontró el frameContent.');
 
         console.log('  📝 Llenando filtros del RAM...');
-        const selects = contentFrame.locator('select');
         
-        // Función helper para seleccionar y esperar postback
-        async function selectByOptionText(index, text) {
+        async function selectDropdown(idSuffix, textOrIndex) {
             try {
-                const sel = selects.nth(index);
-                const value = await sel.evaluate((s, t) => {
-                    const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(t.toUpperCase()));
-                    return opt ? opt.value : null;
-                }, text);
+                const sel = contentFrame.locator(`select[id$="${idSuffix}"]`);
+                if (await sel.count() === 0) return;
                 
-                if (value) {
-                    await sel.selectOption(value);
-                    await mainPage.waitForTimeout(2000); // Esperar postback
+                const isEnabled = await sel.evaluate(s => !s.disabled);
+                if (!isEnabled) return; // Skip if disabled
+
+                if (typeof textOrIndex === 'string') {
+                    // Seleccionar por texto parcial
+                    const value = await sel.evaluate((s, t) => {
+                        const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(t.toUpperCase()));
+                        return opt ? opt.value : null;
+                    }, textOrIndex);
+                    if (value) {
+                        await sel.selectOption(value, { timeout: 5000 });
+                        await mainPage.waitForTimeout(2000);
+                    }
+                } else if (typeof textOrIndex === 'number') {
+                    // Seleccionar por índice válido (>0)
+                    const valSrv = await sel.evaluate(s => {
+                        const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "");
+                        return opt ? opt.value : null;
+                    });
+                    if (valSrv) {
+                        await sel.selectOption(valSrv, { timeout: 5000 });
+                        await mainPage.waitForTimeout(2000);
+                    }
                 }
             } catch (e) {
-                console.log(c.gris(`    (No se pudo seleccionar ${text} en select ${index}: ${e.message})`));
+                console.log(c.gris(`    (No se pudo seleccionar en ${idSuffix}: ${e.message})`));
             }
         }
         
-        // 0: Área misional
-        await selectByOptionText(0, 'Primera Infancia');
-        // 1: Regional
-        await selectByOptionText(1, 'Bogota D.C.');
-        // 2: Vigencia
-        await selectByOptionText(2, '2024');
-        // 3: Contrato
-        await selectByOptionText(3, asc.numeroContrato);
-        // 4: Nombre del servicio (Seleccionar el primero que no sea 0)
-        try {
-            const valSrv = await selects.nth(4).evaluate(s => {
-                const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "");
-                return opt ? opt.value : null;
-            });
-            if (valSrv) {
-                await selects.nth(4).selectOption(valSrv);
-                await mainPage.waitForTimeout(2000);
-            }
-        } catch (e) {}
-        
-        // Mes (6) y Estado (7) los llenamos antes de iterar por UDS
-        await selectByOptionText(6, mesAtencion);
-        await selectByOptionText(7, 'Todos');
+        await selectDropdown('ddlIdDireccionesICBF', 'Primera Infancia');
+        await selectDropdown('ddlRegionales', 'Bogota');
+        await selectDropdown('ddlIdCentrosZonales', 'USAQUEN'); // A veces se requiere
+        await selectDropdown('ddlVigencia', '2024');
+        await selectDropdown('ddlContratos', asc.numeroContrato);
+        await selectDropdown('ddlIdServicios', 1); // 1 significa el primer servicio válido
+        await selectDropdown('ddlMeses', mesAtencion);
+        await selectDropdown('ddlEstados', 'Todos');
 
-        // Iterar por cada UDS (index 5)
-        const udsOptions = await selects.nth(5).evaluate(s => {
-            return Array.from(s.options)
-                .filter(o => o.value && o.value !== "0" && o.value !== "")
-                .map(o => ({ value: o.value, text: o.text }));
-        });
+        // Iterar por cada UDS
+        const udsLocator = contentFrame.locator(`select[id$="ddlUds"], select[id$="ddlUnidadesServicio"], select[id*="UDS"]`).first();
+        let udsOptions = [];
+        if (await udsLocator.count() > 0) {
+            udsOptions = await udsLocator.evaluate(s => {
+                return Array.from(s.options)
+                    .filter(o => o.value && o.value !== "0" && o.value !== "")
+                    .map(o => ({ value: o.value, text: o.text }));
+            });
+        }
 
         console.log(c.cyan(`  Encontradas ${udsOptions.length} Unidades de Servicio (UDS).`));
 
@@ -227,7 +231,7 @@ async function main() {
             console.log(c.amarillo(`\n    ▶ Procesando UDS [${u+1}/${udsOptions.length}]: ${uds.text}`));
             
             // Seleccionar UDS
-            await selects.nth(5).selectOption(uds.value);
+            await udsLocator.selectOption(uds.value);
             await mainPage.waitForTimeout(2000);
 
             // Clic en la lupa
