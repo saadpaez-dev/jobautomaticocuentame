@@ -326,31 +326,28 @@ async function main() {
             await udsLocator.selectOption(uds.value);
             await mainPage.waitForTimeout(2000);
 
-            // Clic en la lupa
+            // Clic en la lupa (Buscar)
             console.log('    👉 Buscando (clic en la lupa)...');
-            const lupa = contentFrame.locator('input[type="image"]').filter({ hasAttribute: 'src', value: /search|lupa/i }).first();
+            const lupa = contentFrame.locator('input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], input[type="image"][src*="consultar" i], input[type="image"][src*="buscar" i], input[type="image"][src*="search" i], input[type="image"][title*="Buscar" i], input[type="image"][title*="Consultar" i], a[title*="Buscar" i] img, a[title*="Consultar" i] img').first();
             
-            if (!(await lupa.count())) {
-                 const genericBtn = contentFrame.locator('input[type="image"], img').last(); 
-                 await genericBtn.click();
-            } else {
+            if (await lupa.count() > 0) {
                  await lupa.click();
+            } else {
+                 console.log(c.amarillo('    ⚠️ No se encontró la lupa por nombre estándar, intentando clic en la primera imagen de tipo botón...'));
+                 const genericBtn = contentFrame.locator('input[type="image"]').first(); 
+                 await genericBtn.click();
             }
             
             await mainPage.waitForTimeout(4000);
 
-            // Clic en el lápiz
+            // Clic en el lápiz (Editar)
             console.log('    👉 Habilitando edición (clic en el lápiz)...');
-            const lapiz = contentFrame.locator('input[type="image"], img').filter({ hasAttribute: 'src', value: /edit|lapiz/i }).first();
-            if (await lapiz.count()) {
+            const lapiz = contentFrame.locator('input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], input[type="image"][src*="editar" i], input[type="image"][src*="modificar" i], input[type="image"][src*="edit" i], input[type="image"][title*="Editar" i], input[type="image"][title*="Modificar" i], a[title*="Editar" i] img, a[title*="Modificar" i] img').first();
+            if (await lapiz.count() > 0) {
                 await lapiz.click();
                 await mainPage.waitForTimeout(3000);
             } else {
-                const buttons = await contentFrame.locator('input[type="image"]').all();
-                if (buttons.length > 0) {
-                    await buttons[0].click();
-                    await mainPage.waitForTimeout(3000);
-                }
+                console.log(c.amarillo('    ⚠️ Lápiz no encontrado, omitiendo o intentando continuar...'));
             }
 
             console.log('    ✅ Marcando asistencia (Llenado perfecto)...');
@@ -386,14 +383,11 @@ async function main() {
             console.log(c.verde(`    ✔️ Se procesaron ${ninosActivos} niños activos y se marcaron ${checksMarcados} asistencias.`));
 
             console.log('    💾 Guardando asistencia...');
-            const disco = contentFrame.locator('input[type="image"], img').filter({ hasAttribute: 'src', value: /save|disco|guardar/i }).first();
-            if (await disco.count()) {
+            const disco = contentFrame.locator('input[type="image"][id*="btnGuardar" i], input[type="image"][src*="guardar" i], input[type="image"][src*="save" i], input[type="image"][title*="Guardar" i], a[title*="Guardar" i] img').first();
+            if (await disco.count() > 0) {
                 await disco.click();
             } else {
-                const allImgBtns = await contentFrame.locator('input[type="image"]').all();
-                if (allImgBtns.length > 0) {
-                    await allImgBtns[allImgBtns.length - 1].click();
-                }
+                 console.log(c.amarillo('    ⚠️ No se encontró el disco por nombre estándar, omitiendo o intentando continuar...'));
             }
             await mainPage.waitForTimeout(5000); 
             console.log(c.verde('    ✅ Guardado exitoso.'));
@@ -455,14 +449,11 @@ async function main() {
                     }
                     console.log(c.verde(`    ✔️ Se desmarcaron ${desmarcados} días para ${nino.nombre}.`));
 
-                    const discoNuevo = contentFrame.locator('input[type="image"], img').filter({ hasAttribute: 'src', value: /save|disco|guardar/i }).first();
-                    if (await discoNuevo.count()) {
+                    const discoNuevo = contentFrame.locator('input[type="image"][id*="btnGuardar" i], input[type="image"][src*="guardar" i], input[type="image"][src*="save" i], input[type="image"][title*="Guardar" i], a[title*="Guardar" i] img').first();
+                    if (await discoNuevo.count() > 0) {
                         await discoNuevo.click();
                     } else {
-                        const allImgBtns = await contentFrame.locator('input[type="image"]').all();
-                        if (allImgBtns.length > 0) {
-                            await allImgBtns[allImgBtns.length - 1].click();
-                        }
+                         console.log(c.amarillo('    ⚠️ No se encontró el disco por nombre estándar, omitiendo o intentando continuar...'));
                     }
                     await mainPage.waitForTimeout(3000);
                     console.log(c.verde('    ✅ Inasistencia guardada.'));
