@@ -328,13 +328,13 @@ async function main() {
 
             // Clic en la lupa (Buscar)
             console.log('    👉 Buscando (clic en la lupa)...');
-            const lupa = contentFrame.locator('input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], input[type="image"][src*="consultar" i], input[type="image"][src*="buscar" i], input[type="image"][src*="search" i], input[type="image"][title*="Buscar" i], input[type="image"][title*="Consultar" i], a[title*="Buscar" i] img, a[title*="Consultar" i] img').first();
+            const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
             
             if (await lupa.count() > 0 && await lupa.isVisible()) {
                  await lupa.click();
             } else {
                  console.log(c.amarillo('    ⚠️ No se encontró la lupa por nombre estándar, intentando clic en el primer botón de imagen visible...'));
-                 const genericBtn = contentFrame.locator('input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
+                 const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
                  if (await genericBtn.count() > 0) {
                      await genericBtn.click();
                  } else {
@@ -346,13 +346,13 @@ async function main() {
 
             // Clic en el lápiz (Editar)
             console.log('    👉 Habilitando edición (clic en el lápiz)...');
-            const lapiz = contentFrame.locator('input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], input[type="image"][src*="editar" i], input[type="image"][src*="modificar" i], input[type="image"][src*="edit" i], input[type="image"][title*="Editar" i], input[type="image"][title*="Modificar" i], a[title*="Editar" i] img, a[title*="Modificar" i] img').first();
+            const lapiz = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
             if (await lapiz.count() > 0 && await lapiz.isVisible()) {
                 await lapiz.click();
                 await mainPage.waitForTimeout(3000);
             } else {
                 console.log(c.amarillo('    ⚠️ Lápiz no encontrado por nombre estándar, intentando genérico visible...'));
-                const genericEdit = contentFrame.locator('input[type="image"]:visible, img[src*="edit"]:visible, img[src*="lapiz"]:visible').first();
+                const genericEdit = contentFrame.locator('a:has(img[src*="edit.png"]):visible, input[type="image"]:visible, img[src*="edit"]:visible, img[src*="lapiz"]:visible').first();
                 if (await genericEdit.count() > 0) {
                     await genericEdit.click();
                     await mainPage.waitForTimeout(3000);
@@ -394,12 +394,12 @@ async function main() {
             console.log(c.verde(`    ✔️ Se procesaron ${ninosActivos} niños activos y se marcaron ${checksMarcados} asistencias.`));
 
             console.log('    💾 Guardando asistencia...');
-            const disco = contentFrame.locator('input[type="image"][id*="btnGuardar" i], input[type="image"][src*="guardar" i], input[type="image"][src*="save" i], input[type="image"][title*="Guardar" i], a[title*="Guardar" i] img').first();
+            const disco = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
             if (await disco.count() > 0 && await disco.isVisible()) {
                 await disco.click();
             } else {
                  console.log(c.amarillo('    ⚠️ No se encontró el disco por nombre estándar, intentando genérico visible...'));
-                 const genericSave = contentFrame.locator('input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
+                 const genericSave = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
                  if (await genericSave.count() > 0) {
                      await genericSave.click();
                  } else {
@@ -466,12 +466,12 @@ async function main() {
                     }
                     console.log(c.verde(`    ✔️ Se desmarcaron ${desmarcados} días para ${nino.nombre}.`));
 
-                    const discoNuevo = contentFrame.locator('input[type="image"][id*="btnGuardar" i], input[type="image"][src*="guardar" i], input[type="image"][src*="save" i], input[type="image"][title*="Guardar" i], a[title*="Guardar" i] img').first();
+                    const discoNuevo = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
                     if (await discoNuevo.count() > 0 && await discoNuevo.isVisible()) {
                         await discoNuevo.click();
                     } else {
                          console.log(c.amarillo('    ⚠️ No se encontró el disco por nombre estándar, intentando genérico visible...'));
-                         const genericSave2 = contentFrame.locator('input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
+                         const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
                          if (await genericSave2.count() > 0) {
                              await genericSave2.click();
                          } else {
