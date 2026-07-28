@@ -123,33 +123,23 @@ async function main() {
         
         console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
         
-        let menuFrame = mainPage.frame({ name: 'frameMenu' });
-        if (!menuFrame) {
-            console.log(c.amarillo('  ⚠️ frameMenu no encontrado, buscando en todos los frames...'));
-            const frames = mainPage.frames();
-            for (const f of frames) {
-                if (f.url().includes('Menu') || f.name() === 'frameMenu') {
-                    menuFrame = f;
-                    break;
-                }
-            }
-        }
+        await mainPage.waitForTimeout(2000);
         
-        if (!menuFrame) throw new Error('No se encontró el menú lateral.');
-
-        // Desplegar Unidad
-        const linkUnidad = menuFrame.locator('a', { hasText: 'Unidad' }).first();
+        // Desplegar Unidad en mainPage directamente (ya no existe frameMenu)
+        const linkUnidad = mainPage.locator('a, span', { hasText: /^Unidad$/i }).first();
         if (await linkUnidad.isVisible()) {
             await linkUnidad.click();
             await mainPage.waitForTimeout(1000);
         }
         
         // Clic en RAM
-        const linkRAM = menuFrame.locator('a', { hasText: 'Registro de asistencia mensual - ram' }).first();
+        const linkRAM = mainPage.locator('a, span', { hasText: /Registro de asistencia mensual - ram/i }).first();
+        await linkRAM.waitFor({ state: 'visible', timeout: 10000 });
         await linkRAM.click();
-        await mainPage.waitForTimeout(3000);
+        
+        await mainPage.waitForTimeout(4000);
 
-        const contentFrame = mainPage.frame({ name: 'frameContent' });
+        const contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent');
         if (!contentFrame) throw new Error('No se encontró el frameContent.');
 
         console.log('  📝 Llenando filtros del RAM...');
