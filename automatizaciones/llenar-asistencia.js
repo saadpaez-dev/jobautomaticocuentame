@@ -46,21 +46,30 @@ async function main() {
 
   console.log(c.verde(`\n  Resumen: Mes [${mesAtencion}], Desde día [${diaInicio}], Ignorando [${diasIgnorar.join(', ')}]`));
 
-  console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
-  const browser = await chromium.launch({
-    headless: false,
-    slowMo: 50,
-    args: ['--start-maximized'],
-    executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-  });
-
   const ascValidas = asociaciones.filter(a => a.numeroContrato);
 
   if (ascValidas.length === 0) {
     console.log(c.rojo("  ⚠️ No hay asociaciones válidas con contrato."));
-    await browser.close();
-    return;
+    process.exit(1);
   }
+
+  const opcionesNombres = ascValidas.map(a => a.nombreCorto);
+  opcionesNombres.unshift('TODAS LAS ASOCIACIONES');
+  
+  const seleccionAsc = readline.keyInSelect(opcionesNombres, c.negrita('  > Que asociacion deseas diligenciar?'), { cancel: 'Cancelar y salir' });
+  
+  if (seleccionAsc === -1) {
+      console.log(c.amarillo('\n  Operación cancelada.'));
+      process.exit(0);
+  }
+  
+  let ascAProcesar = ascValidas;
+  if (seleccionAsc > 0) {
+      ascAProcesar = [ascValidas[seleccionAsc - 1]];
+  }
+
+  console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
+  const browser = await chromium.launch({
 
   const context = await browser.newContext({ viewport: null });
   const mainPage = await context.newPage();
@@ -85,8 +94,8 @@ async function main() {
     return;
   }
 
-  for (let i = 0; i < ascValidas.length; i++) {
-      const asc = ascValidas[i];
+  for (let i = 0; i < ascAProcesar.length; i++) {
+      const asc = ascAProcesar[i];
 
       // Corrección manual de contrato
       if (asc.nombreCorto && asc.nombreCorto.toUpperCase().includes('VERBENAL')) {
@@ -112,7 +121,7 @@ async function main() {
       }
 
       console.log(c.amarillo(`\n======================================================`));
-      console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
+      console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascAProcesar.length}]: ${asc.nombreCorto}`));
       console.log(c.amarillo(`======================================================`));
       console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: 2024)`);
 
