@@ -173,20 +173,22 @@ async function main() {
       }
 
       if (i > 0) {
-          console.log(c.gris(`\n    🔙 Restaurando la pantalla de selección de roles desde la memoria...`));
+          console.log(c.gris(`\n    🔄 Cerrando sesión actual para cambiar de asociación...`));
           try {
-              await mainPage.goto('about:blank');
-              await mainPage.setContent(rolesHtml);
-              await mainPage.evaluate(() => {
-                if (typeof window.history.pushState === 'function') {
-                  window.history.pushState({}, '', 'https://rubonline.icbf.gov.co/Autenticacion/Roles.aspx');
-                }
+              // Limpiar cookies para forzar un nuevo login
+              await context.clearCookies();
+              
+              // Volver a hacer el proceso de login completo
+              rolesUrl = await loginYLlegarARoles(mainPage, {
+                usuario: USUARIO,
+                password: PASSWORD,
+                gmailUser: GMAIL_USER,
+                gmailAppPassword: GMAIL_APP_PASSWORD
               });
-              await mainPage.waitForTimeout(1000);
+              rolesHtml = await mainPage.content();
           } catch (e) {
-              console.log(c.rojo(`    ⚠️ No se pudo restaurar el DOM directamente: ${e.message}`));
-              console.log(c.gris(`    Navegando a la URL de roles de respaldo...`));
-              await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded' });
+              console.log(c.rojo(`    ⚠️ Error al reloguear para la siguiente asociación: ${e.message}`));
+              continue; // Saltar a la siguiente si falla el login
           }
       }
 
