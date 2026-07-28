@@ -199,7 +199,7 @@ async function main() {
 
       try {
         console.log('  🏢 Seleccionando entidad (asociación)...');
-        await seleccionarRolYEntrar(mainPage, asc.nombreCorto);
+        await seleccionarRolYEntrar(mainPage, asc);
         console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
         
         console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
@@ -259,13 +259,17 @@ async function main() {
         await selectDropdown('Mes', mesAtencion);
         await selectDropdown('Estado', 'Todos');
 
-        // Obtener todos los servicios disponibles
         const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
         let serviciosOptions = [];
         if (await servicioLocator.count() > 0) {
             serviciosOptions = await servicioLocator.evaluate(s => {
                 return Array.from(s.options)
                     .filter(o => o.value && o.value !== "0" && o.value !== "")
+                    .filter(o => {
+                        // Ignorar servicios viejos terminados en 2025 para evitar conflictos
+                        if (o.text.includes('2025')) return false;
+                        return true;
+                    })
                     .map(o => ({ value: o.value, text: o.text }));
             });
         }

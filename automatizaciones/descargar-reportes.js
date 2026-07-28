@@ -191,14 +191,19 @@ async function main() {
       }
 
       if (i > 0) {
-          console.log(c.gris(`\n    🔙 Restaurando la pantalla de selección de roles desde la memoria...`));
+          console.log(c.gris(`\n    🔄 Cerrando sesión actual para cambiar de asociación...`));
           try {
-              await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-              // Inyectar el HTML guardado para recrear el formulario con su __VIEWSTATE
-              await mainPage.setContent(rolesHtml);
-              await mainPage.waitForTimeout(1500);
-          } catch (navError) {
-              console.error(c.rojo(`    ⚠️ Error al intentar restaurar Roles: ${navError.message}`));
+              await context.clearCookies();
+              rolesUrl = await loginYLlegarARoles(mainPage, {
+                usuario: USUARIO,
+                password: PASSWORD,
+                gmailUser: GMAIL_USER,
+                gmailAppPassword: GMAIL_APP_PASSWORD
+              });
+              rolesHtml = await mainPage.content();
+          } catch (e) {
+              console.log(c.rojo(`    ⚠️ Error al reloguear para la siguiente asociación: ${e.message}`));
+              continue;
           }
       }
 
@@ -206,10 +211,11 @@ async function main() {
       console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
       console.log(c.amarillo(`======================================================`));
       console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
+      console.log('  🏢 Seleccionando entidad (asociación)...');
+      await seleccionarRolYEntrar(mainPage, asc);
+      console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
 
       try {
-        await seleccionarRolYEntrar(mainPage, asc.nombreCorto);
-
         // Definimos la variable para que las funciones helper la capturen.
         // Se inicializa apuntando a mainPage y luego cada reporte la reasigna a frameContent si existe.
         let reportFrame = mainPage;

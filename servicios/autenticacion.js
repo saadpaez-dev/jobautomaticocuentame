@@ -76,7 +76,10 @@ async function loginYLlegarARoles(page, credenciales) {
  * @param {import('playwright').Page} page
  * @param {string} nombreAsociacion 
  */
-async function seleccionarRolYEntrar(page, nombreAsociacion) {
+async function seleccionarRolYEntrar(page, ascInput) {
+  const nombreCorto = typeof ascInput === 'string' ? ascInput : ascInput.nombreCorto;
+  const nombreLargo = typeof ascInput === 'string' ? '' : (ascInput.nombreLargo || '');
+
   const contenidoFinal = await page.content();
   if (contenidoFinal.includes('Seleccione la entidad')) {
     console.log('  🏢 Seleccionando entidad (asociación)...');
@@ -85,20 +88,39 @@ async function seleccionarRolYEntrar(page, nombreAsociacion) {
     const selectLocator = page.locator('select').first();
     await selectLocator.waitFor({ state: 'visible', timeout: 10000 });
     
-    if (nombreAsociacion) {
-      // Buscar la opción que contenga el nombre corto de la asociación (ignorando mayúsculas/minúsculas)
-      const nameToSearch = nombreAsociacion.toUpperCase();
+    if (nombreCorto) {
+      const nameToSearch = nombreCorto.toUpperCase();
       console.log(`  Buscando asociación que coincida con: ${nameToSearch}`);
       const opciones = await selectLocator.locator('option').allInnerTexts();
       
       let indexToSelect = 1; // Default
+      let mejorSimilitud = -1;
+
       for (let i = 0; i < opciones.length; i++) {
-          if (opciones[i].toUpperCase().includes(nameToSearch)) {
-              indexToSelect = i;
-              console.log(`  ✅ Encontrada coincidencia en el menú: ${opciones[i]}`);
-              break;
+          const optText = opciones[i].toUpperCase();
+          if (optText.includes(nameToSearch)) {
+              // Si tenemos nombreLargo, usamos heurística de similitud para evitar falsos positivos
+              if (nombreLargo) {
+                  const palabrasLargo = nombreLargo.toUpperCase().split(/[\s,.-]+/);
+                  const palabrasOpt = optText.split(/[\s,.-]+/);
+                  let coincidencias = 0;
+                  for (const p of palabrasLargo) {
+                      if (p.length > 3 && palabrasOpt.includes(p)) coincidencias++;
+                  }
+                  
+                  if (coincidencias > mejorSimilitud) {
+                      mejorSimilitud = coincidencias;
+                      indexToSelect = i;
+                  }
+              } else {
+                  // Si no hay nombreLargo, usar la primera coincidencia
+                  indexToSelect = i;
+                  break;
+              }
           }
       }
+      
+      console.log(`  ✅ Encontrada mejor coincidencia en el menú: ${opciones[indexToSelect]}`);
       await selectLocator.selectOption({ index: indexToSelect });
     } else {
       // Seleccionar la primera opción válida si no se especifica
