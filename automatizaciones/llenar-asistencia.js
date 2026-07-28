@@ -105,12 +105,12 @@ async function main() {
       
       let jardinesSeleccionados = [];
       while (jardinesSeleccionados.length === 0) {
-          console.log(c.gris('  (Puedes ingresar varios números separados por coma, ej: 1,3)'));
-          const resp = readline.question(c.negrita('  > Ingresa el numero de la(s) opcion(es): '));
+          console.log(c.gris('  (Ingresa 0 para TODOS, o varios números separados por coma, ej: 1,3)'));
+          const resp = readline.question(c.negrita('  > Ingresa la opcion (ENTER para TODOS): '));
           
           if (resp.trim() === '') {
-              console.log(c.amarillo('\n  Operación cancelada.'));
-              process.exit(0);
+              jardinesSeleccionados = a.jardines;
+              break;
           }
           
           const pts = resp.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
@@ -271,8 +271,8 @@ async function main() {
 
         let udsOptionsFiltradas = udsOptions;
         
-        // Si el usuario eligió jardines específicos, filtramos las opciones web
-        if (asc.jardinesAProcesar && asc.jardinesAProcesar.length > 0 && asc.jardinesAProcesar.length !== (asc.jardines ? asc.jardines.length : 0)) {
+        // Siempre filtramos las opciones web basado en jardinesAProcesar (incluso si son "Todos", así ignoramos basuras de Cuéntame)
+        if (asc.jardinesAProcesar && asc.jardinesAProcesar.length > 0) {
             udsOptionsFiltradas = udsOptions.filter(webUds => {
                 // Buscamos si algún jardín seleccionado está en el texto del <select> de la web
                 return asc.jardinesAProcesar.some(jExcel => {
@@ -281,7 +281,7 @@ async function main() {
                     return nombreWeb.includes(jExcel.codigo) || nombreWeb.includes(jExcel.nombre.toUpperCase());
                 });
             });
-            console.log(c.cyan(`  Encontradas ${udsOptions.length} UDS. Filtradas a ${udsOptionsFiltradas.length} según tu selección.`));
+            console.log(c.cyan(`  Encontradas ${udsOptions.length} UDS en Cuéntame. Filtradas a ${udsOptionsFiltradas.length} según Excel/Selección.`));
         } else {
             console.log(c.cyan(`  Encontradas ${udsOptionsFiltradas.length} Unidades de Servicio (UDS).`));
         }
