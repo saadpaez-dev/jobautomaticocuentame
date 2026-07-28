@@ -254,20 +254,47 @@ async function main() {
         await selectDropdown('Centro', 'USAQUEN'); // A veces se requiere
         await selectDropdown('Vigencia', '2024');
         await selectDropdown('Contrato', asc.numeroContrato);
-        await selectDropdown('Servicio', 1); // 1 significa el primer servicio válido
         await selectDropdown('Mes', mesAtencion);
         await selectDropdown('Estado', 'Todos');
 
-        // Iterar por cada UDS
-        const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
-        let udsOptions = [];
-        if (await udsLocator.count() > 0) {
-            udsOptions = await udsLocator.evaluate(s => {
+        // Obtener todos los servicios disponibles
+        const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
+        let serviciosOptions = [];
+        if (await servicioLocator.count() > 0) {
+            serviciosOptions = await servicioLocator.evaluate(s => {
                 return Array.from(s.options)
                     .filter(o => o.value && o.value !== "0" && o.value !== "")
                     .map(o => ({ value: o.value, text: o.text }));
             });
         }
+
+        if (serviciosOptions.length === 0) {
+            console.log(c.rojo(`  ⚠️ No se encontraron servicios para el contrato de esta asociación.`));
+            continue;
+        }
+
+        console.log(c.cyan(`  Encontrados ${serviciosOptions.length} modalidades/servicios.`));
+
+        // Mantener un registro de los jardines seleccionados que faltan por procesar
+        let jardinesPendientes = asc.jardinesAProcesar ? [...asc.jardinesAProcesar] : [];
+
+        for (let sIdx = 0; sIdx < serviciosOptions.length; sIdx++) {
+            const serv = serviciosOptions[sIdx];
+            console.log(c.amarillo(`\n  >> Probando Servicio [${sIdx+1}/${serviciosOptions.length}]: ${serv.text}`));
+            
+            await servicioLocator.selectOption(serv.value, { timeout: 5000 });
+            await mainPage.waitForTimeout(2000); // Esperar postback
+
+            // Obtener las UDS de este servicio
+            const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
+            let udsOptions = [];
+            if (await udsLocator.count() > 0) {
+                udsOptions = await udsLocator.evaluate(s => {
+                    return Array.from(s.options)
+                        .filter(o => o.value && o.value !== "0" && o.value !== "")
+                        .map(o => ({ value: o.value, text: o.text }));
+                });
+            }
 
         let udsOptionsFiltradas = udsOptions;
         
@@ -442,7 +469,7 @@ async function main() {
                 }
             } // fin interactivo
         } // fin loop UDS
-
+        } // fin loop SERVICIOS
       } catch (err) {
         console.error(c.rojo(`  ❌ Ocurrió un error con ${asc.nombreCorto}: ${err.message}`));
       }
