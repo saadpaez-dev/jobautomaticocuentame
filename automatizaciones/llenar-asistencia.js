@@ -132,6 +132,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     console.log(c.verde(`\n  ✅ Iniciando Fase 1: ${ascAProcesar.length} Asociacion(es) | Ignorando días: [${diasIgnorar.join(',') || 'Ninguno'}]`));
 
     const { browser, context, mainPage } = await iniciarNavegador();
+    let authCookies = null;
 
     let rolesHtml = null;
     let rolesUrl = null;
@@ -152,19 +153,15 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 gmailUser: process.env.GMAIL_USER,
                 gmailAppPassword: process.env.GMAIL_APP_PASSWORD
             });
+            authCookies = await context.cookies();
         } else {
-            console.log(c.gris(`\n    🔄 Cerrando sesión actual para cambiar de asociación...`));
+            console.log(c.gris(`\n    🔄 Restaurando sesión guardada (cookies) para cambiar de asociación sin 2FA...`));
             try {
                 await context.clearCookies();
-                await mainPage.goto('https://rubonline.icbf.gov.co/Autenticacion/Login.aspx', { waitUntil: 'networkidle' });
-                await loginYLlegarARoles(mainPage, { 
-                    usuario: process.env.CUENTAME_USUARIO, 
-                    password: process.env.CUENTAME_PASSWORD,
-                    gmailUser: process.env.GMAIL_USER,
-                    gmailAppPassword: process.env.GMAIL_APP_PASSWORD
-                });
+                await context.addCookies(authCookies);
+                await mainPage.goto('https://rubonline.icbf.gov.co/Autenticacion/Roles.aspx', { waitUntil: 'networkidle' });
             } catch (err) {
-                console.error(c.rojo(`  ❌ Error al cerrar sesión y reloguear: ${err.message}`));
+                console.error(c.rojo(`  ❌ Error al restaurar sesión: ${err.message}`));
             }
         }
 
