@@ -211,8 +211,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 
                 // Esperar hasta que el select aparezca (máx 10 segs)
                 let attempts = 0;
-                while (await sel.count() === 0 && attempts < 10) {
-                    await workPage.waitForTimeout(1000);
+                while (await sel.count() === 0 && attempts < 20) {
+                    await workPage.waitForTimeout(300);
                     attempts++;
                 }
                 if (await sel.count() === 0) return;
@@ -239,13 +239,13 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     if (valueToSelect) {
                         break; // Encontrado
                     }
-                    await workPage.waitForTimeout(1000); // Esperar a que Cuéntame actualice el select
+                    await workPage.waitForTimeout(400); // Esperar a que Cuéntame actualice el select
                 }
 
                 if (valueToSelect) {
                     console.log(c.gris(`    [DEBUG] Seleccionando en ${keyword}: ${valueToSelect}`));
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
-                    await workPage.waitForTimeout(2000);
+                    await workPage.waitForTimeout(400);
                 } else {
                     console.log(c.rojo(`    ⚠️ No se encontró la opción para ${keyword} (${textOrIndex}). Intentando fallback a la primera opción válida...`));
                     const fallbackVal = await sel.evaluate(s => {
@@ -255,7 +255,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     if (fallbackVal) {
                         console.log(c.amarillo(`    ⚠️ Fallback exitoso: Seleccionando valor: ${fallbackVal} en ${keyword}`));
                         await sel.selectOption(fallbackVal, { timeout: 5000 });
-                        await workPage.waitForTimeout(2000);
+                        await workPage.waitForTimeout(400);
                     } else {
                         console.log(c.rojo(`    ❌ Fallback falló: No hay opciones válidas en ${keyword}.`));
                     }
@@ -272,7 +272,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
             await selectDropdown('Mes', mesAtencion);
             await selectDropdown('Estado', 'Todos');
-        await workPage.waitForTimeout(3000);
+        await workPage.waitForTimeout(500);
 
         const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
             let serviciosOptions = [];
@@ -294,7 +294,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 console.log(c.amarillo(`\n  >> Probando Servicio [${sIdx+1}/${serviciosFiltrados.length}]: ${serv.text}`));
                 
                 await servicioLocator.selectOption(serv.value, { timeout: 5000 });
-                await workPage.waitForTimeout(1000); 
+            await workPage.waitForTimeout(400); 
 
                 const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
                 let udsOptions = [];
@@ -388,7 +388,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                          const genericSave = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
                          if (await genericSave.count() > 0) await genericSave.click();
                     }
-                    await workPage.waitForTimeout(3000); 
+                    await workPage.waitForTimeout(1000); 
                     console.log(c.verde('    ✅ Guardado exitoso.'));
 
                     const isUltimoServicio = (sIdx === serviciosFiltrados.length - 1);
@@ -502,8 +502,8 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 
                 // Esperar hasta que el select aparezca (máx 10 segs)
                 let attempts = 0;
-                while (await sel.count() === 0 && attempts < 10) {
-                    await workPage.waitForTimeout(1000);
+                while (await sel.count() === 0 && attempts < 20) {
+                    await workPage.waitForTimeout(300);
                     attempts++;
                 }
                 if (await sel.count() === 0) return;
@@ -530,13 +530,13 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     if (valueToSelect) {
                         break; // Encontrado
                     }
-                    await workPage.waitForTimeout(1000); // Esperar a que Cuéntame actualice el select
+                    await workPage.waitForTimeout(400); // Esperar a que Cuéntame actualice el select
                 }
 
                 if (valueToSelect) {
                     console.log(c.gris(`    [DEBUG] Seleccionando en ${keyword}: ${valueToSelect}`));
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
-                    await workPage.waitForTimeout(2000);
+                    await workPage.waitForTimeout(400);
                 } else {
                     console.log(c.rojo(`    ⚠️ No se encontró la opción para ${keyword} (${textOrIndex}). Intentando fallback a la primera opción válida...`));
                     const fallbackVal = await sel.evaluate(s => {
@@ -546,7 +546,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     if (fallbackVal) {
                         console.log(c.amarillo(`    ⚠️ Fallback exitoso: Seleccionando valor: ${fallbackVal} en ${keyword}`));
                         await sel.selectOption(fallbackVal, { timeout: 5000 });
-                        await workPage.waitForTimeout(2000);
+                        await workPage.waitForTimeout(400);
                     } else {
                         console.log(c.rojo(`    ❌ Fallback falló: No hay opciones válidas en ${keyword}.`));
                     }
@@ -563,7 +563,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
         await selectDropdown('Mes', mesAtencion);
         await selectDropdown('Estado', 'Todos');
-        await workPage.waitForTimeout(3000);
+        await workPage.waitForTimeout(500);
 
         const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
         let serviciosOptions = [];
@@ -583,7 +583,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         
         for (const serv of serviciosFiltrados) {
             await servicioLocator.selectOption(serv.value, { timeout: 5000 });
-            await workPage.waitForTimeout(1000); 
+            await workPage.waitForTimeout(400); 
 
             const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
             if (await udsLocator.count() > 0) {
