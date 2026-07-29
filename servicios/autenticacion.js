@@ -25,12 +25,9 @@ async function loginYLlegarARoles(page, credenciales) {
   const fechaInicio = new Date();
   await page.goto(URL_LOGIN, { waitUntil: 'networkidle', timeout: 30000 });
 
-  // Llenar usuario y contraseña (usando :visible para saltar cualquier campo oculto por CSS o type="hidden")
-  const userLocator = page.locator('input[type="text"]:visible').first();
-  const passLocator = page.locator('input[type="password"]:visible').first();
-  
-  await userLocator.fill(usuario);
-  await passLocator.fill(password);
+  // Llenar usuario y contraseña
+  await page.locator('input[type="text"]').first().fill(usuario);
+  await page.locator('input[type="password"]').first().fill(password);
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.locator('input[value="Iniciar Sesión"], input[type="submit"]').first().click()
@@ -70,7 +67,9 @@ async function loginYLlegarARoles(page, credenciales) {
   // Verificar si pide selección de asociación/entidad
   const contenidoFinal = await page.content();
   if (contenidoFinal.includes('Seleccione la entidad')) {
-    return page.url(); // Retornamos la URL de roles para poder duplicar pestañas
+    const rolesUrl = page.url();
+    console.log(`  🔗 [DEBUG] URL de Roles detectada: ${rolesUrl}`);
+    return rolesUrl; // Retornamos la URL de roles para poder duplicar pestañas
   }
   
   // Si no pide roles, verificamos que haya entrado directo
@@ -80,10 +79,12 @@ async function loginYLlegarARoles(page, credenciales) {
 
 /**
  * Selecciona la asociación en la pantalla de roles y entra al sistema.
- * @param {import('playwright').Page} page
- * @param {string} nombreAsociacion 
+ * @param {import('playwright').Page} page La página de roles
+ * @param {string|object} ascInput La asociación a buscar
+ * @param {boolean} [mantenerRolesTab=false] Si es true, abre la asociación en una nueva pestaña
+ * @returns {Promise<import('playwright').Page>} La pestaña de trabajo (puede ser la misma o una nueva)
  */
-async function seleccionarRolYEntrar(page, ascInput) {
+async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
   const nombreCorto = typeof ascInput === 'string' ? ascInput : ascInput.nombreCorto;
   const nombreLargo = typeof ascInput === 'string' ? '' : (ascInput.nombreLargo || '');
 
@@ -137,14 +138,36 @@ async function seleccionarRolYEntrar(page, ascInput) {
     // Darle tiempo al servidor si el dropdown tiene AutoPostBack
     await page.waitForTimeout(2000);
     
-    // Click en el botón Continuar
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
-      page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
-    ]);
-  }
+    // Si se pidió mantener la pestaña de roles intacta, obligamos al form a hacer POST a _blank
+    if (mantenerRolesTab) {
+        await page.evaluate(() => {
+            if (document.forms.length > 0) document.forms[0].target = '_blank';
+        });
 
-  await verificarLoginExitoso(page);
+        const [newPage] = await Promise.all([
+            page.context().waitForEvent('page'),
+            page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
+        ]);
+        
+        await newPage.waitForLoadState('networkidle');
+        
+        // Restaurar target por limpieza
+        await page.evaluate(() => {
+            if (document.forms.length > 0) document.forms[0].target = '';
+        });
+        
+        await verificarLoginExitoso(newPage);
+        return newPage;
+    } else {
+        // Comportamiento normal, usar la misma pestaña
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
+          page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
+        ]);
+        await verificarLoginExitoso(page);
+        return page;
+    }
+  }
 }
 
 async function verificarLoginExitoso(page) {

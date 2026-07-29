@@ -138,6 +138,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
     const { browser, context, mainPage } = await iniciarNavegador();
     let authCookies = null;
+    let rolesPage = mainPage; // Página que se quedará en Roles.aspx
 
     for (let i = 0; i < ascAProcesar.length; i++) {
         const asc = ascAProcesar[i];
@@ -149,76 +150,29 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             console.log(c.cyan('\n======================================================'));
             console.log(c.cyan('▶ Iniciando sesión única y 2FA...'));
             console.log(c.cyan('======================================================\n'));
-            await loginYLlegarARoles(mainPage, { 
+            await loginYLlegarARoles(rolesPage, { 
                 usuario: process.env.CUENTAME_USUARIO, 
                 password: process.env.CUENTAME_PASSWORD,
                 gmailUser: process.env.GMAIL_USER,
                 gmailAppPassword: process.env.GMAIL_APP_PASSWORD
             });
             authCookies = await context.cookies();
-        } else {
-            console.log(c.gris(`\n    🔄 Volviendo a la selección de roles a través del menú principal...`));
-            try {
-                // Navegar a la raíz para que Cuéntame nos redirija al MasterPrincipal
-                await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/Principal/MasterPrincipal.aspx', { waitUntil: 'domcontentloaded' });
-                await mainPage.waitForTimeout(3000);
-                
-                // Ejecutar JavaScript en el navegador para buscar el botón de cambiar rol en todos los frames
-                const clicked = await mainPage.evaluate(() => {
-                    function findAndClickRole(win) {
-                        try {
-                            const elements = win.document.querySelectorAll('a, input, button, span, div, li, img');
-                            for (const el of elements) {
-                                const text = (el.innerText || '').toLowerCase();
-                                const val = (el.value || '').toLowerCase();
-                                const title = (el.title || '').toLowerCase();
-                                const href = (el.getAttribute('href') || '').toLowerCase();
-                                const onclick = (el.getAttribute('onclick') || '').toLowerCase();
-                                const id = (el.id || '').toLowerCase();
-                                
-                                if (
-                                    (text.includes('cambiar') && text.includes('rol')) ||
-                                    (val.includes('cambiar') && val.includes('rol')) ||
-                                    (title.includes('cambiar') && title.includes('rol')) ||
-                                    href.includes('cambiarrol') ||
-                                    onclick.includes('cambiarrol') ||
-                                    id.includes('cambiarrol')
-                                ) {
-                                    el.click();
-                                    return true;
-                                }
-                            }
-                        } catch (e) { } // Ignorar errores de cross-origin
-                        
-                        for (let i = 0; i < win.frames.length; i++) {
-                            if (findAndClickRole(win.frames[i])) return true;
-                        }
-                        return false;
-                    }
-                    return findAndClickRole(window);
-                });
-
-                if (clicked) {
-                    await new Promise(r => setTimeout(r, 4000)); // Esperar a que navegue
-                } else {
-                    console.log(c.amarillo('    ⚠️ No se encontró el botón de cambiar rol por script.'));
-                    await mainPage.goto('https://rubonline.icbf.gov.co/', { waitUntil: 'networkidle' });
-                }
-            } catch (err) {
-                console.error(c.rojo(`  ❌ Error al volver a la página de roles: ${err.message}`));
-            }
         }
 
+        let workPage = rolesPage;
         try {
             console.log('  🏢 Seleccionando entidad (asociación)...');
-            await seleccionarRolYEntrar(mainPage, asc);
+            // Si NO es la última asociación, abrimos el trabajo en una PESTAÑA NUEVA,
+            // manteniendo rolesPage intacta en la página de roles para el siguiente ciclo.
+            const mantenerRolesTab = (i < ascAProcesar.length - 1);
+            workPage = await seleccionarRolYEntrar(rolesPage, asc, mantenerRolesTab);
             console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
             
             console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
-            await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
-            await mainPage.waitForTimeout(3000);
+            await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
+            await workPage.waitForTimeout(3000);
 
-            let contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+            let contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             if (!contentFrame) throw new Error('No se encontró el frameContent.');
 
             console.log('  📝 Llenando filtros del RAM...');
@@ -283,7 +237,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 console.log(c.amarillo(`\n  >> Probando Servicio [${sIdx+1}/${serviciosFiltrados.length}]: ${serv.text}`));
                 
                 await servicioLocator.selectOption(serv.value, { timeout: 5000 });
-                await mainPage.waitForTimeout(2000); 
+                await workPage.waitForTimeout(2000); 
 
                 const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
                 let udsOptions = [];
@@ -314,7 +268,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     console.log(c.amarillo(`\n    ▶ Procesando UDS [${u+1}/${udsOptionsFiltradas.length}]: ${uds.text}`));
                     
                     await udsLocator.selectOption(uds.value);
-                    await mainPage.waitForTimeout(2000);
+                    await workPage.waitForTimeout(2000);
 
                     console.log('    👉 Buscando (clic en la lupa)...');
                     const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
@@ -324,18 +278,18 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                          const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
                          if (await genericBtn.count() > 0) await genericBtn.click();
                     }
-                    await mainPage.waitForTimeout(4000);
+                    await workPage.waitForTimeout(4000);
 
                     console.log('    👉 Habilitando edición (clic en el lápiz)...');
                     const lapiz = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
                     if (await lapiz.count() > 0 && await lapiz.isVisible()) {
                         await lapiz.click();
-                        await mainPage.waitForTimeout(3000);
+                        await workPage.waitForTimeout(3000);
                     } else {
                         const genericEdit = contentFrame.locator('a:has(img[src*="edit.png"]):visible, input[type="image"]:visible, img[src*="edit"]:visible, img[src*="lapiz"]:visible').first();
                         if (await genericEdit.count() > 0) {
                             await genericEdit.click();
-                            await mainPage.waitForTimeout(3000);
+                            await workPage.waitForTimeout(3000);
                         }
                     }
 
@@ -377,7 +331,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                          const genericSave = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
                          if (await genericSave.count() > 0) await genericSave.click();
                     }
-                    await mainPage.waitForTimeout(5000); 
+                    await workPage.waitForTimeout(5000); 
                     console.log(c.verde('    ✅ Guardado exitoso.'));
 
                     const isUltimoServicio = (sIdx === serviciosFiltrados.length - 1);
@@ -389,9 +343,9 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     }
 
                     console.log(c.gris('    🔄 Recargando página para desbloquear filtros de la siguiente UDS...'));
-                    await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
-                    await mainPage.waitForTimeout(2000);
-                    contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+                    await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+                    await workPage.waitForTimeout(2000);
+                    contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
                     
                     // Volver a llenar los filtros para la siguiente UDS
                     await selectDropdown('Direcciones', 'Primera Infancia');
