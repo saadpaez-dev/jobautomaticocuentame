@@ -181,14 +181,43 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             if (!contentFrame) throw new Error('No se encontró el frameContent.');
 
             console.log('  📝 Llenando filtros del RAM...');
-            const selectDropdown = async (label, value) => {
-                const locator = contentFrame.locator(`select[id*="${label}"]`).first();
-                if (await locator.count() > 0) {
-                    await locator.selectOption(value);
-                    await mainPage.waitForTimeout(2000); // Postback
+            const selectDropdown = async (keyword, textOrIndex) => {
+                try {
+                    const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
+                    if (await sel.count() === 0) return;
+                    
+                    const isEnabled = await sel.evaluate(s => !s.disabled);
+                    if (!isEnabled) return; // Skip if disabled
+
+                    if (typeof textOrIndex === 'string') {
+                        // Seleccionar por texto parcial
+                        const value = await sel.evaluate((s, t) => {
+                            const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(t.toUpperCase()));
+                            return opt ? opt.value : null;
+                        }, textOrIndex);
+                        if (value) {
+                            await sel.selectOption(value, { timeout: 5000 });
+                            await mainPage.waitForTimeout(2000);
+                        }
+                    } else if (typeof textOrIndex === 'number') {
+                        // Seleccionar por índice válido (>0)
+                        const valSrv = await sel.evaluate(s => {
+                            const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "");
+                            return opt ? opt.value : null;
+                        });
+                        if (valSrv) {
+                            await sel.selectOption(valSrv, { timeout: 5000 });
+                            await mainPage.waitForTimeout(2000);
+                        }
+                    }
+                } catch (e) {
+                    console.log(c.gris(`    (No se pudo seleccionar en ${keyword}: ${e.message})`));
                 }
             };
             
+            await selectDropdown('Direcciones', 'Primera Infancia');
+            await selectDropdown('Regional', 'Bogota');
+            await selectDropdown('Centro', 'USAQUEN'); // A veces se requiere
             await selectDropdown('Vigencia', asc.vigenciaContrato || '2024');
             await selectDropdown('Contrato', asc.numeroContrato);
             await selectDropdown('Mes', mesAtencion);
@@ -368,13 +397,43 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         let contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
         console.log('  📝 Llenando filtros del RAM...');
-        const selectDropdown = async (label, value) => {
-            const locator = contentFrame.locator(`select[id*="${label}"]`).first();
-            if (await locator.count() > 0) {
-                await locator.selectOption(value);
-                await mainPage.waitForTimeout(2000); 
+        const selectDropdown = async (keyword, textOrIndex) => {
+            try {
+                const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
+                if (await sel.count() === 0) return;
+                
+                const isEnabled = await sel.evaluate(s => !s.disabled);
+                if (!isEnabled) return; // Skip if disabled
+
+                if (typeof textOrIndex === 'string') {
+                    // Seleccionar por texto parcial
+                    const value = await sel.evaluate((s, t) => {
+                        const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(t.toUpperCase()));
+                        return opt ? opt.value : null;
+                    }, textOrIndex);
+                    if (value) {
+                        await sel.selectOption(value, { timeout: 5000 });
+                        await mainPage.waitForTimeout(2000);
+                    }
+                } else if (typeof textOrIndex === 'number') {
+                    // Seleccionar por índice válido (>0)
+                    const valSrv = await sel.evaluate(s => {
+                        const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "");
+                        return opt ? opt.value : null;
+                    });
+                    if (valSrv) {
+                        await sel.selectOption(valSrv, { timeout: 5000 });
+                        await mainPage.waitForTimeout(2000);
+                    }
+                }
+            } catch (e) {
+                console.log(c.gris(`    (No se pudo seleccionar en ${keyword}: ${e.message})`));
             }
         };
+        
+        await selectDropdown('Direcciones', 'Primera Infancia');
+        await selectDropdown('Regional', 'Bogota');
+        await selectDropdown('Centro', 'USAQUEN'); // A veces se requiere
         await selectDropdown('Vigencia', asc.vigenciaContrato || '2024');
         await selectDropdown('Contrato', asc.numeroContrato);
         await selectDropdown('Mes', mesAtencion);
