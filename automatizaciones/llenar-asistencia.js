@@ -70,7 +70,7 @@ async function main() {
   
   const fases = [
     '(FASE 1) - Subida de asistencia General (Masiva)', 
-    '(FASE 2) - Subida de asistencia Individual (Inasistencias / Días sueltos)'
+    '(FASE 2) - INASISTENCIA Y DIAS DE ASISTENCIA PENDIENTES POR LLENAR'
   ];
   const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA FASE A EJECUTAR: '), { cancel: false });
   
@@ -534,23 +534,8 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             }
             await mainPage.waitForTimeout(4000);
 
-            const tareas = [
-                'Registrar INASISTENCIAS (ej. desmarcar falla a un niño)',
-                'Rellenar 1 DÍA de asistencia (ej. marcar a todos solo el día 29)'
-            ];
-            const tareaIdx = readline.keyInSelect(tareas, c.negrita('  > ¿Qué desea hacer en este Jardín?: '), { cancel: 'Cambiar de Jardín' });
-
-            if (tareaIdx === -1) {
-                continue; // Vuelve a preguntar el Jardín
-            }
-
-            if (tareaIdx === 0) {
-                // Registrar inasistencias interactivamente
-                await registrarInasistenciasIndividual(mainPage, contentFrame);
-            } else if (tareaIdx === 1) {
-                // Rellenar un solo día
-                await rellenarUnDia(mainPage, contentFrame, elegida);
-            }
+            // Llamar a la función unificada
+            await modificarAsistenciaIndividual(mainPage, contentFrame, elegida, mesAtencion, asc);
         } // Fin while true (Menú jardines)
 
     } catch (err) {
@@ -562,7 +547,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
     await browser.close();
 }
 
-async function registrarInasistenciasIndividual(mainPage, contentFrame) {
+async function modificarAsistenciaIndividual(mainPage, contentFrame, elegida, mesAtencion, asc) {
     while (true) {
         console.log(c.cyan('\n    Leyendo lista de niños...'));
         contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
@@ -586,163 +571,141 @@ async function registrarInasistenciasIndividual(mainPage, contentFrame) {
         console.log(c.cyan('\n    --- Lista de Niños Activos ---'));
         listaNinos.forEach(n => console.log(`      - ${n.nombre}`));
 
-        const inputFallas = readline.question(c.negrita('\n    > Ingrese nombre o apellido y los días de falla (ej: "Perez 15,18").\n    > (Deje vacío para CAMBIAR DE JARDÍN): '));
-        if (!inputFallas.trim()) break;
+        const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre, apellido o "TODOS"\n    > (Deje vacío para CAMBIAR DE JARDÍN): ')).trim();
+        if (!seleccionNina) break;
 
-        const match = inputFallas.match(/^([^\d]+)([\d\s,]+)$/);
-        if (!match) {
-             console.log(c.rojo('    ⚠️ Formato inválido. Use algo como "Perez 15, 18"'));
-             continue;
+        const nombreBuscado = seleccionNina.toUpperCase();
+        let ninosAfectados = [];
+
+        if (nombreBuscado === 'TODOS') {
+            ninosAfectados = listaNinos;
+        } else {
+            ninosAfectados = listaNinos.filter(n => n.nombre.toUpperCase().includes(nombreBuscado));
+            if (ninosAfectados.length === 0) {
+                console.log(c.rojo(`    ⚠️ No se encontró ningún niño con "${seleccionNina}"`));
+                continue;
+            }
+            if (ninosAfectados.length > 1) {
+                console.log(c.amarillo(`    ⚠️ Se encontraron varios niños que coinciden:`));
+                ninosAfectados.forEach(n => console.log(`      - ${n.nombre}`));
+                console.log(c.amarillo(`    Por favor sea más específico.`));
+                continue;
+            }
         }
-        
-        const nombreBuscado = match[1].trim().toUpperCase();
-        const diasFaltaStr = match[2];
-        const diasFalta = diasFaltaStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 
-        const ninosEncontrados = listaNinos.filter(n => n.nombre.toUpperCase().includes(nombreBuscado));
-        if (ninosEncontrados.length === 0) {
-            console.log(c.rojo(`    ⚠️ No se encontró ningún niño con "${nombreBuscado}"`));
+        console.log(c.verde(`\n    Niños seleccionados: ${ninosAfectados.length}`));
+
+        const acciones = [
+            'Marcar ASISTENCIAS (poner checks ✅)',
+            'Marcar INASISTENCIAS (quitar checks ❌)'
+        ];
+        const accionIdx = readline.keyInSelect(acciones, c.negrita(`  > ¿Qué desea hacer con los niños seleccionados?`), { cancel: 'Cancelar' });
+        if (accionIdx === -1) continue;
+
+        const marcarAsistencia = accionIdx === 0;
+
+        const diasInput = readline.question(c.negrita('\n    > Ingrese los días. Puede usar comas (1,5) o rangos (1-15): ')).trim();
+        if (!diasInput) continue;
+
+        // Parsear días
+        let diasAfectados = [];
+        const partes = diasInput.split(',');
+        for (let p of partes) {
+            p = p.trim();
+            if (p.includes('-')) {
+                const rangos = p.split('-');
+                const inicio = parseInt(rangos[0]);
+                const fin = parseInt(rangos[1]);
+                if (!isNaN(inicio) && !isNaN(fin) && inicio <= fin) {
+                    for (let i = inicio; i <= fin; i++) diasAfectados.push(i);
+                }
+            } else {
+                const num = parseInt(p);
+                if (!isNaN(num)) diasAfectados.push(num);
+            }
+        }
+
+        if (diasAfectados.length === 0) {
+            console.log(c.rojo('    ⚠️ No se detectaron días válidos.'));
             continue;
         }
-        if (ninosEncontrados.length > 1) {
-            console.log(c.amarillo(`    ⚠️ Se encontraron varios niños que coinciden con "${nombreBuscado}":`));
-            ninosEncontrados.forEach(n => console.log(`      - ${n.nombre}`));
-            console.log(c.amarillo(`    Por favor sea más específico.`));
-            continue;
-        }
 
-        const nino = ninosEncontrados[0];
-        if (diasFalta.length > 0) {
-            const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
-            if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
-                await lapizNuevo.click();
-                await mainPage.waitForTimeout(3000);
-                contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
-                const rowsNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
-                if (nino.idxOriginal < rowsNuevas.length) {
-                    nino.row = rowsNuevas[nino.idxOriginal];
+        console.log(`    👉 Habilitando edición (clic en el lápiz)...`);
+        const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
+        if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
+            await lapizNuevo.click();
+            await mainPage.waitForTimeout(3000);
+            contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+            
+            // Re-vincular los locators de las filas de los niños seleccionados porque el DOM cambió
+            const rowsNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
+            for (let n of ninosAfectados) {
+                if (n.idxOriginal < rowsNuevas.length) {
+                    n.row = rowsNuevas[n.idxOriginal];
                 }
             }
+        }
 
-            let desmarcados = 0;
-            const celdasFalla = await nino.row.locator(':scope > td').all();
-            
-            for (const dia of diasFalta) {
+        let modificados = 0;
+        console.log(c.cyan(`    Aplicando cambios a ${diasAfectados.length} días para ${ninosAfectados.length} niños...`));
+
+        for (const nino of ninosAfectados) {
+            const celdas = await nino.row.locator(':scope > td').all();
+            for (const dia of diasAfectados) {
                 const colIndex = dia + 2; 
-                if (colIndex < celdasFalla.length) {
-                    const chk = celdasFalla[colIndex].locator('input[type="checkbox"]');
+                if (colIndex < celdas.length) {
+                    const chk = celdas[colIndex].locator('input[type="checkbox"]');
                     if (await chk.count() > 0) {
                         const isEnabled = await chk.isEnabled();
                         const isChecked = await chk.isChecked();
-                        if (isEnabled && isChecked) {
-                            await chk.uncheck();
-                            desmarcados++;
+                        if (isEnabled) {
+                            if (marcarAsistencia && !isChecked) {
+                                await chk.check();
+                                modificados++;
+                            } else if (!marcarAsistencia && isChecked) {
+                                await chk.uncheck();
+                                modificados++;
+                            }
                         }
                     }
                 }
             }
-            console.log(c.verde(`    ✔️ Se desmarcaron ${desmarcados} días para ${nino.nombre}.`));
+        }
 
-            const discoNuevo = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
-            if (await discoNuevo.count() > 0 && await discoNuevo.isVisible()) {
-                await discoNuevo.click();
-            } else {
-                 const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
-                 if (await genericSave2.count() > 0) await genericSave2.click();
-            }
-            await mainPage.waitForTimeout(4000);
-            console.log(c.verde('    ✅ Inasistencia guardada.'));
+        const accionStr = marcarAsistencia ? 'asistencias marcadas' : 'inasistencias registradas (desmarcadas)';
+        console.log(c.verde(`    ✔️ Se aplicaron ${modificados} cambios (${accionStr}).`));
 
-            console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
-            await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+        console.log('    💾 Guardando asistencia...');
+        const discoNuevo = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
+        if (await discoNuevo.count() > 0 && await discoNuevo.isVisible()) {
+            await discoNuevo.click();
+        } else {
+             const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
+             if (await genericSave2.count() > 0) await genericSave2.click();
+        }
+        await mainPage.waitForTimeout(4000);
+        console.log(c.verde('    ✅ Guardado exitoso.'));
+
+        console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
+        await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+        await mainPage.waitForTimeout(2000);
+        contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+        
+        // Volver a llenar los filtros
+        await selectDropdown('Direcciones', 'Primera Infancia');
+        await selectDropdown('Regional', 'Bogota');
+        await selectDropdown('Centro', 'USAQUEN');
+        await selectDropdown('Vigencia', asc.vigenciaContrato || '2024');
+        await selectDropdown('Contrato', asc.numeroContrato);
+        await selectDropdown('Mes', mesAtencion);
+        await selectDropdown('Estado', 'Todos');
+        
+        const servicioLocator2 = contentFrame.locator(`select[id*="Servicio"]`).first();
+        if (await servicioLocator2.count() > 0) {
+            await servicioLocator2.selectOption(elegida.servicio.value, { timeout: 5000 });
             await mainPage.waitForTimeout(2000);
-            contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
-            
-            // Volver a llenar los filtros
-            await selectDropdown('Direcciones', 'Primera Infancia');
-            await selectDropdown('Regional', 'Bogota');
-            await selectDropdown('Centro', 'USAQUEN');
-            await selectDropdown('Vigencia', asc.vigenciaContrato || '2024');
-            await selectDropdown('Contrato', asc.numeroContrato);
-            await selectDropdown('Mes', mesAtencion);
-            await selectDropdown('Estado', 'Todos');
-            
-            const servicioLocator2 = contentFrame.locator(`select[id*="Servicio"]`).first();
-            if (await servicioLocator2.count() > 0) {
-                await servicioLocator2.selectOption(elegida.servicio.value, { timeout: 5000 });
-                await mainPage.waitForTimeout(2000);
-            }
         }
     }
-}
-
-async function rellenarUnDia(mainPage, contentFrame, elegida) {
-    const diaALlenar = readline.questionInt(c.negrita('\n    > Ingrese el número del DÍA que desea llenar (ej. 29): '));
-    if (!diaALlenar || isNaN(diaALlenar)) return;
-
-    console.log('    👉 Habilitando edición (clic en el lápiz)...');
-    const lapiz = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
-    if (await lapiz.count() > 0 && await lapiz.isVisible()) {
-        await lapiz.click();
-        await mainPage.waitForTimeout(3000);
-    } else {
-        const genericEdit = contentFrame.locator('a:has(img[src*="edit.png"]):visible, input[type="image"]:visible, img[src*="edit"]:visible, img[src*="lapiz"]:visible').first();
-        if (await genericEdit.count() > 0) {
-            await genericEdit.click();
-            await mainPage.waitForTimeout(3000);
-        }
-    }
-
-    contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
-    console.log(`    ✅ Marcando asistencia solo para el día ${diaALlenar}...`);
-    const rows = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
-    
-    let ninosActivos = 0;
-    let checksMarcados = 0;
-
-    for (const row of rows) {
-        const text = await row.innerText();
-        if (text.includes('Activo')) {
-            ninosActivos++;
-            const cells = await row.locator(':scope > td').all();
-            const colIndex = diaALlenar + 2;
-            if (colIndex < cells.length) {
-                const chk = cells[colIndex].locator('input[type="checkbox"]');
-                if (await chk.count() > 0) {
-                    const isEnabled = await chk.isEnabled();
-                    const isChecked = await chk.isChecked();
-                    if (isEnabled && !isChecked) {
-                        await chk.check();
-                        checksMarcados++;
-                    }
-                }
-            }
-        }
-    }
-
-    console.log(c.verde(`    ✔️ Se marcaron ${checksMarcados} asistencias para el día ${diaALlenar}.`));
-
-    console.log('    💾 Guardando asistencia...');
-    const disco = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
-    if (await disco.count() > 0 && await disco.isVisible()) {
-        await disco.click();
-    } else {
-         const genericSave = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
-         if (await genericSave.count() > 0) await genericSave.click();
-    }
-    await mainPage.waitForTimeout(5000); 
-    console.log(c.verde('    ✅ Guardado exitoso.'));
-
-    contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
-    console.log(c.gris('    🔄 Dando clic en la lupa para desbloquear...'));
-    const lupaReinicio = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
-    if (await lupaReinicio.count() > 0 && await lupaReinicio.isVisible()) {
-        await lupaReinicio.click();
-    } else {
-         const genericBtnRein = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
-         if (await genericBtnRein.count() > 0) await genericBtnRein.click();
-    }
-    await mainPage.waitForTimeout(3000);
 }
 
 main().catch(console.error);
