@@ -219,7 +219,18 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
                     await workPage.waitForTimeout(2000);
                 } else {
-                    console.log(c.rojo(`    ⚠️ No se encontró la opción para ${keyword} (${textOrIndex}).`));
+                    console.log(c.rojo(`    ⚠️ No se encontró la opción para ${keyword} (${textOrIndex}). Intentando fallback a la primera opción válida...`));
+                    const fallbackVal = await sel.evaluate(s => {
+                        const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
+                        return opt ? opt.value : null;
+                    });
+                    if (fallbackVal) {
+                        console.log(c.amarillo(`    ⚠️ Fallback exitoso: Seleccionando valor: ${fallbackVal} en ${keyword}`));
+                        await sel.selectOption(fallbackVal, { timeout: 5000 });
+                        await workPage.waitForTimeout(2000);
+                    } else {
+                        console.log(c.rojo(`    ❌ Fallback falló: No hay opciones válidas en ${keyword}.`));
+                    }
                 }
             } catch (e) {
                 console.log(c.gris(`    (No se pudo seleccionar en ${keyword}: ${e.message})`));
@@ -493,7 +504,18 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
                     await workPage.waitForTimeout(2000);
                 } else {
-                    console.log(c.rojo(`    ⚠️ No se encontró la opción para ${keyword} (${textOrIndex}).`));
+                    console.log(c.rojo(`    ⚠️ No se encontró la opción para ${keyword} (${textOrIndex}). Intentando fallback a la primera opción válida...`));
+                    const fallbackVal = await sel.evaluate(s => {
+                        const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
+                        return opt ? opt.value : null;
+                    });
+                    if (fallbackVal) {
+                        console.log(c.amarillo(`    ⚠️ Fallback exitoso: Seleccionando valor: ${fallbackVal} en ${keyword}`));
+                        await sel.selectOption(fallbackVal, { timeout: 5000 });
+                        await workPage.waitForTimeout(2000);
+                    } else {
+                        console.log(c.rojo(`    ❌ Fallback falló: No hay opciones válidas en ${keyword}.`));
+                    }
                 }
             } catch (e) {
                 console.log(c.gris(`    (No se pudo seleccionar en ${keyword}: ${e.message})`));
