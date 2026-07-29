@@ -141,9 +141,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
     let rolesHtml = null;
     let rolesUrl = null;
-
-    let rolesUrl = null;
     
+
     for (let i = 0; i < ascAProcesar.length; i++) {
         const asc = ascAProcesar[i];
         console.log(c.cyan(`\n======================================================`));
