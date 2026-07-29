@@ -341,16 +341,25 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     await mainPage.waitForTimeout(5000); 
                     console.log(c.verde('    ✅ Guardado exitoso.'));
 
+                    console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
+                    await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+                    await mainPage.waitForTimeout(2000);
                     contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
-                    console.log(c.gris('    🔄 Dando clic en la lupa para desbloquear el selector de jardines...'));
-                    const lupaReinicio = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
-                    if (await lupaReinicio.count() > 0 && await lupaReinicio.isVisible()) {
-                        await lupaReinicio.click();
-                    } else {
-                         const genericBtnRein = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
-                         if (await genericBtnRein.count() > 0) await genericBtnRein.click();
+                    
+                    // Volver a llenar los filtros para la siguiente UDS
+                    await selectDropdown('Direcciones', 'Primera Infancia');
+                    await selectDropdown('Regional', 'Bogota');
+                    await selectDropdown('Centro', 'USAQUEN');
+                    await selectDropdown('Vigencia', asc.vigenciaContrato || '2024');
+                    await selectDropdown('Contrato', asc.numeroContrato);
+                    await selectDropdown('Mes', mesAtencion);
+                    await selectDropdown('Estado', 'Todos');
+                    
+                    const servicioLocator2 = contentFrame.locator(`select[id*="Servicio"]`).first();
+                    if (await servicioLocator2.count() > 0) {
+                        await servicioLocator2.selectOption(serv.value, { timeout: 5000 });
+                        await mainPage.waitForTimeout(2000);
                     }
-                    await mainPage.waitForTimeout(3000);
 
                 } // fin loop UDS
             } // fin loop SERVICIOS
@@ -638,16 +647,25 @@ async function registrarInasistenciasIndividual(mainPage, contentFrame) {
             await mainPage.waitForTimeout(4000);
             console.log(c.verde('    ✅ Inasistencia guardada.'));
 
+            console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
+            await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+            await mainPage.waitForTimeout(2000);
             contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
-            console.log(c.gris('    🔄 Dando clic en la lupa para desbloquear...'));
-            const lupaReinicio2 = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
-            if (await lupaReinicio2.count() > 0 && await lupaReinicio2.isVisible()) {
-                await lupaReinicio2.click();
-            } else {
-                 const genericBtnRein2 = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
-                 if (await genericBtnRein2.count() > 0) await genericBtnRein2.click();
+            
+            // Volver a llenar los filtros
+            await selectDropdown('Direcciones', 'Primera Infancia');
+            await selectDropdown('Regional', 'Bogota');
+            await selectDropdown('Centro', 'USAQUEN');
+            await selectDropdown('Vigencia', asc.vigenciaContrato || '2024');
+            await selectDropdown('Contrato', asc.numeroContrato);
+            await selectDropdown('Mes', mesAtencion);
+            await selectDropdown('Estado', 'Todos');
+            
+            const servicioLocator2 = contentFrame.locator(`select[id*="Servicio"]`).first();
+            if (await servicioLocator2.count() > 0) {
+                await servicioLocator2.selectOption(elegida.servicio.value, { timeout: 5000 });
+                await mainPage.waitForTimeout(2000);
             }
-            await mainPage.waitForTimeout(3000);
         }
     }
 }
