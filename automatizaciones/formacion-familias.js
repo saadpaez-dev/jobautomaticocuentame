@@ -125,7 +125,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   console.log('  👉 Clic en el boton Nuevo (+)...');
   await Promise.all([
     page.waitForLoadState('networkidle'),
-    frame.locator('#btnNuevo').click()
+    frame.locator('#btnNuevo, input[type="image"][src*="nuevo"], input[type="image"][title*="Nuevo"]').first().click()
   ]);
   await page.waitForTimeout(1000);
 
