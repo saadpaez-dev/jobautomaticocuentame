@@ -142,6 +142,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     let rolesHtml = null;
     let rolesUrl = null;
 
+    let rolesUrl = null;
+    
     for (let i = 0; i < ascAProcesar.length; i++) {
         const asc = ascAProcesar[i];
         console.log(c.cyan(`\n======================================================`));
@@ -152,7 +154,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             console.log(c.cyan('\n======================================================'));
             console.log(c.cyan('▶ Iniciando sesión única y 2FA...'));
             console.log(c.cyan('======================================================\n'));
-            await loginYLlegarARoles(mainPage, { 
+            rolesUrl = await loginYLlegarARoles(mainPage, { 
                 usuario: process.env.CUENTAME_USUARIO, 
                 password: process.env.CUENTAME_PASSWORD,
                 gmailUser: process.env.GMAIL_USER,
@@ -162,8 +164,13 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
         } else {
             console.log(c.gris(`\n    🔄 Volviendo a la selección de roles con la sesión actual (sin 2FA)...`));
             try {
-                // Simplemente navegamos a Roles.aspx usando la misma sesión activa
-                await mainPage.goto('https://rubonline.icbf.gov.co/Autenticacion/Roles.aspx', { waitUntil: 'networkidle' });
+                // Simplemente navegamos a la URL exacta de roles usando la misma sesión activa
+                if (rolesUrl) {
+                    await mainPage.goto(rolesUrl, { waitUntil: 'networkidle' });
+                } else {
+                    // Fallback in case rolesUrl was not captured properly, try navigating to a known safe page
+                    await mainPage.goto('https://rubonline.icbf.gov.co/', { waitUntil: 'networkidle' });
+                }
             } catch (err) {
                 console.error(c.rojo(`  ❌ Error al volver a la página de roles: ${err.message}`));
             }
