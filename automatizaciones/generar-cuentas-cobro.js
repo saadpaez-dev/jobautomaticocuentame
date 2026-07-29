@@ -31,6 +31,14 @@ const { stdin, stdout } = require("node:process");
 const ExcelJS = require("exceljs");
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
+const readlineSync = require("readline-sync");
+const c = {
+  verde:    (t) => `\x1b[32m${t}\x1b[0m`,
+  amarillo: (t) => `\x1b[33m${t}\x1b[0m`,
+  cyan:     (t) => `\x1b[36m${t}\x1b[0m`,
+  rojo:     (t) => `\x1b[31m${t}\x1b[0m`,
+  gris:     (t) => `\x1b[90m${t}\x1b[0m`,
+};
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const { enviarCorreo } = require("../servicios/gmail-sender.js");
 
@@ -261,12 +269,42 @@ function convertirAPdf(rutaDocx, carpetaSalida) {
 async function main() {
   log("Iniciando generacion de cuentas de cobro y paz y salvo...");
 
-  const asociaciones = await leerAsociaciones();
+  let asociaciones = await leerAsociaciones();
   log(`Se encontraron ${asociaciones.length} asociaciones en "${HOJA_DATOS}".`);
 
   if (asociaciones.length === 0) {
     log("No hay datos para procesar. Verifica GENERAL.xlsx.");
     return;
+  }
+
+  console.log("");
+  console.log(c.cyan("[1] Generar para TODAS las asociaciones"));
+  console.log(c.cyan("[2] Seleccionar UNA asociacion especifica"));
+  console.log(c.cyan("[0] Salir"));
+  
+  const alcance = readlineSync.question("\n  > Escoja una opcion [1, 2, 0]: ");
+  
+  if (alcance === "0") {
+    console.log("Saliendo...");
+    return;
+  }
+  
+  if (alcance === "2") {
+    console.log("");
+    asociaciones.forEach((a, i) => {
+      console.log(c.cyan(`[${i + 1}] ${a.EAS}`));
+    });
+    console.log(c.cyan("[0] Cancelar"));
+    
+    const asocIdxStr = readlineSync.question(`\n  > Escoja la asociacion [1...${asociaciones.length} / 0]: `);
+    const asocIdx = parseInt(asocIdxStr, 10);
+    
+    if (asocIdx === 0 || isNaN(asocIdx) || asocIdx < 1 || asocIdx > asociaciones.length) {
+      console.log("Cancelado.");
+      return;
+    }
+    
+    asociaciones = [asociaciones[asocIdx - 1]];
   }
 
   const fechaActual = obtenerMesActual();
