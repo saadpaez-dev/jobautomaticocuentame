@@ -160,13 +160,12 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             });
             authCookies = await context.cookies();
         } else {
-            console.log(c.gris(`\n    🔄 Restaurando sesión guardada (cookies) para cambiar de asociación sin 2FA...`));
+            console.log(c.gris(`\n    🔄 Volviendo a la selección de roles con la sesión actual (sin 2FA)...`));
             try {
-                await context.clearCookies();
-                await context.addCookies(authCookies);
+                // Simplemente navegamos a Roles.aspx usando la misma sesión activa
                 await mainPage.goto('https://rubonline.icbf.gov.co/Autenticacion/Roles.aspx', { waitUntil: 'networkidle' });
             } catch (err) {
-                console.error(c.rojo(`  ❌ Error al restaurar sesión: ${err.message}`));
+                console.error(c.rojo(`  ❌ Error al volver a la página de roles: ${err.message}`));
             }
         }
 
