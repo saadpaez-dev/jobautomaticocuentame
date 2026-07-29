@@ -243,6 +243,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 }
 
                 if (valueToSelect) {
+                    const currentValue = await sel.evaluate(s => s.value);
+                    if (currentValue === valueToSelect) return;
                     console.log(c.gris(`    [DEBUG] Seleccionando en ${keyword}: ${valueToSelect}`));
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
                     await workPage.waitForTimeout(400);
@@ -253,6 +255,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                         return opt ? opt.value : null;
                     });
                     if (fallbackVal) {
+                        const currentValue = await sel.evaluate(s => s.value);
+                        if (currentValue === fallbackVal) return;
                         console.log(c.amarillo(`    ⚠️ Fallback exitoso: Seleccionando valor: ${fallbackVal} en ${keyword}`));
                         await sel.selectOption(fallbackVal, { timeout: 5000 });
                         await workPage.waitForTimeout(400);
@@ -534,6 +538,8 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 }
 
                 if (valueToSelect) {
+                    const currentValue = await sel.evaluate(s => s.value);
+                    if (currentValue === valueToSelect) return;
                     console.log(c.gris(`    [DEBUG] Seleccionando en ${keyword}: ${valueToSelect}`));
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
                     await workPage.waitForTimeout(400);
@@ -544,6 +550,8 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                         return opt ? opt.value : null;
                     });
                     if (fallbackVal) {
+                        const currentValue = await sel.evaluate(s => s.value);
+                        if (currentValue === fallbackVal) return;
                         console.log(c.amarillo(`    ⚠️ Fallback exitoso: Seleccionando valor: ${fallbackVal} en ${keyword}`));
                         await sel.selectOption(fallbackVal, { timeout: 5000 });
                         await workPage.waitForTimeout(400);
