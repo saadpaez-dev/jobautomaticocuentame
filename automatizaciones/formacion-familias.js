@@ -274,6 +274,7 @@ async function main() {
     password: PASSWORD,
     gmailUser: GMAIL_USER,
     gmailAppPassword: GMAIL_APP_PASSWORD,
+    nombreAsociacion: ""
   });
 
   const exitososTotales = [];
