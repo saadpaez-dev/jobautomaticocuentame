@@ -174,7 +174,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     for (let j = 0; j < filasNinos.length; j++) {
         const rowText = await filasNinos[j].innerText();
         const nombre = rowText.split('\t')[0].trim(); 
-        if (nombre && rowText.includes('Activo')) {
+        if (nombre && nombre.length > 5) { // Evitar encabezados o filas vacias
             listaNinos.push({ idxOriginal: j, nombre: nombre, row: filasNinos[j] });
         }
     }
