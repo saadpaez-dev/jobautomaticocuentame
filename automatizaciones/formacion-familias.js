@@ -73,179 +73,168 @@ function guardarLog(resultado) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Menú de configuración (antes de arrancar el bot)
+// Configuración inicial de Observaciones
 // ─────────────────────────────────────────────────────────────
-function configurar(porAsociacion) {
+function configurarObservaciones() {
   console.clear();
   console.log(c.negrita(c.verde(`
 ╔══════════════════════════════════════════════════════════╗
-║     🤖 BOT FORMACIÓN A FAMILIAS - Sistema Cuéntame      ║
+║     🤖 BOT FORMACION A FAMILIAS - Sistema Cuentame       ║
 ║                    ICBF Colombia                         ║
 ╚══════════════════════════════════════════════════════════╝
 `)));
 
   const hoy = fechaHoy();
-  console.log(c.cyan(`  📅 Fecha de formación: ${c.negrita(hoy)} (fecha de hoy)\n`));
+  console.log(c.cyan(`  📅 Fecha de formacion: ${c.negrita(hoy)} (fecha de hoy)\n`));
 
-  // Observaciones
-  console.log(c.amarillo('  📝 OBSERVACIONES (texto que se repite en todos los jardines):'));
+  console.log(c.amarillo('  📝 OBSERVACIONES (texto que se repite en los registros):'));
   console.log(c.gris(`     Por defecto: "${OBSERVACIONES_DEFAULT}"`));
   const cambiarObs = readline.keyInYN('  Quieres cambiar el texto de observaciones?');
   const observaciones = cambiarObs
     ? readline.question('  Escribe el nuevo texto de observaciones: ').trim() || OBSERVACIONES_DEFAULT
     : OBSERVACIONES_DEFAULT;
 
-  console.log();
-
-  // Temas por asociación
-  console.log(c.negrita(c.cyan('  🎯 TEMAS DE FORMACIÓN POR ASOCIACIÓN:\n')));
-  console.log(c.gris('  Temas disponibles:'));
-  TEMAS_FORMACION.forEach((t, i) => {
-    console.log(c.gris(`    [${i + 1}] ${t}`));
-  });
-  console.log();
-
-  const temasAsociacion = {};
-  const asociaciones = Object.keys(porAsociacion);
-
-  for (const asoc of asociaciones) {
-    const jardines = porAsociacion[asoc];
-    console.log(c.negrita(`  📌 ${asoc}`) + c.gris(` (${jardines.length} jardines)`));
-
-    const opciones = TEMAS_FORMACION.map((t, i) => `${i + 1}. ${t.slice(0, 60)}...`);
-    const idx = readline.keyInSelect(TEMAS_FORMACION, `  Tema para ${asoc}:`, { cancel: false });
-    temasAsociacion[asoc] = TEMAS_FORMACION[idx];
-    console.log(c.verde(`     ✅ Tema seleccionado: ${TEMAS_FORMACION[idx].slice(0, 70)}\n`));
-  }
-
-  // Resumen
-  console.log(c.amarillo('\n  ══════════════════════════════════════════'));
-  console.log(c.negrita('  RESUMEN DE CONFIGURACIÓN:'));
-  console.log(c.amarillo('  ══════════════════════════════════════════'));
-  console.log(`  Fecha formación: ${c.negrita(hoy)}`);
-  console.log(`  Observaciones:   ${observaciones.slice(0, 60)}...`);
-  console.log(`  Jardines totales: ${c.negrita(Object.values(porAsociacion).flat().length)}`);
-
-  for (const [asoc, tema] of Object.entries(temasAsociacion)) {
-    console.log(`  ${asoc}: ${c.cyan(tema.slice(0, 50))}...`);
-  }
-
-  console.log();
-  const confirmar = readline.keyInYN(c.negrita('  Iniciar el bot ahora?'));
-  if (!confirmar) {
-    console.log(c.amarillo('\n  Operación cancelada.\n'));
-    process.exit(0);
-  }
-
-  return { hoy, observaciones, temasAsociacion };
+  return { hoy, observaciones };
 }
 
 // ─────────────────────────────────────────────────────────────
 // Registro de UN jardín
 // ─────────────────────────────────────────────────────────────
-async function registrarFormacion(page, jardin, config) {
-  const { hoy, observaciones, temasAsociacion } = config;
-  const tema = temasAsociacion[jardin.asociacion];
+async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
+  const { hoy, observaciones } = config;
+  const { tema, procesarTodosNinos } = opcionesProcesamiento;
 
-  // Expandir el menú "Rub online" si es necesario
   const menuDestino = page.locator('text="Seguimiento formación a padres/cuidadores"').first();
   const submenuVisible = await menuDestino.isVisible();
   
   if (!submenuVisible) {
-    console.log('  👉 Desplegando menú "Rub online"...');
+    console.log('  👉 Desplegando menu "Rub online"...');
     await page.locator('text="Rub online"').first().click();
     await menuDestino.waitFor({ state: 'visible', timeout: 5000 });
   }
 
-  // Navegar al menú: Seguimiento formación a padres/cuidadores
-  console.log('  👉 Clic en "Seguimiento formación a padres/cuidadores"...');
+  console.log('  👉 Clic en "Seguimiento formacion a padres/cuidadores"...');
   await Promise.all([
     page.waitForLoadState('networkidle'),
     menuDestino.click()
   ]);
-  // Pausa adicional para no saturar el servidor con peticiones tan rápidas
   await page.waitForTimeout(1000);
 
-  // Todo el formulario carga dentro de un iframe en la plataforma
   const frame = page.frameLocator('iframe').last();
 
-  // Click en botón Nuevo (+)
-  console.log('  👉 Clic en el botón Nuevo (+)...');
+  console.log('  👉 Clic en el boton Nuevo (+)...');
   await Promise.all([
     page.waitForLoadState('networkidle'),
     frame.locator('#btnNuevo').click()
   ]);
-  // Pausa para que el servidor procese el modo inserción
   await page.waitForTimeout(1000);
 
-  // Seleccionar la unidad de servicio usando la lupa
-  console.log('  👉 Haciendo clic en la lupa para buscar la Unidad de Servicio...');
-  // Le pasamos la página (para el popup) y el frame (para el botón)
+  console.log(`  👉 Buscando UDS: ${jardin.nombre}...`);
   await seleccionarUnidad(page, frame, jardin.codigo);
 
-  // Esperar que el formulario se autocomplete con los datos del jardín
-  // Y verificar que la interfaz cambió al modo de registro completo
   console.log('  👉 Esperando a que cargue el resto de campos (Observaciones, Beneficiarios)...');
   const campoObsParaVerificar = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
   await campoObsParaVerificar.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {
-    throw new Error('No se cargaron los campos finales (como Observaciones) después de seleccionar la Unidad de Servicio.');
+    throw new Error('No se cargaron los campos finales despues de seleccionar la Unidad de Servicio.');
   });
 
-  // Llenar Fecha Formación
   const campoFechaFormacion = frame.locator('input[id*="FechaFormacion"], input[name*="FechaFormacion"]').first();
-  
-  // Hacemos clic exactamente en el borde izquierdo de la casilla (x: 5) 
-  // para forzar al cursor a ponerse al principio de los guiones de la máscara.
   await campoFechaFormacion.click({ position: { x: 5, y: 5 } });
-  
-  // Limpiamos los slashes y enviamos los 8 números (ej: 23072026)
-  // con un retraso muy pequeño para que la máscara lo procese rápido.
   const numerosFecha = hoy.replace(/\//g, '');
   await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 10 });
   await campoFechaFormacion.press('Tab');
 
-  // Llenar Número de Horas
   const campoHoras = frame.locator('input[id*="Horas"], input[name*="Horas"]').first();
   await campoHoras.fill(HORAS_FORMACION);
 
-  // Seleccionar Tema Formación (dropdown)
   const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
   await dropdownTema.selectOption({ label: tema });
 
-  // Seleccionar Tipo de Encuentro
   const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
   await dropdownEncuentro.selectOption({ label: TIPO_ENCUENTRO });
 
-  // Llenar Observaciones
   const campoObs = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
   await campoObs.fill(observaciones);
 
-  // Seleccionar TODOS los niños (checkbox del encabezado de la tabla)
-  const checkboxTodos = frame.locator('input[type="checkbox"]').first();
-  const estaChecked = await checkboxTodos.isChecked().catch(() => false);
-  if (!estaChecked) {
-    await checkboxTodos.click();
-    await page.waitForTimeout(1000);
+  let cantidadBenef = 0;
+
+  if (procesarTodosNinos) {
+    const checkboxTodos = frame.locator('input[type="checkbox"]').first();
+    const estaChecked = await checkboxTodos.isChecked().catch(() => false);
+    if (!estaChecked) {
+      await checkboxTodos.click();
+      await page.waitForTimeout(1000);
+    }
+    cantidadBenef = 'TODOS';
+  } else {
+    console.log(c.cyan('\n    Leyendo lista de beneficiarios activos...'));
+    const filasNinos = await frame.locator('table[id*="Grid"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr').all();
+    
+    const listaNinos = [];
+    for (let j = 0; j < filasNinos.length; j++) {
+        const rowText = await filasNinos[j].innerText();
+        const nombre = rowText.split('\t')[0].trim(); 
+        if (nombre && rowText.includes('Activo')) {
+            listaNinos.push({ idxOriginal: j, nombre: nombre, row: filasNinos[j] });
+        }
+    }
+
+    if (listaNinos.length === 0) {
+        throw new Error('No se encontraron ninos activos en la tabla.');
+    }
+
+    while(true) {
+        console.log(c.cyan('\n    --- Lista de Beneficiarios ---'));
+        listaNinos.forEach(n => console.log(`      - ${n.nombre}`));
+
+        const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre o apellido del nino (o "CANCELAR" para saltar este jardin): ')).trim();
+        
+        if (seleccionNina.toUpperCase() === 'CANCELAR') {
+            throw new Error('Usuario cancelo la seleccion en este jardin.');
+        }
+
+        const nombreBuscado = seleccionNina.toUpperCase();
+        const ninosAfectados = listaNinos.filter(n => n.nombre.toUpperCase().includes(nombreBuscado));
+        
+        if (ninosAfectados.length === 0) {
+            console.log(c.rojo(`    ⚠️ No se encontro ningun nino con "${seleccionNina}"`));
+            continue;
+        }
+        if (ninosAfectados.length > 1) {
+            console.log(c.amarillo(`    ⚠️ Se encontraron varios ninos que coinciden:`));
+            ninosAfectados.forEach(n => console.log(`      - ${n.nombre}`));
+            console.log(c.amarillo(`    Por favor sea mas especifico.`));
+            continue;
+        }
+
+        const ninoSeleccionado = ninosAfectados[0];
+        console.log(c.verde(`\n    ✅ Nino seleccionado: ${ninoSeleccionado.nombre}`));
+        
+        const chk = ninoSeleccionado.row.locator('input[type="checkbox"]').first();
+        if (await chk.count() > 0) {
+            await chk.check();
+            cantidadBenef = 1;
+        }
+        break;
+    }
   }
 
-  // Guardar (ícono disquete 💾)
   console.log('  👉 Haciendo clic en Guardar...');
   await Promise.all([
     page.waitForLoadState('networkidle'),
     frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click()
   ]);
-  // Pausa para que la página renderice completamente el mensaje de éxito
   await page.waitForTimeout(1000);
 
-  // Verificar mensaje de éxito buscando en el iframe o en la página
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');
   const exitoso = contenidoFrame.includes('beneficiarios han sido ingresados') ||
                   contenidoFrame.includes('registrado') ||
                   contenidoFrame.includes('guardado');
 
-  // Extraer cuántos beneficiarios se cargaron
-  const matchBenef = contenidoFrame.match(/(\d+)\s+beneficiarios\s+han\s+sido\s+ingresados/i);
-  const cantidadBenef = matchBenef ? matchBenef[1] : '?';
+  if (procesarTodosNinos) {
+      const matchBenef = contenidoFrame.match(/(\d+)\s+beneficiarios\s+han\s+sido\s+ingresados/i);
+      cantidadBenef = matchBenef ? matchBenef[1] : '?';
+  }
 
   return { exitoso, cantidadBenef };
 }
@@ -254,7 +243,6 @@ async function registrarFormacion(page, jardin, config) {
 // MAIN
 // ─────────────────────────────────────────────────────────────
 async function main() {
-  // Validar credenciales
   const USUARIO = process.env.CUENTAME_USUARIO;
   const PASSWORD = process.env.CUENTAME_PASSWORD;
   const GMAIL_USER = process.env.GMAIL_USER;
@@ -266,25 +254,21 @@ async function main() {
     process.exit(1);
   }
 
-  // Leer jardines del Excel
   const { jardines, porAsociacion } = leerJardines(RUTA_EXCEL);
-  console.log(c.verde(`\n📋 Excel leído: ${jardines.length} jardines en ${Object.keys(porAsociacion).length} asociaciones`));
+  console.log(c.verde(`\n📋 Excel leido: ${jardines.length} jardines en ${Object.keys(porAsociacion).length} asociaciones`));
 
-  // Configuración interactiva
-  const config = configurar(porAsociacion);
+  const config = configurarObservaciones();
 
-  // Abrir el navegador
-  console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
+  console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesion...\n'));
   const browser = await chromium.launch({
-    headless: false, // visible para que puedas ver qué hace el bot
-    slowMo: 100,     // pequeña pausa entre acciones para mayor estabilidad
+    headless: false,
+    slowMo: 100,
     args: ['--start-maximized'],
     executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
   });
   const context = await browser.newContext({ viewport: null });
   const page = await context.newPage();
 
-  // Login con 2FA
   await login(page, {
     usuario: USUARIO,
     password: PASSWORD,
@@ -292,94 +276,128 @@ async function main() {
     gmailAppPassword: GMAIL_APP_PASSWORD,
   });
 
-  // Resultados globales
-  const exitosos = [];
-  let fallidos = [...jardines];
-  const total = jardines.length;
+  const exitososTotales = [];
+  const fallidosTotales = [];
 
-  console.log(c.negrita(c.cyan(`\n  🚀 Iniciando procesamiento de ${total} jardines...\n`)));
+  while (true) {
+    console.log(c.negrita(c.cyan('\n  ======================================================')));
+    console.log(c.negrita(c.cyan('  NUEVA TAREA DE FORMACION A FAMILIAS')));
+    console.log(c.negrita(c.cyan('  ======================================================\n')));
 
-  // Función interna para procesar una lista de jardines
-  async function procesarLista(lista) {
-    const nuevosFallidos = [];
-    for (let i = 0; i < lista.length; i++) {
-      const jardin = lista[i];
-      const progreso = `[${String(i + 1).padStart(2, '0')}/${lista.length}]`;
+    let jardinesAProcesar = [];
 
-      process.stdout.write(
-        `${c.gris(progreso)} ${c.negrita(jardin.nombre)} ${c.gris(`(${jardin.asociacion})`)} → `
-      );
+    const opcionesAlcance = ['Procesar TODAS las asociaciones', 'Seleccionar UNA asociacion especifica'];
+    const alcanceIdx = readline.keyInSelect(opcionesAlcance, c.negrita('  > Escoja el alcance de esta ejecucion: '), { cancel: 'Salir' });
 
-      try {
-        const { exitoso, cantidadBenef } = await registrarFormacion(page, jardin, config);
-
-        if (exitoso) {
-          console.log(c.verde(`✅ ${cantidadBenef} beneficiarios registrados`));
-          exitosos.push({ ...jardin, beneficiarios: cantidadBenef });
-        } else {
-          console.log(c.amarillo('⚠️  Guardado (sin confirmar cantidad)'));
-          exitosos.push({ ...jardin, beneficiarios: '?' });
-        }
-      } catch (err) {
-        const mensaje = err.message || String(err);
-        console.log(c.rojo(`❌ Error: ${mensaje.slice(0, 80)}`));
-        nuevosFallidos.push({ ...jardin, error: mensaje });
-
-        // Intentar volver al inicio para continuar con el siguiente jardín
-        await page.goto(URL_FORMACION, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
-        await page.waitForTimeout(2000);
-      }
-
-      // Pausa entre jardines para no saturar el sistema
-      await page.waitForTimeout(1500);
+    if (alcanceIdx === -1) {
+        break;
     }
-    return nuevosFallidos;
-  }
 
-  // Primera pasada
-  fallidos = await procesarLista(jardines);
-
-  // Ciclo de reintentos
-  while (fallidos.length > 0) {
-    console.log();
-    const respuesta = readline.question(c.amarillo(`  ⚠️ Quedaron ${fallidos.length} jardines con error. Deseas reintentar SOLO los fallidos ahora? (s/n): `));
-    
-    if (respuesta.toLowerCase() === 's') {
-      console.log(c.cyan(`\n  🔄 Reintentando ${fallidos.length} jardines fallidos...\n`));
-      fallidos = await procesarLista(fallidos);
+    if (alcanceIdx === 0) {
+        jardinesAProcesar = jardines;
     } else {
-      break;
+        const asociacionesNames = Object.keys(porAsociacion);
+        const ascIdx = readline.keyInSelect(asociacionesNames, c.negrita('  > Escoja la asociacion: '), { cancel: 'Cancelar' });
+        if (ascIdx === -1) continue;
+
+        const asociacionSeleccionada = asociacionesNames[ascIdx];
+        const jardinesAsoc = porAsociacion[asociacionSeleccionada];
+
+        const opcionesJardin = ['TODOS los jardines de esta asociacion', 'Seleccionar UN jardin especifico'];
+        const jardIdx = readline.keyInSelect(opcionesJardin, c.negrita(`  > Alcance para ${asociacionSeleccionada}: `), { cancel: 'Atras' });
+        if (jardIdx === -1) continue;
+
+        if (jardIdx === 0) {
+            jardinesAProcesar = jardinesAsoc;
+        } else {
+            const jardinesNames = jardinesAsoc.map(j => `${j.nombre} (${j.codigo})`);
+            const jIdx = readline.keyInSelect(jardinesNames, c.negrita('  > Escoja el jardin: '), { cancel: 'Atras' });
+            if (jIdx === -1) continue;
+            jardinesAProcesar = [jardinesAsoc[jIdx]];
+        }
+    }
+
+    console.log();
+    const temaIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita('  > Escoja el TEMA DE FORMACION para esta tarea: '), { cancel: 'Cancelar tarea' });
+    if (temaIdx === -1) continue;
+    const temaSeleccionado = TEMAS_FORMACION[temaIdx];
+
+    console.log();
+    const opcionesNinos = ['Aplicar a TODOS los ninos del jardin', 'Seleccionar un nino ESPECIFICO (manual)'];
+    const ninosIdx = readline.keyInSelect(opcionesNinos, c.negrita('  > Alcance de beneficiarios: '), { cancel: 'Cancelar tarea' });
+    if (ninosIdx === -1) continue;
+    
+    const procesarTodosNinos = (ninosIdx === 0);
+
+    const opcionesProcesamiento = {
+        tema: temaSeleccionado,
+        procesarTodosNinos: procesarTodosNinos
+    };
+
+    console.log(c.negrita(c.cyan(`\n  🚀 Iniciando procesamiento de ${jardinesAProcesar.length} jardines...\n`)));
+
+    let exitososActual = [];
+    let fallidosActual = [];
+
+    for (let i = 0; i < jardinesAProcesar.length; i++) {
+        const jardin = jardinesAProcesar[i];
+        const progreso = `[${String(i + 1).padStart(2, '0')}/${jardinesAProcesar.length}]`;
+        process.stdout.write(`${c.gris(progreso)} ${c.negrita(jardin.nombre)} ${c.gris(`(${jardin.asociacion})`)} -> `);
+
+        try {
+            const { exitoso, cantidadBenef } = await registrarFormacion(page, jardin, config, opcionesProcesamiento);
+
+            if (exitoso) {
+                console.log(c.verde(`✅ ${cantidadBenef} beneficiarios registrados`));
+                exitososActual.push({ ...jardin, beneficiarios: cantidadBenef });
+                exitososTotales.push({ ...jardin, beneficiarios: cantidadBenef });
+            } else {
+                console.log(c.amarillo('⚠️ Guardado (sin confirmar cantidad)'));
+                exitososActual.push({ ...jardin, beneficiarios: '?' });
+                exitososTotales.push({ ...jardin, beneficiarios: '?' });
+            }
+        } catch (err) {
+            const mensaje = err.message || String(err);
+            console.log(c.rojo(`❌ Error: ${mensaje.slice(0, 80)}`));
+            fallidosActual.push({ ...jardin, error: mensaje });
+            fallidosTotales.push({ ...jardin, error: mensaje });
+
+            await page.goto(URL_FORMACION, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(2000);
+        }
+        await page.waitForTimeout(1500);
+    }
+
+    if (fallidosActual.length > 0) {
+        console.log(c.rojo(`\n  ⚠️ ${fallidosActual.length} jardines fallaron en esta tarea.`));
+    }
+
+    console.log(c.verde(`\n  ✅ Tarea finalizada. Exitosos: ${exitososActual.length} | Fallidos: ${fallidosActual.length}\n`));
+    
+    const continuar = readline.keyInYN(c.negrita('  Desea iniciar OTRA tarea de Formacion a Familias?'));
+    if (!continuar) {
+        break;
     }
   }
 
-  // ── Resumen final ────────────────────────────────────────
   console.log(c.verde(`\n  ╔══════════════════════════════════════════╗`));
-  console.log(c.verde(`  ║         🎉 PROCESAMIENTO COMPLETO         ║`));
+  console.log(c.verde(`  ║         🎉 PROCESAMIENTO COMPLETO        ║`));
   console.log(c.verde(`  ╚══════════════════════════════════════════╝\n`));
-  console.log(`  ✅ Exitosos: ${c.verde(c.negrita(exitosos.length))} / ${total}`);
-  console.log(`  ❌ Fallidos: ${c.rojo(c.negrita(fallidos.length))} / ${total}\n`);
+  console.log(`  ✅ Exitosos Totales: ${c.verde(c.negrita(exitososTotales.length))}`);
+  console.log(`  ❌ Fallidos Totales: ${c.rojo(c.negrita(fallidosTotales.length))}\n`);
 
-  if (fallidos.length > 0) {
-    console.log(c.rojo('  Jardines con error:'));
-    fallidos.forEach((f) => {
-      console.log(c.rojo(`    • ${f.nombre} (${f.codigo}): ${f.error.slice(0, 80)}`));
-    });
-    console.log();
-  }
-
-  // Guardar log
   const log = {
     fecha: new Date().toISOString(),
     fechaFormacion: config.hoy,
-    total,
-    exitosos: exitosos.length,
-    fallidos: fallidos.length,
-    detalle: { exitosos, fallidos },
+    exitosos: exitososTotales.length,
+    fallidos: fallidosTotales.length,
+    detalle: { exitosos: exitososTotales, fallidos: fallidosTotales },
   };
   const archivoLog = guardarLog(log);
   console.log(c.gris(`  📄 Log guardado en: ${archivoLog}\n`));
 
   await browser.close();
+  console.log(c.cyan('  Navegador cerrado. Hasta luego!\n'));
 }
 
 main().catch((err) => {
