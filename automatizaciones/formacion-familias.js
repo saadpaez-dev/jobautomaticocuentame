@@ -259,24 +259,9 @@ async function main() {
 
   const config = configurarObservaciones();
 
-  console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesion...\n'));
-  const browser = await chromium.launch({
-    headless: false,
-    slowMo: 100,
-    args: ['--start-maximized'],
-    executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-  });
-  const context = await browser.newContext({ viewport: null });
-  const page = await context.newPage();
-
-  await login(page, {
-    usuario: USUARIO,
-    password: PASSWORD,
-    gmailUser: GMAIL_USER,
-    gmailAppPassword: GMAIL_APP_PASSWORD,
-    nombreAsociacion: ""
-  });
-
+  let browser = null;
+  let page = null;
+  
   const exitososTotales = [];
   const fallidosTotales = [];
 
@@ -309,12 +294,12 @@ async function main() {
         if (jardIdx === -1) continue;
 
         if (jardIdx === 0) {
-            jardinesAProcesar = jardinesAsoc;
+            jardinesAProcesar = jardinesAsoc.jardines;
         } else {
-            const jardinesNames = jardinesAsoc.map(j => `${j.nombre} (${j.codigo})`);
+            const jardinesNames = jardinesAsoc.jardines.map(j => `${j.nombre} (${j.codigo})`);
             const jIdx = readline.keyInSelect(jardinesNames, c.negrita('  > Escoja el jardin: '), { cancel: 'Atras' });
             if (jIdx === -1) continue;
-            jardinesAProcesar = [jardinesAsoc[jIdx]];
+            jardinesAProcesar = [jardinesAsoc.jardines[jIdx]];
         }
     }
 
@@ -334,6 +319,26 @@ async function main() {
         tema: temaSeleccionado,
         procesarTodosNinos: procesarTodosNinos
     };
+
+    if (!browser) {
+      console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesion...\n'));
+      browser = await chromium.launch({
+        headless: false,
+        slowMo: 100,
+        args: ['--start-maximized'],
+        executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+      });
+      const context = await browser.newContext({ viewport: null });
+      page = await context.newPage();
+
+      await login(page, {
+        usuario: USUARIO,
+        password: PASSWORD,
+        gmailUser: GMAIL_USER,
+        gmailAppPassword: GMAIL_APP_PASSWORD,
+        nombreAsociacion: ""
+      });
+    }
 
     console.log(c.negrita(c.cyan(`\n  🚀 Iniciando procesamiento de ${jardinesAProcesar.length} jardines...\n`)));
 
@@ -397,8 +402,10 @@ async function main() {
   const archivoLog = guardarLog(log);
   console.log(c.gris(`  📄 Log guardado en: ${archivoLog}\n`));
 
-  await browser.close();
-  console.log(c.cyan('  Navegador cerrado. Hasta luego!\n'));
+  if (browser) {
+    await browser.close();
+    console.log(c.cyan('  Navegador cerrado. Hasta luego!\n'));
+  }
 }
 
 main().catch((err) => {
