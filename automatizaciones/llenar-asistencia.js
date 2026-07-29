@@ -139,10 +139,6 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     const { browser, context, mainPage } = await iniciarNavegador();
     let authCookies = null;
 
-    let rolesHtml = null;
-    let rolesUrl = null;
-    
-
     for (let i = 0; i < ascAProcesar.length; i++) {
         const asc = ascAProcesar[i];
         console.log(c.cyan(`\n======================================================`));
@@ -153,7 +149,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             console.log(c.cyan('\n======================================================'));
             console.log(c.cyan('▶ Iniciando sesión única y 2FA...'));
             console.log(c.cyan('======================================================\n'));
-            rolesUrl = await loginYLlegarARoles(mainPage, { 
+            await loginYLlegarARoles(mainPage, { 
                 usuario: process.env.CUENTAME_USUARIO, 
                 password: process.env.CUENTAME_PASSWORD,
                 gmailUser: process.env.GMAIL_USER,
@@ -161,13 +157,21 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             });
             authCookies = await context.cookies();
         } else {
-            console.log(c.gris(`\n    🔄 Volviendo a la selección de roles con la sesión actual (sin 2FA)...`));
+            console.log(c.gris(`\n    🔄 Volviendo a la selección de roles a través del menú principal...`));
             try {
-                // Simplemente navegamos a la URL exacta de roles usando la misma sesión activa
-                if (rolesUrl) {
-                    await mainPage.goto(rolesUrl, { waitUntil: 'networkidle' });
+                // Navegar a la raíz para que Cuéntame nos redirija al MasterPrincipal
+                await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/Principal/MasterPrincipal.aspx', { waitUntil: 'domcontentloaded' });
+                await mainPage.waitForTimeout(2000);
+                
+                // Hacer clic en "Cambiar de Rol" o similar
+                const btnCambiarRol = mainPage.locator('a:has-text("Cambiar"), a:has-text("rol")').filter({ hasText: /cambiar/i }).first();
+                if (await btnCambiarRol.count() > 0) {
+                    await Promise.all([
+                        mainPage.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
+                        btnCambiarRol.click()
+                    ]);
                 } else {
-                    // Fallback in case rolesUrl was not captured properly, try navigating to a known safe page
+                    // Si no está, intentamos ir a la raíz
                     await mainPage.goto('https://rubonline.icbf.gov.co/', { waitUntil: 'networkidle' });
                 }
             } catch (err) {
