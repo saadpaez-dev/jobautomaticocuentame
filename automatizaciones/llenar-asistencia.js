@@ -166,6 +166,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             // manteniendo rolesPage intacta en la página de roles para el siguiente ciclo.
             const mantenerRolesTab = (i < ascAProcesar.length - 1);
             workPage = await seleccionarRolYEntrar(rolesPage, asc, mantenerRolesTab);
+            await workPage.bringToFront();
             console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
             
             console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
@@ -364,6 +365,11 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
                 } // fin loop UDS
             } // fin loop SERVICIOS
+            
+            // Cerrar la pestaña de trabajo temporal si no es la principal
+            if (workPage !== rolesPage) {
+                await workPage.close();
+            }
         } catch (err) {
             console.error(c.rojo(`  ❌ Ocurrió un error con ${asc.nombreCorto}: ${err && err.message ? err.message : err}`));
             console.error(err); 
