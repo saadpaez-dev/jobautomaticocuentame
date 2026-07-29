@@ -230,7 +230,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             if (await servicioLocator.count() > 0) {
                 serviciosOptions = await servicioLocator.evaluate(s => {
                     return Array.from(s.options)
-                        .filter(o => o.value && o.value !== "0" && o.value !== "")
+                        .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
                         .map(o => ({ value: o.value, text: o.text }));
                 });
             }
@@ -251,7 +251,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 if (await udsLocator.count() > 0) {
                     udsOptions = await udsLocator.evaluate(s => {
                         return Array.from(s.options)
-                            .filter(o => o.value && o.value !== "0" && o.value !== "")
+                            .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
                             .map(o => ({ value: o.value, text: o.text }));
                     });
                 }
@@ -446,7 +446,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         if (await servicioLocator.count() > 0) {
             serviciosOptions = await servicioLocator.evaluate(s => {
                 return Array.from(s.options)
-                    .filter(o => o.value && o.value !== "0" && o.value !== "")
+                    .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
                     .map(o => ({ value: o.value, text: o.text }));
             });
         }
@@ -464,7 +464,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             if (await udsLocator.count() > 0) {
                 const udsOpts = await udsLocator.evaluate(s => {
                     return Array.from(s.options)
-                        .filter(o => o.value && o.value !== "0" && o.value !== "")
+                        .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
                         .map(o => ({ value: o.value, text: o.text }));
                 });
                 
