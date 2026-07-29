@@ -383,36 +383,55 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 // FASE 2: LLENADO INDIVIDUAL / INASISTENCIAS
 // ==========================================
 async function ejecutarFase2(asociaciones, mesAtencion) {
-    console.log(c.cyan('\n  📋 [FASE 2] SELECCIONA *UNA SOLA* ASOCIACIÓN:'));
-    const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
-    const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociación: '), { cancel: 'Salir' });
-    if (ascIdx === -1) process.exit(0);
+    let browser, context, rolesPage;
+    let authDone = false;
 
-    const asc = asociaciones[ascIdx];
-    console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociación: ${asc.nombreCorto}`));
-
-    const { browser, context, mainPage } = await iniciarNavegador();
-
-    console.log(c.cyan('\n======================================================'));
-    console.log(c.cyan('▶ Iniciando sesión única y 2FA...'));
-    console.log(c.cyan('======================================================\n'));
-    await loginYLlegarARoles(mainPage, { 
-        usuario: process.env.CUENTAME_USUARIO, 
-        password: process.env.CUENTAME_PASSWORD,
-        gmailUser: process.env.GMAIL_USER,
-        gmailAppPassword: process.env.GMAIL_APP_PASSWORD
-    });
-
-    try {
-        console.log('  🏢 Seleccionando entidad (asociación)...');
-        await seleccionarRolYEntrar(mainPage, asc);
-        console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+    while (true) {
+        console.log(c.cyan('\n  📋 [FASE 2] SELECCIONA *UNA SOLA* ASOCIACIÓN:'));
+        const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
+        const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociación: '), { cancel: 'Salir' });
         
-        console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
-        await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
-        await mainPage.waitForTimeout(3000);
+        if (ascIdx === -1) {
+            if (browser) {
+                console.log(c.verde('\n  🎉 FASE 2 COMPLETADA CON ÉXITO. Cerrando navegador...'));
+                await browser.close();
+            }
+            process.exit(0);
+        }
 
-        let contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+        const asc = asociaciones[ascIdx];
+        console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociación: ${asc.nombreCorto}`));
+
+        if (!authDone) {
+            const nav = await iniciarNavegador();
+            browser = nav.browser;
+            context = nav.context;
+            rolesPage = nav.mainPage;
+
+            console.log(c.cyan('\n======================================================'));
+            console.log(c.cyan('▶ Iniciando sesión única y 2FA...'));
+            console.log(c.cyan('======================================================\n'));
+            await loginYLlegarARoles(rolesPage, { 
+                usuario: process.env.CUENTAME_USUARIO, 
+                password: process.env.CUENTAME_PASSWORD,
+                gmailUser: process.env.GMAIL_USER,
+                gmailAppPassword: process.env.GMAIL_APP_PASSWORD
+            });
+            authDone = true;
+        }
+
+        let workPage = rolesPage;
+        try {
+            console.log('  🏢 Seleccionando entidad (asociación)...');
+            workPage = await seleccionarRolYEntrar(rolesPage, asc, true);
+            await workPage.bringToFront();
+            console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+            
+            console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
+            await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
+            await workPage.waitForTimeout(3000);
+
+            let contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
 
         console.log('  📝 Llenando filtros del RAM...');
         const selectDropdown = async (keyword, textOrIndex) => {
@@ -431,7 +450,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     }, textOrIndex);
                     if (value) {
                         await sel.selectOption(value, { timeout: 5000 });
-                        await mainPage.waitForTimeout(1000);
+                        await workPage.waitForTimeout(1000);
                     }
                 } else if (typeof textOrIndex === 'number') {
                     // Seleccionar por índice válido (>0)
@@ -441,7 +460,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     });
                     if (valSrv) {
                         await sel.selectOption(valSrv, { timeout: 5000 });
-                        await mainPage.waitForTimeout(1000);
+                        await workPage.waitForTimeout(1000);
                     }
                 }
             } catch (e) {
@@ -474,7 +493,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         
         for (const serv of serviciosFiltrados) {
             await servicioLocator.selectOption(serv.value, { timeout: 5000 });
-            await mainPage.waitForTimeout(1000); 
+            await workPage.waitForTimeout(1000); 
 
             const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
             if (await udsLocator.count() > 0) {
@@ -517,15 +536,15 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             const elegida = todasLasUdsMap[udsIdx];
             console.log(c.amarillo(`\n    Navegando a ${elegida.uds.text}...`));
             
-            contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+            contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             
             const servLoc = contentFrame.locator(`select[id*="Servicio"]`).first();
             await servLoc.selectOption(elegida.servicio.value);
-            await mainPage.waitForTimeout(1000);
+            await workPage.waitForTimeout(1000);
 
             const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
             await uLoc.selectOption(elegida.uds.value);
-            await mainPage.waitForTimeout(1000);
+            await workPage.waitForTimeout(1000);
 
             const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
             if (await lupa.count() > 0 && await lupa.isVisible()) await lupa.click();
@@ -533,25 +552,26 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                  const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
                  if (await genericBtn.count() > 0) await genericBtn.click();
             }
-            await mainPage.waitForTimeout(2000);
+            await workPage.waitForTimeout(2000);
 
             // Llamar a la función unificada
-            await modificarAsistenciaIndividual(mainPage, contentFrame, elegida, mesAtencion, asc);
+            await modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown);
         } // Fin while true (Menú jardines)
-
-    } catch (err) {
-        console.error(c.rojo(`  ❌ Ocurrió un error: ${err && err.message ? err.message : err}`));
-        console.error(err); 
-    }
-    
-    console.log(c.verde('\n  🎉 FASE 2 COMPLETADA CON ÉXITO. Cerrando navegador...'));
-    await browser.close();
+            if (workPage !== rolesPage) {
+                await workPage.close();
+            }
+        } catch (err) {
+            console.error(c.rojo(`  ❌ Ocurrió un error: ${err && err.message ? err.message : err}`));
+            console.error(err); 
+            if (workPage !== rolesPage) await workPage.close();
+        }
+    } // Fin while true (Asociaciones)
 }
 
-async function modificarAsistenciaIndividual(mainPage, contentFrame, elegida, mesAtencion, asc) {
+async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown) {
     while (true) {
         console.log(c.cyan('\n    Leyendo lista de niños...'));
-        contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+        contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
 
         const filasNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
         
@@ -635,8 +655,8 @@ async function modificarAsistenciaIndividual(mainPage, contentFrame, elegida, me
         const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
         if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
             await lapizNuevo.click();
-            await mainPage.waitForTimeout(2000);
-            contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+            await workPage.waitForTimeout(2000);
+            contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             
             // Re-vincular los locators de las filas de los niños seleccionados porque el DOM cambió
             const rowsNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
@@ -684,13 +704,13 @@ async function modificarAsistenciaIndividual(mainPage, contentFrame, elegida, me
              const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
              if (await genericSave2.count() > 0) await genericSave2.click();
         }
-        await mainPage.waitForTimeout(2000);
+        await workPage.waitForTimeout(2000);
         console.log(c.verde('    ✅ Guardado exitoso.'));
 
         console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
-        await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
-        await mainPage.waitForTimeout(1000);
-        contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+        await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+        await workPage.waitForTimeout(1000);
+        contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
         
         // Volver a llenar los filtros
         await selectDropdown('Direcciones', 'Primera Infancia');
@@ -704,7 +724,7 @@ async function modificarAsistenciaIndividual(mainPage, contentFrame, elegida, me
         const servicioLocator2 = contentFrame.locator(`select[id*="Servicio"]`).first();
         if (await servicioLocator2.count() > 0) {
             await servicioLocator2.selectOption(elegida.servicio.value, { timeout: 5000 });
-            await mainPage.waitForTimeout(1000);
+            await workPage.waitForTimeout(1000);
         }
     }
 }
