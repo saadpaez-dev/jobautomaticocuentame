@@ -92,7 +92,7 @@ async function seleccionarRolYEntrar(page, ascInput) {
     console.log('  🏢 Seleccionando entidad (asociación)...');
     
     // Esperar a que el select esté visible y habilitado
-    const selectLocator = page.locator('select').first();
+    const selectLocator = page.locator('select:visible').first();
     await selectLocator.waitFor({ state: 'visible', timeout: 10000 });
     
     if (nombreCorto) {
