@@ -234,7 +234,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             }
 
             // Filtrar servicios de 2026 y por reglas de asociación
-            let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombre);
+            let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto);
             console.log(c.cyan(`  Encontrados ${serviciosFiltrados.length} servicios válidos (2026).`));
 
             for (let sIdx = 0; sIdx < serviciosFiltrados.length; sIdx++) {
@@ -449,7 +449,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             });
         }
 
-        let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombre);
+        let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto);
         console.log(c.cyan(`  Escaneando ${serviciosFiltrados.length} servicios válidos para encontrar todos los jardines...`));
 
         let todasLasUdsMap = [];
