@@ -193,7 +193,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                         }, textOrIndex);
                         if (value) {
                             await sel.selectOption(value, { timeout: 5000 });
-                            await workPage.waitForTimeout(1000);
+                            await workPage.waitForTimeout(2000);
                         }
                     } else if (typeof textOrIndex === 'number') {
                         // Seleccionar por índice válido (>0)
@@ -203,7 +203,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                         });
                         if (valSrv) {
                             await sel.selectOption(valSrv, { timeout: 5000 });
-                            await workPage.waitForTimeout(1000);
+                            await workPage.waitForTimeout(2000);
                         }
                     }
                 } catch (e) {
@@ -218,8 +218,9 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             await selectDropdown('Contrato', asc.numeroContrato);
             await selectDropdown('Mes', mesAtencion);
             await selectDropdown('Estado', 'Todos');
+        await workPage.waitForTimeout(3000);
 
-            const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
+        const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
             let serviciosOptions = [];
             if (await servicioLocator.count() > 0) {
                 serviciosOptions = await servicioLocator.evaluate(s => {
@@ -230,7 +231,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             }
 
             // Filtrar servicios de 2026 y por reglas de asociación
-            let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto);
+            console.log(c.gris(`    [DEBUG] Servicios encontrados sin filtrar: ${serviciosOptions.map(s => s.text).join(' | ')}`));
+        let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto);
             console.log(c.cyan(`  Encontrados ${serviciosFiltrados.length} servicios válidos (2026).`));
 
             for (let sIdx = 0; sIdx < serviciosFiltrados.length; sIdx++) {
@@ -450,7 +452,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     }, textOrIndex);
                     if (value) {
                         await sel.selectOption(value, { timeout: 5000 });
-                        await workPage.waitForTimeout(1000);
+                            await workPage.waitForTimeout(2000);
                     }
                 } else if (typeof textOrIndex === 'number') {
                     // Seleccionar por índice válido (>0)
@@ -460,7 +462,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     });
                     if (valSrv) {
                         await sel.selectOption(valSrv, { timeout: 5000 });
-                        await workPage.waitForTimeout(1000);
+                            await workPage.waitForTimeout(2000);
                     }
                 }
             } catch (e) {
@@ -475,6 +477,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         await selectDropdown('Contrato', asc.numeroContrato);
         await selectDropdown('Mes', mesAtencion);
         await selectDropdown('Estado', 'Todos');
+        await workPage.waitForTimeout(3000);
 
         const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
         let serviciosOptions = [];
@@ -486,6 +489,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             });
         }
 
+        console.log(c.gris(`    [DEBUG] Servicios encontrados sin filtrar: ${serviciosOptions.map(s => s.text).join(' | ')}`));
         let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto);
         console.log(c.cyan(`  Escaneando ${serviciosFiltrados.length} servicios válidos para encontrar todos los jardines...`));
 
@@ -522,7 +526,8 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
         if (todasLasUdsMap.length === 0) {
             console.log(c.rojo('  ❌ No se encontró ningún jardín en los servicios de 2026.'));
-            process.exit(1);
+            if (workPage !== rolesPage) await workPage.close();
+            continue;
         }
 
         // BUCLE INFINITO DE FASE 2 HASTA QUE CANCELE
