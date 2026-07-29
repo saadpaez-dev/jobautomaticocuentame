@@ -167,18 +167,29 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 const clicked = await mainPage.evaluate(() => {
                     function findAndClickRole(win) {
                         try {
-                            const links = win.document.querySelectorAll('a');
-                            for (const link of links) {
-                                const text = link.innerText.toLowerCase();
-                                const href = link.href.toLowerCase();
-                                if (text.includes('cambiar') || text.includes('rol') || href.includes('cambiarrol')) {
-                                    link.click();
+                            const elements = win.document.querySelectorAll('a, input, button, span, div, li, img');
+                            for (const el of elements) {
+                                const text = (el.innerText || '').toLowerCase();
+                                const val = (el.value || '').toLowerCase();
+                                const title = (el.title || '').toLowerCase();
+                                const href = (el.getAttribute('href') || '').toLowerCase();
+                                const onclick = (el.getAttribute('onclick') || '').toLowerCase();
+                                const id = (el.id || '').toLowerCase();
+                                
+                                if (
+                                    (text.includes('cambiar') && text.includes('rol')) ||
+                                    (val.includes('cambiar') && val.includes('rol')) ||
+                                    (title.includes('cambiar') && title.includes('rol')) ||
+                                    href.includes('cambiarrol') ||
+                                    onclick.includes('cambiarrol') ||
+                                    id.includes('cambiarrol')
+                                ) {
+                                    el.click();
                                     return true;
                                 }
                             }
-                        } catch (e) { } // Ignorar errores de cross-origin si los hay
+                        } catch (e) { } // Ignorar errores de cross-origin
                         
-                        // Buscar en sub-frames
                         for (let i = 0; i < win.frames.length; i++) {
                             if (findAndClickRole(win.frames[i])) return true;
                         }
