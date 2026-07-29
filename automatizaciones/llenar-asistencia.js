@@ -240,7 +240,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             await selectDropdown('Direcciones', 'Primera Infancia');
             await selectDropdown('Regional', 'Bogota');
             await selectDropdown('Centro', 'USAQUEN'); // A veces se requiere
-            await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
+            await selectDropdown('Vigencia', '2026');
             await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
             await selectDropdown('Mes', mesAtencion);
             await selectDropdown('Estado', 'Todos');
@@ -380,7 +380,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     await selectDropdown('Direcciones', 'Primera Infancia');
                     await selectDropdown('Regional', 'Bogota');
                     await selectDropdown('Centro', 'USAQUEN');
-                    await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
+                    await selectDropdown('Vigencia', '2026');
                     await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
                     await selectDropdown('Mes', mesAtencion);
                     await selectDropdown('Estado', 'Todos');
@@ -525,7 +525,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         await selectDropdown('Direcciones', 'Primera Infancia');
         await selectDropdown('Regional', 'Bogota');
         await selectDropdown('Centro', 'USAQUEN'); // A veces se requiere
-        await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
+        await selectDropdown('Vigencia', '2026');
         await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
         await selectDropdown('Mes', mesAtencion);
         await selectDropdown('Estado', 'Todos');
@@ -773,7 +773,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         await selectDropdown('Direcciones', 'Primera Infancia');
         await selectDropdown('Regional', 'Bogota');
         await selectDropdown('Centro', 'USAQUEN');
-        await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
+        await selectDropdown('Vigencia', '2026');
         await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
         await selectDropdown('Mes', mesAtencion);
         await selectDropdown('Estado', 'Todos');
