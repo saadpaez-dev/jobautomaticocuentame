@@ -438,7 +438,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
     while (true) {
         console.log(c.cyan('\n  📋 [FASE 2] SELECCIONA *UNA SOLA* ASOCIACIÓN:'));
         const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
-        const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociación: '), { cancel: 'Salir' });
+        const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociacion: '), { cancel: 'Salir' });
         
         if (ascIdx === -1) {
             if (browser) {
@@ -613,7 +613,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         while (true) {
             console.log(c.cyan(`\n  --- FASE 2: ${asc.nombreCorto} ---`));
             const udsOptsNombres = todasLasUdsMap.map(u => u.uds.text);
-            const udsIdx = readline.keyInSelect(udsOptsNombres, c.negrita('  > ESCOJA EL JARDÍN A TRABAJAR: '), { cancel: 'Salir de Fase 2' });
+            const udsIdx = readline.keyInSelect(udsOptsNombres, c.negrita('  > ESCOJA EL JARDIN A TRABAJAR: '), { cancel: 'Salir de Fase 2' });
             
             if (udsIdx === -1) break;
 
@@ -676,7 +676,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         console.log(c.cyan('\n    --- Lista de Niños Activos ---'));
         listaNinos.forEach(n => console.log(`      - ${n.nombre}`));
 
-        const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre, apellido o "TODOS"\n    > (Deje vacío para CAMBIAR DE JARDÍN): ')).trim();
+        const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre, apellido o "TODOS"\n    > (Deje vacio para CAMBIAR DE JARDIN): ')).trim();
         if (!seleccionNina) break;
 
         const nombreBuscado = seleccionNina.toUpperCase();
@@ -701,15 +701,15 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         console.log(c.verde(`\n    Niños seleccionados: ${ninosAfectados.length}`));
 
         const acciones = [
-            'Marcar ASISTENCIAS (poner checks ✅)',
-            'Marcar INASISTENCIAS (quitar checks ❌)'
+            'Marcar ASISTENCIAS (poner checks [X])',
+            'Marcar INASISTENCIAS (quitar checks [ ])'
         ];
-        const accionIdx = readline.keyInSelect(acciones, c.negrita(`  > ¿Qué desea hacer con los niños seleccionados?`), { cancel: 'Cancelar' });
+        const accionIdx = readline.keyInSelect(acciones, c.negrita(`  > Que desea hacer con los ninos seleccionados?`), { cancel: 'Cancelar' });
         if (accionIdx === -1) continue;
 
         const marcarAsistencia = accionIdx === 0;
 
-        const diasInput = readline.question(c.negrita('\n    > Ingrese los días. Puede usar comas (1,5) o rangos (1-15): ')).trim();
+        const diasInput = readline.question(c.negrita('\n    > Ingrese los dias. Puede usar comas (1,5) o rangos (1-15): ')).trim();
         if (!diasInput) continue;
 
         // Parsear días
