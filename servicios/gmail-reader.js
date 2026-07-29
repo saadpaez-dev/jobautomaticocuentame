@@ -10,6 +10,36 @@ const TIMEOUT_MS = 180000;
 const POLL_INTERVAL_MS = 3000;
 
 /**
+ * Limpia todos los correos de notificaciones de Cuéntame antes de iniciar sesión,
+ * para asegurar que no leamos un código viejo por error.
+ */
+async function limpiarBuzon2FA(gmailUser, appPassword) {
+  const c = new ImapFlow({
+    host: 'imap.gmail.com', port: 993, secure: true,
+    auth: { user: gmailUser, pass: appPassword },
+    logger: false
+  });
+  
+  try {
+    await c.connect();
+    const lock = await c.getMailboxLock('INBOX');
+    try {
+      const todos = await c.search({ from: 'mts.notificaciones@icbf.gov.co' }, { uid: true });
+      if (todos && todos.length > 0) {
+        await c.messageFlagsAdd(todos, ['\\Deleted'], { uid: true });
+        console.log(`  🧹 Limpieza previa: se eliminaron ${todos.length} correos de 2FA antiguos.`);
+      }
+    } finally {
+      lock.release();
+    }
+  } catch (err) {
+    console.log(`  ⚠️ No se pudo realizar la limpieza previa: ${err.message}`);
+  } finally {
+    try { await c.logout(); } catch (_) {}
+  }
+}
+
+/**
  * Espera y obtiene el código 2FA enviado por Cuéntame al Gmail.
  * Asegurándose de leer únicamente correos que llegaron DESPUÉS del login.
  * 
@@ -89,4 +119,4 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
   throw new Error('⏰ Tiempo agotado: no llegó el código 2FA en 180 segundos.');
 }
 
-module.exports = { obtenerCodigo2FA };
+module.exports = { obtenerCodigo2FA, limpiarBuzon2FA };

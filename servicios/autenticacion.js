@@ -3,7 +3,7 @@
  * Maneja el login completo al sistema Cuéntame incluyendo 2FA por correo.
  */
 
-const { obtenerCodigo2FA } = require('./gmail-reader');
+const { obtenerCodigo2FA, limpiarBuzon2FA } = require('./gmail-reader');
 
 const URL_LOGIN = 'https://rubonline.icbf.gov.co/DefaultF.aspx';
 
@@ -18,12 +18,16 @@ async function loginYLlegarARoles(page, credenciales) {
   const { usuario, password, gmailUser, gmailAppPassword } = credenciales;
 
   console.log('\n  🔐 Iniciando login en el sistema Cuéntame...');
+  
+  // Limpiar buzón 2FA ANTES de entrar, para no agarrar correos pasados
+  await limpiarBuzon2FA(gmailUser, gmailAppPassword);
+
   const fechaInicio = new Date();
   await page.goto(URL_LOGIN, { waitUntil: 'networkidle', timeout: 30000 });
 
-  // Llenar usuario y contraseña
-  await page.locator('input[type="text"]').first().fill(usuario);
-  await page.locator('input[type="password"]').first().fill(password);
+  // Llenar usuario y contraseña (locators más robustos)
+  await page.locator('input[id*="Usuario"], input[type="text"]').first().fill(usuario);
+  await page.locator('input[id*="Contrasena"], input[type="password"]').first().fill(password);
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.locator('input[value="Iniciar Sesión"], input[type="submit"]').first().click()
