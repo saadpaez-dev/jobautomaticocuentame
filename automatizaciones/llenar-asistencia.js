@@ -161,17 +161,36 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             try {
                 // Navegar a la raíz para que Cuéntame nos redirija al MasterPrincipal
                 await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/Principal/MasterPrincipal.aspx', { waitUntil: 'domcontentloaded' });
-                await mainPage.waitForTimeout(2000);
+                await mainPage.waitForTimeout(3000);
                 
-                // Hacer clic en "Cambiar de Rol" o similar
-                const btnCambiarRol = mainPage.locator('a:has-text("Cambiar"), a:has-text("rol")').filter({ hasText: /cambiar/i }).first();
-                if (await btnCambiarRol.count() > 0) {
-                    await Promise.all([
-                        mainPage.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
-                        btnCambiarRol.click()
-                    ]);
+                // Ejecutar JavaScript en el navegador para buscar el botón de cambiar rol en todos los frames
+                const clicked = await mainPage.evaluate(() => {
+                    function findAndClickRole(win) {
+                        try {
+                            const links = win.document.querySelectorAll('a');
+                            for (const link of links) {
+                                const text = link.innerText.toLowerCase();
+                                const href = link.href.toLowerCase();
+                                if (text.includes('cambiar') || text.includes('rol') || href.includes('cambiarrol')) {
+                                    link.click();
+                                    return true;
+                                }
+                            }
+                        } catch (e) { } // Ignorar errores de cross-origin si los hay
+                        
+                        // Buscar en sub-frames
+                        for (let i = 0; i < win.frames.length; i++) {
+                            if (findAndClickRole(win.frames[i])) return true;
+                        }
+                        return false;
+                    }
+                    return findAndClickRole(window);
+                });
+
+                if (clicked) {
+                    await new Promise(r => setTimeout(r, 4000)); // Esperar a que navegue
                 } else {
-                    // Si no está, intentamos ir a la raíz
+                    console.log(c.amarillo('    ⚠️ No se encontró el botón de cambiar rol por script.'));
                     await mainPage.goto('https://rubonline.icbf.gov.co/', { waitUntil: 'networkidle' });
                 }
             } catch (err) {
