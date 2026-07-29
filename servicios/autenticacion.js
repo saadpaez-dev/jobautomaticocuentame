@@ -25,9 +25,12 @@ async function loginYLlegarARoles(page, credenciales) {
   const fechaInicio = new Date();
   await page.goto(URL_LOGIN, { waitUntil: 'networkidle', timeout: 30000 });
 
-  // Llenar usuario y contraseña (locators más robustos)
-  await page.locator('input[id*="Usuario"], input[type="text"]').first().fill(usuario);
-  await page.locator('input[id*="Contrasena"], input[type="password"]').first().fill(password);
+  // Llenar usuario y contraseña (locators más precisos para evitar campos ocultos)
+  const userLocator = page.locator('input[id*="txtUsuario"], input[placeholder*="Usuario"]').first();
+  const passLocator = page.locator('input[id*="txtPassword"], input[placeholder*="Contrase"]').first();
+  
+  await userLocator.fill(usuario);
+  await passLocator.fill(password);
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.locator('input[value="Iniciar Sesión"], input[type="submit"]').first().click()
