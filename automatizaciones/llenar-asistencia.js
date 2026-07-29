@@ -86,8 +86,8 @@ async function main() {
 }
 
 async function iniciarNavegador() {
-    const browser = await chromium.launch({ headless: false });
-    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const browser = await chromium.launch({ headless: false, args: ['--start-maximized'] });
+    const context = await browser.newContext({ viewport: null });
     const mainPage = await context.newPage();
     return { browser, context, mainPage };
 }
