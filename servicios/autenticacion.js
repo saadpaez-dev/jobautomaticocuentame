@@ -144,7 +144,8 @@ async function verificarLoginExitoso(page) {
   // Verificar que entramos correctamente al menú principal
   const urlActual = page.url();
   if (!urlActual.includes('MasterPrincipal') && !urlActual.includes('General')) {
-    throw new Error('❌ Login fallido: no se pudo acceder al sistema Cuéntame tras pasar los filtros de seguridad.');
+    const pageText = await page.evaluate(() => document.body.innerText.substring(0, 500));
+    throw new Error(`❌ Login fallido: no se pudo acceder al sistema Cuéntame tras pasar los filtros de seguridad.\n  URL Actual: ${urlActual}\n  Contenido: ${pageText.replace(/\n/g, ' ')}`);
   }
 
   console.log('  ✅ Login exitoso en Cuéntame.\n');
