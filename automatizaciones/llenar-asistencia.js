@@ -350,7 +350,15 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     await mainPage.waitForTimeout(5000); 
                     console.log(c.verde('    ✅ Guardado exitoso.'));
 
-                    console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
+                    const isUltimoServicio = (sIdx === serviciosFiltrados.length - 1);
+                    const isUltimaUds = (u === udsOptionsFiltradas.length - 1);
+
+                    if (isUltimoServicio && isUltimaUds) {
+                        console.log(c.gris('    ⏭️  Última UDS procesada, saltando la recarga de filtros para cambiar de asociación...'));
+                        continue;
+                    }
+
+                    console.log(c.gris('    🔄 Recargando página para desbloquear filtros de la siguiente UDS...'));
                     await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
                     await mainPage.waitForTimeout(2000);
                     contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
