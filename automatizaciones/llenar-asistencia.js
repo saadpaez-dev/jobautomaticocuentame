@@ -74,9 +74,14 @@ async function main() {
   ];
   const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA FASE A EJECUTAR: '), { cancel: false });
   
-  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const mesIndex = readline.keyInSelect(meses, c.negrita('  > Selecciona el mes a diligenciar: '), { cancel: false });
-  const mesAtencion = meses[mesIndex];
+  const todosLosMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const fechaActual = new Date();
+  const mesActualIdx = fechaActual.getMonth();
+  const mesAnteriorIdx = mesActualIdx === 0 ? 11 : mesActualIdx - 1;
+  const mesesOpciones = [todosLosMeses[mesAnteriorIdx], todosLosMeses[mesActualIdx]];
+  
+  const mesIndex = readline.keyInSelect(mesesOpciones, c.negrita('  > Selecciona el mes a diligenciar: '), { cancel: false });
+  const mesAtencion = mesesOpciones[mesIndex];
 
   if (faseIndex === 0) {
       await ejecutarFase1(asociaciones, mesAtencion);
