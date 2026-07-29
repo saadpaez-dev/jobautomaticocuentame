@@ -167,15 +167,18 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     }
     cantidadBenef = 'TODOS';
   } else {
-    console.log(c.cyan('\n    Leyendo lista de beneficiarios activos...'));
-    const filasNinos = await frame.locator('table[id*="Grid"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr').all();
+    console.log(c.cyan('\n    Leyendo lista de beneficiarios en la tabla...'));
+    // Buscar cualquier fila que tenga un checkbox (ignorando la cabecera general si es posible, pero las leeremos todas)
+    const filasNinos = await frame.locator('tr:has(input[type="checkbox"])').all();
     
     const listaNinos = [];
     for (let j = 0; j < filasNinos.length; j++) {
         const rowText = await filasNinos[j].innerText();
-        const nombre = rowText.split('\t')[0].trim(); 
-        if (nombre && nombre.length > 5) { // Evitar encabezados o filas vacias
-            listaNinos.push({ idxOriginal: j, nombre: nombre, row: filasNinos[j] });
+        const textoFila = rowText.replace(/\t/g, ' ').trim(); 
+        
+        // Evitar la fila de cabecera que suele decir "Tipo Documento" o similar
+        if (textoFila && textoFila.length > 5 && !textoFila.toLowerCase().includes('tipo documento')) {
+            listaNinos.push({ idxOriginal: j, nombre: textoFila, row: filasNinos[j] });
         }
     }
 
