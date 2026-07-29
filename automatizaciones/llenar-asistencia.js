@@ -58,6 +58,17 @@ async function main() {
   const RUTA_EXCEL = process.env.RUTA_EXCEL || 'C:\\GENERAL_BOTS.xlsx';
   const { porAsociacion } = leerJardines(RUTA_EXCEL);
   let asociaciones = Object.values(porAsociacion).filter(a => a.numeroContrato);
+  // Fix contract numbers
+  const overrideContratos = {
+    'VERBENAL Y REFUGIO': '11027492024',
+    'BRISAS DE BUENAVISTA': '11026892024'
+  };
+  for (let asc of asociaciones) {
+      if (overrideContratos[asc.nombreCorto]) {
+          asc.numeroContrato = overrideContratos[asc.nombreCorto];
+      }
+  }
+
 
   if (asociaciones.length === 0) {
     console.error(c.rojo("  ⚠️ No hay asociaciones válidas con contrato en el Excel."));
