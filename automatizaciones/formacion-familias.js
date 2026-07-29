@@ -186,14 +186,22 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
         throw new Error('No se encontraron ninos activos en la tabla.');
     }
 
+    let cantidadSeleccionada = 0;
     while(true) {
         console.log(c.cyan('\n    --- Lista de Beneficiarios ---'));
         listaNinos.forEach(n => console.log(`      - ${n.nombre}`));
 
-        const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre o apellido del nino (o "CANCELAR" para saltar este jardin): ')).trim();
+        const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre o apellido del nino (o "LISTO" para terminar, "CANCELAR" para saltar este jardin): ')).trim();
         
         if (seleccionNina.toUpperCase() === 'CANCELAR') {
             throw new Error('Usuario cancelo la seleccion en este jardin.');
+        }
+        if (seleccionNina.toUpperCase() === 'LISTO' || seleccionNina === '') {
+            if (cantidadSeleccionada === 0) {
+                const conf = readline.keyInYN('  No has seleccionado ningun nino. Estas seguro que deseas guardar vacio?');
+                if (!conf) continue;
+            }
+            break;
         }
 
         const nombreBuscado = seleccionNina.toUpperCase();
@@ -215,11 +223,16 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
         
         const chk = ninoSeleccionado.row.locator('input[type="checkbox"]').first();
         if (await chk.count() > 0) {
-            await chk.check();
-            cantidadBenef = 1;
+            const isChecked = await chk.isChecked();
+            if (!isChecked) {
+                await chk.check();
+                cantidadSeleccionada++;
+            } else {
+                console.log(c.amarillo(`    ⚠️ Este nino ya estaba seleccionado.`));
+            }
         }
-        break;
     }
+    cantidadBenef = cantidadSeleccionada;
   }
 
   console.log('  👉 Haciendo clic en Guardar...');
