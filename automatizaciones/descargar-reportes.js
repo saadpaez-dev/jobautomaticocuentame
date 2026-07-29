@@ -48,10 +48,11 @@ async function main() {
   console.log(c.amarillo(`  1. Beneficiarios vinculados`));
   console.log(c.amarillo(`  2. Seguimiento nutricional de niños y niñas por toma`));
   console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
+  console.log(c.amarillo(`  4. Unidades de servicio`));
   
   let opcionReporte = -1;
-  while (opcionReporte < 1 || opcionReporte > 3) {
-    const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (1, 2 o 3): '));
+  while (opcionReporte < 1 || opcionReporte > 4) {
+    const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (1, 2, 3 o 4): '));
     opcionReporte = parseInt(respuesta, 10);
     if (isNaN(opcionReporte)) opcionReporte = -1;
   }
@@ -65,7 +66,7 @@ async function main() {
     if (respuestaToma.trim() !== '') {
         seleccionToma = respuestaToma.trim();
     }
-  } else if (opcionReporte === 3) {
+  } else if (opcionReporte === 3 || opcionReporte === 4) {
     console.log(c.cyan('\n  📋 Selecciona el Mes de Atención:'));
     const meses = [
       'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -131,7 +132,7 @@ async function main() {
       }
       prepararExcel = (opcionPreparar === 2);
   } else {
-      console.log(c.gris('\n  ℹ️ El reporte de Asistencia se descargará en su formato original (sin modificar).'));
+      console.log(c.gris('\n  ℹ️ El reporte se descargará en su formato original (sin modificar).'));
   }
   
   console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
@@ -342,23 +343,22 @@ async function main() {
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Select All)');
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
-        } else if (opcionReporte === 3) {
-            console.log('  🚀 Navegando a Informe de registro asistencia mensual...\n');
-            let reportLink = mainPage.locator(`a:has-text("Informe de registro asistencia mensual"), span:has-text("Informe de registro asistencia mensual")`).first();
+        } else if (opcionReporte === 3 || opcionReporte === 4) {
+            const reportName = opcionReporte === 3 ? "Informe de registro asistencia mensual" : "Unidades de servicio";
+            console.log(`  🚀 Navegando a ${reportName}...\n`);
+            let reportLink = mainPage.locator(`a:has-text("${reportName}"), span:has-text("${reportName}")`).first();
             
             if (await reportLink.count() === 0) {
-                // Try in frameContent
                 const contentFrame = mainPage.frame({ name: 'frameContent' });
                 if (contentFrame) {
-                    reportLink = contentFrame.locator(`a:has-text("Informe de registro asistencia mensual"), span:has-text("Informe de registro asistencia mensual")`).first();
+                    reportLink = contentFrame.locator(`a:has-text("${reportName}"), span:has-text("${reportName}")`).first();
                 }
             }
 
             if (await reportLink.count() === 0) {
-                // Dump body text to debug
                 const text = await mainPage.locator('body').innerText();
                 console.log(c.amarillo('  ⚠️ Texto de la página principal (primeros 500 chars):\n' + text.substring(0, 500)));
-                throw new Error('No se encontró el enlace al reporte en el menú.');
+                throw new Error(`No se encontró el enlace al reporte "${reportName}" en el menú.`);
             }
             
             console.log('  👉 Haciendo clic en el menú del reporte...');
@@ -368,37 +368,40 @@ async function main() {
                 await mainPage.goto(absoluteUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
             } else {
                 await reportLink.click({ force: true });
-                await mainPage.waitForTimeout(5000); // Wait for navigation or frame update
+                await mainPage.waitForTimeout(5000);
             }
             
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
             await mainPage.waitForTimeout(3000);
-            
             reportFrame = mainPage.frame({ name: 'frameContent' }) || mainPage;
 
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', '2024');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', asc.numeroContrato);
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
+            console.log('  ⏳ Esperando filtros SSRS...');
+            await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue').waitFor({ state: 'visible', timeout: 30000 }).catch(()=>null);
             
-            // Servicio* (marcar todos los que estén)
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Check All)');
-            
-            // Centro Zonal de la UDS* siempre "CZ USAQUEN"
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', 'CZ USAQUEN');
-            
-            // Municipio UDS - En la imagen se ve deshabilitado y vacío, así que lo saltamos.
-            // await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 1);
-            
-            // Unidad de servicio*
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', '(Select All)');
-            
-            // Mes de Atención*
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', mesAtencion);
-            
-            // Estado*
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl23_ddValue', 'Todos');
+            try {
+                if (opcionReporte === 3) {
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', '2024'); // O el que corresponda
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', asc.numeroContrato);
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
+                    await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Check All)');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', 'CZ USAQUEN');
+                    await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', '(Select All)');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', mesAtencion);
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl23_ddValue', 'Todos');
+                } else if (opcionReporte === 4) {
+                    // Unidades de servicio filters
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota, D.C.');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', asc.vigenciaContrato);
+                    await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', asc.numeroContrato);
+                }
+            } catch(e) {
+                console.log(c.rojo("  ⚠️ Posible problema con los filtros SSRS: " + e.message));
+            }
         }
 
 
