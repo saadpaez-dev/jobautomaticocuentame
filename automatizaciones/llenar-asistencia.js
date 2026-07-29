@@ -25,24 +25,26 @@ const c = {
 // Solo buscamos servicios de 2026.
 const SERVICIOS_2026 = ["2026"];
 
-function filtrarServiciosPorAsociacion(servOptions, ascNombre, udsWebText) {
+function filtrarServiciosPorAsociacion(servOptions, ascNombre, tipoServicio) {
     // Primero, siempre descartamos lo que NO sea 2026
     let options = servOptions.filter(o => o.text.includes("2026"));
     
     ascNombre = ascNombre.toUpperCase();
-    udsWebText = udsWebText ? udsWebText.toUpperCase() : "";
 
-    // Reglas específicas según el usuario:
     if (ascNombre.includes("DELICIAS DEL CARMEN")) {
-        options = options.filter(o => o.text.includes("JARDÍN COMUNITARIO"));
+        options = options.filter(o => o.text.includes("420269") || o.text.includes("JARDÍN COMUNITARIO"));
     } else if (ascNombre.includes("BARRIOS UNIDOS") || 
                ascNombre.includes("PROGRESO INFANTIL") || 
                ascNombre.includes("BRISAS DE BUENAVISTA")) {
-        options = options.filter(o => o.text.includes("HCB") && !o.text.includes("JARDÍN COMUNITARIO"));
+        options = options.filter(o => o.text.includes("420267") || o.text.includes("HCB"));
+    } else {
+        // Asociaciones mixtas (BUENAVISTA, VERBENAL Y REFUGIO, CANAIMA)
+        if (tipoServicio === 'Individual') {
+            options = options.filter(o => (o.text.includes("420267") || o.text.includes("HCB")) && !o.text.includes("420269"));
+        } else if (tipoServicio === 'Agrupado') {
+            options = options.filter(o => o.text.includes("420269") || o.text.includes("JARDÍN COMUNITARIO"));
+        }
     }
-    // Para VERBENAL, CANAIMA y PROGRAMA BUENAVISTA, depende del nombre del jardín (udsWebText).
-    // Pero en el momento de filtrar servicios, aún no hemos elegido el jardín (a menos que estemos en Fase 2 donde ya sabemos cuál queremos).
-    // En Fase 1 (búsqueda ciega), dejaremos ambas opciones de 2026 (HCB y JARDÍN) para las asociaciones mixtas.
     return options;
 }
 
@@ -144,6 +146,14 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     // Configurar días a ignorar (Capacitaciones, etc)
     let diasIgnorarStr = readline.question(c.negrita('\n  > Dias a ignorar en todo el mes (separados por coma, ej: 20,25) o ENTER para ninguno: '));
     const diasIgnorar = diasIgnorarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+
+    for (let asc of ascAProcesar) {
+        if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => asc.nombreCorto.toUpperCase().includes(x))) {
+            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDÍN COMUNITARIO - 420269)'];
+            const res = readline.keyInSelect(opciones, c.negrita(`\n  > La asociacion ${asc.nombreCorto} es MIXTA. Que jardines desea procesar?`), { cancel: false });
+            asc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
+        }
+    }
 
     console.log(c.verde(`\n  ✅ Iniciando Fase 1: ${ascAProcesar.length} Asociacion(es) | Ignorando días: [${diasIgnorar.join(',') || 'Ninguno'}]`));
 
@@ -269,7 +279,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
             // Filtrar servicios de 2026 y por reglas de asociación
             console.log(c.gris(`    [DEBUG] Servicios encontrados sin filtrar: ${serviciosOptions.map(s => s.text).join(' | ')}`));
-        let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto);
+        let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto, asc.tipoServicio);
             console.log(c.cyan(`  Encontrados ${serviciosFiltrados.length} servicios válidos (2026).`));
 
             for (let sIdx = 0; sIdx < serviciosFiltrados.length; sIdx++) {
@@ -439,6 +449,12 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         }
 
         const asc = asociaciones[ascIdx];
+        if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => asc.nombreCorto.toUpperCase().includes(x))) {
+            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDÍN COMUNITARIO - 420269)'];
+            const res = readline.keyInSelect(opciones, c.negrita(`\n  > La asociacion ${asc.nombreCorto} es MIXTA. Que jardines desea procesar?`), { cancel: false });
+            asc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
+        }
+
         console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociación: ${asc.nombreCorto}`));
 
         if (!authDone) {
@@ -553,7 +569,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         }
 
         console.log(c.gris(`    [DEBUG] Servicios encontrados sin filtrar: ${serviciosOptions.map(s => s.text).join(' | ')}`));
-        let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto);
+        let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto, asc.tipoServicio);
         console.log(c.cyan(`  Escaneando ${serviciosFiltrados.length} servicios válidos para encontrar todos los jardines...`));
 
         let todasLasUdsMap = [];
