@@ -325,7 +325,7 @@ async function main() {
     const temaSeleccionado = TEMAS_FORMACION[temaIdx];
 
     console.log();
-    const opcionesNinos = ['Aplicar a TODOS los ninos del jardin', 'Seleccionar un nino ESPECIFICO (manual)'];
+    const opcionesNinos = ['Aplicar a TODOS los ninos del jardin', 'Seleccionar ninos ESPECIFICOS (manual)'];
     const ninosIdx = readline.keyInSelect(opcionesNinos, c.negrita('  > Alcance de beneficiarios: '), { cancel: 'Cancelar tarea' });
     if (ninosIdx === -1) continue;
     

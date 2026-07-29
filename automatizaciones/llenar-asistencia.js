@@ -81,25 +81,31 @@ async function main() {
   console.log(c.cyan('  🤖 BOT DE ASISTENCIA CUÉNTAME - V3'));
   console.log(c.cyan('  ======================================================'));
   
-  const fases = [
-    '(FASE 1) - Subida de asistencia General (Masiva)', 
-    '(FASE 2) - INASISTENCIA Y DIAS DE ASISTENCIA PENDIENTES POR LLENAR'
-  ];
-  const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA FASE A EJECUTAR: '), { cancel: false });
-  
-  const todosLosMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const fechaActual = new Date();
-  const mesActualIdx = fechaActual.getMonth();
-  const mesAnteriorIdx = mesActualIdx === 0 ? 11 : mesActualIdx - 1;
-  const mesesOpciones = [todosLosMeses[mesAnteriorIdx], todosLosMeses[mesActualIdx]];
-  
-  const mesIndex = readline.keyInSelect(mesesOpciones, c.negrita('  > Selecciona el mes a diligenciar: '), { cancel: false });
-  const mesAtencion = mesesOpciones[mesIndex];
+  while (true) {
+      const fases = [
+        '(FASE 1) - Subida de asistencia General (Masiva)', 
+        '(FASE 2) - INASISTENCIA Y DIAS DE ASISTENCIA PENDIENTES POR LLENAR'
+      ];
+      const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA FASE A EJECUTAR: '), { cancel: 'Salir' });
+      
+      if (faseIndex === -1) break; // Salir
+      
+      const todosLosMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const fechaActual = new Date();
+      const mesActualIdx = fechaActual.getMonth();
+      const mesAnteriorIdx = mesActualIdx === 0 ? 11 : mesActualIdx - 1;
+      const mesesOpciones = [todosLosMeses[mesAnteriorIdx], todosLosMeses[mesActualIdx]];
+      
+      const mesIndex = readline.keyInSelect(mesesOpciones, c.negrita('  > Selecciona el mes a diligenciar: '), { cancel: 'Atras' });
+      if (mesIndex === -1) continue; // Atras
+      
+      const mesAtencion = mesesOpciones[mesIndex];
 
-  if (faseIndex === 0) {
-      await ejecutarFase1(asociaciones, mesAtencion);
-  } else {
-      await ejecutarFase2(asociaciones, mesAtencion);
+      if (faseIndex === 0) {
+          await ejecutarFase1(asociaciones, mesAtencion);
+      } else {
+          await ejecutarFase2(asociaciones, mesAtencion);
+      }
   }
 }
 
@@ -115,7 +121,8 @@ async function iniciarNavegador() {
 // ==========================================
 async function ejecutarFase1(asociaciones, mesAtencion) {
     console.log(c.cyan('\n  📋 [FASE 1] SELECCIONA LA ASOCIACIÓN PARA SUBIDA GENERAL:'));
-    console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
+    console.log(c.amarillo(`  T. 🌟 TODAS LAS ASOCIACIONES`));
+    console.log(c.amarillo(`  0. Atrás`));
     asociaciones.forEach((asc, idx) => {
         console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato})`);
     });
@@ -123,17 +130,17 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     let ascAProcesar = [];
     while (ascAProcesar.length === 0) {
         console.log(c.gris('  (Puedes ingresar varios números separados por coma, ej: 1,3,4)'));
-        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es): '));
+        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es) (o 0 para Atrás): '));
         
-        if (respuesta.trim() === '') process.exit(0);
-
-        const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
-        if (partes.length === 0) continue;
-
-        if (partes.includes(0)) {
+        const respTrim = respuesta.trim().toUpperCase();
+        if (respTrim === '0') return; // Atras
+        if (respTrim === 'T') {
             ascAProcesar = asociaciones;
             break;
         }
+
+        const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
+        if (partes.length === 0) continue;
 
         const invalidos = partes.filter(n => n < 1 || n > asociaciones.length);
         if (invalidos.length > 0) {
@@ -438,7 +445,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
     while (true) {
         console.log(c.cyan('\n  📋 [FASE 2] SELECCIONA *UNA SOLA* ASOCIACIÓN:'));
         const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
-        const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociacion: '), { cancel: 'Salir' });
+        const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociacion: '), { cancel: 'Atras' });
         
         if (ascIdx === -1) {
             if (browser) {
