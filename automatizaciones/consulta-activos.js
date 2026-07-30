@@ -155,51 +155,55 @@ async function main() {
             }
 
             // Esperar a que cargue la tabla
-            console.log(c.gris('  Esperando resultados...'));
-            await page.waitForTimeout(4000);
+            // Esperamos que recargue o muestre resultados (el frame puede recargarse)
+            // En ASP.NET a menudo hay un UpdatePanel.
+            await page.waitForTimeout(5000);
 
-            // Leer resultados
-            const headerResultados = frame.locator('text="Información Atención Beneficiarios"').last();
-            if (await headerResultados.count() === 0) {
-                console.log(c.rojo(`  ⚠️ No se encontró tabla de resultados para el documento ${documento}.`));
-                // Vemos si hay mensaje de que no se encontraron datos
-                const sinDatos = frame.locator('text="No se encontraron datos"').first();
-                if (await sinDatos.count() > 0) {
-                    console.log(c.amarillo('  👉 El sistema dice: "No se encontraron datos, verifique por favor."'));
-                }
-                continue;
+            // Re-obtener el frame (por si la navegación cambió el contexto)
+            frame = page.frameLocator('#frameContent');
+            if (await frame.locator('body').count() === 0) {
+                frame = page;
             }
 
-            // Buscar la tabla que está debajo de este título
-            // Una forma robusta es buscar todas las filas de tabla en el frame y mostrar las que tengan al menos 10 columnas
-            const filas = await frame.locator('table tr').all();
-            let encontradas = 0;
+            console.log(c.amarillo('  Buscando tablas de resultados...'));
             
-            console.log(c.verde(`\n  ✅ Resultados para ${documento}:`));
-
-            for (let j = 0; j < filas.length; j++) {
-                const fila = filas[j];
-                const celdas = await fila.locator('td').allInnerTexts();
-                
-                // Si la fila tiene muchas celdas, es la fila de datos
-                if (celdas.length > 10) {
-                    encontradas++;
-                    // Índices aproximados según la imagen:
-                    // 1: Regional, 2: Entidad, 3: Vigencia, 4: Codigo UDS, 5: Nombre UDS
-                    // 11: 1er Nombre, 13: 1er Apellido, 17: Estado
-                    const nombreUDS = celdas[5]?.trim() || '';
-                    const estado = celdas[celdas.length - 1]?.trim() || ''; // El estado suele ser el último
-                    const primerNombre = celdas[11]?.trim() || '';
-                    const primerApellido = celdas[13]?.trim() || '';
-                    const fechaAtencion = celdas[celdas.length - 3]?.trim() || '';
-
-                    console.log(`    🔹 UDS: ${c.cyan(nombreUDS)} | Niño(a): ${primerNombre} ${primerApellido} | Estado: ${c.amarillo(estado)}`);
+            // Vamos a buscar todas las tablas de la página y mostrar las que tengan sentido
+            // (normalmente la tabla de resultados tiene una clase css específica o un id como gv...)
+            const tablas = await frame.locator('table').all();
+            let tablaResultadosEncontrada = false;
+            
+            for (let i = 0; i < tablas.length; i++) {
+                const filas = await tablas[i].locator('tr').all();
+                if (filas.length > 2) {
+                    // Probablemente sea una grilla de datos
+                    const celdasHeader = await filas[0].locator('th, td').allInnerTexts();
+                    // Si tiene suficientes columnas, la mostramos
+                    if (celdasHeader.length >= 5) {
+                        tablaResultadosEncontrada = true;
+                        console.log(c.verde(`\n  ✅ Tabla encontrada con ${celdasHeader.length} columnas:`));
+                        console.log(c.cyan(`    Encabezados: | ${celdasHeader.map(t => t.trim().replace(/\s+/g, ' ')).join(' | ')} |`));
+                        
+                        console.log(c.gris('    --- Datos ---'));
+                        for (let j = 1; j < filas.length; j++) {
+                            const celdas = await filas[j].locator('td').allInnerTexts();
+                            const info = celdas.map(t => t.trim().replace(/\s+/g, ' '));
+                            console.log(`    Fila ${j}: | ${info.join(' | ')} |`);
+                        }
+                    }
                 }
             }
-
-            if (encontradas === 0) {
-                console.log(c.amarillo(`  ⚠️ El documento arrojó resultados pero no pudimos leer las filas.`));
+            
+            if (!tablaResultadosEncontrada) {
+                console.log(c.rojo('  ❌ No se encontró ninguna tabla de resultados. Revisa si el documento es válido o si la página mostró un error.'));
+                // Guardar HTML para debug
+                const html = await frame.locator('body').innerHTML();
+                const fs = require('fs');
+                if (!fs.existsSync('reportes')) fs.mkdirSync('reportes');
+                fs.writeFileSync('reportes/debug_resultados.html', html);
             }
+
+            console.log('\n------------------------------------------------------');
+            console.log('  [0] Salir al menú principal');
 
         } catch (e) {
             console.log(c.rojo(`  ❌ Error durante la búsqueda: ${e.message}`));
