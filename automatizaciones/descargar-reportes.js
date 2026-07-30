@@ -224,22 +224,27 @@ async function main() {
         // Función helper que busca un select en SSRS a partir de su label (texto) y lo llena
         const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
             try {
-                // Buscamos cualquier elemento que contenga exactamente el texto, priorizando elementos hijos
-                const labelElement = reportFrame.locator(`text="${labelText}"`).last();
-                if (await labelElement.count() === 0) {
-                    console.log(c.amarillo(`    ⚠️ No se encontró la etiqueta exacta "${labelText}". Intentando con has-text...`));
-                    const fallbackElement = reportFrame.locator(`:text-is("${labelText}")`).first();
-                    if (await fallbackElement.count() === 0) {
-                        return false; // Indica fallo
-                    }
+                // Buscamos cualquier TD que contenga el texto del label
+                const tdElements = reportFrame.locator('td', { hasText: labelText });
+                
+                if (await tdElements.count() === 0) {
+                    console.log(c.amarillo(`    ⚠️ No se encontró la etiqueta "${labelText}" en la página.`));
+                    return false;
                 }
                 
-                // Normalmente en SSRS, el select está en la celda contigua del mismo <tr>
-                const activeLabel = (await labelElement.count() > 0) ? labelElement : reportFrame.locator(`:text-is("${labelText}")`).first();
-                const selectElement = activeLabel.locator('xpath=ancestor::tr[1]//select').first();
+                // Normalmente es el TD más interno, así que tomamos el último.
+                const lastTd = tdElements.last();
+                
+                // El select suele estar dentro de este mismo TD, o en el siguiente TD (following-sibling)
+                let selectElement = lastTd.locator('select').first();
                 
                 if (await selectElement.count() === 0) {
-                    console.log(c.amarillo(`    ⚠️ Se encontró el texto "${labelText}" pero no hay un <select> en su fila`));
+                    // Si no está adentro, buscamos en la misma fila (tr)
+                    selectElement = lastTd.locator('xpath=ancestor::tr[1]//select').first();
+                }
+                
+                if (await selectElement.count() === 0) {
+                    console.log(c.amarillo(`    ⚠️ Se encontró el texto "${labelText}" pero no hay un <select> cerca.`));
                     return false;
                 }
 
