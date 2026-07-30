@@ -9,6 +9,7 @@ const { chromium } = require('playwright');
 const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
+const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -574,9 +575,27 @@ async function main() {
                       }
                   }
 
-                  // Pausar para recibir el pantallazo del formulario de Nueva Toma o Edición
-                  console.log(c.amarillo('\n  ⏸️  Script en pausa. Formulario abierto.'));
-                  console.log(c.amarillo('  Por favor enviale un pantallazo a Antigravity del formulario de toma/edicion.'));
+                  // Pedir los datos por consola para llenar el formulario
+                  console.log(c.cyan('\n  📋 DATOS DE LA TOMA (Ingresa los datos para este niño)'));
+                  let fechaEntrada = readline.question(c.negrita('  > Fecha de valoracion (ej. "hoy", "22", "30/07/2026") [Opcional]: '));
+                  let pesoInput = readline.question(c.negrita('  > Peso en Kilogramos (ej. 12.5) [Opcional]: '));
+                  let tallaInput = readline.question(c.negrita('  > Talla en Centimetros (ej. 85) [Opcional]: '));
+                  let perimetroInput = readline.question(c.negrita('  > Perimetro Braquial (cm) [Opcional]: '));
+                  
+                  const datosLlenado = {
+                      documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : '',
+                      fecha: parsearFecha(fechaEntrada),
+                      peso: pesoInput.trim(),
+                      talla: tallaInput.trim(),
+                      perimetro: perimetroInput.trim()
+                  };
+                  
+                  // Ejecutar la magia del llenado automático y consulta ADRES
+                  await llenarFormularioNutricion(browser, content, datosLlenado);
+
+                  // Pausar al final
+                  console.log(c.amarillo('\n  ⏸️  Script en pausa. Formulario lleno y sin guardar.'));
+                  console.log(c.amarillo('  Por favor revisa los datos en el navegador y dale a Guardar manualmente.'));
                   while (true) {
                       const resp = readline.question(c.negrita('  > Escribe "consulta" para regresar al listado: '));
                       if (resp.toLowerCase() === 'consulta') {
