@@ -364,10 +364,10 @@ async function main() {
           } else {
               console.log(c.amarillo('\n  ¿Sabes como se llama o identifica el beneficiario?'));
               console.log(c.gris('  (Escribe su nombre/documento, o presiona Enter para ver la lista de todos)'));
-              input = readline.question(c.negrita('  > Buscar (o 0 para salir): '));
+              input = readline.question(c.negrita('  > Buscar (o escribe "consulta" para volver): '));
           }
 
-          if (input.trim() === '0') {
+          if (input.trim() === '0' || input.trim().toLowerCase() === 'consulta') {
               break;
           }
 
@@ -378,10 +378,10 @@ async function main() {
               listaNinos.forEach((n, idx) => {
                   console.log(`  ${idx + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto} (Tomas: ${c.amarillo(n.tomas)})`);
               });
-              console.log(c.amarillo('\n  [0] Salir y volver a seleccionar UDS'));
+              console.log(c.amarillo('\n  [0 o "consulta"] Salir y volver a seleccionar UDS'));
               input = readline.question(c.negrita('  > Ingresa el numero de la lista (ej. 1): '));
               
-              if (input.trim() === '0') break;
+              if (input.trim() === '0' || input.trim().toLowerCase() === 'consulta') break;
               if (input.trim() === '') continue;
           }
           
