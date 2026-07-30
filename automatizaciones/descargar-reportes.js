@@ -520,11 +520,10 @@ async function main() {
             await exportBtn.click({ force: true });
             await mainPage.waitForTimeout(1000);
             
-            // Clic en la opción de Excel con Promise.all para atrapar el evento correctamente
             const excelOption = reportFrame.locator('a:has-text("Excel")').first();
             const [download] = await Promise.all([
                 mainPage.waitForEvent('download'),
-                excelOption.click({ force: true })
+                excelOption.evaluate(el => el.click())
             ]);
             
             const prefijo = opcionReporte === 1 ? 'Beneficiarios' : (opcionReporte === 2 ? 'Nutricion' : (opcionReporte === 4 ? 'Unidades' : 'Asistencia'));
