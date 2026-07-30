@@ -146,13 +146,8 @@ async function main() {
             await inputDoc.fill(documento);
             await page.waitForTimeout(500);
 
-            // Dump HTML for debugging
-            const html = await frame.content();
-            require('fs').writeFileSync('reportes/debug_lupa.html', html);
-
-            // Hacer clic en buscar (que es un input type=image con tooltip o id conteniendo buscar)
-            // Normalmente en Cuéntame es un botón con icono o type submit
-            const btnBuscar = frame.locator('input[type="image"][title*="Buscar"], input[type="submit"], input[value*="Buscar"], a:has-text("Buscar"), img[src*="buscar"], img[title*="Buscar"]').first();
+            // Hacer clic en el botón buscar (que según la imagen es <a id="btnBuscar">...</a>)
+            const btnBuscar = frame.locator('#btnBuscar, a:has(img[alt="Consultar"])').first();
             if (await btnBuscar.count() > 0) {
                 await btnBuscar.evaluate(node => node.click());
             } else {
