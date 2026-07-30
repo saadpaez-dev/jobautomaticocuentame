@@ -262,7 +262,7 @@ async function main() {
                             const normalizarRegional = (str) => {
                                 let res = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
                                 if (res.includes('BOGOTA')) return 'BOGOTA';
-                                if (res.includes('VALLE DEL CAUCA') || res === 'VALLE') return 'VALLE DEL CAUCA';
+                                if (res.includes('VALLE DEL CAUCA') || res === 'VALLE') return 'CAUCA';
                                 if (res.includes('SAN ANDRES')) return 'SAN ANDRES';
                                 return res;
                             };
