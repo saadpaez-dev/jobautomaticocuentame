@@ -396,7 +396,7 @@ async function main() {
                   let listaTomas = [];
                   for (let i = 0; i < numTomas; i++) {
                       const fila = filasTomas.nth(i);
-                      const celdas = fila.locator('td');
+                      const celdas = fila.locator(':scope > td');
                       if (await celdas.count() > 3) {
                           const fechaToma = await celdas.nth(2).innerText().catch(()=>'');
                           const peso = await celdas.nth(7).innerText().catch(()=>'');
@@ -418,31 +418,11 @@ async function main() {
                   console.log(c.cyan(`  📊 TOMAS ACTUALES DE: ${ninoSeleccionado.nombreCompleto}`));
                   console.log(c.cyan('------------------------------------------------------'));
                   
+                  const btnNuevo = content.locator('a[id*="btnNuevo"], input[id*="btnNuevo"]').first();
+
                   if (listaTomas.length === 0) {
                       console.log(c.gris('  (No hay tomas registradas previamente)'));
-                  } else {
-                      listaTomas.forEach((toma, idx) => {
-                          console.log(`  ${idx + 1}. Fecha Toma: ${c.cyan(toma.fechaToma)} | Peso: ${toma.peso}kg | Talla: ${toma.talla}cm`);
-                      });
-                  }
-
-                  console.log(c.amarillo('\n  ¿Que accion deseas realizar?'));
-                  console.log(`  [+] Escribe "+" para Agregar una NUEVA toma.`);
-                  if (listaTomas.length > 0) {
-                      console.log(`  [1-${listaTomas.length}] Escribe el numero de una toma para EDITARLA.`);
-                  }
-                  console.log(`  [0] Salir y volver a buscar otro nino`);
-                  
-                  const accion = readline.question(c.negrita('\n  > Selecciona una accion: '));
-
-                  if (accion.trim() === '0') {
-                      break; // Regresa al bucle de selección de niño
-                  }
-                  
-                  if (accion.trim() === '+') {
-                      console.log(c.amarillo('  ⏳ Haciendo clic en el boton (+) Nuevo...'));
-                      // Intentar encontrar el botón de Nuevo (suele ser una imagen o botón con title/value Nuevo o Agregar)
-                      const btnNuevo = content.locator('input[type="image"][src*="nuevo"], input[type="image"][title*="Nuevo"], a[title*="Nuevo"], input[id*="btnNuevo"]').first();
+                      console.log(c.verde('  ✨ Redirigiendo automaticamente a "Nueva Toma"...'));
                       
                       if (await btnNuevo.count() > 0) {
                           await Promise.all([
@@ -450,53 +430,104 @@ async function main() {
                               btnNuevo.evaluate(node => node.click())
                           ]);
                           console.log(c.verde('  ✅ Nueva ventana (Nuevo) cargada.'));
-                          console.log(c.amarillo('  ⏸️  Script en pausa. Por favor enviale un pantallazo a Antigravity.'));
-                          while (true) {
-                              const resp = readline.question(c.negrita('\n  > Escribe "salir" para volver: '));
-                              if (resp.toLowerCase() === 'salir') break;
-                          }
                       } else {
-                          console.log(c.rojo('  ❌ No se encontro el boton (+) Nuevo en la pantalla.'));
+                          console.log(c.rojo('  ❌ No se encontro el boton (+) Nuevo.'));
                       }
-                      continue;
-                  }
+                  } else {
+                      listaTomas.forEach((toma, idx) => {
+                          console.log(`  ${idx + 1}. Fecha Toma: ${c.cyan(toma.fechaToma)} | Peso: ${toma.peso}kg | Talla: ${toma.talla}cm`);
+                      });
 
-                  const numAccion = parseInt(accion.trim(), 10);
-                  if (!isNaN(numAccion) && numAccion > 0 && numAccion <= listaTomas.length) {
-                      const tomaSeleccionada = listaTomas[numAccion - 1];
-                      console.log(c.amarillo(`  ⏳ Editando la toma del ${tomaSeleccionada.fechaToma}...`));
+                      console.log(c.amarillo('\n  ¿Que accion deseas realizar?'));
+                      console.log(`  [1] Agregar una NUEVA toma (+)`);
+                      console.log(`  [2] EDITAR una toma existente`);
+                      console.log(`  [0] Atras (Volver a consulta de ninos)`);
                       
-                      try {
-                          // Marcar el checkbox
-                          if (await tomaSeleccionada.chkLocator.count() > 0) {
-                              await tomaSeleccionada.chkLocator.check();
-                          }
-                          // Hacer clic en el icono azul (Detalle)
-                          if (await tomaSeleccionada.btnInfoLocator.count() > 0) {
+                      const accion = readline.question(c.negrita('\n  > Selecciona una accion (1/2/0): '));
+
+                      if (accion.trim() === '0') {
+                          console.log(c.amarillo('  ⏳ Volviendo a la consulta de ninos...'));
+                          const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"]').first();
+                          if (await btnBuscar.count() > 0) {
                               await Promise.all([
                                   content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                                  tomaSeleccionada.btnInfoLocator.evaluate(node => node.click())
+                                  btnBuscar.evaluate(node => node.click())
                               ]);
-                              console.log(c.verde('  ✅ Ventana de Edicion cargada.'));
-                              console.log(c.amarillo('  ⏸️  Script en pausa. Por favor enviale un pantallazo a Antigravity.'));
-                              while (true) {
-                                  const resp = readline.question(c.negrita('\n  > Escribe "salir" para volver: '));
-                                  if (resp.toLowerCase() === 'salir') break;
+                          }
+                          break; // Rompe el bucle de Fase 3 y vuelve al menú de selección de niños
+                      }
+                      
+                      if (accion.trim() === '1') {
+                          console.log(c.amarillo('  ⏳ Haciendo clic en el boton (+) Nuevo...'));
+                          if (await btnNuevo.count() > 0) {
+                              await Promise.all([
+                                  content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                  btnNuevo.evaluate(node => node.click())
+                              ]);
+                              console.log(c.verde('  ✅ Nueva ventana (Nuevo) cargada.'));
+                          } else {
+                              console.log(c.rojo('  ❌ No se encontro el boton (+) Nuevo en la pantalla.'));
+                          }
+                      } else if (accion.trim() === '2') {
+                          let numAccion = -1;
+                          if (listaTomas.length === 1) {
+                              numAccion = 1;
+                              console.log(c.amarillo(`  ⏳ Editando la unica toma existente (${listaTomas[0].fechaToma})...`));
+                          } else {
+                              const res = readline.question(c.negrita(`  > Selecciona cual toma editar (1 - ${listaTomas.length}): `));
+                              numAccion = parseInt(res.trim(), 10);
+                          }
+
+                          if (!isNaN(numAccion) && numAccion > 0 && numAccion <= listaTomas.length) {
+                              const tomaSeleccionada = listaTomas[numAccion - 1];
+                              console.log(c.amarillo(`  ⏳ Abriendo edicion para la toma del ${tomaSeleccionada.fechaToma}...`));
+                              
+                              try {
+                                  if (await tomaSeleccionada.chkLocator.count() > 0) {
+                                      await tomaSeleccionada.chkLocator.check();
+                                  }
+                                  if (await tomaSeleccionada.btnInfoLocator.count() > 0) {
+                                      await Promise.all([
+                                          content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                          tomaSeleccionada.btnInfoLocator.evaluate(node => node.click())
+                                      ]);
+                                      console.log(c.verde('  ✅ Ventana de Edicion cargada.'));
+                                  } else {
+                                      console.log(c.rojo('  ❌ No se encontro el boton azul (detalle) para esta fila.'));
+                                  }
+                              } catch (e) {
+                                  console.log(c.rojo(`  ❌ Error al editar: ${e.message}`));
                               }
                           } else {
-                              console.log(c.rojo('  ❌ No se encontro el boton azul (detalle) para esta fila.'));
+                              console.log(c.rojo('  ❌ Seleccion no valida.'));
+                              continue;
                           }
-                      } catch (e) {
-                          console.log(c.rojo(`  ❌ Error al editar: ${e.message}`));
+                      } else {
+                          console.log(c.rojo('  ❌ Opcion no valida.'));
+                          continue;
                       }
-                      continue;
                   }
-                  
-                  console.log(c.rojo('  ❌ Opcion no valida.'));
-              }
-              
-              console.log(c.amarillo('  🔄 Regresando al listado de ninos (simulado)...'));
 
+                  // Pausar para recibir el pantallazo del formulario de Nueva Toma o Edición
+                  console.log(c.amarillo('\n  ⏸️  Script en pausa. Formulario abierto.'));
+                  console.log(c.amarillo('  Por favor enviale un pantallazo a Antigravity del formulario de toma/edicion.'));
+                  while (true) {
+                      const resp = readline.question(c.negrita('  > Escribe "salir" para regresar al listado: '));
+                      if (resp.toLowerCase() === 'salir') {
+                          // Simular volver atras desde la pantalla de toma
+                          console.log(c.amarillo('  ⏳ Volviendo a la consulta de ninos...'));
+                          const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"]').first();
+                          if (await btnBuscar.count() > 0) {
+                              await Promise.all([
+                                  content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                  btnBuscar.evaluate(node => node.click())
+                              ]);
+                          }
+                          break;
+                      }
+                  }
+                  break; // Salir de Fase 3 y volver a Fase 2 (selección de niño)
+              }
           } catch (err) {
               console.log(c.rojo(`  ❌ Error al abrir formulario del nino: ${err.message}`));
           }
