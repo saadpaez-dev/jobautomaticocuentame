@@ -286,6 +286,7 @@ async function main() {
                             
                             rowToFill.commit();
                             
+                            const fs = require('fs');
                             const docsDir = path.join(__dirname, '..', 'docs', 'adjuntos', documento);
                             if (!fs.existsSync(docsDir)) {
                                 fs.mkdirSync(docsDir, { recursive: true });
