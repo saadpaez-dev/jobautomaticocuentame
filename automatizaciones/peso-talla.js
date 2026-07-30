@@ -189,10 +189,38 @@ async function main() {
       await popup.locator('input[id*="txtCodigoUnidadServicio"], input[name*="CodigoUnidadServicio"]').first().fill(String(jardinSeleccionado.codigo));
 
       console.log(c.cyan('  📝 Seleccionando Departamento: BOGOTA D.C.'));
-      const ddlDepto = popup.locator('select[id*="ddlDepartamento"], select[name*="ddlDepartamento"]').first();
-      await ddlDepto.selectOption({ label: 'BOGOTA D.C.' }).catch(async () => {
-          await ddlDepto.selectOption({ label: 'BOGOTÁ D.C.' }).catch(() => {});
-      });
+      let ddlDepto = popup.locator('select[id*="ddlDepartamento"], select[name*="ddlDepartamento"]').first();
+      
+      if (await ddlDepto.count() === 0) {
+          // Fallback: buscar el select cuyo texto anterior (label o td) sea "Departamento"
+          console.log(c.amarillo('    ⚠️ No se encontró select por ID. Buscando por estructura DOM...'));
+          const tdLabel = popup.locator('td:has-text("Departamento")').last();
+          ddlDepto = tdLabel.locator('xpath=following-sibling::td//select').first();
+          if (await ddlDepto.count() === 0) {
+              ddlDepto = popup.locator('select').nth(1); // Asumiendo que es el 2do select
+          }
+      }
+
+      try {
+          // Usar una expresión regular para lidiar con tildes y espacios dobles
+          await ddlDepto.selectOption({ label: /BOGOT. D\.C\./i });
+          console.log(c.verde('    ✅ Departamento BOGOTA D.C. seleccionado.'));
+      } catch (err) {
+          console.log(c.rojo(`    ❌ Falló al seleccionar BOGOTA D.C.: ${err.message}`));
+          console.log(c.amarillo('    Intentando buscar la opción que contenga BOGOTA...'));
+          try {
+              const options = await ddlDepto.locator('option').allInnerTexts();
+              const bogotaOpt = options.find(o => o.toUpperCase().includes('BOGOT'));
+              if (bogotaOpt) {
+                  await ddlDepto.selectOption({ label: bogotaOpt });
+                  console.log(c.verde(`    ✅ Seleccionado fallback: ${bogotaOpt}`));
+              } else {
+                  console.log(c.rojo(`    ❌ No existe ninguna opción con BOGOTA en el select.`));
+              }
+          } catch (e) {
+              console.log(c.rojo(`    ❌ Error fatal al intentar fallback del departamento.`));
+          }
+      }
 
       console.log(c.cyan('  🔍 Haciendo clic en buscar/aceptar dentro de la Lupa...'));
       await popup.locator('input[type="image"][id*="btnBuscar"], input[name*="btnBuscar"], a[id*="btnBuscar"]').first().click();
