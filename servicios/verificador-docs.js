@@ -115,9 +115,11 @@ async function procesarDocumentos(documento) {
 
     for (const pag of paginasExtraidas) {
         const txt = pag.texto;
-        let esRC = txt.includes('nuip') || txt.includes('registro civil') || txt.includes('registraduria nacional') || txt.includes('lugar de nacimiento') || txt.includes('república de colombia') || txt.includes('tarjeta de identidad');
-        let esRAM = txt.includes('formato registro asistencia mensual') || txt.includes('asistencia') || txt.includes('ram') || txt.includes('días') || txt.includes('icbf');
-        let esCarta = txt.includes('certifico') || txt.includes('constancia') || txt.includes('por medio de') || txt.includes('asiste') || txt.includes('cordial saludo');
+        const origen = pag.origen.toLowerCase();
+        
+        let esRC = txt.includes('nuip') || txt.includes('registro civil') || txt.includes('registraduria nacional') || txt.includes('lugar de nacimiento') || txt.includes('república de colombia') || txt.includes('tarjeta de identidad') || origen.includes('registro') || origen.includes('rc') || origen.includes('identidad');
+        let esRAM = txt.includes('formato registro asistencia mensual') || txt.includes('asistencia') || txt.includes('ram') || txt.includes('días') || txt.includes('icbf') || origen.includes('ram') || origen.includes('asistencia');
+        let esCarta = txt.includes('certifico') || txt.includes('constancia') || txt.includes('por medio de') || txt.includes('asiste') || txt.includes('cordial saludo') || origen.includes('carta') || origen.includes('madre comunitaria');
 
         // Ponderación básica si coinciden varios
         if (esRC) clasificacion.RC.push(pag);
