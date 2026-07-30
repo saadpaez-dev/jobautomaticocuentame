@@ -165,41 +165,86 @@ async function main() {
                 frame = page;
             }
 
-            console.log(c.amarillo('  Buscando tablas de resultados...'));
-            
-            // Vamos a buscar todas las tablas de la página y mostrar las que tengan sentido
-            // (normalmente la tabla de resultados tiene una clase css específica o un id como gv...)
+            // Vamos a buscar todas las tablas de la página y procesar la tabla de resultados (suele tener > 15 columnas)
             const tablas = await frame.locator('table').all();
-            let tablaResultadosEncontrada = false;
+            let registros = [];
             
             for (let i = 0; i < tablas.length; i++) {
                 const filas = await tablas[i].locator('tr').all();
                 if (filas.length > 2) {
-                    // Probablemente sea una grilla de datos
                     const celdasHeader = await filas[0].locator('th, td').allInnerTexts();
-                    // Si tiene suficientes columnas, la mostramos
-                    if (celdasHeader.length >= 5) {
-                        tablaResultadosEncontrada = true;
-                        console.log(c.verde(`\n  ✅ Tabla encontrada con ${celdasHeader.length} columnas:`));
-                        console.log(c.cyan(`    Encabezados: | ${celdasHeader.map(t => t.trim().replace(/\s+/g, ' ')).join(' | ')} |`));
-                        
-                        console.log(c.gris('    --- Datos ---'));
+                    if (celdasHeader.length >= 15) { // La tabla de datos tiene 19 columnas
                         for (let j = 1; j < filas.length; j++) {
                             const celdas = await filas[j].locator('td').allInnerTexts();
-                            const info = celdas.map(t => t.trim().replace(/\s+/g, ' '));
-                            console.log(`    Fila ${j}: | ${info.join(' | ')} |`);
+                            if (celdas.length >= 15) {
+                                const info = celdas.map(t => t.trim().replace(/\s+/g, ' '));
+                                registros.push({
+                                    entidad: info[2] || '',
+                                    nombreUds: info[6] || '',
+                                    nombre: `${info[12] || ''} ${info[13] || ''} ${info[14] || ''} ${info[15] || ''}`.replace(/\s+/g, ' ').trim(),
+                                    fechaAtencion: info[16] || '',
+                                    estado: info[18] || ''
+                                });
+                            }
                         }
                     }
                 }
             }
             
-            if (!tablaResultadosEncontrada) {
-                console.log(c.rojo('  ❌ No se encontró ninguna tabla de resultados. Revisa si el documento es válido o si la página mostró un error.'));
-                // Guardar HTML para debug
-                const html = await frame.locator('body').innerHTML();
-                const fs = require('fs');
-                if (!fs.existsSync('reportes')) fs.mkdirSync('reportes');
-                fs.writeFileSync('reportes/debug_resultados.html', html);
+            if (registros.length === 0) {
+                const sinDatos = frame.locator('text="No se encontraron datos"').first();
+                if (await sinDatos.count() > 0 && await sinDatos.isVisible()) {
+                    console.log(c.rojo(`  ❌ El sistema reporta: No se encontraron datos para el documento ${documento}.`));
+                } else {
+                    console.log(c.rojo('  ❌ No se encontró ninguna tabla de resultados. Revisa si la página mostró un error.'));
+                }
+                console.log('\n------------------------------------------------------');
+                console.log('  [0] Salir al menú principal');
+                continue;
+            }
+
+            // Parsear fechas y ordenar para tener la más reciente primero (DD/MM/YYYY)
+            registros.sort((a, b) => {
+                const parseD = (str) => {
+                    const parts = str.split('/');
+                    if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+                    return 0;
+                };
+                return parseD(b.fechaAtencion) - parseD(a.fechaAtencion);
+            });
+
+            const masReciente = registros[0];
+            console.log(c.verde(`\n  ✅ Beneficiario encontrado: ${c.cyan(masReciente.nombre)}`));
+            console.log(`    Último registro: ${masReciente.fechaAtencion}`);
+            console.log(`    Estado actual: ${c.negrita(masReciente.estado)}`);
+            console.log(`    Asociación (Entidad): ${masReciente.entidad}`);
+            console.log(`    UDS: ${masReciente.nombreUds}\n`);
+
+            // Lógica de validación
+            const estadoMayus = masReciente.estado.toUpperCase();
+            const esMismaAsociacion = masReciente.entidad.toUpperCase().includes(ascSeleccionada.nombreCorto.toUpperCase());
+
+            if (estadoMayus === 'VINCULADO') {
+                if (!esMismaAsociacion) {
+                    console.log(c.rojo(`  ⚠️ El niño se encuentra VINCULADO pero en OTRA asociación (${masReciente.entidad}).`));
+                    const resp = readline.question('  ¿Deseas guardar esta novedad en el Excel? (s/n): ').toLowerCase();
+                    if (resp === 's' || resp === 'si') {
+                        // Guardar en un CSV o Excel local
+                        const fs = require('fs');
+                        const logPath = 'reportes/novedades_vinculados.csv';
+                        if (!fs.existsSync(logPath)) {
+                            fs.writeFileSync(logPath, 'Documento,Nombre,Estado,Fecha,Asociacion_Encontrada\n');
+                        }
+                        fs.appendFileSync(logPath, `${documento},${masReciente.nombre},${masReciente.estado},${masReciente.fechaAtencion},"${masReciente.entidad}"\n`);
+                        console.log(c.verde('  ✅ Novedad guardada en reportes/novedades_vinculados.csv'));
+                    }
+                } else {
+                    console.log(c.verde(`  ✅ El niño se encuentra VINCULADO correctamente en tu asociación.`));
+                }
+            } else if (estadoMayus === 'DESVINCULADO') {
+                console.log(c.amarillo(`  👉 El niño se encuentra DESVINCULADO. (Procede a la tarea 5 para vincularlo).`));
+            } else {
+                console.log(c.gris(`  ℹ️ Estado desconocido: ${masReciente.estado}.`));
             }
 
             console.log('\n------------------------------------------------------');
