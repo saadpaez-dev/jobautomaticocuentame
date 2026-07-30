@@ -100,14 +100,24 @@ async function main() {
     }
     const rootMenu = menuFrame || page;
     
-    const parentMenu = rootMenu.locator('a:has-text("Beneficiario")').first();
-    const childMenu = rootMenu.locator('a:has-text("Información beneficiario")').first();
-
     try {
-        if (await parentMenu.count() > 0) {
-            await parentMenu.click({ force: true }).catch(()=>{});
-            await page.waitForTimeout(1000);
-        }
+        // 1. Clic en RUB ONLINE (padre principal)
+        const rubOnline1 = rootMenu.locator('a:has-text("RUB ONLINE")').first();
+        if (await rubOnline1.count() > 0) await rubOnline1.click({ force: true }).catch(()=>{});
+        await page.waitForTimeout(1000);
+
+        // 2. Clic en Rub online (subcarpeta)
+        const rubOnline2 = rootMenu.locator('a:has-text("Rub online")').first();
+        if (await rubOnline2.count() > 0) await rubOnline2.click({ force: true }).catch(()=>{});
+        await page.waitForTimeout(1000);
+
+        // 3. Clic en Beneficiario (por si acaso no está expandido)
+        const parentMenu = rootMenu.locator('a:has-text("Beneficiario")').first();
+        if (await parentMenu.count() > 0) await parentMenu.click({ force: true }).catch(()=>{});
+        await page.waitForTimeout(1000);
+
+        // 4. Clic en Información beneficiario
+        const childMenu = rootMenu.locator('a:has-text("Información beneficiario")').first();
         await childMenu.click({ timeout: 5000, force: true });
         await page.waitForTimeout(3000);
     } catch(e) {
