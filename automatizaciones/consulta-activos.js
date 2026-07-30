@@ -317,18 +317,20 @@ Regional y Centro Zonal:                             BOGOTÁ, CZ USAQUEN
                                     ]
                                 });
                                 
-                                const fs = require('fs');
-                                const reportesDir = path.join(__dirname, '..', 'reportes');
-                                if (!fs.existsSync(reportesDir)) {
-                                    fs.mkdirSync(reportesDir);
+                                const { guardarEnBorradores } = require('../servicios/gmail-draft');
+                                require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+                                
+                                const gmailUser = process.env.GMAIL_USER;
+                                const gmailPass = process.env.GMAIL_PASS;
+                                
+                                if (!gmailUser || !gmailPass) {
+                                    console.log(c.rojo('  ❌ No se encontraron GMAIL_USER o GMAIL_PASS en el .env.'));
+                                } else {
+                                    const messageBuffer = await mail.compile().build();
+                                    await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
+                                    console.log(c.verde(`  ✅ Borrador de correo subido exitosamente a la carpeta Borradores de tu Gmail.`));
+                                    console.log(c.verde(`     (Revisa la carpeta "Borradores" en tu correo, allí estará listo con el Excel adjunto).`));
                                 }
-                                
-                                const emailPath = path.join(reportesDir, `borrador_desvinculacion_${documento}.eml`);
-                                const messageBuffer = await mail.compile().build();
-                                fs.writeFileSync(emailPath, messageBuffer);
-                                
-                                console.log(c.verde(`  ✅ Borrador de correo generado exitosamente con el Excel adjunto en: ${emailPath}`));
-                                console.log(c.verde(`     (Puedes hacer doble clic en el archivo .eml para abrirlo en Outlook o tu cliente de correo).`));
                             }
                         } else {
                             console.log(c.rojo('  ❌ No se encontró la hoja "FORMATO" en el archivo de Excel.'));
