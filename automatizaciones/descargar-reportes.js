@@ -66,7 +66,7 @@ async function main() {
     if (respuestaToma.trim() !== '') {
         seleccionToma = respuestaToma.trim();
     }
-  } else if (opcionReporte === 3 || opcionReporte === 4) {
+  } else if (opcionReporte === 3) {
     console.log(c.cyan('\n  📋 Selecciona el Mes de Atención:'));
     const meses = [
       'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -221,7 +221,39 @@ async function main() {
         // Se inicializa apuntando a mainPage y luego cada reporte la reasigna a frameContent si existe.
         let reportFrame = mainPage;
 
-        // Función helper simple
+        // Función helper que busca un select en SSRS a partir de su label (texto) y lo llena
+        const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
+            try {
+                // Buscamos una celda o div que contenga el label exacto
+                const labelElement = reportFrame.locator(`span:text-is("${labelText}"), label:text-is("${labelText}")`).first();
+                if (await labelElement.count() === 0) {
+                    console.log(c.amarillo(`    ⚠️ No se encontró el campo con etiqueta "${labelText}"`));
+                    return;
+                }
+                
+                // Normalmente en SSRS, el select está en el mismo <tr> o en la celda adyacente,
+                // vamos a buscar el select más cercano que pertenezca a la misma fila o contenedor
+                const selectElement = labelElement.locator('xpath=ancestor::tr[1]//select').first();
+                
+                if (await selectElement.count() === 0) {
+                    console.log(c.amarillo(`    ⚠️ Se encontró el label "${labelText}" pero no su dropdown`));
+                    return;
+                }
+
+                await selectElement.waitFor({ state: 'visible', timeout: 5000 });
+                if (typeof valueOrText === 'number') {
+                    await selectElement.selectOption({ index: valueOrText });
+                } else {
+                    await selectElement.selectOption({ label: valueOrText });
+                }
+                
+                // Esperar a que SSRS haga el postback y desbloquee el resto de selects
+                await mainPage.waitForTimeout(2000); 
+            } catch (e) {
+                console.log(c.rojo(`    ⚠️ Error al seleccionar "${labelText}": ${e.message}`));
+            }
+        };
+
         const seleccionarSSRS = async (id, valueOrText) => {
             try {
                 const selectLocator = reportFrame.locator(`#${id}`);
@@ -391,13 +423,21 @@ async function main() {
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', mesAtencion);
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl23_ddValue', 'Todos');
                 } else if (opcionReporte === 4) {
-                    // Unidades de servicio filters
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota, D.C.');
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', asc.vigenciaContrato);
-                    await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', asc.numeroContrato);
+                    // "Unidades de servicio" usando el helper robusto basado en texto de las imágenes
+                    console.log('    👉 Llenando filtros de Unidades de servicio...');
+                    await seleccionarSSRSByLabel('Tipo Unidad', 'Unidad de Servicio');
+                    await seleccionarSSRSByLabel('Dirección ICBF *', 'Dirección de Primera Infancia');
+                    await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato);
+                    await seleccionarSSRSByLabel('Regional UDS', 'Bogota D.C.');
+                    await seleccionarSSRSByLabel('Centro Zonal de la UDS', 'CZ USAQUEN');
+                    await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
+                    await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
+                    
+                    await seleccionarSSRSByLabel('Estado UDS', 'ACTIVA');
+                    await seleccionarSSRSByLabel('Estado UDS Contrato*', 'Activo');
+                    await seleccionarSSRSByLabel('Vigencia del Servicio *', '2026'); // Asumimos 2026 por la imagen
+                    // "Servicio" se deja en "Seleccione" según la imagen
+                    await seleccionarSSRSByLabel('Tipo de Reporte*', 'Todas las UDS');
                 }
             } catch(e) {
                 console.log(c.rojo("  ⚠️ Posible problema con los filtros SSRS: " + e.message));
