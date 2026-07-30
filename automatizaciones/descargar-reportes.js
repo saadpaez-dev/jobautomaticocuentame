@@ -42,6 +42,8 @@ async function main() {
   // Cargar datos del Excel
   const RUTA_EXCEL = process.env.RUTA_EXCEL || 'C:\\GENERAL.xlsx';
   const { porAsociacion } = leerJardines(RUTA_EXCEL);
+  
+  while (true) {
   let asociaciones = Object.values(porAsociacion);
   
   console.log(c.cyan('\n  📋 Selecciona el Reporte a generar:'));
@@ -545,8 +547,14 @@ async function main() {
   // Al finalizar todas, cerrar contexto
   console.log(c.verde('\n  ✅ Todas las asociaciones procesadas. Cerrando navegador...'));
   await context.close().catch(() => {});
+  await browser.close().catch(() => {});
 
-  await browser.close();
+  console.log(c.cyan('\n======================================================'));
+  const respFinal = readline.question(c.negrita('  > ¿Deseas generar otro reporte? (s/n) [por defecto s]: '));
+  if (respFinal.toLowerCase().trim() === 'n') {
+      break;
+  }
+  }
 }
 
 main().catch((err) => {
