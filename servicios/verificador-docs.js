@@ -11,50 +11,50 @@ const c = require('picocolors');
  * @returns {Promise<boolean>} true si se generaron los 3 PDFs correctamente, false en caso contrario
  */
 async function procesarDocumentos(documento) {
-    const inputDir = path.join(__dirname, '..', 'docs', 'entradas', documento);
+    const inputDir = path.join(__dirname, '..', 'docs', 'entradas');
     const outputDir = path.join(__dirname, '..', 'docs', 'adjuntos', documento);
 
     if (!fs.existsSync(inputDir)) {
-        console.log(c.amarillo(`  ⚠️ No se encontró la carpeta de entrada de documentos para ${documento}`));
-        console.log(c.amarillo(`     (Esperaba: ${inputDir})`));
+        fs.mkdirSync(inputDir, { recursive: true });
+        console.log(c.amarillo(`  ⚠️ La carpeta de entradas generales no existía, la he creado en: ${inputDir}`));
         return false;
     }
 
-    // Crear carpeta de salida si no existe
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const files = fs.readdirSync(inputDir).filter(f => !f.startsWith('.'));
-    if (files.length === 0) {
-        console.log(c.amarillo(`  ⚠️ La carpeta de entrada está vacía para ${documento}`));
+    const allFiles = fs.readdirSync(inputDir).filter(f => !f.startsWith('.'));
+    if (allFiles.length === 0) {
+        console.log(c.amarillo(`  ⚠️ La carpeta general de entradas está vacía.`));
         return false;
     }
 
-    console.log(c.cyan(`  📂 Analizando ${files.length} archivo(s) en entradas/${documento}...`));
+    console.log(c.cyan(`  🔍 Buscando el documento ${documento} entre ${allFiles.length} archivo(s) en la bandeja de entrada...`));
 
-    // Estructura para agrupar páginas clasificadas (almacenaremos el buffer o pdfDoc de cada página y su texto)
     let paginasExtraidas = [];
+    let archivosEncontradosParaNino = 0;
 
-    // Fase 1 y 2: Normalización y Fragmentación (Extraer todas las páginas/imágenes como entes individuales)
-    for (const file of files) {
+    for (const file of allFiles) {
         const filePath = path.join(inputDir, file);
         const ext = path.extname(file).toLowerCase();
         
-        console.log(`     Procesando archivo: ${file}`);
+        let perteneceAlNino = file.includes(documento);
+        let paginasTemporales = [];
         
         if (ext === '.pdf') {
             const dataBuffer = fs.readFileSync(filePath);
             const pdfDoc = await PDFDocument.load(dataBuffer);
             const numPages = pdfDoc.getPageCount();
             
-            // Para OCR y texto
             let pdfTextoGlobal = '';
             try {
                 const pdfData = await pdfParse(dataBuffer);
                 pdfTextoGlobal = pdfData.text || '';
-            } catch (e) {
-                console.log(c.gray(`       (No se pudo extraer texto nativo del PDF)`));
+            } catch (e) {}
+
+            if (pdfTextoGlobal.includes(documento)) {
+                perteneceAlNino = true;
             }
 
             for (let i = 0; i < numPages; i++) {
@@ -63,9 +63,7 @@ async function procesarDocumentos(documento) {
                 subDoc.addPage(copiedPage);
                 const subPdfBytes = await subDoc.save();
                 
-                // Asumimos que si hay texto en el PDF, cada página hereda algo del contexto global (pdfParse no separa muy bien por páginas a menos que se le inyecte lógica)
-                // Para no complicarlo, usaremos el texto global, aunque idealmente se evaluaría solo la página
-                paginasExtraidas.push({
+                paginasTemporales.push({
                     tipoOriginal: 'pdf',
                     bytes: subPdfBytes,
                     texto: pdfTextoGlobal.toLowerCase(),
@@ -73,27 +71,26 @@ async function procesarDocumentos(documento) {
                 });
             }
         } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
-            // Es una imagen, usar Tesseract para OCR
-            console.log(c.gray(`       Ejecutando OCR en imagen (esto puede tardar unos segundos)...`));
+            // Si el nombre no tiene el ID, debemos hacer OCR para saber si es de él
+            if (!perteneceAlNino) {
+                 console.log(c.gray(`     Analizando imagen con OCR para ver si pertenece a ${documento}: ${file}`));
+            }
+            
             try {
                 const { data: { text } } = await Tesseract.recognize(filePath, 'spa');
+                if (text.includes(documento)) {
+                    perteneceAlNino = true;
+                }
                 
-                // Convertir la imagen a una página de PDF
                 const imageBytes = fs.readFileSync(filePath);
                 const subDoc = await PDFDocument.create();
                 
-                let image;
-                if (ext === '.png') {
-                    image = await subDoc.embedPng(imageBytes);
-                } else {
-                    image = await subDoc.embedJpg(imageBytes);
-                }
-                
+                let image = ext === '.png' ? await subDoc.embedPng(imageBytes) : await subDoc.embedJpg(imageBytes);
                 const page = subDoc.addPage([image.width, image.height]);
                 page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
                 const subPdfBytes = await subDoc.save();
 
-                paginasExtraidas.push({
+                paginasTemporales.push({
                     tipoOriginal: 'image',
                     bytes: subPdfBytes,
                     texto: text.toLowerCase(),
@@ -102,9 +99,18 @@ async function procesarDocumentos(documento) {
             } catch (error) {
                 console.log(c.rojo(`       ❌ Error en OCR para ${file}: ${error.message}`));
             }
-        } else {
-            console.log(c.amarillo(`       ⚠️ Formato no soportado: ${ext}`));
         }
+
+        if (perteneceAlNino) {
+            console.log(c.verde(`     ✔️ ¡Coincidencia! El archivo ${file} pertenece a este beneficiario.`));
+            paginasExtraidas.push(...paginasTemporales);
+            archivosEncontradosParaNino++;
+        }
+    }
+
+    if (archivosEncontradosParaNino === 0) {
+        console.log(c.amarillo(`  ⚠️ No se encontró ningún archivo asociado al documento ${documento} en la bandeja general.`));
+        return false;
     }
 
     // Fase 3: Clasificación Inteligente
