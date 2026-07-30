@@ -52,7 +52,7 @@ async function main() {
   try {
     while (true) {
       console.log(c.cyan('\n------------------------------------------------------'));
-      console.log(c.cyan('  📋 SELECCIÓN DE ASOCIACIÓN'));
+      console.log(c.cyan('  📋 SELECCION DE ASOCIACION'));
       console.log(c.cyan('------------------------------------------------------'));
       asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
       console.log(`  0. Salir`);
@@ -74,19 +74,19 @@ async function main() {
 
       const jardines = ascSeleccionada.jardines;
       if (!jardines || jardines.length === 0) {
-          console.log(c.rojo(`  ❌ No hay jardines (UDS) configurados para esta asociación en el Excel.`));
+          console.log(c.rojo(`  ❌ No hay jardines (UDS) configurados para esta asociacion en el Excel.`));
           continue;
       }
 
       console.log(c.cyan('\n------------------------------------------------------'));
-      console.log(c.cyan(`  📋 SELECCIÓN DE JARDÍN (UDS) - ${ascSeleccionada.nombreCorto}`));
+      console.log(c.cyan(`  📋 SELECCION DE JARDIN (UDS) - ${ascSeleccionada.nombreCorto}`));
       console.log(c.cyan('------------------------------------------------------'));
       jardines.forEach((jardin, i) => console.log(`  ${i + 1}. ${jardin.codigo} - ${jardin.nombre}`));
-      console.log(`  0. Volver a seleccionar asociación`);
+      console.log(`  0. Volver a seleccionar asociacion`);
 
       let idxJardin = -1;
       while (idxJardin < 0 || idxJardin > jardines.length) {
-        const res = readline.question(c.negrita('\n  > Selecciona el Jardín (0 para volver): '));
+        const res = readline.question(c.negrita('\n  > Selecciona el Jardin (0 para volver): '));
         idxJardin = parseInt(res, 10);
         if (isNaN(idxJardin)) idxJardin = -1;
       }
@@ -99,7 +99,7 @@ async function main() {
 
       // Lanzar navegador e iniciar sesión SOLO si no se ha hecho
       if (!browser) {
-          console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesión...\n'));
+          console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesion...\n'));
           browser = await chromium.launch({
             headless: false,
             slowMo: 100,
@@ -117,18 +117,18 @@ async function main() {
             gmailUser: GMAIL_USER,
             gmailAppPassword: GMAIL_APP_PASSWORD
           });
-          console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+          console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
           loggedIn = true;
       } else {
           // Si ya estábamos logueados, navegamos de vuelta a la selección de roles
           await page.goto('https://rubonline.icbf.gov.co/Page/General/General/SeleccionRol.aspx');
       }
 
-      console.log(c.amarillo(`  🏢 Entrando con la asociación ${ascSeleccionada.nombreCorto}...`));
+      console.log(c.amarillo(`  🏢 Entrando con la asociacion ${ascSeleccionada.nombreCorto}...`));
       await seleccionarRolYEntrar(page, ascSeleccionada);
       
       // Esperar a que cargue la página principal
-      console.log(c.amarillo('  ⏳ Esperando a que cargue el menú de Cuéntame...'));
+      console.log(c.amarillo('  ⏳ Esperando a que cargue el menu de Cuentame...'));
       await page.waitForTimeout(4000); 
       
       let menuFrame = page.frame({ name: 'frameMenu' });
@@ -142,7 +142,7 @@ async function main() {
       }
       const rootMenu = menuFrame || page;
       
-      console.log(c.cyan('\n  🚀 Navegando al módulo de Seguimiento nutricional...'));
+      console.log(c.cyan('\n  🚀 Navegando al modulo de Seguimiento nutricional...'));
       try {
           // Buscamos directamente el enlace hijo y forzamos el clic con JS
           const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
@@ -151,7 +151,7 @@ async function main() {
               await page.waitForTimeout(4000);
               console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
           } else {
-              console.log(c.amarillo('  ⚠️ No se encontró "Seguimiento nutricional" con texto exacto. Intentando alternativa...'));
+              console.log(c.amarillo('  ⚠️ No se encontro "Seguimiento nutricional" con texto exacto. Intentando alternativa...'));
               await rootMenu.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
               await page.waitForTimeout(4000);
               console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
@@ -185,7 +185,7 @@ async function main() {
       console.log(c.verde('  ✅ Ventana emergente "Lupa Unidades de Servicio" abierta.'));
 
       // Llenar datos en el popup
-      console.log(c.cyan(`  📝 Ingresando código de la UDS: ${jardinSeleccionado.codigo}...`));
+      console.log(c.cyan(`  📝 Ingresando codigo de la UDS: ${jardinSeleccionado.codigo}...`));
       await popup.locator('input[id*="txtCodigoUnidadServicio"], input[name*="CodigoUnidadServicio"]').first().fill(String(jardinSeleccionado.codigo));
 
       console.log(c.cyan('  📝 Seleccionando Departamento: BOGOTA D.C.'));
@@ -193,7 +193,7 @@ async function main() {
       
       if (await ddlDepto.count() === 0) {
           // Fallback: buscar el select cuyo texto anterior (label o td) sea "Departamento"
-          console.log(c.amarillo('    ⚠️ No se encontró select por ID. Buscando por estructura DOM...'));
+          console.log(c.amarillo('    ⚠️ No se encontro select por ID. Buscando por estructura DOM...'));
           const tdLabel = popup.locator('td:has-text("Departamento")').last();
           ddlDepto = tdLabel.locator('xpath=following-sibling::td//select').first();
           if (await ddlDepto.count() === 0) {
@@ -206,8 +206,8 @@ async function main() {
           await ddlDepto.selectOption({ label: /BOGOT. D\.C\./i });
           console.log(c.verde('    ✅ Departamento BOGOTA D.C. seleccionado.'));
       } catch (err) {
-          console.log(c.rojo(`    ❌ Falló al seleccionar BOGOTA D.C.: ${err.message}`));
-          console.log(c.amarillo('    Intentando buscar la opción que contenga BOGOTA...'));
+          console.log(c.rojo(`    ❌ Fallo al seleccionar BOGOTA D.C.: ${err.message}`));
+          console.log(c.amarillo('    Intentando buscar la opcion que contenga BOGOTA...'));
           try {
               const options = await ddlDepto.locator('option').allInnerTexts();
               const bogotaOpt = options.find(o => o.toUpperCase().includes('BOGOT'));
@@ -215,7 +215,7 @@ async function main() {
                   await ddlDepto.selectOption({ label: bogotaOpt });
                   console.log(c.verde(`    ✅ Seleccionado fallback: ${bogotaOpt}`));
               } else {
-                  console.log(c.rojo(`    ❌ No existe ninguna opción con BOGOTA en el select.`));
+                  console.log(c.rojo(`    ❌ No existe ninguna opcion con BOGOTA en el select.`));
               }
           } catch (e) {
               console.log(c.rojo(`    ❌ Error fatal al intentar fallback del departamento.`));
@@ -225,7 +225,7 @@ async function main() {
       console.log(c.cyan('  🔍 Haciendo clic en buscar/aceptar dentro de la Lupa...'));
       await popup.locator('input[type="image"][id*="btnBuscar"], input[name*="btnBuscar"], a[id*="btnBuscar"]').first().click();
 
-      console.log(c.amarillo('  ⏳ Esperando a que el sistema procese la búsqueda...'));
+      console.log(c.amarillo('  ⏳ Esperando a que el sistema procese la busqueda...'));
       
       try {
           // Esperar a que la tabla de resultados (grid) se cargue y el botón de info aparezca
@@ -235,7 +235,7 @@ async function main() {
           console.log(c.verde('  ✅ Resultado encontrado. Seleccionando la UDS...'));
           await btnInfo.click();
       } catch (err) {
-          console.log(c.rojo(`  ❌ Error: No se encontraron resultados o el botón de info no apareció.`));
+          console.log(c.rojo(`  ❌ Error: No se encontraron resultados o el boton de info no aparecio.`));
       }
 
       console.log(c.amarillo('  ⏳ Esperando a que el popup se cierre y transfiera la UDS...'));
@@ -245,15 +245,13 @@ async function main() {
           // A veces el postback no cierra la ventana inmediatamente si no hay resultados
       }
       
-      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema tiene la UDS cargada y la grilla de niños visible.`));
-      
-      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema tiene la UDS cargada y la grilla de niños visible.`));
+      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema tiene la UDS cargada y la grilla de ninos visible.`));
       
       // =========================================================================
-      // FASE 2: SELECCIÓN DE NIÑO EN LA GRILLA
+      // FASE 2: SELECCION DE NINO EN LA GRILLA
       // =========================================================================
       
-      // Esperamos a que la grilla de niños termine de cargar en la página principal
+      // Esperamos a que la grilla de ninos termine de cargar en la pagina principal
       await page.waitForTimeout(3000);
       
       // Refrescar rootContent
@@ -270,18 +268,18 @@ async function main() {
 
       while (true) {
           console.log(c.cyan('\n------------------------------------------------------'));
-          console.log(c.cyan('  📋 SELECCIÓN DE BENEFICIARIO (NIÑO)'));
+          console.log(c.cyan('  📋 SELECCION DE BENEFICIARIO (NINO)'));
           console.log(c.cyan('------------------------------------------------------'));
           
-          console.log(c.amarillo('  ⏳ Extrayendo lista de niños de la tabla...'));
+          console.log(c.amarillo('  ⏳ Extrayendo lista de ninos de la tabla...'));
           
-          // Extraer las filas de la tabla de niños
-          // Normalmente es una tabla con clase o id específico. Buscamos filas que tengan el botón azul
+          // Extraer las filas de la tabla de ninos
+          // Normalmente es una tabla con clase o id especifico. Buscamos filas que tengan el boton azul
           const filas = content.locator('tr:has(input[src*="info.jpg"], input[id*="btnInfo"])');
           const count = await filas.count();
           
           if (count === 0) {
-              console.log(c.rojo('  ❌ No se encontraron niños listados para esta UDS.'));
+              console.log(c.rojo('  ❌ No se encontraron ninos listados para esta UDS.'));
               break;
           }
 
@@ -292,7 +290,7 @@ async function main() {
               // Según la imagen, las columnas son aprox: 0:info, 1:Tipo Doc, 2:Num Doc, 3:Pri Nom, 4:Seg Nom, 5:Pri Ape, 6:Seg Ape, 7:Tomas, 8:Estado
               // Vamos a extraer todo el texto de la fila para simplificar
               const textoCeldas = await celdas.allInnerTexts();
-              // Limpiamos strings vacíos
+              // Limpiamos strings vacios
               const datos = textoCeldas.map(t => t.trim()).filter(t => t.length > 0);
               
               // Intentamos deducir:
@@ -302,13 +300,13 @@ async function main() {
 
               if (datos.length >= 6) {
                   // Asumiendo formato: RC, 1028703416, AINHOA, STHEER, GUTKNECHT, GARCIA, 1, 0
-                  // Buscar el primer elemento que parezca un número largo (documento)
+                  // Buscar el primer elemento que parezca un numero largo (documento)
                   const docIndex = datos.findIndex(d => /^\d{6,15}$/.test(d));
                   if (docIndex !== -1) {
                       documento = datos[docIndex];
                       // Los siguientes campos suelen ser los nombres
                       let nombres = [];
-                      for (let j = docIndex + 1; j < datos.length - 2; j++) { // Evitar las últimas dos (Tomas, Estado)
+                      for (let j = docIndex + 1; j < datos.length - 2; j++) { // Evitar las ultimas dos (Tomas, Estado)
                           nombres.push(datos[j]);
                       }
                       nombreCompleto = nombres.join(' ');
@@ -329,13 +327,13 @@ async function main() {
               });
           }
 
-          console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} niños en la UDS:`));
+          console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS:`));
           listaNinos.forEach((n, idx) => {
               console.log(`  ${idx + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto} (Tomas: ${c.amarillo(n.tomas)})`);
           });
 
           console.log(c.amarillo('\n  [0] Salir y volver a seleccionar UDS'));
-          const input = readline.question(c.negrita('  > Ingresa el número de la lista (ej. 1), o escribe texto para buscar: '));
+          const input = readline.question(c.negrita('  > Ingresa el numero de la lista (ej. 1), o escribe texto para buscar: '));
 
           if (input.trim() === '0') {
               break;
@@ -360,18 +358,18 @@ async function main() {
               if (resultados.length === 1) {
                   ninoSeleccionado = resultados[0];
               } else if (resultados.length > 1) {
-                  console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias. Por favor sé más específico o usa el número de la lista.`));
+                  console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias. Por favor se mas especifico o usa el numero de la lista.`));
                   continue;
               }
           }
 
           if (!ninoSeleccionado) {
-              console.log(c.rojo(`  ❌ No se encontró ningún niño que coincida con "${input}".`));
+              console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${input}".`));
               continue;
           }
 
           try {
-              console.log(c.verde(`\n  ✅ Niño seleccionado: ${ninoSeleccionado.nombreCompleto}`));
+              console.log(c.verde(`\n  ✅ Nino seleccionado: ${ninoSeleccionado.nombreCompleto}`));
               console.log(c.gris(`  Accediendo a su formulario de peso y talla...`));
               
               await Promise.all([
@@ -380,18 +378,18 @@ async function main() {
               ]);
 
               console.log(c.verde(`  ✅ Formulario abierto exitosamente.`));
-              console.log(c.amarillo(`  ⏸️  El script se detendrá aquí por ahora. Verifica la pantalla de peso/talla.`));
+              console.log(c.amarillo(`  ⏸️  El script se detendra aqui por ahora. Verifica la pantalla de peso/talla.`));
               
               // Bucle infinito temporal para no cerrar el navegador y poder inspeccionar
               while (true) {
-                  const resp = readline.question(c.negrita('\n  > Escribe "salir" para volver a buscar otro niño: '));
+                  const resp = readline.question(c.negrita('\n  > Escribe "salir" para volver a buscar otro nino: '));
                   if (resp.toLowerCase() === 'salir') break;
               }
               
               console.log(c.amarillo('  🔄 Regresando a la grilla (simulado)...'));
 
           } catch (err) {
-              console.log(c.rojo(`  ❌ Error al abrir formulario del niño: ${err.message}`));
+              console.log(c.rojo(`  ❌ Error al abrir formulario del nino: ${err.message}`));
           }
       }
     }
