@@ -311,17 +311,38 @@ async function main() {
 <i>Tel: 3202002073</i>
 </p>`;
 
+                                const { procesarDocumentos } = require('../servicios/verificador-docs');
+                                console.log(c.cyan('\n  ⏳ Verificando y clasificando documentos de soporte...'));
+                                const docsClasificados = await procesarDocumentos(documento);
+                                
+                                const fs = require('fs');
+                                const reportesDir = path.join(__dirname, '..', 'reportes');
+                                if (!fs.existsSync(reportesDir)) {
+                                    fs.mkdirSync(reportesDir);
+                                }
+
+                                const attachments = [
+                                    {
+                                        filename: 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx',
+                                        path: path.join(__dirname, '..', 'docs', 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx')
+                                    }
+                                ];
+
+                                if (docsClasificados) {
+                                    const docsDir = path.join(__dirname, '..', 'docs', 'adjuntos', documento);
+                                    attachments.push({ filename: 'RAM.pdf', path: path.join(docsDir, 'RAM.pdf') });
+                                    attachments.push({ filename: 'RC.pdf', path: path.join(docsDir, 'RC.pdf') });
+                                    attachments.push({ filename: 'CARTA.pdf', path: path.join(docsDir, 'CARTA.pdf') });
+                                } else {
+                                    console.log(c.amarillo(`  ⚠️ El borrador del correo se creará SOLO con el Excel, ya que los documentos de soporte están incompletos.`));
+                                }
+
                                 const mail = new MailComposer({
                                     from: 'SAAD PAEZ',
                                     to: 'Mis.Aplicaciones@icbf.gov.co',
                                     subject: 'Desvinculacion Primera Infacia',
                                     html: cuerpoCorreoHtml,
-                                    attachments: [
-                                        {
-                                            filename: 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx',
-                                            path: formatoPath
-                                        }
-                                    ]
+                                    attachments: attachments
                                 });
                                 
                                 const { guardarEnBorradores } = require('../servicios/gmail-draft');
