@@ -247,6 +247,8 @@ async function main() {
       
       console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema tiene la UDS cargada y la grilla de niños visible.`));
       
+      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema tiene la UDS cargada y la grilla de niños visible.`));
+      
       // =========================================================================
       // FASE 2: SELECCIÓN DE NIÑO EN LA GRILLA
       // =========================================================================
@@ -254,57 +256,127 @@ async function main() {
       // Esperamos a que la grilla de niños termine de cargar en la página principal
       await page.waitForTimeout(3000);
       
+      // Refrescar rootContent
+      let currentContentFrame = page.frame({ name: 'frameContent' });
+      if (!currentContentFrame) {
+          for (const f of page.frames()) {
+              if (f.name() === 'frameContent') {
+                  currentContentFrame = f;
+                  break;
+              }
+          }
+      }
+      const content = currentContentFrame || page;
+
       while (true) {
           console.log(c.cyan('\n------------------------------------------------------'));
           console.log(c.cyan('  📋 SELECCIÓN DE BENEFICIARIO (NIÑO)'));
           console.log(c.cyan('------------------------------------------------------'));
-          console.log(c.amarillo('  [0] Salir y volver a seleccionar UDS'));
-          const documento = readline.question(c.negrita('\n  > Escribe el número de documento del niño: '));
-
-          if (documento.trim() === '0') {
-              break; // Rompe este bucle y vuelve al bucle principal de UDS/Asociación
+          
+          console.log(c.amarillo('  ⏳ Extrayendo lista de niños de la tabla...'));
+          
+          // Extraer las filas de la tabla de niños
+          // Normalmente es una tabla con clase o id específico. Buscamos filas que tengan el botón azul
+          const filas = content.locator('tr:has(input[src*="info.jpg"], input[id*="btnInfo"])');
+          const count = await filas.count();
+          
+          if (count === 0) {
+              console.log(c.rojo('  ❌ No se encontraron niños listados para esta UDS.'));
+              break;
           }
-          if (documento.trim() === '') {
+
+          let listaNinos = [];
+          for (let i = 0; i < count; i++) {
+              const fila = filas.nth(i);
+              const celdas = fila.locator('td');
+              // Según la imagen, las columnas son aprox: 0:info, 1:Tipo Doc, 2:Num Doc, 3:Pri Nom, 4:Seg Nom, 5:Pri Ape, 6:Seg Ape, 7:Tomas, 8:Estado
+              // Vamos a extraer todo el texto de la fila para simplificar
+              const textoCeldas = await celdas.allInnerTexts();
+              // Limpiamos strings vacíos
+              const datos = textoCeldas.map(t => t.trim()).filter(t => t.length > 0);
+              
+              // Intentamos deducir:
+              let documento = "N/A";
+              let nombreCompleto = "";
+              let tomas = "N/A";
+
+              if (datos.length >= 6) {
+                  // Asumiendo formato: RC, 1028703416, AINHOA, STHEER, GUTKNECHT, GARCIA, 1, 0
+                  // Buscar el primer elemento que parezca un número largo (documento)
+                  const docIndex = datos.findIndex(d => /^\d{6,15}$/.test(d));
+                  if (docIndex !== -1) {
+                      documento = datos[docIndex];
+                      // Los siguientes campos suelen ser los nombres
+                      let nombres = [];
+                      for (let j = docIndex + 1; j < datos.length - 2; j++) { // Evitar las últimas dos (Tomas, Estado)
+                          nombres.push(datos[j]);
+                      }
+                      nombreCompleto = nombres.join(' ');
+                      tomas = datos[datos.length - 2];
+                  } else {
+                      documento = datos[1] || "N/A";
+                      nombreCompleto = datos.slice(2, -2).join(' ');
+                      tomas = datos[datos.length - 2] || "N/A";
+                  }
+              }
+
+              listaNinos.push({
+                  index: i,
+                  documento,
+                  nombreCompleto,
+                  tomas,
+                  locator: fila.locator('input[type="image"][src*="info.jpg"], input[id*="btnInfo"]').first()
+              });
+          }
+
+          console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} niños en la UDS:`));
+          listaNinos.forEach((n, idx) => {
+              console.log(`  ${idx + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto} (Tomas: ${c.amarillo(n.tomas)})`);
+          });
+
+          console.log(c.amarillo('\n  [0] Salir y volver a seleccionar UDS'));
+          const input = readline.question(c.negrita('  > Ingresa el número de la lista (ej. 1), o escribe texto para buscar: '));
+
+          if (input.trim() === '0') {
+              break;
+          }
+          if (input.trim() === '') {
               continue;
           }
 
-          console.log(c.gris(`  Buscando beneficiario con documento: ${documento}...`));
+          let ninoSeleccionado = null;
+          const numParsed = parseInt(input.trim(), 10);
           
-          // Refrescar rootContent por si acaso
-          let currentContentFrame = page.frame({ name: 'frameContent' });
-          if (!currentContentFrame) {
-              for (const f of page.frames()) {
-                  if (f.name() === 'frameContent') {
-                      currentContentFrame = f;
-                      break;
-                  }
+          if (!isNaN(numParsed) && numParsed > 0 && numParsed <= listaNinos.length) {
+              ninoSeleccionado = listaNinos[numParsed - 1];
+          } else {
+              // Buscar por texto
+              const busqueda = input.trim().toLowerCase();
+              const resultados = listaNinos.filter(n => 
+                  n.documento.includes(busqueda) || 
+                  n.nombreCompleto.toLowerCase().includes(busqueda)
+              );
+              
+              if (resultados.length === 1) {
+                  ninoSeleccionado = resultados[0];
+              } else if (resultados.length > 1) {
+                  console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias. Por favor sé más específico o usa el número de la lista.`));
+                  continue;
               }
           }
-          const content = currentContentFrame || page;
+
+          if (!ninoSeleccionado) {
+              console.log(c.rojo(`  ❌ No se encontró ningún niño que coincida con "${input}".`));
+              continue;
+          }
 
           try {
-              // Buscar en la tabla principal (asumiendo id similar a cphCont_GvBusquedaBeneficiario o GvSeguimientoNutricional)
-              // Buscamos cualquier celda (td) que contenga exactamente el documento
-              const filaBeneficiario = content.locator(`tr:has(td:text-is("${documento.trim()}"))`).first();
+              console.log(c.verde(`\n  ✅ Niño seleccionado: ${ninoSeleccionado.nombreCompleto}`));
+              console.log(c.gris(`  Accediendo a su formulario de peso y talla...`));
               
-              if (await filaBeneficiario.count() === 0) {
-                  console.log(c.rojo(`  ❌ No se encontró ningún niño con el documento ${documento} en la grilla.`));
-                  continue;
-              }
-
-              // Si encontramos la fila, hacemos clic en su botón azul de información
-              console.log(c.verde(`  ✅ Niño encontrado. Accediendo a su formulario de peso y talla...`));
-              const btnDetalleNino = filaBeneficiario.locator('input[type="image"][src*="info.jpg"], input[id*="btnInfo"]').first();
-              
-              if (await btnDetalleNino.count() === 0) {
-                  console.log(c.rojo(`  ❌ Se encontró el niño, pero no tiene botón de detalle (lupa azul).`));
-                  continue;
-              }
-              
-              // Al hacer clic, probablemente cargue otra pantalla dentro del frame
               await Promise.all([
                   content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                  btnDetalleNino.evaluate(node => node.click())
+                  ninoSeleccionado.locator.evaluate(node => node.click())
               ]);
 
               console.log(c.verde(`  ✅ Formulario abierto exitosamente.`));
@@ -316,12 +388,10 @@ async function main() {
                   if (resp.toLowerCase() === 'salir') break;
               }
               
-              // Si tuviéramos que volver a la grilla de niños, normalmente hay un botón "Volver"
-              // Por ahora, solo simularemos regresar para el test
               console.log(c.amarillo('  🔄 Regresando a la grilla (simulado)...'));
 
           } catch (err) {
-              console.log(c.rojo(`  ❌ Error al buscar/seleccionar el niño: ${err.message}`));
+              console.log(c.rojo(`  ❌ Error al abrir formulario del niño: ${err.message}`));
           }
       }
     }
