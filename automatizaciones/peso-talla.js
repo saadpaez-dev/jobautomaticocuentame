@@ -131,42 +131,54 @@ async function main() {
       console.log(c.amarillo('  ⏳ Esperando a que cargue el menú de Cuéntame...'));
       await page.waitForTimeout(4000); 
       
-      const menuFrame = page.frameLocator('frame[name="frameMenu"], iframe[name="frameMenu"]');
+      let menuFrame = page.frame({ name: 'frameMenu' });
+      if (!menuFrame) {
+          for (const f of page.frames()) {
+              if (f.name() === 'frameMenu') {
+                  menuFrame = f;
+                  break;
+              }
+          }
+      }
+      const rootMenu = menuFrame || page;
       
       console.log(c.cyan('\n  🚀 Navegando al módulo de Seguimiento nutricional...'));
       try {
-          // Desplegar menú Beneficiario
-          await menuFrame.locator('a:has-text("Beneficiario")').first().click();
-          await page.waitForTimeout(1000);
-          
-          const enlaceSeguimiento = menuFrame.locator('a:has-text("Seguimiento nutricional")').first();
-          if (await enlaceSeguimiento.count() > 0) {
-              await enlaceSeguimiento.evaluate(node => node.click());
+          // Buscamos directamente el enlace hijo y forzamos el clic con JS
+          const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
+          if (await childMenu.count() > 0) {
+              await childMenu.evaluate(node => node.click());
+              await page.waitForTimeout(4000);
+              console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
           } else {
-              await menuFrame.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
+              console.log(c.amarillo('  ⚠️ No se encontró "Seguimiento nutricional" con texto exacto. Intentando alternativa...'));
+              await rootMenu.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
+              await page.waitForTimeout(4000);
+              console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
           }
-          console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
       } catch (err) {
           console.log(c.rojo(`  ❌ Error al intentar acceder a Seguimiento nutricional: ${err.message}`));
-          console.log(c.amarillo('  ⚠️ Navegando por URL directa como plan B...'));
-          await page.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/SeguimientoNutricional/SeguimientoNutricion.aspx');
       }
 
-      // Esperar a que cargue la página principal de seguimiento nutricional
-      await page.waitForTimeout(4000);
-      
-      // Intentar acceder al frame de contenido; si falla o estamos en URL directa, usar la página
-      let contentFrame = page.frameLocator('frame[name="frameContent"], iframe[name="frameContent"]');
-      
+      let contentFrame = page.frame({ name: 'frameContent' });
+      if (!contentFrame) {
+          for (const f of page.frames()) {
+              if (f.name() === 'frameContent') {
+                  contentFrame = f;
+                  break;
+              }
+          }
+      }
+      const rootContent = contentFrame || page;
+
       // Hacer clic en la lupa para abrir la ventana emergente de UDS
       console.log(c.cyan('  🔍 Abriendo ventana emergente de UDS...'));
       
-      // Intentar encontrar el botón de filtrar (lupa) en el frame, o en la página entera si falló
-      let lupaLocator = contentFrame.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"], input[src*="lupa"]').first();
+      let lupaLocator = rootContent.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"], input[src*="lupa"]').first();
       
       const [popup] = await Promise.all([
           page.waitForEvent('popup'),
-          lupaLocator.evaluate(node => node.click()).catch(() => page.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"]').first().evaluate(node => node.click()))
+          lupaLocator.evaluate(node => node.click())
       ]);
 
       await popup.waitForLoadState('networkidle');
