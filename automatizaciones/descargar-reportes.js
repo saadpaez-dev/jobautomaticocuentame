@@ -513,21 +513,26 @@ async function main() {
         await exportButton.waitFor({ state: 'visible', timeout: 120000 });
         
         console.log('    👉 Iniciando descarga en Excel...');
-        const downloadPromise = mainPage.waitForEvent('download', { timeout: 120000 });
-        const exportMenu = reportFrame.locator('a[title="Export"], a[title="Exportar"], img[alt="Export"]').first();
-        if (await exportMenu.isVisible()) {
-            await exportMenu.click();
+        
+        // Intentar varios selectores para el botón de exportar de SSRS
+        const exportBtn = reportFrame.locator('a[title="Exportar"], a[title="Export drop down menu"], img[alt="Exportar"], a[title="Export"]').first();
+        if (await exportBtn.count() > 0) {
+            await exportBtn.click({ force: true });
             await mainPage.waitForTimeout(1000);
-            
-            const excelOption = reportFrame.locator('a:has-text("Excel")').first();
-            await excelOption.click();
-            
-            const download = await downloadPromise;
-            const prefijo = opcionReporte === 1 ? 'Beneficiarios' : (opcionReporte === 2 ? 'Nutricion' : 'Asistencia');
-            const fileName = `${prefijo}_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
-            const savePath = path.join(reportesDir, fileName);
-            await download.saveAs(savePath);
-            console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
+        }
+        
+        // Clic en la opción de Excel con Promise.all para atrapar el evento correctamente
+        const excelOption = reportFrame.locator('a:has-text("Excel")').first();
+        const [download] = await Promise.all([
+            mainPage.waitForEvent('download'),
+            excelOption.click({ force: true })
+        ]);
+        
+        const prefijo = opcionReporte === 1 ? 'Beneficiarios' : (opcionReporte === 2 ? 'Nutricion' : (opcionReporte === 4 ? 'Unidades' : 'Asistencia'));
+        const fileName = `${prefijo}_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+        const savePath = path.join(reportesDir, fileName);
+        await download.saveAs(savePath);
+        console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
 
             if (prepararExcel) {
                 console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
