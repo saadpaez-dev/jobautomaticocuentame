@@ -286,27 +286,28 @@ async function main() {
           let listaNinos = [];
           for (let i = 0; i < count; i++) {
               const fila = filas.nth(i);
-              const celdas = fila.locator('td');
-              // Según la imagen, las columnas son aprox: 0:info, 1:Tipo Doc, 2:Num Doc, 3:Pri Nom, 4:Seg Nom, 5:Pri Ape, 6:Seg Ape, 7:Tomas, 8:Estado
-              // Vamos a extraer todo el texto de la fila para simplificar
+              // Solo tomar los <td> que son hijos directos de esta fila (evita tablas anidadas)
+              const celdas = fila.locator(':scope > td');
+              const numCeldas = await celdas.count();
+              
+              // Una fila normal de niños tiene unas 8-10 columnas. Ignoramos filas contenedoras.
+              if (numCeldas < 5 || numCeldas > 15) {
+                  continue;
+              }
+
               const textoCeldas = await celdas.allInnerTexts();
-              // Limpiamos strings vacios
               const datos = textoCeldas.map(t => t.trim()).filter(t => t.length > 0);
               
-              // Intentamos deducir:
               let documento = "N/A";
               let nombreCompleto = "";
               let tomas = "N/A";
 
               if (datos.length >= 6) {
-                  // Asumiendo formato: RC, 1028703416, AINHOA, STHEER, GUTKNECHT, GARCIA, 1, 0
-                  // Buscar el primer elemento que parezca un numero largo (documento)
                   const docIndex = datos.findIndex(d => /^\d{6,15}$/.test(d));
                   if (docIndex !== -1) {
                       documento = datos[docIndex];
-                      // Los siguientes campos suelen ser los nombres
                       let nombres = [];
-                      for (let j = docIndex + 1; j < datos.length - 2; j++) { // Evitar las ultimas dos (Tomas, Estado)
+                      for (let j = docIndex + 1; j < datos.length - 2; j++) { 
                           nombres.push(datos[j]);
                       }
                       nombreCompleto = nombres.join(' ');
@@ -319,7 +320,7 @@ async function main() {
               }
 
               listaNinos.push({
-                  index: i,
+                  index: listaNinos.length,
                   documento,
                   nombreCompleto,
                   tomas,
