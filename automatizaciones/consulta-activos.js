@@ -258,13 +258,22 @@ async function main() {
                             const hoy = new Date();
                             const dia1MesActual = `01/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
                             
+                            // Normalizar la regional para que coincida con el filtro de Excel (mayúsculas, sin tildes, sin D.C.)
+                            const normalizarRegional = (str) => {
+                                let res = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                                if (res.includes('BOGOTA')) return 'BOGOTA';
+                                if (res.includes('VALLE DEL CAUCA') || res === 'VALLE') return 'VALLE DEL CAUCA';
+                                if (res.includes('SAN ANDRES')) return 'SAN ANDRES';
+                                return res;
+                            };
+                            
                             const rowToFill = ws.getRow(filaVacia);
                             rowToFill.getCell(1).value = 'BOGOTA'; // Regional (siempre BOGOTA)
                             rowToFill.getCell(2).value = ascSeleccionada.nit || ''; // NIT EAS
                             rowToFill.getCell(3).value = ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto; // Nombre EAS
                             rowToFill.getCell(4).value = ascSeleccionada.numeroContrato || ''; // Contrato EAS
                             
-                            rowToFill.getCell(5).value = masReciente.regionalVinculado;
+                            rowToFill.getCell(5).value = normalizarRegional(masReciente.regionalVinculado);
                             rowToFill.getCell(6).value = masReciente.entidad;
                             rowToFill.getCell(7).value = masReciente.contratoVinculado;
                             rowToFill.getCell(8).value = masReciente.codigoUds;
