@@ -465,11 +465,11 @@ async function main() {
                     await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
                     await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
                     
-                    await seleccionarSSRSByLabel('Estado UDS', 'ACTIVA');
-                    await seleccionarSSRSByLabel('Estado UDS Contrato*', 'Activo');
+                    await seleccionarSSRSByLabel('Estado UDS', 1); // 1 = ACTIVA
+                    await seleccionarSSRSByLabel('Estado UDS Contrato*', 1); // 1 = Activo
                     await seleccionarSSRSByLabel('Vigencia del Servicio *', '2026'); // Asumimos 2026 por la imagen
                     // "Servicio" se deja en "Seleccione" según la imagen
-                    await seleccionarSSRSByLabel('Tipo de Reporte*', 'Todas las UDS');
+                    await seleccionarSSRSByLabel('Tipo de Reporte*', 1); // 1 = Todas las UDS
                 }
             } catch(e) {
                 console.log(c.rojo("  ⚠️ Posible problema con los filtros SSRS: " + e.message));
