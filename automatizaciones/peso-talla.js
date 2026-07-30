@@ -44,27 +44,12 @@ async function main() {
   console.log(c.cyan('   ⚖️  REGISTRO DE PESO Y TALLA (FASE 1)'));
   console.log(c.cyan('======================================================\n'));
 
-  console.log(c.cyan('  🌐 Abriendo navegador e iniciando sesión...\n'));
-  const browser = await chromium.launch({
-    headless: false,
-    slowMo: 100,
-    args: ['--start-maximized'],
-    executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-  });
-  
-  const context = await browser.newContext({ viewport: null });
-  const page = await context.newPage();
+  let browser = null;
+  let context = null;
+  let page = null;
+  let loggedIn = false;
 
   try {
-    // 1. Login inicial (solo una vez, incluye 2FA)
-    await loginYLlegarARoles(page, {
-      usuario: USUARIO,
-      password: PASSWORD,
-      gmailUser: GMAIL_USER,
-      gmailAppPassword: GMAIL_APP_PASSWORD
-    });
-    console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
-
     while (true) {
       console.log(c.cyan('\n------------------------------------------------------'));
       console.log(c.cyan('  📋 SELECCIÓN DE ASOCIACIÓN'));
@@ -81,16 +66,12 @@ async function main() {
 
       if (idxAsociacion === 0) {
         console.log(c.verde('\n  ✅ Proceso finalizado. Cerrando navegador...'));
+        if (browser) await browser.close();
         break;
       }
 
       const ascSeleccionada = asociaciones[idxAsociacion - 1];
 
-      // Ir a la página de selección de roles por si venimos de un ciclo anterior
-      console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
-      await page.goto('https://rubonline.icbf.gov.co/Page/General/General/SeleccionRol.aspx');
-      await seleccionarRolYEntrar(page, ascSeleccionada);
-      
       const jardines = ascSeleccionada.jardines;
       if (!jardines || jardines.length === 0) {
           console.log(c.rojo(`  ❌ No hay jardines (UDS) configurados para esta asociación en el Excel.`));
@@ -116,20 +97,49 @@ async function main() {
 
       const jardinSeleccionado = jardines[idxJardin - 1];
 
-      // Navegar a Seguimiento Nutricional
-      console.log(c.cyan('\n  🚀 Navegando al módulo de Seguimiento nutricional...'));
+      // Lanzar navegador e iniciar sesión SOLO si no se ha hecho
+      if (!browser) {
+          console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesión...\n'));
+          browser = await chromium.launch({
+            headless: false,
+            slowMo: 100,
+            args: ['--start-maximized'],
+            executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+          });
+          context = await browser.newContext({ viewport: null });
+          page = await context.newPage();
+      }
+
+      if (!loggedIn) {
+          await loginYLlegarARoles(page, {
+            usuario: USUARIO,
+            password: PASSWORD,
+            gmailUser: GMAIL_USER,
+            gmailAppPassword: GMAIL_APP_PASSWORD
+          });
+          console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+          loggedIn = true;
+      } else {
+          // Si ya estábamos logueados, navegamos de vuelta a la selección de roles
+          await page.goto('https://rubonline.icbf.gov.co/Page/General/General/SeleccionRol.aspx');
+      }
+
+      console.log(c.amarillo(`  🏢 Entrando con la asociación ${ascSeleccionada.nombreCorto}...`));
+      await seleccionarRolYEntrar(page, ascSeleccionada);
       
-      let menuFrame = page.frame({ name: 'frameMenu' });
-      if (!menuFrame) {
-          for (const f of page.frames()) {
-              if (f.name() === 'frameMenu') {
-                  menuFrame = f;
-                  break;
-              }
-          }
+      // Esperar a que cargue la página principal y el frameMenu esté disponible
+      console.log(c.amarillo('  ⏳ Esperando a que cargue el menú de Cuéntame...'));
+      await page.waitForTimeout(4000); 
+      
+      let menuFrame = null;
+      for (let i = 0; i < 10; i++) {
+          menuFrame = page.frame({ name: 'frameMenu' }) || page.frames().find(f => f.name() === 'frameMenu');
+          if (menuFrame) break;
+          await page.waitForTimeout(1000);
       }
 
       if (menuFrame) {
+          console.log(c.cyan('\n  🚀 Navegando al módulo de Seguimiento nutricional...'));
           await menuFrame.click('text="Beneficiario"');
           await page.waitForTimeout(1000);
           
@@ -140,23 +150,28 @@ async function main() {
               console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
           } catch (err) {
               console.log(c.amarillo('  ⚠️ No se encontró "Seguimiento nutricional" con texto exacto. Intentando búsqueda alternativa...'));
-              // Intentar por el atributo onclick
               await menuFrame.locator('a[onclick*="SeguimientoNutricional"]').first().click();
               console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
           }
       } else {
-          console.log(c.rojo('  ❌ No se encontró el frameMenu. Navegando por URL directa...'));
+          console.log(c.rojo('  ❌ No se encontró el frameMenu tras varios intentos. Navegando por URL directa...'));
           await page.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/SeguimientoNutricional/SeguimientoNutricion.aspx');
       }
 
       // Esperar a que cargue la página principal de seguimiento nutricional
       await page.waitForTimeout(3000);
-      let contentFrame = page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
+      
+      let contentFrame = null;
+      for (let i = 0; i < 10; i++) {
+          contentFrame = page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent');
+          if (contentFrame) break;
+          await page.waitForTimeout(1000);
+      }
+      if (!contentFrame) contentFrame = page;
 
       // Hacer clic en la lupa para abrir la ventana emergente de UDS
       console.log(c.cyan('  🔍 Abriendo ventana emergente de UDS...'));
       
-      // Capturamos el evento de popup antes de hacer click
       const [popup] = await Promise.all([
           page.waitForEvent('popup'),
           contentFrame.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"]').first().click()
@@ -167,39 +182,27 @@ async function main() {
 
       // Llenar datos en el popup
       console.log(c.cyan(`  📝 Ingresando código de la UDS: ${jardinSeleccionado.codigo}...`));
-      
-      // El id del input en el popup parece ser cphCont_txtCodigoUnidadServicio o similar
       await popup.locator('input[id*="txtCodigoUnidadServicio"], input[name*="CodigoUnidadServicio"]').first().fill(String(jardinSeleccionado.codigo));
 
-      // Seleccionar BOGOTA D.C. en el departamento
       console.log(c.cyan('  📝 Seleccionando Departamento: BOGOTA D.C.'));
-      // El select suele llamarse ddlDepartamento
       const ddlDepto = popup.locator('select[id*="ddlDepartamento"], select[name*="ddlDepartamento"]').first();
-      // Seleccionamos BOGOTA D.C. por texto
       await ddlDepto.selectOption({ label: 'BOGOTA D.C.' }).catch(async () => {
-          // Si falla, intentamos con BOGOTÁ D.C.
           await ddlDepto.selectOption({ label: 'BOGOTÁ D.C.' }).catch(() => {});
       });
 
       console.log(c.cyan('  🔍 Haciendo clic en buscar/aceptar dentro de la Lupa...'));
-      // El botón de buscar del popup suele tener class o id con 'btnBuscar'
       await popup.locator('input[type="image"][id*="btnBuscar"], input[name*="btnBuscar"], a[id*="btnBuscar"]').first().click();
 
-      // Esperar a que el popup se cierre y el frame principal se actualice
       console.log(c.amarillo('  ⏳ Esperando a que el sistema procese y cierre la Lupa...'));
-      
-      // Esperamos que el popup se haya cerrado o simplemente esperamos un par de segundos
       try {
           await popup.waitForEvent('close', { timeout: 10000 });
       } catch (e) {
-          // A veces el postback no cierra la ventana inmediatamente si no hay resultados, pero si es correcto se cierra sola
       }
       
       console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema debería tener la UDS cargada.`));
       console.log(c.amarillo(`  ⏸️  El script se detendrá ahora para que puedas revisar la pantalla en el navegador.`));
       console.log(c.amarillo(`  (Cierra el script con Ctrl+C cuando estés listo para continuar con la Fase 2)`));
       
-      // Rompemos el bucle para la fase 1, dejando el navegador abierto
       break;
     }
   } catch (err) {
