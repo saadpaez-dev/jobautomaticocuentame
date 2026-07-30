@@ -321,10 +321,10 @@ Regional y Centro Zonal:                             BOGOTÁ, CZ USAQUEN
                                 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
                                 
                                 const gmailUser = process.env.GMAIL_USER;
-                                const gmailPass = process.env.GMAIL_PASS;
+                                const gmailPass = process.env.GMAIL_APP_PASSWORD;
                                 
                                 if (!gmailUser || !gmailPass) {
-                                    console.log(c.rojo('  ❌ No se encontraron GMAIL_USER o GMAIL_PASS en el .env.'));
+                                    console.log(c.rojo('  ❌ No se encontraron GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
                                 } else {
                                     const messageBuffer = await mail.compile().build();
                                     await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
