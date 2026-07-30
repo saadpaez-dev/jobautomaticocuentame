@@ -14,7 +14,8 @@
     "test-gmail": "node servicios/gmail-reader.js",
     "test-login": "node test-login.js",
     "cuentas": "node automatizaciones/generar-cuentas-cobro.js",
-    "consulta": "node automatizaciones/consulta-activos.js"
+    "consulta": "node automatizaciones/consulta-activos.js",
+    "peso": "node automatizaciones/peso-talla.js"
   },
   "keywords": [],
   "author": "",
