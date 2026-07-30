@@ -168,14 +168,12 @@ async function main() {
   let rolesUrl;
   let rolesHtml;
   try {
-    rolesUrl = await loginYLlegarARoles(mainPage, {
+    await loginYLlegarARoles(mainPage, {
       usuario: USUARIO,
       password: PASSWORD,
       gmailUser: GMAIL_USER,
       gmailAppPassword: GMAIL_APP_PASSWORD
     });
-    // Guardar el estado del DOM de la pantalla de roles
-    rolesHtml = await mainPage.content();
   } catch (err) {
     console.error(c.rojo(`  ❌ Error en login inicial: ${err.message}`));
     await browser.close();
@@ -191,35 +189,29 @@ async function main() {
           asc.numeroContrato = '11027492024';
       }
 
-      if (i > 0) {
-          console.log(c.gris(`\n    🔄 Regresando al menú de selección de asociaciones (manteniendo sesión activa)...`));
-          try {
-              await mainPage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
-              // Esperar a que la tabla de roles cargue
-              await mainPage.waitForSelector('table', { state: 'visible', timeout: 30000 });
-          } catch (err) {
-              console.error(c.rojo(`  ❌ Error al regresar al menú principal: ${err.message}`));
-              continue; // saltar a la siguiente si falla
-          }
+      // La página principal se queda en la selección de roles.
+      // Le pedimos a seleccionarRolYEntrar que abra Cuéntame en una pestaña nueva
+      let reportPage;
+      try {
+          console.log(c.amarillo(`\n======================================================`));
+          console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
+          console.log(c.amarillo(`======================================================`));
+          console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
+          console.log('  🏢 Seleccionando entidad (asociación)...');
+          reportPage = await seleccionarRolYEntrar(mainPage, asc, true);
+          console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+      } catch (e) {
+          console.log(c.rojo(`  ❌ Error al seleccionar rol: ${e.message}`));
+          continue;
       }
-
-      console.log(c.amarillo(`\n======================================================`));
-      console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
-      console.log(c.amarillo(`======================================================`));
-      console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
-      console.log('  🏢 Seleccionando entidad (asociación)...');
-      await seleccionarRolYEntrar(mainPage, asc);
-      console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
 
       try {
         // Definimos la variable para que las funciones helper la capturen.
-        // Se inicializa apuntando a mainPage y luego cada reporte la reasigna a frameContent si existe.
-        let reportFrame = mainPage;
+        let reportFrame = reportPage;
 
         // Función helper que busca un select en SSRS a partir de su label (texto) y lo llena
         const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
             try {
-                // Buscamos cualquier TD que contenga el texto del label
                 const tdElements = reportFrame.locator('td', { hasText: labelText });
                 
                 if (await tdElements.count() === 0) {
@@ -227,19 +219,14 @@ async function main() {
                     return false;
                 }
                 
-                // Normalmente es el TD más interno, así que tomamos el último.
                 const lastTd = tdElements.last();
-                
-                // El select suele estar dentro de este mismo TD
                 let selectElement = lastTd.locator('select').first();
                 
                 if (await selectElement.count() === 0) {
-                    // Si no está adentro, buscamos en el TD adyacente (derecha)
                     selectElement = lastTd.locator('xpath=following-sibling::td[1]//select').first();
                 }
                 
                 if (await selectElement.count() === 0) {
-                    // A veces hay un TD intermedio para espaciado, probamos el segundo adyacente
                     selectElement = lastTd.locator('xpath=following-sibling::td[2]//select').first();
                 }
                 
@@ -250,14 +237,23 @@ async function main() {
 
                 await selectElement.waitFor({ state: 'visible', timeout: 5000 });
                 
+                let isDisabled = await selectElement.evaluate(el => el.disabled);
+                let waitAttempts = 0;
+                if (isDisabled) {
+                    console.log(c.gris(`      (Esperando a que "${labelText}" se habilite tras el postback...)`));
+                }
+                while (isDisabled && waitAttempts < 15) { 
+                    await reportPage.waitForTimeout(1000);
+                    isDisabled = await selectElement.evaluate(el => el.disabled);
+                    waitAttempts++;
+                }
+                
                 if (typeof valueOrText === 'number') {
                     await selectElement.selectOption({ index: valueOrText });
                 } else {
                     try {
-                        // Intentar selección exacta primero (con timeout corto)
                         await selectElement.selectOption({ label: valueOrText }, { timeout: 2000 });
                     } catch (err) {
-                        // Si falla, buscar la opción cuyo texto contenga el valor buscado (ignorando espacios y mayúsculas)
                         console.log(c.gris(`      (Buscando opción que contenga "${valueOrText}")...`));
                         const options = await selectElement.locator('option').all();
                         let foundValue = null;
@@ -268,7 +264,7 @@ async function main() {
                                 availableTexts.push(text.trim());
                                 if (text.toUpperCase().includes(valueOrText.toUpperCase())) {
                                     foundValue = await opt.getAttribute('value');
-                                    break; // Ya encontramos el valor, no necesitamos seguir
+                                    break;
                                 }
                             }
                         }
@@ -280,7 +276,7 @@ async function main() {
                     }
                 }
                 
-                await mainPage.waitForTimeout(2000); 
+                await reportPage.waitForTimeout(2000); 
                 return true;
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar "${labelText}": ${e.message}`));
@@ -297,8 +293,7 @@ async function main() {
                 } else {
                     await selectLocator.selectOption({ label: valueOrText });
                 }
-                // Esperar a que SSRS haga el postback y desbloquee el resto de selects
-                await mainPage.waitForTimeout(2000); 
+                await reportPage.waitForTimeout(2000); 
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar en ${id}: ${e.message}`));
             }
@@ -308,14 +303,12 @@ async function main() {
             try {
                 const btn = reportFrame.locator(`#${id}_ddDropDownButton`);
                 await btn.waitFor({ state: 'visible', timeout: 5000 });
-                // Playwright click() auto-waits for element to be enabled
                 await btn.click({ timeout: 15000 });
                 
                 const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
                 await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
                 
-                // Allow time for AJAX postback to populate the dropdown
-                await mainPage.waitForTimeout(2000);
+                await reportPage.waitForTimeout(2000);
 
                 if (valueOrText === '(Check All)') {
                     const checkboxes = await divDropdown.locator('input[type="checkbox"]').all();
@@ -328,7 +321,7 @@ async function main() {
                     const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                     const regex = valueOrText === '(Select All)' 
                         ? new RegExp('^\\(Select All\\)$', 'i') 
-                        : new RegExp(escapedText, 'i'); // Substring match
+                        : new RegExp(escapedText, 'i');
 
                     try {
                         const checkbox = divDropdown.getByRole('checkbox', { name: regex }).first();
@@ -341,11 +334,9 @@ async function main() {
                     }
                 }
                 
-                // Cerrar menú y disparar postback
                 await reportFrame.locator('body').click();
-                await mainPage.waitForTimeout(3000); 
+                await reportPage.waitForTimeout(3000); 
             } catch (e) {
-                // Log available options for debugging si todo falla
                 try {
                     const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
                     const labels = await divDropdown.locator('label').allInnerTexts();
@@ -387,14 +378,14 @@ async function main() {
             } catch(e) {}
         } else if (opcionReporte === 2) {
             console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de niños y niñas...\n');
-            await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
+            await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
               waitUntil: 'domcontentloaded',
               timeout: 120000
             });
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await mainPage.waitForTimeout(3000);
+            await reportPage.waitForTimeout(3000);
             
-            reportFrame = mainPage.frame({ name: 'frameContent' }) || mainPage;
+            reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
 
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
@@ -416,11 +407,11 @@ async function main() {
             // Si es la opción 4 (Unidades de servicio), tomamos el ÚLTIMO que coincida
             // para evitar darle clic al que está bajo "Calidad de datos"
             let reportLink = opcionReporte === 4 
-                ? mainPage.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).last()
-                : mainPage.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).first();
+                ? reportPage.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).last()
+                : reportPage.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).first();
             
             if (await reportLink.count() === 0) {
-                const contentFrame = mainPage.frame({ name: 'frameContent' });
+                const contentFrame = reportPage.frame({ name: 'frameContent' });
                 if (contentFrame) {
                     reportLink = opcionReporte === 4
                         ? contentFrame.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).last()
@@ -429,7 +420,7 @@ async function main() {
             }
 
             if (await reportLink.count() === 0) {
-                const text = await mainPage.locator('body').innerText();
+                const text = await reportPage.locator('body').innerText();
                 console.log(c.amarillo('  ⚠️ Texto de la página principal (primeros 500 chars):\n' + text.substring(0, 500)));
                 throw new Error(`No se encontró el enlace al reporte "${reportName}" en el menú.`);
             }
@@ -437,16 +428,16 @@ async function main() {
             console.log('  👉 Haciendo clic en el menú del reporte...');
             const href = await reportLink.getAttribute('href').catch(() => null);
             if (href && href !== '#' && !href.startsWith('javascript')) {
-                const absoluteUrl = new URL(href, mainPage.url()).href;
-                await mainPage.goto(absoluteUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
+                const absoluteUrl = new URL(href, reportPage.url()).href;
+                await reportPage.goto(absoluteUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
             } else {
                 await reportLink.click({ force: true });
-                await mainPage.waitForTimeout(5000);
+                await reportPage.waitForTimeout(5000);
             }
             
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await mainPage.waitForTimeout(3000);
-            reportFrame = mainPage.frame({ name: 'frameContent' }) || mainPage;
+            await reportPage.waitForTimeout(3000);
+            reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
 
             console.log('  ⏳ Esperando filtros SSRS...');
             await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue').waitFor({ state: 'visible', timeout: 30000 }).catch(()=>null);
@@ -454,8 +445,8 @@ async function main() {
             try {
                 if (opcionReporte === 3) {
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', '2024'); // O el que corresponda
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', '2024'); 
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', asc.numeroContrato);
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
                     await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Check All)');
@@ -464,10 +455,8 @@ async function main() {
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', mesAtencion);
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl23_ddValue', 'Todos');
                 } else if (opcionReporte === 4) {
-                    // "Unidades de servicio" usando el helper robusto basado en texto de las imágenes
                     console.log('    👉 Llenando filtros de Unidades de servicio...');
                     
-                    // Si el primer intento falla, sacamos un volcado HTML para poder debuggear los IDs.
                     const exito = await seleccionarSSRSByLabel('Tipo Unidad', 'Unidad de Servicio');
                     if (!exito) {
                         const html = await reportFrame.locator('body').innerHTML();
@@ -480,15 +469,14 @@ async function main() {
 
                     await seleccionarSSRSByLabel('Dirección ICBF *', 'Dirección de Primera Infancia');
                     await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato);
-                    await seleccionarSSRSByLabel('Regional UDS', 'Bogota D.C.');
+                    await seleccionarSSRSByLabel('Regional UDS', 'Bogota D.C');
                     await seleccionarSSRSByLabel('Centro Zonal de la UDS', 'CZ USAQUEN');
-                    await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
+                    await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C');
                     await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
                     
                     await seleccionarSSRSByLabel('Estado UDS', 'Activo');
                     await seleccionarSSRSByLabel('Estado UDS Contrato*', 'Activo');
-                    await seleccionarSSRSByLabel('Vigencia del Servicio *', '2026'); // Asumimos 2026 por la imagen
-                    // "Servicio" se deja en "Seleccione" según la imagen
+                    await seleccionarSSRSByLabel('Vigencia del Servicio *', '2026'); 
                     await seleccionarSSRSByLabel('Tipo de Reporte*', 'Todas las UDS');
                 }
             } catch(e) {
@@ -497,27 +485,25 @@ async function main() {
         }
 
 
-        await mainPage.waitForTimeout(1000);
+        await reportPage.waitForTimeout(1000);
         console.log('    👉 Generando reporte...');
         
         await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00').click();
         console.log(c.cyan('    ⏳ Esperando a que el sistema procese el reporte (esto puede tardar unos minutos)...'));
         
-        // Esperamos hasta 2 minutos a que aparezca el icono de exportar
         const exportButton = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl05_ctl04_ctl00_ButtonImg');
         await exportButton.waitFor({ state: 'visible', timeout: 120000 });
         
         console.log('    👉 Iniciando descarga en Excel...');
         
-        // Intentar varios selectores para el botón de exportar de SSRS
         const exportBtn = reportFrame.locator('a[title="Exportar"], a[title="Export drop down menu"], img[alt="Exportar"], a[title="Export"]').first();
         if (await exportBtn.count() > 0) {
             await exportBtn.click({ force: true });
-            await mainPage.waitForTimeout(1000);
+            await reportPage.waitForTimeout(1000);
             
             const excelOption = reportFrame.locator('a:has-text("Excel")').first();
             const [download] = await Promise.all([
-                mainPage.waitForEvent('download'),
+                reportPage.waitForEvent('download'),
                 excelOption.evaluate(el => el.click())
             ]);
             
@@ -530,7 +516,7 @@ async function main() {
             if (prepararExcel) {
                 console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
                 // Darle tiempo al sistema a actualizar la UI tras el postback
-                await mainPage.waitForTimeout(3000); 
+                await reportPage.waitForTimeout(3000); 
                 const { execSync } = require('child_process');
                 try {
                     const psScript = path.join(__dirname, 'preparar_excel.ps1');
@@ -546,7 +532,10 @@ async function main() {
       } catch (error) {
         console.error(c.rojo(`\n  ❌ Ocurrió un error con ${asc.nombreCorto}:`), error.message);
       } finally {
-        // La limpieza se maneja al inicio de la siguiente iteración
+        // Cierra la pestaña del reporte para volver a la principal
+        if (reportPage && reportPage !== mainPage) {
+            await reportPage.close().catch(() => {});
+        }
       }
   }
 
