@@ -254,6 +254,23 @@ async function main() {
                 }
 
                 await selectElement.waitFor({ state: 'visible', timeout: 5000 });
+                
+                // Esperar a que el select se habilite (SSRS los deshabilita durante los postbacks)
+                let isDisabled = await selectElement.evaluate(el => el.disabled || el.classList.contains('aspNetDisabled'));
+                let waitAttempts = 0;
+                if (isDisabled) {
+                    console.log(c.gris(`      (Esperando a que "${labelText}" se habilite tras el postback...)`));
+                }
+                while (isDisabled && waitAttempts < 15) { // Esperar hasta 15 segundos
+                    await mainPage.waitForTimeout(1000);
+                    isDisabled = await selectElement.evaluate(el => el.disabled || el.classList.contains('aspNetDisabled'));
+                    waitAttempts++;
+                }
+
+                if (isDisabled) {
+                    console.log(c.amarillo(`    ⚠️ El campo "${labelText}" sigue deshabilitado después de 15 segundos. Intentando de todas formas...`));
+                }
+
                 if (typeof valueOrText === 'number') {
                     await selectElement.selectOption({ index: valueOrText });
                 } else {
@@ -265,17 +282,21 @@ async function main() {
                         console.log(c.gris(`      (Buscando opción que contenga "${valueOrText}")...`));
                         const options = await selectElement.locator('option').all();
                         let foundValue = null;
+                        const availableTexts = [];
                         for (const opt of options) {
                             const text = await opt.textContent();
-                            if (text && text.toUpperCase().includes(valueOrText.toUpperCase())) {
-                                foundValue = await opt.getAttribute('value');
-                                break;
+                            if (text) {
+                                availableTexts.push(text.trim());
+                                if (text.toUpperCase().includes(valueOrText.toUpperCase())) {
+                                    foundValue = await opt.getAttribute('value');
+                                    break; // Ya encontramos el valor, no necesitamos seguir
+                                }
                             }
                         }
                         if (foundValue !== null) {
                             await selectElement.selectOption({ value: foundValue });
                         } else {
-                            throw new Error(`No se encontró ninguna opción que contenga "${valueOrText}"`);
+                            throw new Error(`No se encontró ninguna opción que contenga "${valueOrText}". Opciones disponibles: [${availableTexts.join(', ')}]`);
                         }
                     }
                 }
