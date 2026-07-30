@@ -89,14 +89,26 @@ async function main() {
     // Navegar a Información del Beneficiario
     console.log(c.cyan('  🚀 Navegando al módulo de Información del Beneficiario...'));
     
-    const btnMenu = page.locator('a:has-text("Información beneficiario")').first();
-    
-    if (await btnMenu.count() === 0) {
-        console.log(c.amarillo('  ⚠️ Buscando el menú de Beneficiario...'));
+    let menuFrame = page.frame({ name: 'frameMenu' });
+    if (!menuFrame) {
+        for (const f of page.frames()) {
+            if (f.name() === 'frameMenu') {
+                menuFrame = f;
+                break;
+            }
+        }
     }
+    const rootMenu = menuFrame || page;
+    
+    const parentMenu = rootMenu.locator('a:has-text("Beneficiario")').first();
+    const childMenu = rootMenu.locator('a:has-text("Información beneficiario")').first();
 
     try {
-        await btnMenu.click({ timeout: 5000 });
+        if (await parentMenu.count() > 0) {
+            await parentMenu.click({ force: true }).catch(()=>{});
+            await page.waitForTimeout(1000);
+        }
+        await childMenu.click({ timeout: 5000, force: true });
         await page.waitForTimeout(3000);
     } catch(e) {
         console.log(c.rojo('  ❌ No se pudo hacer clic en Información beneficiario'));
