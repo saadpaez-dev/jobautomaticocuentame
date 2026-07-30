@@ -206,7 +206,6 @@ async function main() {
           await ddlDepto.selectOption({ label: /BOGOT. D\.C\./i });
           console.log(c.verde('    ✅ Departamento BOGOTA D.C. seleccionado.'));
       } catch (err) {
-          console.log(c.rojo(`    ❌ Fallo al seleccionar BOGOTA D.C.: ${err.message}`));
           console.log(c.amarillo('    Intentando buscar la opcion que contenga BOGOTA...'));
           try {
               const options = await ddlDepto.locator('option').allInnerTexts();
@@ -512,8 +511,8 @@ async function main() {
                   console.log(c.amarillo('\n  ⏸️  Script en pausa. Formulario abierto.'));
                   console.log(c.amarillo('  Por favor enviale un pantallazo a Antigravity del formulario de toma/edicion.'));
                   while (true) {
-                      const resp = readline.question(c.negrita('  > Escribe "salir" para regresar al listado: '));
-                      if (resp.toLowerCase() === 'salir') {
+                      const resp = readline.question(c.negrita('  > Escribe "consulta" para regresar al listado: '));
+                      if (resp.toLowerCase() === 'consulta') {
                           // Simular volver atras desde la pantalla de toma
                           console.log(c.amarillo('  ⏳ Volviendo a la consulta de ninos...'));
                           const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"]').first();
