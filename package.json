@@ -13,8 +13,8 @@
     "asistencia": "node automatizaciones/llenar-asistencia.js",
     "test-gmail": "node servicios/gmail-reader.js",
     "test-login": "node test-login.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "cuentas": "node automatizaciones/generar-cuentas-cobro.js"
+    "cuentas": "node automatizaciones/generar-cuentas-cobro.js",
+    "consulta": "node automatizaciones/consulta-activos.js"
   },
   "keywords": [],
   "author": "",
