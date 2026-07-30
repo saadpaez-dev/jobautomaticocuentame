@@ -101,33 +101,17 @@ async function main() {
     const rootMenu = menuFrame || page;
     
     try {
-        // 1. Verificamos si 'Rub online' está visible. Si no, abrimos 'RUB ONLINE'.
-        const rubOnline2 = rootMenu.locator('a:has-text("Rub online")').first();
-        if (await rubOnline2.count() > 0 && !(await rubOnline2.isVisible())) {
-            const rubOnline1 = rootMenu.locator('a:has-text("RUB ONLINE")').first();
-            if (await rubOnline1.count() > 0) await rubOnline1.click({ force: true }).catch(()=>{});
-            await page.waitForTimeout(1000);
-        }
-
-        // 2. Verificamos si 'Beneficiario' está visible. Si no, abrimos 'Rub online'.
-        const parentMenu = rootMenu.locator('a:has-text("Beneficiario")').first();
-        if (await parentMenu.count() > 0 && !(await parentMenu.isVisible())) {
-            if (await rubOnline2.count() > 0) await rubOnline2.click({ force: true }).catch(()=>{});
-            await page.waitForTimeout(1000);
-        }
-
-        // 3. Verificamos si 'Información beneficiario' está visible. Si no, abrimos 'Beneficiario'.
         const childMenu = rootMenu.locator('a:has-text("Información beneficiario")').first();
-        if (await childMenu.count() > 0 && !(await childMenu.isVisible())) {
-            if (await parentMenu.count() > 0) await parentMenu.click({ force: true }).catch(()=>{});
-            await page.waitForTimeout(1000);
+        if (await childMenu.count() > 0) {
+            // En vez de lidiar con menús colapsados, disparamos el clic directamente por JS
+            // Esto ignorará si el padre está cerrado o si está oculto visualmente.
+            await childMenu.evaluate(node => node.click());
+            await page.waitForTimeout(4000);
+        } else {
+            console.log(c.amarillo('  ⚠️ No se encontró el enlace de Información beneficiario en el menú.'));
         }
-
-        // 4. Clic en Información beneficiario
-        await childMenu.click({ timeout: 5000, force: true });
-        await page.waitForTimeout(3000);
     } catch(e) {
-        console.log(c.rojo(`  ❌ No se pudo hacer clic en Información beneficiario: ${e.message}`));
+        console.log(c.rojo(`  ❌ Error al intentar acceder a Información beneficiario: ${e.message}`));
     }
     
     let frame = page.frameLocator('#frameContent');
