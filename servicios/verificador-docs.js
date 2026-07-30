@@ -17,6 +17,7 @@ async function procesarDocumentos(documento) {
     if (!fs.existsSync(inputDir)) {
         fs.mkdirSync(inputDir, { recursive: true });
         console.log(c.amarillo(`  ⚠️ La carpeta de entradas generales no existía, la he creado en: ${inputDir}`));
+        console.log(c.amarillo(`     Por favor coloca allí los archivos de soporte y vuelve a intentar.`));
         return false;
     }
 
@@ -27,6 +28,8 @@ async function procesarDocumentos(documento) {
     const allFiles = fs.readdirSync(inputDir).filter(f => !f.startsWith('.'));
     if (allFiles.length === 0) {
         console.log(c.amarillo(`  ⚠️ La carpeta general de entradas está vacía.`));
+        console.log(c.amarillo(`     Ruta esperada: ${inputDir}`));
+        console.log(c.amarillo(`     (Coloca allí los PDFs/JPGs antes de generar el correo).`));
         return false;
     }
 
