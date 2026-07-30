@@ -285,9 +285,16 @@ async function main() {
                             rowToFill.getCell(13).value = dia1MesActual; // Fecha mágica
                             
                             rowToFill.commit();
-                            await workbook.xlsx.writeFile(formatoPath);
                             
-                            console.log(c.verde(`  ✅ Novedad guardada exitosamente en la Fila ${filaVacia} del archivo Excel oficial.`));
+                            const docsDir = path.join(__dirname, '..', 'docs', 'adjuntos', documento);
+                            if (!fs.existsSync(docsDir)) {
+                                fs.mkdirSync(docsDir, { recursive: true });
+                            }
+                            const childExcelPath = path.join(docsDir, 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx');
+                            
+                            await workbook.xlsx.writeFile(childExcelPath);
+                            
+                            console.log(c.verde(`  ✅ Novedad guardada exitosamente en el Excel (solo para este niño).`));
                             
                             const armarCorreo = readline.question('  ¿Desea armar el correo para envio a la regional? (s/n): ').toLowerCase();
                             if (armarCorreo === 's' || armarCorreo === 'si') {
@@ -324,7 +331,7 @@ async function main() {
                                 const attachments = [
                                     {
                                         filename: 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx',
-                                        path: path.join(__dirname, '..', 'docs', 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx')
+                                        path: childExcelPath
                                     }
                                 ];
 
