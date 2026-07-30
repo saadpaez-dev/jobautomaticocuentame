@@ -255,22 +255,6 @@ async function main() {
 
                 await selectElement.waitFor({ state: 'visible', timeout: 5000 });
                 
-                // Esperar a que el select se habilite (SSRS los deshabilita durante los postbacks)
-                let isDisabled = await selectElement.evaluate(el => el.disabled || el.classList.contains('aspNetDisabled'));
-                let waitAttempts = 0;
-                if (isDisabled) {
-                    console.log(c.gris(`      (Esperando a que "${labelText}" se habilite tras el postback...)`));
-                }
-                while (isDisabled && waitAttempts < 15) { // Esperar hasta 15 segundos
-                    await mainPage.waitForTimeout(1000);
-                    isDisabled = await selectElement.evaluate(el => el.disabled || el.classList.contains('aspNetDisabled'));
-                    waitAttempts++;
-                }
-
-                if (isDisabled) {
-                    console.log(c.amarillo(`    ⚠️ El campo "${labelText}" sigue deshabilitado después de 15 segundos. Intentando de todas formas...`));
-                }
-
                 if (typeof valueOrText === 'number') {
                     await selectElement.selectOption({ index: valueOrText });
                 } else {
@@ -506,7 +490,7 @@ async function main() {
                     await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
                     await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
                     
-                    await seleccionarSSRSByLabel('Estado UDS', 'ACTIVA');
+                    await seleccionarSSRSByLabel('Estado UDS', 'Activo');
                     await seleccionarSSRSByLabel('Estado UDS Contrato*', 'Activo');
                     await seleccionarSSRSByLabel('Vigencia del Servicio *', '2026'); // Asumimos 2026 por la imagen
                     // "Servicio" se deja en "Seleccione" según la imagen
