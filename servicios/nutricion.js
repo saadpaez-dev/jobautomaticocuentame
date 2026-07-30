@@ -246,6 +246,34 @@ async function llenarFormularioNutricion(browser, content, datos) {
             }
         });
         
+        // Lactancia Materna Exclusiva (Aleatorio 4 a 6) y Total (Aleatorio 12 a 15)
+        try {
+            const valExclusiva = Math.floor(Math.random() * (6 - 4 + 1) + 4).toString();
+            const valTotal = Math.floor(Math.random() * (15 - 12 + 1) + 12).toString();
+            
+            const selects = await content.locator('select').all();
+            for (let i = 0; i < selects.length; i++) {
+                const s = selects[i];
+                // Buscamos el label o texto anterior para saber cuál select es cuál
+                // O podemos probar directamente si las opciones tienen los números exactos sin otras cosas
+                // Una forma más segura: buscar el texto cerca del select.
+                const parentText = await s.evaluate(node => {
+                    const p = node.parentElement;
+                    return p && p.previousElementSibling ? p.previousElementSibling.innerText : '';
+                });
+                
+                if (parentText.includes('exclusiva (meses)')) {
+                    await s.selectOption({ label: valExclusiva }).catch(()=>{});
+                    console.log(c.verde(`  ✅ Lactancia exclusiva seleccionada: ${valExclusiva} meses`));
+                } else if (parentText.includes('total (meses)')) {
+                    await s.selectOption({ label: valTotal }).catch(()=>{});
+                    console.log(c.verde(`  ✅ Lactancia total seleccionada: ${valTotal} meses`));
+                }
+            }
+        } catch(e) {
+            console.log(c.rojo(`  ⚠️ No se pudieron establecer los campos de lactancia: ${e.message}`));
+        }
+        
         console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
         
         // Fecha, Peso, Talla, Perimetro
