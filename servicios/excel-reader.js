@@ -31,6 +31,7 @@ function leerJardines(rutaExcel) {
         nombreLargo: String(row['Nombre Largo'] || '').trim(),
         numeroContrato: String(row['Numero Contrato'] || '').trim(),
         vigenciaContrato: String(row['Vigencia'] || '').trim(),
+        nit: String(row['NIT'] || '').trim(),
         jardines: []
       };
     }

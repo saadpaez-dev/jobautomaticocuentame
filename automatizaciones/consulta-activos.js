@@ -9,6 +9,8 @@ const { chromium } = require('playwright');
 const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
+const ExcelJS = require('exceljs');
+const path = require('path');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -179,8 +181,12 @@ async function main() {
                             if (celdas.length >= 15) {
                                 const info = celdas.map(t => t.trim().replace(/\s+/g, ' '));
                                 registros.push({
+                                    regionalVinculado: info[1] || '',
                                     entidad: info[2] || '',
+                                    contratoVinculado: info[4] || '',
+                                    codigoUds: info[5] || '',
                                     nombreUds: info[6] || '',
+                                    tipoDoc: info[10] || '',
                                     nombre: `${info[12] || ''} ${info[13] || ''} ${info[14] || ''} ${info[15] || ''}`.replace(/\s+/g, ' ').trim(),
                                     fechaAtencion: info[16] || '',
                                     estado: info[18] || ''
@@ -227,16 +233,55 @@ async function main() {
             if (estadoMayus === 'VINCULADO') {
                 if (!esMismaAsociacion) {
                     console.log(c.rojo(`  ⚠️ El niño se encuentra VINCULADO pero en OTRA asociación (${masReciente.entidad}).`));
-                    const resp = readline.question('  ¿Deseas guardar esta novedad en el Excel? (s/n): ').toLowerCase();
+                    const resp = readline.question('  ¿Deseas guardar esta novedad en el Excel oficial de ICBF? (s/n): ').toLowerCase();
                     if (resp === 's' || resp === 'si') {
-                        // Guardar en un CSV o Excel local
-                        const fs = require('fs');
-                        const logPath = 'reportes/novedades_vinculados.csv';
-                        if (!fs.existsSync(logPath)) {
-                            fs.writeFileSync(logPath, 'Documento,Nombre,Estado,Fecha,Asociacion_Encontrada\n');
+                        // Guardar en el formato de excel f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx
+                        console.log(c.amarillo('  ⏳ Guardando en el formato de desvinculación...'));
+                        const formatoPath = path.join(__dirname, '..', 'docs', 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx');
+                        const workbook = new ExcelJS.Workbook();
+                        await workbook.xlsx.readFile(formatoPath);
+                        
+                        const ws = workbook.worksheets.find(w => w.name.toUpperCase() === 'FORMATO');
+                        if (ws) {
+                            // Buscar la primera fila vacía a partir de la 6
+                            let filaVacia = 6;
+                            while (filaVacia <= 500) {
+                                const row = ws.getRow(filaVacia);
+                                const celda = row.getCell(1).value;
+                                if (!celda || String(celda).trim() === '') {
+                                    break;
+                                }
+                                filaVacia++;
+                            }
+                            
+                            // Calcular fecha "primer día del mes actual del año actual"
+                            const hoy = new Date();
+                            const dia1MesActual = `01/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+                            
+                            const rowToFill = ws.getRow(filaVacia);
+                            rowToFill.getCell(1).value = 'BOGOTA'; // Regional (siempre BOGOTA)
+                            rowToFill.getCell(2).value = ascSeleccionada.nit || ''; // NIT EAS
+                            rowToFill.getCell(3).value = ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto; // Nombre EAS
+                            rowToFill.getCell(4).value = ascSeleccionada.numeroContrato || ''; // Contrato EAS
+                            
+                            rowToFill.getCell(5).value = masReciente.regionalVinculado;
+                            rowToFill.getCell(6).value = masReciente.entidad;
+                            rowToFill.getCell(7).value = masReciente.contratoVinculado;
+                            rowToFill.getCell(8).value = masReciente.codigoUds;
+                            rowToFill.getCell(9).value = masReciente.nombreUds;
+                            
+                            rowToFill.getCell(10).value = masReciente.tipoDoc;
+                            rowToFill.getCell(11).value = documento;
+                            rowToFill.getCell(12).value = masReciente.nombre;
+                            rowToFill.getCell(13).value = dia1MesActual; // Fecha mágica
+                            
+                            rowToFill.commit();
+                            await workbook.xlsx.writeFile(formatoPath);
+                            
+                            console.log(c.verde(`  ✅ Novedad guardada exitosamente en la Fila ${filaVacia} del archivo Excel oficial.`));
+                        } else {
+                            console.log(c.rojo('  ❌ No se encontró la hoja "FORMATO" en el archivo de Excel.'));
                         }
-                        fs.appendFileSync(logPath, `${documento},${masReciente.nombre},${masReciente.estado},${masReciente.fechaAtencion},"${masReciente.entidad}"\n`);
-                        console.log(c.verde('  ✅ Novedad guardada en reportes/novedades_vinculados.csv'));
                     }
                 } else {
                     console.log(c.verde(`  ✅ El niño se encuentra VINCULADO correctamente en tu asociación.`));
