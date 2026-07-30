@@ -192,19 +192,14 @@ async function main() {
       }
 
       if (i > 0) {
-          console.log(c.gris(`\n    🔄 Cerrando sesión actual para cambiar de asociación...`));
+          console.log(c.gris(`\n    🔄 Regresando al menú de selección de asociaciones (manteniendo sesión activa)...`));
           try {
-              await context.clearCookies();
-              rolesUrl = await loginYLlegarARoles(mainPage, {
-                usuario: USUARIO,
-                password: PASSWORD,
-                gmailUser: GMAIL_USER,
-                gmailAppPassword: GMAIL_APP_PASSWORD
-              });
-              rolesHtml = await mainPage.content();
-          } catch (e) {
-              console.log(c.rojo(`    ⚠️ Error al reloguear para la siguiente asociación: ${e.message}`));
-              continue;
+              await mainPage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
+              // Esperar a que la tabla de roles cargue
+              await mainPage.waitForSelector('table', { state: 'visible', timeout: 30000 });
+          } catch (err) {
+              console.error(c.rojo(`  ❌ Error al regresar al menú principal: ${err.message}`));
+              continue; // saltar a la siguiente si falla
           }
       }
 
