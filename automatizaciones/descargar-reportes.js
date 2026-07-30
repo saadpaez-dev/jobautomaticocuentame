@@ -378,12 +378,12 @@ async function main() {
         } else if (opcionReporte === 3 || opcionReporte === 4) {
             const reportName = opcionReporte === 3 ? "Informe de registro asistencia mensual" : "Unidades de servicio";
             console.log(`  🚀 Navegando a ${reportName}...\n`);
-            let reportLink = mainPage.locator(`a:has-text("${reportName}"), span:has-text("${reportName}")`).first();
+            let reportLink = mainPage.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).first();
             
             if (await reportLink.count() === 0) {
                 const contentFrame = mainPage.frame({ name: 'frameContent' });
                 if (contentFrame) {
-                    reportLink = contentFrame.locator(`a:has-text("${reportName}"), span:has-text("${reportName}")`).first();
+                    reportLink = contentFrame.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).first();
                 }
             }
 
