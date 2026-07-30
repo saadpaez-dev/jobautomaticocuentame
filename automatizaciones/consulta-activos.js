@@ -288,6 +288,48 @@ async function main() {
                             await workbook.xlsx.writeFile(formatoPath);
                             
                             console.log(c.verde(`  ✅ Novedad guardada exitosamente en la Fila ${filaVacia} del archivo Excel oficial.`));
+                            
+                            const armarCorreo = readline.question('  ¿Desea armar el correo para envio a la regional? (s/n): ').toLowerCase();
+                            if (armarCorreo === 's' || armarCorreo === 'si') {
+                                console.log(c.amarillo('  ⏳ Generando borrador del correo (.eml)...'));
+                                const nodemailer = require('nodemailer');
+                                const MailComposer = require('nodemailer/lib/mail-composer');
+                                
+                                const cuerpoCorreo = `Nit:                                                                 ${ascSeleccionada.nit || ''}
+Nombre del EAS que requiere el ajuste:   ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}
+Número de Contrato:                                 ${ascSeleccionada.numeroContrato || ''}
+Nombre de la persona que pone el caso: SAAD PAEZ
+Número de Identificación:                           1020722462
+Número de contacto:                                   3202002073
+Área Misional si aplica:                               Primera Infancia
+Regional y Centro Zonal:                             BOGOTÁ, CZ USAQUEN
+`;
+                                const mail = new MailComposer({
+                                    from: 'SAAD PAEZ',
+                                    to: 'Mis.Aplicaciones@icbf.gov.co',
+                                    subject: 'Desvinculacion Primera Infacia',
+                                    text: cuerpoCorreo,
+                                    attachments: [
+                                        {
+                                            filename: 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx',
+                                            path: formatoPath
+                                        }
+                                    ]
+                                });
+                                
+                                const fs = require('fs');
+                                const reportesDir = path.join(__dirname, '..', 'reportes');
+                                if (!fs.existsSync(reportesDir)) {
+                                    fs.mkdirSync(reportesDir);
+                                }
+                                
+                                const emailPath = path.join(reportesDir, `borrador_desvinculacion_${documento}.eml`);
+                                const messageBuffer = await mail.compile().build();
+                                fs.writeFileSync(emailPath, messageBuffer);
+                                
+                                console.log(c.verde(`  ✅ Borrador de correo generado exitosamente con el Excel adjunto en: ${emailPath}`));
+                                console.log(c.verde(`     (Puedes hacer doble clic en el archivo .eml para abrirlo en Outlook o tu cliente de correo).`));
+                            }
                         } else {
                             console.log(c.rojo('  ❌ No se encontró la hoja "FORMATO" en el archivo de Excel.'));
                         }
