@@ -257,7 +257,27 @@ async function main() {
                 if (typeof valueOrText === 'number') {
                     await selectElement.selectOption({ index: valueOrText });
                 } else {
-                    await selectElement.selectOption({ label: valueOrText });
+                    try {
+                        // Intentar selección exacta primero (con timeout corto)
+                        await selectElement.selectOption({ label: valueOrText }, { timeout: 2000 });
+                    } catch (err) {
+                        // Si falla, buscar la opción cuyo texto contenga el valor buscado (ignorando espacios y mayúsculas)
+                        console.log(c.gris(`      (Buscando opción que contenga "${valueOrText}")...`));
+                        const options = await selectElement.locator('option').all();
+                        let foundValue = null;
+                        for (const opt of options) {
+                            const text = await opt.textContent();
+                            if (text && text.toUpperCase().includes(valueOrText.toUpperCase())) {
+                                foundValue = await opt.getAttribute('value');
+                                break;
+                            }
+                        }
+                        if (foundValue !== null) {
+                            await selectElement.selectOption({ value: foundValue });
+                        } else {
+                            throw new Error(`No se encontró ninguna opción que contenga "${valueOrText}"`);
+                        }
+                    }
                 }
                 
                 await mainPage.waitForTimeout(2000); 
@@ -465,11 +485,11 @@ async function main() {
                     await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
                     await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
                     
-                    await seleccionarSSRSByLabel('Estado UDS', 1); // 1 = ACTIVA
-                    await seleccionarSSRSByLabel('Estado UDS Contrato*', 1); // 1 = Activo
+                    await seleccionarSSRSByLabel('Estado UDS', 'ACTIVA');
+                    await seleccionarSSRSByLabel('Estado UDS Contrato*', 'Activo');
                     await seleccionarSSRSByLabel('Vigencia del Servicio *', '2026'); // Asumimos 2026 por la imagen
                     // "Servicio" se deja en "Seleccione" según la imagen
-                    await seleccionarSSRSByLabel('Tipo de Reporte*', 1); // 1 = Todas las UDS
+                    await seleccionarSSRSByLabel('Tipo de Reporte*', 'Todas las UDS');
                 }
             } catch(e) {
                 console.log(c.rojo("  ⚠️ Posible problema con los filtros SSRS: " + e.message));
