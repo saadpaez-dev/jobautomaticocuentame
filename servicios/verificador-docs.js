@@ -45,13 +45,11 @@ async function procesarDocumentos(documento) {
     console.log(c.cyan(`  🔍 Buscando el documento ${documento} entre ${allFiles.length} archivo(s) en la bandeja de entrada...`));
 
     let paginasExtraidas = [];
-    let archivosEncontradosParaNino = 0;
 
     for (const file of allFiles) {
         const filePath = path.join(inputDir, file);
         const ext = path.extname(file).toLowerCase();
         
-        let perteneceAlNino = file.includes(documento);
         let paginasTemporales = [];
         
         if (ext === '.pdf') {
@@ -64,10 +62,6 @@ async function procesarDocumentos(documento) {
                 const pdfData = await pdfParse(dataBuffer);
                 pdfTextoGlobal = pdfData.text || '';
             } catch (e) {}
-
-            if (pdfTextoGlobal.includes(documento)) {
-                perteneceAlNino = true;
-            }
 
             for (let i = 0; i < numPages; i++) {
                 const subDoc = await PDFDocument.create();
@@ -83,16 +77,9 @@ async function procesarDocumentos(documento) {
                 });
             }
         } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
-            // Si el nombre no tiene el ID, debemos hacer OCR para saber si es de él
-            if (!perteneceAlNino) {
-                 console.log(c.gray(`     Analizando imagen con OCR para ver si pertenece a ${documento}: ${file}`));
-            }
-            
+            console.log(c.gray(`     Analizando imagen con OCR: ${file}`));
             try {
                 const { data: { text } } = await Tesseract.recognize(filePath, 'spa');
-                if (text.includes(documento)) {
-                    perteneceAlNino = true;
-                }
                 
                 const imageBytes = fs.readFileSync(filePath);
                 const subDoc = await PDFDocument.create();
@@ -113,16 +100,8 @@ async function procesarDocumentos(documento) {
             }
         }
 
-        if (perteneceAlNino) {
-            console.log(c.verde(`     ✔️ ¡Coincidencia! El archivo ${file} pertenece a este beneficiario.`));
-            paginasExtraidas.push(...paginasTemporales);
-            archivosEncontradosParaNino++;
-        }
-    }
-
-    if (archivosEncontradosParaNino === 0) {
-        console.log(c.amarillo(`  ⚠️ No se encontró ningún archivo asociado al documento ${documento} en la bandeja general.`));
-        return false;
+        console.log(c.verde(`     ✔️ Archivo procesado: ${file}`));
+        paginasExtraidas.push(...paginasTemporales);
     }
 
     // Fase 3: Clasificación Inteligente
@@ -136,9 +115,9 @@ async function procesarDocumentos(documento) {
 
     for (const pag of paginasExtraidas) {
         const txt = pag.texto;
-        let esRC = txt.includes('nuip') || txt.includes('registro civil') || txt.includes('nacimiento') || txt.includes('identificacion') || txt.includes('república de colombia') || txt.includes('republica de colombia') || txt.includes('registraduria') || txt.includes('tarjeta de identidad');
-        let esRAM = txt.includes('asistencia') || txt.includes('ram') || txt.includes('días') || txt.includes('dias') || txt.includes('lunes') || txt.includes('martes') || txt.includes('novedades');
-        let esCarta = txt.includes('certifico') || txt.includes('constancia') || txt.includes('por medio de') || txt.includes('asiste') || txt.includes('cordial saludo') || txt.includes('señores icbf');
+        let esRC = txt.includes('nuip') || txt.includes('registro civil') || txt.includes('registraduria nacional') || txt.includes('lugar de nacimiento') || txt.includes('república de colombia') || txt.includes('tarjeta de identidad');
+        let esRAM = txt.includes('formato registro asistencia mensual') || txt.includes('asistencia') || txt.includes('ram') || txt.includes('días') || txt.includes('icbf');
+        let esCarta = txt.includes('certifico') || txt.includes('constancia') || txt.includes('por medio de') || txt.includes('asiste') || txt.includes('cordial saludo');
 
         // Ponderación básica si coinciden varios
         if (esRC) clasificacion.RC.push(pag);
@@ -200,6 +179,18 @@ async function procesarDocumentos(documento) {
 
     if (todoExitoso) {
         console.log(c.verde(`  ✅ Documentos clasificados y listos en: docs/adjuntos/${documento}/`));
+        
+        // Limpiar la bandeja de entrada moviendo los archivos a 'procesados'
+        const procesadosDir = path.join(__dirname, '..', 'docs', 'procesados', documento);
+        if (!fs.existsSync(procesadosDir)) {
+            fs.mkdirSync(procesadosDir, { recursive: true });
+        }
+        for (const file of allFiles) {
+            const oldPath = path.join(inputDir, file);
+            const newPath = path.join(procesadosDir, file);
+            fs.renameSync(oldPath, newPath);
+        }
+        console.log(c.cyan(`     🧹 Archivos originales movidos a docs/procesados/${documento}/`));
     }
 
     return todoExitoso;
