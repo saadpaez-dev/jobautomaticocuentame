@@ -224,20 +224,23 @@ async function main() {
         // Función helper que busca un select en SSRS a partir de su label (texto) y lo llena
         const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
             try {
-                // Buscamos una celda o div que contenga el label exacto
-                const labelElement = reportFrame.locator(`span:text-is("${labelText}"), label:text-is("${labelText}")`).first();
+                // Buscamos cualquier elemento que contenga exactamente el texto, priorizando elementos hijos
+                const labelElement = reportFrame.locator(`text="${labelText}"`).last();
                 if (await labelElement.count() === 0) {
-                    console.log(c.amarillo(`    ⚠️ No se encontró el campo con etiqueta "${labelText}"`));
-                    return;
+                    console.log(c.amarillo(`    ⚠️ No se encontró la etiqueta exacta "${labelText}". Intentando con has-text...`));
+                    const fallbackElement = reportFrame.locator(`:text-is("${labelText}")`).first();
+                    if (await fallbackElement.count() === 0) {
+                        return false; // Indica fallo
+                    }
                 }
                 
-                // Normalmente en SSRS, el select está en el mismo <tr> o en la celda adyacente,
-                // vamos a buscar el select más cercano que pertenezca a la misma fila o contenedor
-                const selectElement = labelElement.locator('xpath=ancestor::tr[1]//select').first();
+                // Normalmente en SSRS, el select está en la celda contigua del mismo <tr>
+                const activeLabel = (await labelElement.count() > 0) ? labelElement : reportFrame.locator(`:text-is("${labelText}")`).first();
+                const selectElement = activeLabel.locator('xpath=ancestor::tr[1]//select').first();
                 
                 if (await selectElement.count() === 0) {
-                    console.log(c.amarillo(`    ⚠️ Se encontró el label "${labelText}" pero no su dropdown`));
-                    return;
+                    console.log(c.amarillo(`    ⚠️ Se encontró el texto "${labelText}" pero no hay un <select> en su fila`));
+                    return false;
                 }
 
                 await selectElement.waitFor({ state: 'visible', timeout: 5000 });
@@ -247,10 +250,11 @@ async function main() {
                     await selectElement.selectOption({ label: valueOrText });
                 }
                 
-                // Esperar a que SSRS haga el postback y desbloquee el resto de selects
                 await mainPage.waitForTimeout(2000); 
+                return true;
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar "${labelText}": ${e.message}`));
+                return false;
             }
         };
 
@@ -432,7 +436,18 @@ async function main() {
                 } else if (opcionReporte === 4) {
                     // "Unidades de servicio" usando el helper robusto basado en texto de las imágenes
                     console.log('    👉 Llenando filtros de Unidades de servicio...');
-                    await seleccionarSSRSByLabel('Tipo Unidad', 'Unidad de Servicio');
+                    
+                    // Si el primer intento falla, sacamos un volcado HTML para poder debuggear los IDs.
+                    const exito = await seleccionarSSRSByLabel('Tipo Unidad', 'Unidad de Servicio');
+                    if (!exito) {
+                        const html = await reportFrame.locator('body').innerHTML();
+                        const fs = require('fs');
+                        const path = require('path');
+                        fs.writeFileSync(path.join(__dirname, '..', 'reportes', 'debug_unidades_ssrs.html'), html);
+                        console.log(c.amarillo('\n    ⚠️ He guardado el HTML del formulario en reportes/debug_unidades_ssrs.html'));
+                        console.log(c.amarillo('    Por favor envíaselo a la IA (o avísale) para que lea los IDs exactos.'));
+                    }
+
                     await seleccionarSSRSByLabel('Dirección ICBF *', 'Dirección de Primera Infancia');
                     await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato);
                     await seleccionarSSRSByLabel('Regional UDS', 'Bogota D.C.');
