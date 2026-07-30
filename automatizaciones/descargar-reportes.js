@@ -258,11 +258,14 @@ async function main() {
                         const options = await selectElement.locator('option').all();
                         let foundValue = null;
                         const availableTexts = [];
+                        const valBuscado = valueOrText.toUpperCase().replace(/\s+/g, ' ').trim();
+                        
                         for (const opt of options) {
                             const text = await opt.textContent();
                             if (text) {
-                                availableTexts.push(text.trim());
-                                if (text.toUpperCase().includes(valueOrText.toUpperCase())) {
+                                const cleanText = text.replace(/\s+/g, ' ').trim();
+                                availableTexts.push(cleanText);
+                                if (cleanText.toUpperCase().includes(valBuscado)) {
                                     foundValue = await opt.getAttribute('value');
                                     break;
                                 }
@@ -445,7 +448,7 @@ async function main() {
             try {
                 if (opcionReporte === 3) {
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', '2024'); 
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', asc.numeroContrato);
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
@@ -469,9 +472,9 @@ async function main() {
 
                     await seleccionarSSRSByLabel('Dirección ICBF *', 'Dirección de Primera Infancia');
                     await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato);
-                    await seleccionarSSRSByLabel('Regional UDS', 'Bogota D.C');
+                    await seleccionarSSRSByLabel('Regional UDS', 'Bogota D.C.');
                     await seleccionarSSRSByLabel('Centro Zonal de la UDS', 'CZ USAQUEN');
-                    await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C');
+                    await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
                     await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
                     
                     await seleccionarSSRSByLabel('Estado UDS', 'Activo');
