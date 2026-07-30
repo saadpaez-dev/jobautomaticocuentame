@@ -235,12 +235,17 @@ async function main() {
                 // Normalmente es el TD más interno, así que tomamos el último.
                 const lastTd = tdElements.last();
                 
-                // El select suele estar dentro de este mismo TD, o en el siguiente TD (following-sibling)
+                // El select suele estar dentro de este mismo TD
                 let selectElement = lastTd.locator('select').first();
                 
                 if (await selectElement.count() === 0) {
-                    // Si no está adentro, buscamos en la misma fila (tr)
-                    selectElement = lastTd.locator('xpath=ancestor::tr[1]//select').first();
+                    // Si no está adentro, buscamos en el TD adyacente (derecha)
+                    selectElement = lastTd.locator('xpath=following-sibling::td[1]//select').first();
+                }
+                
+                if (await selectElement.count() === 0) {
+                    // A veces hay un TD intermedio para espaciado, probamos el segundo adyacente
+                    selectElement = lastTd.locator('xpath=following-sibling::td[2]//select').first();
                 }
                 
                 if (await selectElement.count() === 0) {
