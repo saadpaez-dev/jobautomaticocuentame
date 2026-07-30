@@ -245,11 +245,85 @@ async function main() {
           // A veces el postback no cierra la ventana inmediatamente si no hay resultados
       }
       
-      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema debería tener la UDS cargada en la pantalla principal.`));
-      console.log(c.amarillo(`  ⏸️  El script se detendrá ahora para que puedas revisar la pantalla en el navegador.`));
-      console.log(c.amarillo(`  (Cierra el script con Ctrl+C cuando estés listo para continuar con la Fase 2)`));
+      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema tiene la UDS cargada y la grilla de niños visible.`));
       
-      break;
+      // =========================================================================
+      // FASE 2: SELECCIÓN DE NIÑO EN LA GRILLA
+      // =========================================================================
+      
+      // Esperamos a que la grilla de niños termine de cargar en la página principal
+      await page.waitForTimeout(3000);
+      
+      while (true) {
+          console.log(c.cyan('\n------------------------------------------------------'));
+          console.log(c.cyan('  📋 SELECCIÓN DE BENEFICIARIO (NIÑO)'));
+          console.log(c.cyan('------------------------------------------------------'));
+          console.log(c.amarillo('  [0] Salir y volver a seleccionar UDS'));
+          const documento = readline.question(c.negrita('\n  > Escribe el número de documento del niño: '));
+
+          if (documento.trim() === '0') {
+              break; // Rompe este bucle y vuelve al bucle principal de UDS/Asociación
+          }
+          if (documento.trim() === '') {
+              continue;
+          }
+
+          console.log(c.gris(`  Buscando beneficiario con documento: ${documento}...`));
+          
+          // Refrescar rootContent por si acaso
+          let currentContentFrame = page.frame({ name: 'frameContent' });
+          if (!currentContentFrame) {
+              for (const f of page.frames()) {
+                  if (f.name() === 'frameContent') {
+                      currentContentFrame = f;
+                      break;
+                  }
+              }
+          }
+          const content = currentContentFrame || page;
+
+          try {
+              // Buscar en la tabla principal (asumiendo id similar a cphCont_GvBusquedaBeneficiario o GvSeguimientoNutricional)
+              // Buscamos cualquier celda (td) que contenga exactamente el documento
+              const filaBeneficiario = content.locator(`tr:has(td:text-is("${documento.trim()}"))`).first();
+              
+              if (await filaBeneficiario.count() === 0) {
+                  console.log(c.rojo(`  ❌ No se encontró ningún niño con el documento ${documento} en la grilla.`));
+                  continue;
+              }
+
+              // Si encontramos la fila, hacemos clic en su botón azul de información
+              console.log(c.verde(`  ✅ Niño encontrado. Accediendo a su formulario de peso y talla...`));
+              const btnDetalleNino = filaBeneficiario.locator('input[type="image"][src*="info.jpg"], input[id*="btnInfo"]').first();
+              
+              if (await btnDetalleNino.count() === 0) {
+                  console.log(c.rojo(`  ❌ Se encontró el niño, pero no tiene botón de detalle (lupa azul).`));
+                  continue;
+              }
+              
+              // Al hacer clic, probablemente cargue otra pantalla dentro del frame
+              await Promise.all([
+                  content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                  btnDetalleNino.evaluate(node => node.click())
+              ]);
+
+              console.log(c.verde(`  ✅ Formulario abierto exitosamente.`));
+              console.log(c.amarillo(`  ⏸️  El script se detendrá aquí por ahora. Verifica la pantalla de peso/talla.`));
+              
+              // Bucle infinito temporal para no cerrar el navegador y poder inspeccionar
+              while (true) {
+                  const resp = readline.question(c.negrita('\n  > Escribe "salir" para volver a buscar otro niño: '));
+                  if (resp.toLowerCase() === 'salir') break;
+              }
+              
+              // Si tuviéramos que volver a la grilla de niños, normalmente hay un botón "Volver"
+              // Por ahora, solo simularemos regresar para el test
+              console.log(c.amarillo('  🔄 Regresando a la grilla (simulado)...'));
+
+          } catch (err) {
+              console.log(c.rojo(`  ❌ Error al buscar/seleccionar el niño: ${err.message}`));
+          }
+      }
     }
   } catch (err) {
     console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
