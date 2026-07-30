@@ -327,28 +327,38 @@ async function main() {
               });
           }
 
-          console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS:`));
-          listaNinos.forEach((n, idx) => {
-              console.log(`  ${idx + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto} (Tomas: ${c.amarillo(n.tomas)})`);
-          });
-
-          console.log(c.amarillo('\n  [0] Salir y volver a seleccionar UDS'));
-          const input = readline.question(c.negrita('  > Ingresa el numero de la lista (ej. 1), o escribe texto para buscar: '));
+          console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS.`));
+          console.log(c.amarillo('\n  ¿Sabes como se llama o identifica el beneficiario?'));
+          console.log(c.gris('  (Escribe su nombre/documento, o presiona Enter para ver la lista de todos)'));
+          
+          let input = readline.question(c.negrita('  > Buscar (o 0 para salir): '));
 
           if (input.trim() === '0') {
               break;
           }
-          if (input.trim() === '') {
-              continue;
-          }
 
           let ninoSeleccionado = null;
+          
+          if (input.trim() === '') {
+              // Mostrar lista completa
+              listaNinos.forEach((n, idx) => {
+                  console.log(`  ${idx + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto} (Tomas: ${c.amarillo(n.tomas)})`);
+              });
+              console.log(c.amarillo('\n  [0] Salir y volver a seleccionar UDS'));
+              input = readline.question(c.negrita('  > Ingresa el numero de la lista (ej. 1): '));
+              
+              if (input.trim() === '0') break;
+              if (input.trim() === '') continue;
+          }
+          
+          // Intentar parsear como numero de la lista SI input es solo digitos y corto
+          const isNum = /^\d+$/.test(input.trim()) && input.trim().length <= 3;
           const numParsed = parseInt(input.trim(), 10);
           
-          if (!isNaN(numParsed) && numParsed > 0 && numParsed <= listaNinos.length) {
+          if (isNum && !isNaN(numParsed) && numParsed > 0 && numParsed <= listaNinos.length) {
               ninoSeleccionado = listaNinos[numParsed - 1];
           } else {
-              // Buscar por texto
+              // Buscar por texto (Fast Track)
               const busqueda = input.trim().toLowerCase();
               const resultados = listaNinos.filter(n => 
                   n.documento.includes(busqueda) || 
@@ -358,8 +368,17 @@ async function main() {
               if (resultados.length === 1) {
                   ninoSeleccionado = resultados[0];
               } else if (resultados.length > 1) {
-                  console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias. Por favor se mas especifico o usa el numero de la lista.`));
-                  continue;
+                  console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para "${input}":`));
+                  resultados.forEach(n => {
+                      console.log(`  ${n.index + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto}`);
+                  });
+                  const res = readline.question(c.negrita('  > Ingresa el numero de la lista para seleccionar uno: '));
+                  const nP = parseInt(res.trim(), 10);
+                  if (!isNaN(nP) && nP > 0 && nP <= listaNinos.length) {
+                      ninoSeleccionado = listaNinos[nP - 1];
+                  } else {
+                      continue;
+                  }
               }
           }
 
