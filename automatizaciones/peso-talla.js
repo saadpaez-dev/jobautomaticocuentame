@@ -97,6 +97,35 @@ async function main() {
 
       const jardinSeleccionado = jardines[idxJardin - 1];
 
+      let preFiltroBeneficiario = null;
+      let accionRapida = null;
+
+      console.log(c.cyan('\n------------------------------------------------------'));
+      console.log(c.cyan('  📋 BUSQUEDA RAPIDA DE BENEFICIARIO (OPCIONAL)'));
+      console.log(c.cyan('------------------------------------------------------'));
+      console.log(c.amarillo('  ¿Sabes como se llama o identifica el beneficiario al que vas a agregar/editar?'));
+      console.log('  1. Si (Busqueda automatica)');
+      console.log('  2. No, continuar (Seleccion manual en la grilla)');
+      
+      const respBenef = readline.question(c.negrita('\n  > Selecciona una opcion (1 o 2): '));
+      if (respBenef.trim() === '1') {
+          preFiltroBeneficiario = readline.question(c.negrita('  > Ingresa el nombre o documento (ej. LIAM): ')).trim().toLowerCase();
+          
+          if (preFiltroBeneficiario) {
+              console.log(c.amarillo('\n  ¿Que deseas hacer con este beneficiario?'));
+              console.log('  1. Agregar una NUEVA toma (+)');
+              console.log('  2. EDITAR una toma existente');
+              const respAccion = readline.question(c.negrita('  > Selecciona (1 o 2): '));
+              if (respAccion.trim() === '1' || respAccion.trim() === '2') {
+                  accionRapida = respAccion.trim();
+                  console.log(c.verde('  ✅ Perfecto, el script hara la seleccion automaticamente una vez llegue a la UDS.'));
+              } else {
+                  console.log(c.rojo('  ❌ Opcion invalida. Se cancela el atajo, seleccion manual.'));
+                  preFiltroBeneficiario = null;
+              }
+          }
+      }
+
       // Lanzar navegador e iniciar sesión SOLO si no se ha hecho
       if (!browser) {
           console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesion...\n'));
@@ -328,10 +357,15 @@ async function main() {
           }
 
           console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS.`));
-          console.log(c.amarillo('\n  ¿Sabes como se llama o identifica el beneficiario?'));
-          console.log(c.gris('  (Escribe su nombre/documento, o presiona Enter para ver la lista de todos)'));
-          
-          let input = readline.question(c.negrita('  > Buscar (o 0 para salir): '));
+          let input = '';
+          if (preFiltroBeneficiario) {
+              console.log(c.verde(`  ✨ Autocompletando busqueda con: "${preFiltroBeneficiario}"`));
+              input = preFiltroBeneficiario;
+          } else {
+              console.log(c.amarillo('\n  ¿Sabes como se llama o identifica el beneficiario?'));
+              console.log(c.gris('  (Escribe su nombre/documento, o presiona Enter para ver la lista de todos)'));
+              input = readline.question(c.negrita('  > Buscar (o 0 para salir): '));
+          }
 
           if (input.trim() === '0') {
               break;
@@ -368,7 +402,13 @@ async function main() {
               if (resultados.length === 1) {
                   ninoSeleccionado = resultados[0];
               } else if (resultados.length > 1) {
-                  console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para "${input}":`));
+                  if (preFiltroBeneficiario) {
+                      console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para la busqueda automatica "${input}".`));
+                      preFiltroBeneficiario = null; // Quitar el auto-filtro para que el usuario pueda seleccionar manualmente
+                  } else {
+                      console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para "${input}":`));
+                  }
+                  
                   resultados.forEach(n => {
                       console.log(`  ${n.index + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto}`);
                   });
@@ -384,6 +424,7 @@ async function main() {
 
           if (!ninoSeleccionado) {
               console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${input}".`));
+              preFiltroBeneficiario = null; // Reset para evitar bucle
               continue;
           }
 
@@ -456,12 +497,19 @@ async function main() {
                           console.log(`  ${idx + 1}. Fecha Toma: ${c.cyan(toma.fechaToma)} | Peso: ${toma.peso}kg | Talla: ${toma.talla}cm`);
                       });
 
-                      console.log(c.amarillo('\n  ¿Que accion deseas realizar?'));
-                      console.log(`  [1] Agregar una NUEVA toma (+)`);
-                      console.log(`  [2] EDITAR una toma existente`);
-                      console.log(`  [0] Atras (Volver a consulta de ninos)`);
-                      
-                      const accion = readline.question(c.negrita('\n  > Selecciona una accion (1/2/0): '));
+                      let accion = '';
+                      if (accionRapida) {
+                          console.log(c.verde(`  ✨ Ejecutando accion automatica: ${accionRapida === '1' ? 'NUEVO' : 'EDITAR'}`));
+                          accion = accionRapida;
+                          accionRapida = null; // Quitar atajo para no hacer bucle si regresamos
+                          preFiltroBeneficiario = null;
+                      } else {
+                          console.log(c.amarillo('\n  ¿Que accion deseas realizar?'));
+                          console.log(`  [1] Agregar una NUEVA toma (+)`);
+                          console.log(`  [2] EDITAR una toma existente`);
+                          console.log(`  [0] Atras (Volver a consulta de ninos)`);
+                          accion = readline.question(c.negrita('\n  > Selecciona una accion (1/2/0): '));
+                      }
 
                       if (accion.trim() === '0') {
                           console.log(c.amarillo('  ⏳ Volviendo a la consulta de ninos...'));
