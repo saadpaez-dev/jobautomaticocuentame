@@ -295,20 +295,27 @@ async function main() {
                                 const nodemailer = require('nodemailer');
                                 const MailComposer = require('nodemailer/lib/mail-composer');
                                 
-                                const cuerpoCorreo = `Nit:                                                                 ${ascSeleccionada.nit || ''}
-Nombre del EAS que requiere el ajuste:   ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}
-Número de Contrato:                                 ${ascSeleccionada.numeroContrato || ''}
-Nombre de la persona que pone el caso: SAAD PAEZ
-Número de Identificación:                           1020722462
-Número de contacto:                                   3202002073
-Área Misional si aplica:                               Primera Infancia
-Regional y Centro Zonal:                             BOGOTÁ, CZ USAQUEN
-`;
+                                const cuerpoCorreoHtml = `<p>
+<b>Nit:</b> ${ascSeleccionada.nit || ''}<br>
+<b>Nombre del EAS que requiere el ajuste:</b> ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}<br>
+<b>Número de Contrato:</b> ${ascSeleccionada.numeroContrato || ''}<br>
+<b>Nombre de la persona que pone el caso:</b> SAAD PAEZ<br>
+<b>Número de Identificación:</b> 1020722462<br>
+<b>Número de contacto:</b> 3202002073<br>
+<b>Área Misional si aplica:</b> Primera Infancia<br>
+<b>Regional y Centro Zonal:</b> BOGOTÁ, CZ USAQUEN
+</p>
+<p>
+<i>Atte</i><br><br>
+<i>SAAD PAEZ</i><br>
+<i>Tel: 3202002073</i>
+</p>`;
+
                                 const mail = new MailComposer({
                                     from: 'SAAD PAEZ',
                                     to: 'Mis.Aplicaciones@icbf.gov.co',
                                     subject: 'Desvinculacion Primera Infacia',
-                                    text: cuerpoCorreo,
+                                    html: cuerpoCorreoHtml,
                                     attachments: [
                                         {
                                             filename: 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx',
