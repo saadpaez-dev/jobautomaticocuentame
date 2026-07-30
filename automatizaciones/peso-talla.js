@@ -225,13 +225,27 @@ async function main() {
       console.log(c.cyan('  🔍 Haciendo clic en buscar/aceptar dentro de la Lupa...'));
       await popup.locator('input[type="image"][id*="btnBuscar"], input[name*="btnBuscar"], a[id*="btnBuscar"]').first().click();
 
-      console.log(c.amarillo('  ⏳ Esperando a que el sistema procese y cierre la Lupa...'));
+      console.log(c.amarillo('  ⏳ Esperando a que el sistema procese la búsqueda...'));
+      
+      try {
+          // Esperar a que la tabla de resultados (grid) se cargue y el botón de info aparezca
+          const btnInfo = popup.locator('input[type="image"][id*="btnInfo"], input[src*="info.jpg"]').first();
+          await btnInfo.waitFor({ state: 'visible', timeout: 15000 });
+          
+          console.log(c.verde('  ✅ Resultado encontrado. Seleccionando la UDS...'));
+          await btnInfo.click();
+      } catch (err) {
+          console.log(c.rojo(`  ❌ Error: No se encontraron resultados o el botón de info no apareció.`));
+      }
+
+      console.log(c.amarillo('  ⏳ Esperando a que el popup se cierre y transfiera la UDS...'));
       try {
           await popup.waitForEvent('close', { timeout: 10000 });
       } catch (e) {
+          // A veces el postback no cierra la ventana inmediatamente si no hay resultados
       }
       
-      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema debería tener la UDS cargada.`));
+      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema debería tener la UDS cargada en la pantalla principal.`));
       console.log(c.amarillo(`  ⏸️  El script se detendrá ahora para que puedas revisar la pantalla en el navegador.`));
       console.log(c.amarillo(`  (Cierra el script con Ctrl+C cuando estés listo para continuar con la Fase 2)`));
       
