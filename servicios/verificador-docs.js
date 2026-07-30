@@ -3,7 +3,16 @@ const path = require('path');
 const { PDFDocument } = require('pdf-lib');
 const pdfParse = require('pdf-parse');
 const Tesseract = require('tesseract.js');
-const c = require('picocolors');
+
+const c = {
+  verde:    (t) => `\x1b[32m${t}\x1b[0m`,
+  amarillo: (t) => `\x1b[33m${t}\x1b[0m`,
+  cyan:     (t) => `\x1b[36m${t}\x1b[0m`,
+  rojo:     (t) => `\x1b[31m${t}\x1b[0m`,
+  gris:     (t) => `\x1b[90m${t}\x1b[0m`,
+  negrita:  (t) => `\x1b[1m${t}\x1b[0m`,
+  gray:     (t) => `\x1b[90m${t}\x1b[0m`
+};
 
 /**
  * Normaliza y clasifica documentos de una carpeta de entrada y genera los 3 PDFs requeridos
