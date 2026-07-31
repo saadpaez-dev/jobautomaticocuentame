@@ -158,10 +158,13 @@ async function llenarFormularioNutricion(browser, content, datos) {
         console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
 
         // Llenar TODOS los campos dinámicos (Inputs, Radios, Selects) de manera unificada y ultra robusta
-        await content.evaluate((d) => {
-            const allElements = Array.from(document.querySelectorAll('label, span, td, div, p, th')).reverse();
+        await content.evaluate(async (d) => {
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
             
             function getFields(labelText, selector) {
+                // Buscamos el elemento fresco en cada llamada, porque algunos aparecen dinámicamente
+                const allElements = Array.from(document.querySelectorAll('label, span, td, div, p, th')).reverse();
+                
                 // Buscamos el elemento más profundo que contiene el texto
                 // Limpiamos los saltos de línea para facilitar el includes
                 const el = allElements.find(e => 
@@ -251,12 +254,6 @@ async function llenarFormularioNutricion(browser, content, datos) {
 
             // --- EJECUCIÓN ---
 
-            // 1. Inputs de texto
-            fillText('Peso (En Kilogramos)', d.peso);
-            fillText('Talla (En Cent', d.talla);
-            fillText('Perimetro Braquial', d.perimetro);
-            fillText('esquema de vacunación', d.fecha);
-
             // Inputs de fecha por fuerza bruta (por si están en otro formato)
             if (d.fecha) {
                 const dateInputs = document.querySelectorAll('input[type="text"]');
@@ -269,15 +266,32 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 });
             }
 
-            // 2. Radios
+            // 1. Inputs de texto (pueden ser llenados en cualquier momento, pero mejor con retardo)
+            fillText('Peso (En Kilogramos)', d.peso);
+            await delay(100);
+            fillText('Talla (En Cent', d.talla);
+            await delay(100);
+            fillText('Perimetro Braquial', d.perimetro);
+            await delay(100);
+            fillText('esquema de vacunación', d.fecha);
+            await delay(100);
+
+            // 2. Radios en cadena (es fundamental esperar para que se muestre o habilite el siguiente)
             fillRadio('beneficiario cuenta con el carnet de vacunación', 'Sí', 0);
+            await delay(500); // 0.5s para que se habilite el siguiente
+
             fillRadio('dosis que corresponden a la edad', 'Sí', 0);
+            await delay(500);
+
             fillRadio('carnet de crecimiento y desarrollo', 'Sí', 0);
+            await delay(500);
+
+            // 3. Selects y Radios independientes
+            fillSelect('controles de crecimiento y desarrollo', '1');
+            await delay(200);
+
             fillRadio('Antecedente de prematurez', 'No', 1);
             fillRadio('mujer gestante atendida en alguno de los servicios', 'No', 1);
-
-            // 3. Selects
-            fillSelect('controles de crecimiento y desarrollo', '1');
             fillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
             const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
