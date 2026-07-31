@@ -94,116 +94,65 @@ async function llenarFormularioNutricion(browser, content, datos) {
         if (datos.documentoPrevio) numDoc = datos.documentoPrevio;
     }
     
-    let eps = '';
-    let regimen = '';
-    
-    // 2. Consulta ADRES
-    if (numDoc) {
-        console.log(c.cyan('\n  🌐 Abriendo ADRES para consultar EPS...'));
-        const context = browser.contexts()[0];
-        const adresPage = await context.newPage();
-        
-        try {
-            await adresPage.goto('https://www.adres.gov.co/consulte-su-eps', { waitUntil: 'networkidle' });
-            
-            // ADRES usa un iframe para el formulario
-            const iframeLocator = adresPage.frameLocator('iframe');
-            
-            // Esperamos que el iframe cargue y aparezca el campo de documento
-            const selectTipo = iframeLocator.locator('select').first();
-            await selectTipo.waitFor({ state: 'attached', timeout: 15000 }).catch(()=>{});
-            
-            // Intentamos seleccionar el tipo buscando por id o title
-            const selectTipoEspecifico = iframeLocator.locator('select[id*="TipoDocumento"], select[title*="Tipo"]');
-            if (await selectTipoEspecifico.count() > 0) {
-                // RC
-                await selectTipoEspecifico.selectOption({ value: 'RC' }).catch(()=>{});
-            }
-            
-            const inputNum = iframeLocator.locator('input[id*="txtNumDocumento"], input[title*="Documento"]');
-            if (await inputNum.count() > 0) {
-                await inputNum.fill(numDoc);
-            }
-
-            console.log(c.amarillo('\n  ⏸️  PAUSA EN ADRES'));
-            console.log(c.amarillo('  Se han llenado los datos. Por favor, ve a la pestana de ADRES,'));
-            console.log(c.amarillo('  resuelve el CAPTCHA de "No soy un robot" y haz clic en "Consultar".'));
-            console.log(c.amarillo('  (Si el Captcha sale en blanco o falla, prueba desactivando los escudos de Brave)'));
-            
-            readline.question(c.negrita('  > Cuando veas la tabla de resultados en ADRES, presiona Enter aqui para continuar... '));
-            
-            console.log(c.amarillo('  ⏳ Extrayendo resultados de ADRES...'));
-            
-            // Extracción cruda de texto de tabla desde el iframe
-            const cells = await iframeLocator.locator('td, span').allInnerTexts();
-            const regimenIndex = cells.findIndex(c => c.trim().toUpperCase() === 'SUBSIDIADO' || c.trim().toUpperCase() === 'CONTRIBUTIVO');
-            if (regimenIndex >= 0) {
-                regimen = cells[regimenIndex].trim();
-                console.log(c.verde(`  ✅ Regimen detectado: ${regimen}`));
-            } else {
-                console.log(c.rojo('  ❌ No se detecto Regimen en ADRES.'));
-                regimen = readline.question(c.negrita('  > Por favor, ingresa el Regimen manualmente (Ej: Subsidiado o Contributivo): '));
-            }
-
-            const epsIndex = cells.findIndex(c => c.trim().toUpperCase() === 'ENTIDAD' || c.trim().toUpperCase() === 'EPS');
-            if (epsIndex >= 0 && epsIndex + 1 < cells.length) {
-                eps = cells[epsIndex + 1].trim();
-                console.log(c.verde(`  ✅ EPS detectada: ${eps}`));
-            } else {
-                console.log(c.rojo('  ❌ No se detecto EPS en ADRES.'));
-                eps = readline.question(c.negrita('  > Por favor, ingresa la EPS manualmente (Ej: Capital Salud): '));
-            }
-            
-        } catch (e) {
-            console.log(c.rojo(`  ❌ Error consultando ADRES: ${e.message}`));
-        } finally {
-            console.log(c.gris('  Cerrando pestana de ADRES...'));
-            await adresPage.close();
-            // Volver a Cuéntame (la pestaña anterior)
-            const pages = browser.contexts()[0].pages();
-            if (pages.length > 0) {
-                await pages[0].bringToFront().catch(() => {});
-            }
-        }
-    }
-    
     // 3. Llenar Cuéntame
     console.log(c.cyan('\n  ✍️  Llenando formulario en Cuentame...'));
     
     try {
-        if (regimen) {
-            let opcionRegimen = 'Seleccione';
-            if (regimen.toUpperCase().includes('CONTRIBUTIVO')) opcionRegimen = 'AFILIADO REGIMEN CONTRIBUTIVO';
-            if (regimen.toUpperCase().includes('SUBSIDIADO')) opcionRegimen = 'AFILIADO REGIMEN SUBSIDIADO';
-            
-            const selects = await content.locator('select').all();
-            for (const s of selects) {
-                const text = await s.innerText();
-                if (text.includes('AFILIADO REGIMEN CONTRIBUTIVO')) {
-                    await s.selectOption({ label: opcionRegimen }).catch(()=>{});
-                    break;
-                }
+        await content.waitForSelector('select', { state: 'attached', timeout: 10000 }).catch(()=>{});
+        const selectsIniciales = await content.locator('select').all();
+        
+        let selectRegimen;
+        let regimenOptions = [];
+        for (const s of selectsIniciales) {
+            const text = await s.innerText();
+            if (text.includes('SUBSIDIADO') && text.includes('CONTRIBUTIVO')) {
+                selectRegimen = s;
+                regimenOptions = await s.locator('option').allInnerTexts();
+                break;
             }
         }
-        
-        await content.waitForTimeout(1000); // Esperar a que cargue EPS
-        
-        if (eps) {
-            const selects = await content.locator('select').all();
-            for (const s of selects) {
-                const text = await s.innerText();
-                if (text.includes('CAPITAL SALUD') || text.includes('COMPENSAR')) {
-                    const options = await s.locator('option').allInnerTexts();
-                    // Buscar coincidencia parcial (ej. CAPITAL SALUD)
-                    const searchStr = eps.substring(0, 7).toUpperCase();
-                    const epsMatch = options.find(o => o.toUpperCase().includes(searchStr));
-                    if (epsMatch) {
-                        await s.selectOption({ label: epsMatch }).catch(()=>{});
-                        console.log(c.verde(`  ✅ EPS Seleccionada en Cuentame: ${epsMatch}`));
-                    }
-                    break;
-                }
+
+        if (selectRegimen && regimenOptions.length > 0) {
+            const validOptions = regimenOptions.filter(o => o.trim() !== 'Seleccione' && o.trim() !== '');
+            console.log(c.amarillo('\n  📋 Selecciona el Regimen de Salud en Cuentame:'));
+            validOptions.forEach((opt, idx) => console.log(`  ${idx + 1}. ${opt.trim()}`));
+            const idxStr = readline.question(c.negrita('  > Ingresa el numero de la opcion: '));
+            const idx = parseInt(idxStr) - 1;
+            if (idx >= 0 && idx < validOptions.length) {
+                const regimenElegido = validOptions[idx].trim();
+                await selectRegimen.selectOption({ label: regimenElegido }).catch(()=>{});
+                console.log(c.verde(`  ✅ Regimen seleccionado: ${regimenElegido}`));
             }
+        } else {
+            console.log(c.rojo('  ❌ No se encontro el campo de Regimen en el formulario.'));
+        }
+        
+        await content.waitForTimeout(1000); // Esperar a que carguen las EPS
+        
+        const selectsEps = await content.locator('select').all();
+        let selectEps;
+        for (const s of selectsEps) {
+            const text = await s.innerText();
+            if (text.includes('CAPITAL SALUD') || text.includes('COMPENSAR')) {
+                selectEps = s;
+                break;
+            }
+        }
+
+        if (selectEps) {
+            console.log(c.amarillo('\n  🏥 Busqueda de EPS:'));
+            const epsSearch = readline.question(c.negrita('  > Escribe el nombre o parte del nombre de la EPS (ej. "Compensar"): '));
+            const epsOptions = await selectEps.locator('option').allInnerTexts();
+            const epsMatch = epsOptions.find(o => o.toUpperCase().includes(epsSearch.toUpperCase().trim()));
+            
+            if (epsMatch) {
+                await selectEps.selectOption({ label: epsMatch }).catch(()=>{});
+                console.log(c.verde(`  ✅ EPS seleccionada en Cuentame: ${epsMatch}`));
+            } else {
+                console.log(c.rojo(`  ❌ No se encontro ninguna EPS que coincida con "${epsSearch}"`));
+            }
+        } else {
+            console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
         }
         
         // Radios: Vacunación y Crecimiento
