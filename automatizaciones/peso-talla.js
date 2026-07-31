@@ -133,7 +133,7 @@ async function main() {
           browser = await chromium.launch({
             headless: false,
             slowMo: 100,
-            args: ['--start-maximized'],
+            args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
             executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
           });
           context = await browser.newContext({ viewport: null });
