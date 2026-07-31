@@ -815,13 +815,40 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
             }
             await workPage.waitForTimeout(2000);
             console.log(c.verde('    ✅ Guardado exitoso.'));
-            
             // Cuando guarda, normalmente la página vuelve al modo solo lectura.
-            // Rompemos el ciclo para que el usuario pueda volver a buscar la UDS o salir
+            // Recargamos los filtros para que pueda seleccionar otro jardín correctamente
+            console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
+            await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+            await workPage.waitForTimeout(1000);
+            contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
+            
+            // Volver a llenar los filtros base
+            await selectDropdown('Direcciones', 'Primera Infancia');
+            await selectDropdown('Regional', 'Bogota');
+            await selectDropdown('Centro', 'USAQUEN');
+            await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
+            await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
+            await selectDropdown('Mes', mesAtencion);
+            await selectDropdown('Estado', 'Todos');
+            
             break;
         } else {
             // Cancelar
             console.log(c.rojo('    ❌ Cancelando cambios y saliendo de este jardín...'));
+            
+            console.log(c.gris('    🔄 Recargando página para restaurar el estado original...'));
+            await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+            await workPage.waitForTimeout(1000);
+            contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
+            
+            await selectDropdown('Direcciones', 'Primera Infancia');
+            await selectDropdown('Regional', 'Bogota');
+            await selectDropdown('Centro', 'USAQUEN');
+            await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
+            await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
+            await selectDropdown('Mes', mesAtencion);
+            await selectDropdown('Estado', 'Todos');
+
             break;
         }
     }
