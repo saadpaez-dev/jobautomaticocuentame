@@ -242,12 +242,13 @@ async function llenarFormularioNutricion(browser, content, datos) {
         // Fecha, Peso, Talla, Perimetro
         if (datos.fecha || datos.peso || datos.talla || datos.perimetro) {
             await content.evaluate((d) => {
-                const allElements = Array.from(document.querySelectorAll('*'));
+                // Buscamos de abajo hacia arriba (nodos más profundos primero)
+                const allElements = Array.from(document.querySelectorAll('*')).reverse();
                 
                 function setInputValueByLabelText(labelText, value) {
                     if (!value) return;
                     const el = allElements.find(e => e.innerText && e.innerText.includes(labelText));
-                    if (el) {
+                    if (el && el.parentElement) {
                         let parentNext = el.parentElement.nextElementSibling;
                         if (parentNext) {
                             const input = parentNext.querySelector('input[type="text"]');
@@ -265,12 +266,14 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 setInputValueByLabelText('Peso (En Kilogramos)', d.peso);
                 setInputValueByLabelText('Talla (En Cent', d.talla);
                 setInputValueByLabelText('Perimetro Braquial', d.perimetro);
+                setInputValueByLabelText('esquema de vacunación', d.fecha); // Llenar explícitamente la fecha de vacunación
                 
-                // Llenar inputs de fecha (suelen ser 2)
+                // Llenar otros inputs de fecha (como Fecha de registro datos salud)
                 if (d.fecha) {
                     const dateInputs = document.querySelectorAll('input[type="text"]');
                     dateInputs.forEach(inp => {
                         if (inp.outerHTML.includes('Date') || inp.outerHTML.includes('fecha') || inp.id.toLowerCase().includes('fecha')) {
+                            // Para no sobreescribir si ya lo llenó otra lógica, o asegurarnos
                             inp.value = d.fecha;
                             inp.dispatchEvent(new Event('input', { bubbles: true }));
                             inp.dispatchEvent(new Event('change', { bubbles: true }));
