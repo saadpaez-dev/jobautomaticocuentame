@@ -795,35 +795,34 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         const accionStr = marcarAsistencia ? 'asistencias marcadas' : 'inasistencias registradas (desmarcadas)';
         console.log(c.verde(`    ✔️ Se aplicaron ${modificados} cambios (${accionStr}).`));
 
-        console.log('    💾 Guardando asistencia...');
-        const discoNuevo = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
-        if (await discoNuevo.count() > 0 && await discoNuevo.isVisible()) {
-            await discoNuevo.click();
-        } else {
-             const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
-             if (await genericSave2.count() > 0) await genericSave2.click();
-        }
-        await workPage.waitForTimeout(2000);
-        console.log(c.verde('    ✅ Guardado exitoso.'));
+        // PREGUNTAR AL USUARIO QUÉ HACER
+        const opcionesFin = ['Continuar con OTRO niño (Sin guardar aún)', 'Guardar todos los cambios', 'Cancelar cambios y salir'];
+        const finIdx = readline.keyInSelect(opcionesFin, c.negrita(`  > Que desea hacer ahora?`), { cancel: false });
 
-        console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
-        await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
-        await workPage.waitForTimeout(1000);
-        contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
-        
-        // Volver a llenar los filtros
-        await selectDropdown('Direcciones', 'Primera Infancia');
-        await selectDropdown('Regional', 'Bogota');
-        await selectDropdown('Centro', 'USAQUEN');
-        await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
-        await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
-        await selectDropdown('Mes', mesAtencion);
-        await selectDropdown('Estado', 'Todos');
-        
-        const servicioLocator2 = contentFrame.locator(`select[id*="Servicio"]`).first();
-        if (await servicioLocator2.count() > 0) {
-            await servicioLocator2.selectOption(elegida.servicio.value, { timeout: 5000 });
-            await workPage.waitForTimeout(1000);
+        if (finIdx === 0) {
+            // Continuar con otro niño sin guardar
+            console.log(c.amarillo('    👉 Los cambios están en pantalla. Selecciona el siguiente niño...'));
+            continue;
+        } else if (finIdx === 1) {
+            // Guardar
+            console.log('    💾 Guardando asistencia...');
+            const discoNuevo = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
+            if (await discoNuevo.count() > 0 && await discoNuevo.isVisible()) {
+                await discoNuevo.click();
+            } else {
+                 const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
+                 if (await genericSave2.count() > 0) await genericSave2.click();
+            }
+            await workPage.waitForTimeout(2000);
+            console.log(c.verde('    ✅ Guardado exitoso.'));
+            
+            // Cuando guarda, normalmente la página vuelve al modo solo lectura.
+            // Rompemos el ciclo para que el usuario pueda volver a buscar la UDS o salir
+            break;
+        } else {
+            // Cancelar
+            console.log(c.rojo('    ❌ Cancelando cambios y saliendo de este jardín...'));
+            break;
         }
     }
 }
