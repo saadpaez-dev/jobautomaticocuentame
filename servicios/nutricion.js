@@ -142,9 +142,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 console.log(c.verde(`  ✅ Regimen detectado: ${regimen}`));
             } else {
                 console.log(c.rojo('  ❌ No se detecto Regimen en ADRES.'));
-                regimen = await new Promise(resolve => {
-                    readline.question(c.negrita('  > Por favor, ingresa el Regimen manualmente (Ej: Subsidiado o Contributivo): '), resolve);
-                });
+                regimen = readline.question(c.negrita('  > Por favor, ingresa el Regimen manualmente (Ej: Subsidiado o Contributivo): '));
             }
 
             const epsIndex = cells.findIndex(c => c.trim().toUpperCase() === 'ENTIDAD' || c.trim().toUpperCase() === 'EPS');
@@ -153,9 +151,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 console.log(c.verde(`  ✅ EPS detectada: ${eps}`));
             } else {
                 console.log(c.rojo('  ❌ No se detecto EPS en ADRES.'));
-                eps = await new Promise(resolve => {
-                    readline.question(c.negrita('  > Por favor, ingresa la EPS manualmente (Ej: Capital Salud): '), resolve);
-                });
+                eps = readline.question(c.negrita('  > Por favor, ingresa la EPS manualmente (Ej: Capital Salud): '));
             }
             
         } catch (e) {
