@@ -155,87 +155,90 @@ async function llenarFormularioNutricion(browser, content, datos) {
             console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
         }
         
-        // Radios: Vacunación y Crecimiento
+        // Llenar Radios y Selects adicionales
         await content.evaluate(() => {
-            const labels = [
-                '¿El beneficiario cuenta con el carnet de vacunación? *',
-                '¿El carnet de vacunación se encuentra al día en las vacunas y dosis que corresponden a la edad del niño o niña? *',
-                '¿El beneficiario presenta carnet de crecimiento y desarrollo? *'
-            ];
+            const allElements = Array.from(document.querySelectorAll('*')).reverse();
             
-            labels.forEach(l => {
-                const allElements = Array.from(document.querySelectorAll('*'));
-                const el = allElements.find(e => e.innerText && e.innerText.trim() === l);
+            // Función auxiliar para Radios
+            function fillRadio(labelText, choice, fallbackIndex) {
+                const el = allElements.find(e => e.innerText && e.innerText.trim().includes(labelText));
                 if (el) {
-                    let next = el.nextElementSibling;
-                    while (next && next.tagName !== 'TR' && next.tagName !== 'DIV') {
-                        const radio = next.querySelector('input[type="radio"]');
-                        if (radio) { radio.click(); break; }
-                        next = next.nextElementSibling;
-                    }
-                    if (!next) {
-                         const parentNext = el.parentElement.nextElementSibling;
-                         if (parentNext) {
-                             const radio = parentNext.querySelector('input[type="radio"]');
-                             if (radio) radio.click();
-                         }
+                    let container = el.closest('tr') || el.parentElement.parentElement;
+                    if (container) {
+                        let radios = container.querySelectorAll('input[type="radio"]');
+                        if (radios.length === 0 && container.nextElementSibling) {
+                            radios = container.nextElementSibling.querySelectorAll('input[type="radio"]');
+                        }
+                        if (radios.length === 0 && el.parentElement.nextElementSibling) {
+                            radios = el.parentElement.nextElementSibling.querySelectorAll('input[type="radio"]');
+                        }
+                        
+                        if (radios.length > 0) {
+                            let clicked = false;
+                            for(let i=0; i<radios.length; i++) {
+                                const nextText = radios[i].nextSibling ? radios[i].nextSibling.textContent : '';
+                                const parentText = radios[i].parentElement.innerText;
+                                if ((nextText && nextText.includes(choice)) || 
+                                    (parentText && parentText.includes(choice)) ||
+                                    (radios[i].value && radios[i].value.includes(choice.replace('í', 'i')))) {
+                                    radios[i].click();
+                                    clicked = true;
+                                    break;
+                                }
+                            }
+                            if (!clicked && radios[fallbackIndex]) {
+                                radios[fallbackIndex].click();
+                            }
+                        }
                     }
                 }
-            });
-        });
+            }
 
-        // Controles de crecimiento = 1
-        try {
-            const selects = await content.locator('select').all();
-            for (const s of selects) {
-                const text = await s.innerText();
-                if (text.includes('1') && text.includes('2') && text.includes('3') && !text.includes('AFILIADO')) {
-                    await s.selectOption({ label: '1' }).catch(()=>{});
-                    break;
+            // Llenar radios por defecto
+            fillRadio('¿El beneficiario cuenta con el carnet de vacunación?', 'Sí', 0);
+            fillRadio('dosis que corresponden a la edad', 'Sí', 0);
+            fillRadio('¿El beneficiario presenta carnet de crecimiento y desarrollo?', 'Sí', 0);
+            fillRadio('Antecedente de prematurez', 'No', 1);
+            fillRadio('mujer gestante atendida en alguno de los servicios', 'No', 1);
+
+            // Función auxiliar para Selects
+            function fillSelect(labelText, optionText) {
+                const el = allElements.find(e => e.innerText && e.innerText.trim().includes(labelText));
+                if (el) {
+                    let container = el.closest('tr') || el.parentElement.parentElement;
+                    let select = null;
+                    if (container) {
+                        select = container.querySelector('select');
+                        if (!select && container.nextElementSibling) {
+                            select = container.nextElementSibling.querySelector('select');
+                        }
+                    }
+                    if (!select && el.parentElement.nextElementSibling) {
+                        select = el.parentElement.nextElementSibling.querySelector('select');
+                    }
+
+                    if (select) {
+                        const options = Array.from(select.options);
+                        const match = options.find(o => o.text.toUpperCase().includes(optionText.toUpperCase()));
+                        if (match) {
+                            select.value = match.value;
+                            select.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
                 }
             }
-        } catch(e) {}
-        
-        // Antecedente prematurez = No (usualmente el segundo radio)
-        await content.evaluate(() => {
-            const allElements = Array.from(document.querySelectorAll('*'));
-            const el = allElements.find(e => e.innerText && e.innerText.trim() === 'Antecedente de prematurez');
-            if (el) {
-                const parentNext = el.parentElement.nextElementSibling;
-                if (parentNext) {
-                    const radios = parentNext.querySelectorAll('input[type="radio"]');
-                    if (radios.length > 1) radios[1].click(); // Click "No"
-                }
-            }
+
+            // Llenar selects por defecto
+            fillSelect('cuántos controles de crecimiento y desarrollo', '1');
+            fillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
+
+            // Llenar lactancia materna con valores aleatorios
+            const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
+            const valTotal = Math.floor(Math.random() * (17 - 12 + 1) + 12).toString();
+            fillSelect('exclusiva (meses)', valExclusiva);
+            fillSelect('total (meses)', valTotal);
+
         });
-        
-        // Lactancia Materna Exclusiva (Aleatorio 4 a 6) y Total (Aleatorio 12 a 15)
-        try {
-            const valExclusiva = Math.floor(Math.random() * (6 - 4 + 1) + 4).toString();
-            const valTotal = Math.floor(Math.random() * (15 - 12 + 1) + 12).toString();
-            
-            const selects = await content.locator('select').all();
-            for (let i = 0; i < selects.length; i++) {
-                const s = selects[i];
-                // Buscamos el label o texto anterior para saber cuál select es cuál
-                // O podemos probar directamente si las opciones tienen los números exactos sin otras cosas
-                // Una forma más segura: buscar el texto cerca del select.
-                const parentText = await s.evaluate(node => {
-                    const p = node.parentElement;
-                    return p && p.previousElementSibling ? p.previousElementSibling.innerText : '';
-                });
-                
-                if (parentText.includes('exclusiva (meses)')) {
-                    await s.selectOption({ label: valExclusiva }).catch(()=>{});
-                    console.log(c.verde(`  ✅ Lactancia exclusiva seleccionada: ${valExclusiva} meses`));
-                } else if (parentText.includes('total (meses)')) {
-                    await s.selectOption({ label: valTotal }).catch(()=>{});
-                    console.log(c.verde(`  ✅ Lactancia total seleccionada: ${valTotal} meses`));
-                }
-            }
-        } catch(e) {
-            console.log(c.rojo(`  ⚠️ No se pudieron establecer los campos de lactancia: ${e.message}`));
-        }
         
         console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
         
