@@ -134,7 +134,7 @@ async function main() {
             headless: false,
             slowMo: 100,
             args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
-            executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+            // executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
           });
           context = await browser.newContext({ viewport: null });
           page = await context.newPage();

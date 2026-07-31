@@ -137,20 +137,26 @@ async function llenarFormularioNutricion(browser, content, datos) {
             // Extracción cruda de texto de tabla desde el iframe
             const cells = await iframeLocator.locator('td, span').allInnerTexts();
             const regimenIndex = cells.findIndex(c => c.trim().toUpperCase() === 'SUBSIDIADO' || c.trim().toUpperCase() === 'CONTRIBUTIVO');
-            if (regimenIndex > 0) {
+            if (regimenIndex >= 0) {
                 regimen = cells[regimenIndex].trim();
-                // Buscar EPS antes
-                eps = cells[regimenIndex - 1].trim(); 
-                if (eps === 'ACTIVO' || eps.length < 3) {
-                    eps = cells[regimenIndex - 2].trim(); 
-                }
+                console.log(c.verde(`  ✅ Regimen detectado: ${regimen}`));
+            } else {
+                console.log(c.rojo('  ❌ No se detecto Regimen en ADRES.'));
+                regimen = await new Promise(resolve => {
+                    readline.question(c.negrita('  > Por favor, ingresa el Regimen manualmente (Ej: Subsidiado o Contributivo): '), resolve);
+                });
             }
-            
-            if (regimen) console.log(c.verde(`  ✅ Regimen detectado: ${regimen}`));
-            else console.log(c.rojo(`  ❌ No se detecto Regimen en ADRES.`));
-            
-            if (eps) console.log(c.verde(`  ✅ EPS detectada: ${eps}`));
-            else console.log(c.rojo(`  ❌ No se detecto EPS en ADRES.`));
+
+            const epsIndex = cells.findIndex(c => c.trim().toUpperCase() === 'ENTIDAD' || c.trim().toUpperCase() === 'EPS');
+            if (epsIndex >= 0 && epsIndex + 1 < cells.length) {
+                eps = cells[epsIndex + 1].trim();
+                console.log(c.verde(`  ✅ EPS detectada: ${eps}`));
+            } else {
+                console.log(c.rojo('  ❌ No se detecto EPS en ADRES.'));
+                eps = await new Promise(resolve => {
+                    readline.question(c.negrita('  > Por favor, ingresa la EPS manualmente (Ej: Capital Salud): '), resolve);
+                });
+            }
             
         } catch (e) {
             console.log(c.rojo(`  ❌ Error consultando ADRES: ${e.message}`));
