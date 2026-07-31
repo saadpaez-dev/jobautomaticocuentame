@@ -7,6 +7,7 @@
     "doc": "docs"
   },
   "scripts": {
+    "start": "node autotrabajo.js",
     "captura": "node captura.js",
     "formacion": "node automatizaciones/formacion-familias.js",
     "reportes": "node automatizaciones/descargar-reportes.js",
