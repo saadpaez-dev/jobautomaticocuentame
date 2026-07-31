@@ -575,20 +575,29 @@ async function main() {
                       }
                   }
 
-                  // Pedir los datos por consola para llenar el formulario
-                  console.log(c.cyan('\n  📋 DATOS DE LA TOMA (Ingresa los datos para este niño)'));
-                  let fechaEntrada = readline.question(c.negrita('  > Fecha de valoracion (ej. "hoy", "22", "30/07/2026") [Opcional]: '));
-                  let pesoInput = readline.question(c.negrita('  > Peso en Kilogramos (ej. 12.5) [Opcional]: '));
-                  let tallaInput = readline.question(c.negrita('  > Talla en Centimetros (ej. 85) [Opcional]: '));
-                  let perimetroInput = readline.question(c.negrita('  > Perimetro Braquial (cm) [Opcional]: '));
-                  
-                  const datosLlenado = {
-                      documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : '',
-                      fecha: parsearFecha(fechaEntrada),
-                      peso: pesoInput.trim(),
-                      talla: tallaInput.trim(),
-                      perimetro: perimetroInput.trim()
-                  };
+                  let datosLlenado;
+                  while (true) {
+                      console.log(c.cyan('\n  📋 DATOS DE LA TOMA (Ingresa los datos para este niño)'));
+                      let fechaEntrada = readline.question(c.negrita('  > Fecha de valoracion (ej. "hoy", "22", "30/07/2026") [Opcional]: '));
+                      let pesoInput = readline.question(c.negrita('  > Peso en Kilogramos (ej. 12.5) [Opcional]: '));
+                      let tallaInput = readline.question(c.negrita('  > Talla en Centimetros (ej. 85) [Opcional]: '));
+                      let perimetroInput = readline.question(c.negrita('  > Perimetro Braquial (cm) [Opcional]: '));
+                      
+                      const resp = readline.question(c.amarillo(`\n  Has ingresado:\n  - Fecha: ${fechaEntrada || '(vacia)'}\n  - Peso: ${pesoInput || '(vacio)'}\n  - Talla: ${tallaInput || '(vacia)'}\n  - Perimetro: ${perimetroInput || '(vacio)'}\n  > ¿Deseas proceder con estos datos o editarlos nuevamente? (p = proceder / e = editar): `));
+                      
+                      if (resp.trim().toLowerCase() === 'p') {
+                          datosLlenado = {
+                              documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : '',
+                              fecha: parsearFecha(fechaEntrada),
+                              peso: pesoInput.trim(),
+                              talla: tallaInput.trim(),
+                              perimetro: perimetroInput.trim()
+                          };
+                          break;
+                      } else {
+                          console.log(c.rojo('  🔄 Reingresando datos...'));
+                      }
+                  }
                   
                   // Ejecutar la magia del llenado automático y consulta ADRES
                   await llenarFormularioNutricion(browser, content, datosLlenado);
