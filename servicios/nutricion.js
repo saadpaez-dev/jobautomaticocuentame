@@ -107,13 +107,17 @@ async function llenarFormularioNutricion(browser, content, datos) {
             await adresPage.goto('https://www.adres.gov.co/consulte-su-eps', { waitUntil: 'networkidle' });
             
             // ADRES usa un iframe para el formulario
-            const iframeLocator = adresPage.frameLocator('iframe[title*="BDUA"]');
+            const iframeLocator = adresPage.frameLocator('iframe');
             
-            // Intentamos seleccionar el tipo
-            const selectTipo = iframeLocator.locator('select[id*="TipoDocumento"], select[title*="Tipo"]');
-            if (await selectTipo.count() > 0) {
+            // Esperamos que el iframe cargue y aparezca el campo de documento
+            const selectTipo = iframeLocator.locator('select').first();
+            await selectTipo.waitFor({ state: 'attached', timeout: 15000 }).catch(()=>{});
+            
+            // Intentamos seleccionar el tipo buscando por id o title
+            const selectTipoEspecifico = iframeLocator.locator('select[id*="TipoDocumento"], select[title*="Tipo"]');
+            if (await selectTipoEspecifico.count() > 0) {
                 // RC
-                await selectTipo.selectOption({ value: 'RC' }).catch(()=>{});
+                await selectTipoEspecifico.selectOption({ value: 'RC' }).catch(()=>{});
             }
             
             const inputNum = iframeLocator.locator('input[id*="txtNumDocumento"], input[title*="Documento"]');
@@ -121,34 +125,12 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 await inputNum.fill(numDoc);
             }
 
-            console.log(c.cyan('  ⏳ Intentando consultar automaticamente en ADRES...'));
+            console.log(c.amarillo('\n  ⏸️  PAUSA EN ADRES'));
+            console.log(c.amarillo('  Se han llenado los datos. Por favor, ve a la pestana de ADRES,'));
+            console.log(c.amarillo('  resuelve el CAPTCHA de "No soy un robot" y haz clic en "Consultar".'));
+            console.log(c.amarillo('  (Si el Captcha sale en blanco o falla, prueba desactivando los escudos de Brave)'));
             
-            // Intentar dar clic en Consultar
-            const btnConsultar = iframeLocator.locator('button:has-text("Consultar"), input[value="Consultar"], a:has-text("Consultar"), input[id*="btnConsultar"]').first();
-            if (await btnConsultar.count() > 0) {
-                await btnConsultar.click().catch(() => {});
-            }
-
-            // Esperar un momento a ver si carga la tabla (puede que el captcha sea invisible o no lo pida)
-            let tablaCargada = false;
-            try {
-                // Buscamos algo que indique que cargó el resultado, como "Régimen" o "Entidad"
-                const resultadoLocator = iframeLocator.locator('text="Régimen"').first();
-                await resultadoLocator.waitFor({ state: 'visible', timeout: 4000 });
-                tablaCargada = true;
-                console.log(c.verde('  ✅ ADRES respondio sin necesidad de Captcha manual.'));
-            } catch (e) {
-                // Si pasaron 4 segundos y no cargó, probablemente pidió Captcha
-                tablaCargada = false;
-            }
-
-            if (!tablaCargada) {
-                console.log(c.amarillo('\n  ⏸️  ADRES ESTA PIDIENDO CAPTCHA'));
-                console.log(c.amarillo('  Por favor, ve a la pestana de ADRES, resuelve el CAPTCHA de "No soy un robot"'));
-                console.log(c.amarillo('  haz clic en "Consultar" y espera a que carguen los resultados.'));
-                
-                readline.question(c.negrita('  > Cuando veas la tabla de resultados en ADRES, presiona Enter aqui para continuar... '));
-            }
+            readline.question(c.negrita('  > Cuando veas la tabla de resultados en ADRES, presiona Enter aqui para continuar... '));
             
             console.log(c.amarillo('  ⏳ Extrayendo resultados de ADRES...'));
             
