@@ -48,47 +48,63 @@ async function main() {
   console.log(c.gris('Selecciona una asociación cualquiera para poder ingresar al sistema de Cuéntame.'));
   console.log(c.gris('Nota: La búsqueda de beneficiarios es global en el sistema.'));
 
-  asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
-  console.log(`  0. Salir`);
+  let browser = null;
+  let context = null;
+  let page = null;
+  let loggedIn = false;
 
-  let idxAsociacion = -1;
-  while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
-    const res = readline.question(c.negrita('\n  > Selecciona la asociacion (0 para salir): '));
-    idxAsociacion = parseInt(res, 10);
-    if (isNaN(idxAsociacion)) idxAsociacion = -1;
-  }
+  while (true) {
+      asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
+      console.log(`  0. Salir`);
 
-  if (idxAsociacion === 0) {
-    console.log('Saliendo...');
-    return;
-  }
+      let idxAsociacion = -1;
+      while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
+        const res = readline.question(c.negrita('\n  > Selecciona la asociacion (0 para salir): '));
+        idxAsociacion = parseInt(res, 10);
+        if (isNaN(idxAsociacion)) idxAsociacion = -1;
+      }
 
-  const ascSeleccionada = asociaciones[idxAsociacion - 1];
+      if (idxAsociacion === 0) {
+        console.log(c.verde('\n  ✅ Proceso finalizado. Cerrando navegador...'));
+        if (browser) await browser.close();
+        break;
+      }
 
-  console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
-  const browser = await chromium.launch({
-    headless: false,
-    slowMo: 100,
-    args: ['--start-maximized'],
-    executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-  });
-  
-  const context = await browser.newContext({ viewport: null });
-  const page = await context.newPage();
+      const ascSeleccionada = asociaciones[idxAsociacion - 1];
 
-  try {
-    await loginYLlegarARoles(page, {
-      usuario: USUARIO,
-      password: PASSWORD,
-      gmailUser: GMAIL_USER,
-      gmailAppPassword: GMAIL_APP_PASSWORD
-    });
+      if (!browser) {
+          console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
+          browser = await chromium.launch({
+            headless: false,
+            slowMo: 100,
+            args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
+            executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+          });
+          
+          context = await browser.newContext({ viewport: null });
+          page = await context.newPage();
+      }
 
-    console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
-    await seleccionarRolYEntrar(page, ascSeleccionada);
-    console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+      try {
+        if (!loggedIn) {
+            await loginYLlegarARoles(page, {
+              usuario: USUARIO,
+              password: PASSWORD,
+              gmailUser: GMAIL_USER,
+              gmailAppPassword: GMAIL_APP_PASSWORD
+            });
+            loggedIn = true;
+            console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+        } else {
+            // Si ya estamos logueados, regresar a la página de selección de rol
+            await page.goto('https://rubonline.icbf.gov.co/Page/General/General/SeleccionRol.aspx', { waitUntil: 'domcontentloaded' });
+        }
 
-    // Navegar a Información del Beneficiario
+        console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
+        await seleccionarRolYEntrar(page, ascSeleccionada);
+        
+
+        // Navegar a Información del Beneficiario
     console.log(c.cyan('  🚀 Navegando al módulo de Información del Beneficiario...'));
     
     let menuFrame = page.frame({ name: 'frameMenu' });
@@ -387,15 +403,13 @@ async function main() {
         } catch (e) {
             console.log(c.rojo(`  ❌ Error durante la búsqueda: ${e.message}`));
         }
-    }
+    } // End of inner while(true) (document loop)
 
   } catch (err) {
     console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
-  } finally {
-    console.log(c.verde('\n  ✅ Proceso finalizado. Cerrando navegador...'));
-    await context.close().catch(() => {});
-    await browser.close().catch(() => {});
   }
+  
+  } // End of outer while(true) (asociacion loop)
 }
 
 main().catch(console.error);

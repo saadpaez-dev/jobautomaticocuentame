@@ -30,6 +30,10 @@ async function main() {
   const PASSWORD = process.env.CUENTAME_PASSWORD;
   const GMAIL_USER = process.env.GMAIL_USER;
   const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+  let browser = null;
+  let context = null;
+  let mainPage = null;
+  let loggedIn = false;
 
   if (!USUARIO || !PASSWORD) {
     console.error(c.rojo('\n❌ Faltan CUENTAME_USUARIO o CUENTAME_PASSWORD en el archivo .env\n'));
@@ -98,25 +102,17 @@ async function main() {
     
     const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
     
-    if (partes.length === 0) continue;
-
     if (partes.includes(0)) {
         asociacionesSeleccionadas = asociaciones;
-        break;
+    } else {
+        const validas = partes.filter(n => n >= 1 && n <= asociaciones.length);
+        if (validas.length > 0) {
+            asociacionesSeleccionadas = validas.map(n => asociaciones[n - 1]);
+        } else {
+            console.log(c.rojo('  ❌ Opción no válida. Intenta nuevamente.'));
+        }
     }
-
-    const invalidos = partes.filter(n => n < 1 || n > asociaciones.length);
-    if (invalidos.length > 0) {
-        console.log(c.rojo(`  ⚠️ Opciones inválidas: ${invalidos.join(', ')}`));
-        continue;
-    }
-
-    // Filtrar duplicados en caso de que el usuario repita números
-    const partesUnicas = [...new Set(partes)];
-    asociacionesSeleccionadas = partesUnicas.map(n => asociaciones[n - 1]);
   }
-  
-  asociaciones = asociacionesSeleccionadas;
 
   let prepararExcel = false;
   
@@ -137,13 +133,17 @@ async function main() {
       console.log(c.gris('\n  ℹ️ El reporte se descargará en su formato original (sin modificar).'));
   }
   
-  console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
-  const browser = await chromium.launch({
-    headless: false,
-    slowMo: 100,
-    args: ['--start-maximized'],
-    executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-  });
+  if (!browser) {
+      console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
+      browser = await chromium.launch({
+        headless: false,
+        slowMo: 100,
+        args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
+        executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+      });
+      context = await browser.newContext({ viewport: null });
+      mainPage = await context.newPage();
+  }
   
   const fs = require('fs');
   const reportesDir = path.join(__dirname, '..', 'reportes');
@@ -152,19 +152,15 @@ async function main() {
   }
 
   // Filtrar asociaciones que tengan contrato para procesarlas
-  const ascValidas = asociaciones.filter(a => a.numeroContrato);
+  const ascValidas = asociacionesSeleccionadas.filter(a => a.numeroContrato);
 
   if (ascValidas.length === 0) {
-    console.log(c.rojo("  ⚠️ No hay asociaciones válidas con contrato."));
-    await browser.close();
-    return;
+    console.log(c.rojo("  ⚠️ No hay asociaciones válidas con contrato seleccionadas."));
+    continue;
   }
 
-  const context = await browser.newContext({ viewport: null });
-  const mainPage = await context.newPage();
-
   console.log(c.amarillo(`\n======================================================`));
-  console.log(c.amarillo(`▶ Iniciando sesión única y 2FA...`));
+  console.log(c.amarillo(`▶ Iniciando sesión y navegación...`));
   console.log(c.amarillo(`======================================================`));
 
   let rolesUrl;
@@ -544,14 +540,15 @@ async function main() {
       }
   }
 
-  // Al finalizar todas, cerrar contexto
-  console.log(c.verde('\n  ✅ Todas las asociaciones procesadas. Cerrando navegador...'));
-  await context.close().catch(() => {});
-  await browser.close().catch(() => {});
+  // Al finalizar todas, no cerramos el contexto todavía
+  console.log(c.verde('\n  ✅ Todas las asociaciones procesadas exitosamente.'));
 
   console.log(c.cyan('\n======================================================'));
   const respFinal = readline.question(c.negrita('  > ¿Deseas generar otro reporte? (s/n) [por defecto s]: '));
   if (respFinal.toLowerCase().trim() === 'n') {
+      console.log(c.verde('\n  ✅ Cerrando navegador...'));
+      if (context) await context.close().catch(() => {});
+      if (browser) await browser.close().catch(() => {});
       break;
   }
   }
