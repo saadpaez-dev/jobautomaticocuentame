@@ -120,14 +120,17 @@ async function llenarFormularioNutricion(browser, content, datos) {
             const idx = parseInt(idxStr) - 1;
             if (idx >= 0 && idx < validOptions.length) {
                 const regimenElegido = validOptions[idx].trim();
-                await selectRegimen.selectOption({ label: regimenElegido }).catch(()=>{});
+                await Promise.all([
+                    content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
+                    selectRegimen.selectOption({ label: regimenElegido }).catch(()=>{})
+                ]);
                 console.log(c.verde(`  ✅ Regimen seleccionado: ${regimenElegido}`));
             }
         } else {
             console.log(c.rojo('  ❌ No se encontro el campo de Regimen en el formulario.'));
         }
         
-        await content.waitForTimeout(1000); // Esperar a que carguen las EPS
+        await content.waitForTimeout(2000); // Esperar a que carguen las EPS o re-renderice
         
         const selectsEps = await content.locator('select').all();
         let selectEps;
@@ -146,7 +149,10 @@ async function llenarFormularioNutricion(browser, content, datos) {
             const epsMatch = epsOptions.find(o => o.toUpperCase().includes(epsSearch.toUpperCase().trim()));
             
             if (epsMatch) {
-                await selectEps.selectOption({ label: epsMatch }).catch(()=>{});
+                await Promise.all([
+                    content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
+                    selectEps.selectOption({ label: epsMatch }).catch(()=>{})
+                ]);
                 console.log(c.verde(`  ✅ EPS seleccionada en Cuentame: ${epsMatch}`));
             } else {
                 console.log(c.rojo(`  ❌ No se encontro ninguna EPS que coincida con "${epsSearch}"`));
@@ -155,6 +161,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
             console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
         }
         
+        await content.waitForTimeout(2000); // Dar un respiro a la página post-EPS
         console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
 
         // Llenar TODOS los campos dinámicos (Inputs, Radios, Selects) de manera unificada y ultra robusta
