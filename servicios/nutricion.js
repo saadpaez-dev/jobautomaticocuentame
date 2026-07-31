@@ -155,69 +155,69 @@ async function llenarFormularioNutricion(browser, content, datos) {
             console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
         }
         
-        // Llenar Radios y Selects adicionales
-        await content.evaluate(() => {
-            const allElements = Array.from(document.querySelectorAll('*')).reverse();
+        console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
+
+        // Llenar TODOS los campos dinámicos (Inputs, Radios, Selects) de manera unificada y ultra robusta
+        await content.evaluate((d) => {
+            const allElements = Array.from(document.querySelectorAll('label, span, td, div, p, th')).reverse();
             
-            // Función auxiliar para Radios
-            function fillRadio(labelText, choice, fallbackIndex) {
-                const el = allElements.find(e => e.innerText && e.innerText.trim().includes(labelText));
-                if (el) {
-                    let container = el.closest('tr') || el.parentElement.parentElement;
-                    if (container) {
-                        let radios = container.querySelectorAll('input[type="radio"]');
-                        if (radios.length === 0 && container.nextElementSibling) {
-                            radios = container.nextElementSibling.querySelectorAll('input[type="radio"]');
-                        }
-                        if (radios.length === 0 && el.parentElement.nextElementSibling) {
-                            radios = el.parentElement.nextElementSibling.querySelectorAll('input[type="radio"]');
-                        }
-                        
-                        if (radios.length > 0) {
-                            let clicked = false;
-                            for(let i=0; i<radios.length; i++) {
-                                const nextText = radios[i].nextSibling ? radios[i].nextSibling.textContent : '';
-                                const parentText = radios[i].parentElement.innerText;
-                                if ((nextText && nextText.includes(choice)) || 
-                                    (parentText && parentText.includes(choice)) ||
-                                    (radios[i].value && radios[i].value.includes(choice.replace('í', 'i')))) {
-                                    radios[i].click();
-                                    clicked = true;
-                                    break;
-                                }
-                            }
-                            if (!clicked && radios[fallbackIndex]) {
-                                radios[fallbackIndex].click();
-                            }
-                        }
+            function getFields(labelText, selector) {
+                // Buscamos el elemento más profundo que contiene el texto
+                // Limpiamos los saltos de línea para facilitar el includes
+                const el = allElements.find(e => 
+                    e.innerText && 
+                    e.innerText.replace(/\s+/g, ' ').includes(labelText) && 
+                    e.innerText.length < 300 // Para evitar agarrar contenedores gigantes como body o form
+                );
+                if (!el) return [];
+                
+                const containers = [
+                    el.closest('td'), 
+                    el.closest('.form-group'), 
+                    el.closest('[class*="col-"]'), 
+                    el.closest('tr')
+                ].filter(Boolean);
+
+                for (let c of containers) {
+                    let fields = c.querySelectorAll(selector);
+                    if (fields.length > 0) return Array.from(fields);
+                    
+                    if (c.nextElementSibling) {
+                        fields = c.nextElementSibling.querySelectorAll(selector);
+                        if (fields.length > 0) return Array.from(fields);
+                    }
+                }
+                
+                if (el.parentElement) {
+                    let fields = el.parentElement.querySelectorAll(selector);
+                    if (fields.length > 0) return Array.from(fields);
+                    if (el.parentElement.nextElementSibling) {
+                        fields = el.parentElement.nextElementSibling.querySelectorAll(selector);
+                        if (fields.length > 0) return Array.from(fields);
+                    }
+                }
+                return [];
+            }
+
+            function fillText(labelText, value) {
+                if (!value) return;
+                const fields = getFields(labelText, 'input[type="text"], input[type="number"]');
+                if (fields.length > 0) {
+                    const input = fields[0];
+                    if (!input.disabled) {
+                        input.value = value;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.dispatchEvent(new Event('blur', { bubbles: true }));
                     }
                 }
             }
 
-            // Llenar radios por defecto
-            fillRadio('¿El beneficiario cuenta con el carnet de vacunación?', 'Sí', 0);
-            fillRadio('dosis que corresponden a la edad', 'Sí', 0);
-            fillRadio('¿El beneficiario presenta carnet de crecimiento y desarrollo?', 'Sí', 0);
-            fillRadio('Antecedente de prematurez', 'No', 1);
-            fillRadio('mujer gestante atendida en alguno de los servicios', 'No', 1);
-
-            // Función auxiliar para Selects
             function fillSelect(labelText, optionText) {
-                const el = allElements.find(e => e.innerText && e.innerText.trim().includes(labelText));
-                if (el) {
-                    let container = el.closest('tr') || el.parentElement.parentElement;
-                    let select = null;
-                    if (container) {
-                        select = container.querySelector('select');
-                        if (!select && container.nextElementSibling) {
-                            select = container.nextElementSibling.querySelector('select');
-                        }
-                    }
-                    if (!select && el.parentElement.nextElementSibling) {
-                        select = el.parentElement.nextElementSibling.querySelector('select');
-                    }
-
-                    if (select) {
+                const fields = getFields(labelText, 'select');
+                if (fields.length > 0) {
+                    const select = fields[0];
+                    if (!select.disabled) {
                         const options = Array.from(select.options);
                         const match = options.find(o => o.text.toUpperCase().includes(optionText.toUpperCase()));
                         if (match) {
@@ -228,63 +228,64 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 }
             }
 
-            // Llenar selects por defecto
-            fillSelect('cuántos controles de crecimiento y desarrollo', '1');
+            function fillRadio(labelText, choice, fallbackIndex) {
+                const radios = getFields(labelText, 'input[type="radio"]');
+                if (radios.length > 0) {
+                    let clicked = false;
+                    for (let i = 0; i < radios.length; i++) {
+                        const r = radios[i];
+                        if (r.disabled) continue;
+                        const nextText = r.nextSibling ? (r.nextSibling.textContent || '') : '';
+                        const parentText = r.parentElement ? r.parentElement.innerText : '';
+                        if (nextText.includes(choice) || parentText.includes(choice) || (r.value && r.value.includes(choice.replace('í', 'i')))) {
+                            r.click();
+                            clicked = true;
+                            break;
+                        }
+                    }
+                    if (!clicked && radios[fallbackIndex] && !radios[fallbackIndex].disabled) {
+                        radios[fallbackIndex].click();
+                    }
+                }
+            }
+
+            // --- EJECUCIÓN ---
+
+            // 1. Inputs de texto
+            fillText('Peso (En Kilogramos)', d.peso);
+            fillText('Talla (En Cent', d.talla);
+            fillText('Perimetro Braquial', d.perimetro);
+            fillText('esquema de vacunación', d.fecha);
+
+            // Inputs de fecha por fuerza bruta (por si están en otro formato)
+            if (d.fecha) {
+                const dateInputs = document.querySelectorAll('input[type="text"]');
+                dateInputs.forEach(inp => {
+                    if (inp.outerHTML.includes('Date') || inp.outerHTML.includes('fecha') || inp.id.toLowerCase().includes('fecha')) {
+                        inp.value = d.fecha;
+                        inp.dispatchEvent(new Event('input', { bubbles: true }));
+                        inp.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+            }
+
+            // 2. Radios
+            fillRadio('beneficiario cuenta con el carnet de vacunación', 'Sí', 0);
+            fillRadio('dosis que corresponden a la edad', 'Sí', 0);
+            fillRadio('carnet de crecimiento y desarrollo', 'Sí', 0);
+            fillRadio('Antecedente de prematurez', 'No', 1);
+            fillRadio('mujer gestante atendida en alguno de los servicios', 'No', 1);
+
+            // 3. Selects
+            fillSelect('controles de crecimiento y desarrollo', '1');
             fillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
-            // Llenar lactancia materna con valores aleatorios
             const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
             const valTotal = Math.floor(Math.random() * (17 - 12 + 1) + 12).toString();
             fillSelect('exclusiva (meses)', valExclusiva);
             fillSelect('total (meses)', valTotal);
 
-        });
-        
-        console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
-        
-        // Fecha, Peso, Talla, Perimetro
-        if (datos.fecha || datos.peso || datos.talla || datos.perimetro) {
-            await content.evaluate((d) => {
-                // Buscamos de abajo hacia arriba (nodos más profundos primero)
-                const allElements = Array.from(document.querySelectorAll('*')).reverse();
-                
-                function setInputValueByLabelText(labelText, value) {
-                    if (!value) return;
-                    const el = allElements.find(e => e.innerText && e.innerText.includes(labelText));
-                    if (el && el.parentElement) {
-                        let parentNext = el.parentElement.nextElementSibling;
-                        if (parentNext) {
-                            const input = parentNext.querySelector('input[type="text"]');
-                            if (input && !input.disabled) {
-                                input.value = value;
-                                // Disparar eventos para que se guarde el valor (React/Angular/Vanilla)
-                                input.dispatchEvent(new Event('input', { bubbles: true }));
-                                input.dispatchEvent(new Event('change', { bubbles: true }));
-                                input.dispatchEvent(new Event('blur', { bubbles: true }));
-                            }
-                        }
-                    }
-                }
-
-                setInputValueByLabelText('Peso (En Kilogramos)', d.peso);
-                setInputValueByLabelText('Talla (En Cent', d.talla);
-                setInputValueByLabelText('Perimetro Braquial', d.perimetro);
-                setInputValueByLabelText('esquema de vacunación', d.fecha); // Llenar explícitamente la fecha de vacunación
-                
-                // Llenar otros inputs de fecha (como Fecha de registro datos salud)
-                if (d.fecha) {
-                    const dateInputs = document.querySelectorAll('input[type="text"]');
-                    dateInputs.forEach(inp => {
-                        if (inp.outerHTML.includes('Date') || inp.outerHTML.includes('fecha') || inp.id.toLowerCase().includes('fecha')) {
-                            // Para no sobreescribir si ya lo llenó otra lógica, o asegurarnos
-                            inp.value = d.fecha;
-                            inp.dispatchEvent(new Event('input', { bubbles: true }));
-                            inp.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    });
-                }
-            }, datos);
-        }
+        }, datos);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
         console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla. Cuando estes seguro, haz clic en GUARDAR manualmente.'));
