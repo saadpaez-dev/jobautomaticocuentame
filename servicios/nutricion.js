@@ -117,12 +117,35 @@ async function llenarFormularioNutricion(browser, content, datos) {
             if (await inputNum.count() > 0) {
                 await inputNum.fill(numDoc);
             }
+
+            console.log(c.cyan('  ⏳ Intentando consultar automaticamente en ADRES...'));
             
-            console.log(c.amarillo('\n  ⏸️  SCRIPT PAUSADO EN ADRES'));
-            console.log(c.amarillo('  Por favor, ve a la pestana de ADRES, resuelve el CAPTCHA, haz clic en "Consultar"'));
-            console.log(c.amarillo('  y espera a que carguen los resultados en la tabla.'));
-            
-            readline.question(c.negrita('  > Cuando veas la tabla de resultados en ADRES, presiona Enter para continuar... '));
+            // Intentar dar clic en Consultar
+            const btnConsultar = adresPage.locator('button:has-text("Consultar"), input[value="Consultar"], a:has-text("Consultar")').first();
+            if (await btnConsultar.count() > 0) {
+                await btnConsultar.click().catch(() => {});
+            }
+
+            // Esperar un momento a ver si carga la tabla (puede que el captcha sea invisible o no lo pida)
+            let tablaCargada = false;
+            try {
+                // Buscamos algo que indique que cargó el resultado, como "Régimen" o "Entidad"
+                const resultadoLocator = adresPage.locator('text="Régimen"').first();
+                await resultadoLocator.waitFor({ state: 'visible', timeout: 4000 });
+                tablaCargada = true;
+                console.log(c.verde('  ✅ ADRES respondio sin necesidad de Captcha manual.'));
+            } catch (e) {
+                // Si pasaron 4 segundos y no cargó, probablemente pidió Captcha
+                tablaCargada = false;
+            }
+
+            if (!tablaCargada) {
+                console.log(c.amarillo('\n  ⏸️  ADRES ESTA PIDIENDO CAPTCHA'));
+                console.log(c.amarillo('  Por favor, ve a la pestana de ADRES, resuelve el CAPTCHA de "No soy un robot"'));
+                console.log(c.amarillo('  haz clic en "Consultar" y espera a que carguen los resultados.'));
+                
+                readline.question(c.negrita('  > Cuando veas la tabla de resultados en ADRES, presiona Enter aqui para continuar... '));
+            }
             
             console.log(c.amarillo('  ⏳ Extrayendo resultados de ADRES...'));
             
