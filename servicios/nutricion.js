@@ -157,7 +157,11 @@ async function llenarFormularioNutricion(browser, content, datos) {
         } finally {
             console.log(c.gris('  Cerrando pestana de ADRES...'));
             await adresPage.close();
-            await content.bringToFront(); // Volver a Cuéntame
+            // Volver a Cuéntame (la pestaña anterior)
+            const pages = browser.contexts()[0].pages();
+            if (pages.length > 0) {
+                await pages[0].bringToFront().catch(() => {});
+            }
         }
     }
     
