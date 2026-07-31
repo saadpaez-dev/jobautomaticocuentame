@@ -106,14 +106,17 @@ async function llenarFormularioNutricion(browser, content, datos) {
         try {
             await adresPage.goto('https://www.adres.gov.co/consulte-su-eps', { waitUntil: 'networkidle' });
             
+            // ADRES usa un iframe para el formulario
+            const iframeLocator = adresPage.frameLocator('iframe[title*="BDUA"]');
+            
             // Intentamos seleccionar el tipo
-            const selectTipo = adresPage.locator('select[id*="TipoDocumento"], select[title*="Tipo"]');
+            const selectTipo = iframeLocator.locator('select[id*="TipoDocumento"], select[title*="Tipo"]');
             if (await selectTipo.count() > 0) {
                 // RC
                 await selectTipo.selectOption({ value: 'RC' }).catch(()=>{});
             }
             
-            const inputNum = adresPage.locator('input[id*="txtNumDocumento"], input[title*="Documento"]');
+            const inputNum = iframeLocator.locator('input[id*="txtNumDocumento"], input[title*="Documento"]');
             if (await inputNum.count() > 0) {
                 await inputNum.fill(numDoc);
             }
@@ -121,7 +124,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
             console.log(c.cyan('  ⏳ Intentando consultar automaticamente en ADRES...'));
             
             // Intentar dar clic en Consultar
-            const btnConsultar = adresPage.locator('button:has-text("Consultar"), input[value="Consultar"], a:has-text("Consultar")').first();
+            const btnConsultar = iframeLocator.locator('button:has-text("Consultar"), input[value="Consultar"], a:has-text("Consultar"), input[id*="btnConsultar"]').first();
             if (await btnConsultar.count() > 0) {
                 await btnConsultar.click().catch(() => {});
             }
@@ -130,7 +133,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
             let tablaCargada = false;
             try {
                 // Buscamos algo que indique que cargó el resultado, como "Régimen" o "Entidad"
-                const resultadoLocator = adresPage.locator('text="Régimen"').first();
+                const resultadoLocator = iframeLocator.locator('text="Régimen"').first();
                 await resultadoLocator.waitFor({ state: 'visible', timeout: 4000 });
                 tablaCargada = true;
                 console.log(c.verde('  ✅ ADRES respondio sin necesidad de Captcha manual.'));
@@ -149,8 +152,8 @@ async function llenarFormularioNutricion(browser, content, datos) {
             
             console.log(c.amarillo('  ⏳ Extrayendo resultados de ADRES...'));
             
-            // Extracción cruda de texto de tabla
-            const cells = await adresPage.locator('td, span').allInnerTexts();
+            // Extracción cruda de texto de tabla desde el iframe
+            const cells = await iframeLocator.locator('td, span').allInnerTexts();
             const regimenIndex = cells.findIndex(c => c.trim().toUpperCase() === 'SUBSIDIADO' || c.trim().toUpperCase() === 'CONTRIBUTIVO');
             if (regimenIndex > 0) {
                 regimen = cells[regimenIndex].trim();
