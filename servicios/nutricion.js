@@ -174,9 +174,11 @@ async function llenarFormularioNutricion(browser, content, datos) {
         const getFieldsClientCode = `
             function getFields(labelText, selector) {
                 const allElements = Array.from(document.querySelectorAll('label, span, td, div, p, th')).reverse();
+                const normalize = str => str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+                
                 const el = allElements.find(e => 
                     e.innerText && 
-                    e.innerText.replace(/\\s+/g, ' ').includes(labelText) && 
+                    normalize(e.innerText.replace(/\\s+/g, ' ')).includes(normalize(labelText)) && 
                     e.innerText.length < 300 
                 );
                 if (!el) return [];
@@ -237,7 +239,8 @@ async function llenarFormularioNutricion(browser, content, datos) {
                     if (fields.length > 0 && !fields[0].disabled) {
                         const select = fields[0];
                         const options = Array.from(select.options);
-                        const match = options.find(o => o.text.toUpperCase().includes(args.optionText.toUpperCase()));
+                        const normalize = str => str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+                        const match = options.find(o => normalize(o.text).includes(normalize(args.optionText)));
                         if (match) {
                             select.value = match.value;
                             select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -256,12 +259,15 @@ async function llenarFormularioNutricion(browser, content, datos) {
                     const radios = getFields(args.labelText, 'input[type="radio"]');
                     if (radios.length > 0) {
                         let clicked = false;
+                        const normalize = str => str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+                        const normChoice = normalize(args.choice);
+                        
                         for (let i = 0; i < radios.length; i++) {
                             const r = radios[i];
                             if (r.disabled) continue;
                             const nextText = r.nextSibling ? (r.nextSibling.textContent || '') : '';
                             const parentText = r.parentElement ? r.parentElement.innerText : '';
-                            if (nextText.includes(args.choice) || parentText.includes(args.choice) || (r.value && r.value.includes(args.choice.replace('í', 'i')))) {
+                            if (normalize(nextText).includes(normChoice) || normalize(parentText).includes(normChoice) || (r.value && normalize(r.value).includes(normChoice))) {
                                 r.click();
                                 clicked = true;
                                 break;
@@ -300,12 +306,13 @@ async function llenarFormularioNutricion(browser, content, datos) {
         await safeFillText('Peso (En Kilogramos)', datos.peso);
         await safeFillText('Talla (En Cent', datos.talla);
         await safeFillText('Perimetro Braquial', datos.perimetro);
+        await safeFillText('Fecha de medición', datos.fecha);
         await safeFillText('esquema de vacunación', datos.fecha);
 
         // 2. Radios en cadena (disparan UpdatePanels!)
-        await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Sí', 0);
-        await safeFillRadio('dosis que corresponden a la edad', 'Sí', 0);
-        await safeFillRadio('carnet de crecimiento y desarrollo', 'Sí', 0);
+        await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
+        await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
+        await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
 
         // 3. Selects y Radios independientes
         await safeFillSelect('controles de crecimiento y desarrollo', '1');
@@ -314,7 +321,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
         await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
         const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
-        const valTotal = Math.floor(Math.random() * (17 - 12 + 1) + 12).toString();
+        const valTotal = Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
         await safeFillSelect('exclusiva (meses)', valExclusiva);
         await safeFillSelect('total (meses)', valTotal);
         
