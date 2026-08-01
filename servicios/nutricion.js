@@ -221,10 +221,10 @@ async function llenarFormularioNutricion(browser, content, datos) {
 
         const safeFillText = async (labelText, value) => {
             if (!value) return;
-            console.log(c.gris(`    - Llenando [Texto]: ${labelText}`));
             const frm = await getFrame();
+            let found = false;
             try {
-                await frm.evaluate((args) => {
+                found = await frm.evaluate((args) => {
                     eval(args.code);
                     const fields = getFields(args.labelText, 'input[type="text"], input[type="number"]');
                     if (fields.length > 0 && !fields[0].disabled) {
@@ -232,18 +232,24 @@ async function llenarFormularioNutricion(browser, content, datos) {
                         fields[0].dispatchEvent(new Event('input', { bubbles: true }));
                         fields[0].dispatchEvent(new Event('change', { bubbles: true }));
                         fields[0].dispatchEvent(new Event('blur', { bubbles: true }));
+                        return true;
                     }
+                    return false;
                 }, { code: getFieldsClientCode, labelText, value });
             } catch(e) { }
+            
+            if (found) console.log(c.verde(`    ✅ [Texto] Lleno: ${labelText}`));
+            else console.log(c.rojo(`    ❌ [Texto] NO encontrado/deshabilitado: ${labelText}`));
+            
             await page.waitForTimeout(500);
         };
 
         const safeFillSelect = async (labelText, optionText) => {
             if (!optionText) return;
-            console.log(c.gris(`    - Llenando [Lista]: ${labelText}`));
             const frm = await getFrame();
+            let found = false;
             try {
-                await frm.evaluate((args) => {
+                found = await frm.evaluate((args) => {
                     eval(args.code);
                     const fields = getFields(args.labelText, 'select');
                     if (fields.length > 0 && !fields[0].disabled) {
@@ -254,18 +260,24 @@ async function llenarFormularioNutricion(browser, content, datos) {
                         if (match) {
                             select.value = match.value;
                             select.dispatchEvent(new Event('change', { bubbles: true }));
+                            return true;
                         }
                     }
+                    return false;
                 }, { code: getFieldsClientCode, labelText, optionText });
             } catch(e) { }
+            
+            if (found) console.log(c.verde(`    ✅ [Lista] Lleno: ${labelText}`));
+            else console.log(c.rojo(`    ❌ [Lista] NO encontrado/deshabilitado: ${labelText}`));
+            
             await page.waitForTimeout(1500); // Esperar si hay postback
         };
 
         const safeFillRadio = async (labelText, choice, fallbackIndex) => {
-            console.log(c.gris(`    - Llenando [Opcion]: ${labelText}`));
             const frm = await getFrame();
+            let found = false;
             try {
-                await frm.evaluate((args) => {
+                found = await frm.evaluate((args) => {
                     eval(args.code);
                     const radios = getFields(args.labelText, 'input[type="radio"]');
                     if (radios.length > 0) {
@@ -286,12 +298,22 @@ async function llenarFormularioNutricion(browser, content, datos) {
                         }
                         if (!clicked && radios[args.fallbackIndex] && !radios[args.fallbackIndex].disabled) {
                             radios[args.fallbackIndex].click();
+                            clicked = true;
                         }
+                        return clicked;
                     }
+                    return false;
                 }, { code: getFieldsClientCode, labelText, choice, fallbackIndex });
             } catch(e) { 
-                // Ignoramos el Execution context destroyed porque significa que el click disparó un UpdatePanel con éxito
+                // Si el contexto se destruye por UpdatePanel, significa que se hizo click exitosamente!
+                if (e.message.includes('Execution context was destroyed') || e.message.includes('Session closed')) {
+                    found = true;
+                }
             }
+            
+            if (found) console.log(c.verde(`    ✅ [Opcion] Lleno: ${labelText}`));
+            else console.log(c.rojo(`    ❌ [Opcion] NO encontrado/deshabilitado: ${labelText}`));
+            
             await page.waitForTimeout(2000); // Darle tiempo al UpdatePanel
         };
 
@@ -322,17 +344,17 @@ async function llenarFormularioNutricion(browser, content, datos) {
         await safeFillText('esquema de vacunación', datos.fecha);
         await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
         await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
-        await safeFillSelect('controles de crecimiento y desarrollo', '1');
+        await safeFillSelect('controles de crecimiento y desarrollo ha recibido', '1');
         await safeFillRadio('Antecedente de prematurez', 'No', 1);
 
         // 2. Antropometría
         await safeFillText('Peso (En Kilogramos)', datos.peso);
         await safeFillText('Talla (En Cent', datos.talla);
-        await safeFillText('Perimetro Braquial', datos.perimetro);
+        await safeFillText('Perimetro Braquial (cm)', datos.perimetro);
         await safeFillText('Fecha de medición', datos.fecha);
 
         // 3. Situaciones adicionales
-        await safeFillSelect('mujer gestante atendida en alguno de los servicios', 'No');
+        await safeFillSelect('mujer gestante atendida', 'No');
         await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
         // 4. Lactancia
