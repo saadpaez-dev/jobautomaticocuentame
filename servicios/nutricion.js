@@ -401,25 +401,36 @@ async function llenarFormularioNutricion(browser, content, datos) {
         await safeFillText('total (meses)', valTotal);
         
         // ==========================================
-        // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL)
+        // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL Y MODO NATIVO)
         // ==========================================
         console.log(c.amarillo('\n  ⏳ Esperando 3 segundos para asegurar que el formulario esté estable...'));
         await page.waitForTimeout(3000);
         
-        console.log(c.amarillo('  🎯 Llenando campos conflictivos de Cuéntame con pausas...'));
+        console.log(c.amarillo('  🎯 Llenando campos conflictivos con simulación humana (Playwright Nativo)...'));
         
+        const f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
+
         // A. Controles de crecimiento
-        await safeFillSelect('controles de crecimiento y desarrollo ha recibido', '1');
+        try {
+            await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' });
+            console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento'));
+        } catch(e) { console.log(c.rojo('    ❌ [Lista] Error controles: ' + e.message.substring(0, 50))); }
         console.log(c.gris('    ⏳ Pausa (3s)...'));
         await page.waitForTimeout(3000);
 
         // B. Perimetro Braquial
-        await safeFillText('Perimetro Braquial (cm)', datos.perimetro);
+        try {
+            await f.fill('#cphCont_txtMedicionPerimetroBraquial', datos.perimetro.toString());
+            console.log(c.verde('    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial'));
+        } catch(e) { console.log(c.rojo('    ❌ [Texto] Error perimetro: ' + e.message.substring(0, 50))); }
         console.log(c.gris('    ⏳ Pausa (3s)...'));
         await page.waitForTimeout(3000);
 
         // C. Mujer gestante atendida
-        await safeFillSelect('mujer gestante atendida', 'No');
+        try {
+            await f.selectOption('#cphCont_ddlHijoMujerGestanteAtendidaServiciosICBF', { label: 'No' });
+            console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): mujer gestante atendida'));
+        } catch(e) { console.log(c.rojo('    ❌ [Lista] Error gestante: ' + e.message.substring(0, 50))); }
         console.log(c.gris('    ⏳ Pausa (3s)...'));
         await page.waitForTimeout(3000);
         
