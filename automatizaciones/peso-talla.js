@@ -602,15 +602,37 @@ async function main() {
                   // Ejecutar la magia del llenado automático y consulta ADRES
                   await llenarFormularioNutricion(browser, content, datosLlenado);
 
-                  // Pausar al final
-                  console.log(c.amarillo('\n  ⏸️  Script en pausa. Formulario lleno y sin guardar.'));
-                  console.log(c.amarillo('  Por favor revisa los datos en el navegador y dale a Guardar manualmente.'));
+                  console.log(c.amarillo('\n  ✨ Llenado automático finalizado.'));
                   while (true) {
-                      const resp = readline.question(c.negrita('  > Escribe "consulta" para regresar al listado: '));
-                      if (resp.toLowerCase() === 'consulta') {
-                          // Simular volver atras desde la pantalla de toma
+                      console.log(c.cyan('\n  Opciones post-llenado:'));
+                      console.log(c.cyan('  [g] Guardar automáticamente en Cuéntame'));
+                      console.log(c.cyan('  [c] Cancelar / Regresar a consulta (sin guardar)'));
+                      console.log(c.cyan('  [m] Ya lo guardé manualmente, regresar a consulta'));
+                      
+                      const resp = readline.question(c.negrita('  > Elige una opcion (g/c/m): ')).toLowerCase().trim();
+                      
+                      if (resp === 'g') {
+                          console.log(c.amarillo('  ⏳ Haciendo clic en Guardar...'));
+                          try {
+                              // Buscar el botón de guardado típico en Cuéntame
+                              const btnGuardar = content.locator('#cphCont_btnGuardar, input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i]').first();
+                              if (await btnGuardar.count() > 0) {
+                                  await Promise.all([
+                                      content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                      btnGuardar.evaluate(node => node.click())
+                                  ]);
+                                  console.log(c.verde('  ✅ Formulario guardado con éxito.'));
+                              } else {
+                                  console.log(c.rojo('  ❌ No se encontró el botón de Guardar. Por favor guárdalo manualmente.'));
+                                  continue; // Volver a preguntar para que el usuario pueda presionar 'm' luego de guardar a mano
+                              }
+                          } catch (e) {
+                              console.log(c.rojo(`  ❌ Error al guardar: ${e.message}`));
+                          }
+                      }
+                      
+                      if (resp === 'g' || resp === 'c' || resp === 'm') {
                           console.log(c.amarillo('  ⏳ Volviendo a la consulta general de ninos...'));
-                          
                           try {
                               const rootMenu = page.frame({ name: 'frameMenu' }) || page;
                               const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
@@ -628,6 +650,8 @@ async function main() {
                               console.log(c.rojo(`  ❌ Error volviendo a la consulta: ${e.message}`));
                           }
                           break;
+                      } else {
+                          console.log(c.rojo('  ❌ Opción no válida.'));
                       }
                   }
                   break; // Salir de Fase 3 y volver a Fase 2 (selección de niño)

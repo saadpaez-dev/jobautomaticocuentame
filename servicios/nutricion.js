@@ -432,7 +432,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
         await page.waitForTimeout(1000);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
-        console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla. Cuando estes seguro, haz clic en GUARDAR manualmente.'));
+        console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla y selecciona la opción de guardado en la consola.'));
         
     } catch(e) {
         console.log(c.rojo(`  ❌ Error llenando Cuéntame: ${e.message}`));
