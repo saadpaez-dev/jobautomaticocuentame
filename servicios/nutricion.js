@@ -403,10 +403,10 @@ async function llenarFormularioNutricion(browser, content, datos) {
         // ==========================================
         // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL Y MODO NATIVO)
         // ==========================================
-        console.log(c.amarillo('\n  ⏳ Esperando 3 segundos para asegurar que el formulario esté estable...'));
-        await page.waitForTimeout(3000);
+        console.log(c.amarillo('\n  ⏳ Esperando 1 segundo para asegurar que el formulario esté estable...'));
+        await page.waitForTimeout(1000);
         
-        console.log(c.amarillo('  🎯 Llenando campos conflictivos con simulación humana (Playwright Nativo)...'));
+        console.log(c.amarillo('  🎯 Llenando campos finales con simulación nativa...'));
         
         const f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
 
@@ -415,24 +415,21 @@ async function llenarFormularioNutricion(browser, content, datos) {
             await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' });
             console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento'));
         } catch(e) { console.log(c.rojo('    ❌ [Lista] Error controles: ' + e.message.substring(0, 50))); }
-        console.log(c.gris('    ⏳ Pausa (3s)...'));
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(1000);
 
         // B. Perimetro Braquial
         try {
             await f.fill('#cphCont_txtMedicionPerimetroBraquial', datos.perimetro.toString());
             console.log(c.verde('    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial'));
         } catch(e) { console.log(c.rojo('    ❌ [Texto] Error perimetro: ' + e.message.substring(0, 50))); }
-        console.log(c.gris('    ⏳ Pausa (3s)...'));
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(1000);
 
         // C. Mujer gestante atendida
         try {
             await f.selectOption('#cphCont_ddlHijoMujerGestanteAtendidaServiciosICBF', { label: 'No' });
             console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): mujer gestante atendida'));
         } catch(e) { console.log(c.rojo('    ❌ [Lista] Error gestante: ' + e.message.substring(0, 50))); }
-        console.log(c.gris('    ⏳ Pausa (3s)...'));
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(1000);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
         console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla. Cuando estes seguro, haz clic en GUARDAR manualmente.'));
