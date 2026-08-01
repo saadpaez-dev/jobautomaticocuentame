@@ -372,13 +372,20 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 }, datos.fecha);
             } catch(e) {}
         }
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
 
         // 1. Vacunación y Desarrollo
         await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
+        console.log(c.amarillo('    ⏳ Esperando al servidor de Cuéntame...'));
+        await page.waitForTimeout(4000); // ESPERA LARGA: Este click recarga la mitad del formulario
+        
         await safeFillText('esquema de vacunación', datos.fecha);
         await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
+        
         await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
+        console.log(c.amarillo('    ⏳ Esperando al servidor de Cuéntame...'));
+        await page.waitForTimeout(3000); // ESPERA LARGA: Este click habilita los controles de crecimiento
+        
         await safeFillSelect('controles de crecimiento y desarrollo ha recibido', '1');
         await safeFillRadio('Antecedente de prematurez', 'No', 1);
 
@@ -390,6 +397,9 @@ async function llenarFormularioNutricion(browser, content, datos) {
 
         // 3. Situaciones adicionales
         await safeFillSelect('mujer gestante atendida', 'No');
+        console.log(c.amarillo('    ⏳ Esperando al servidor de Cuéntame...'));
+        await page.waitForTimeout(3000); // ESPERA LARGA: Este select muestra/oculta los servicios del ICBF
+        
         await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
         // 4. Lactancia
