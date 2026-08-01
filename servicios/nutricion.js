@@ -319,6 +319,42 @@ async function llenarFormularioNutricion(browser, content, datos) {
         // LLENADO TOP-TO-BOTTOM (De arriba hacia abajo)
         // Esto evita que un UpdatePanel superior borre los campos inferiores
         
+        // --- DIAGNÓSTICO ---
+        try {
+            console.log(c.amarillo('\n  🔍 DIAGNÓSTICO DE CAMPOS (Solo para el desarrollador):'));
+            const frm = await getFrame();
+            const dump = await frm.evaluate(() => {
+                const res = [];
+                document.querySelectorAll('input:not([type="hidden"]), select').forEach(el => {
+                    let text = '';
+                    let p = el.parentElement;
+                    for(let i=0; i<4; i++) {
+                        if (!p) break;
+                        if (p.innerText) { text = p.innerText.trim(); break; }
+                        p = p.parentElement;
+                    }
+                    if (el.type === 'radio' && el.parentElement && el.parentElement.innerText) {
+                        text = el.parentElement.innerText;
+                    }
+                    // Buscamos si hay un label cercano en un tr/td anterior
+                    let p2 = el.closest('tr') || el.closest('td') || el.parentElement;
+                    let prevText = '';
+                    if (p2 && p2.previousElementSibling) {
+                        prevText = p2.previousElementSibling.innerText || '';
+                    }
+                    res.push({
+                        tag: el.tagName,
+                        type: el.type || '',
+                        id: el.id,
+                        context: (text + ' | PrevSibling: ' + prevText).substring(0, 80).replace(/\\s+/g, ' ')
+                    });
+                });
+                return res;
+            });
+            dump.forEach(d => console.log(c.gris(`    [${d.tag} ${d.type}] id=${d.id} | Ctx: ${d.context}`)));
+            console.log(c.amarillo('  --------------------------------------------------\n'));
+        } catch(e) {}
+
         // Inputs de fecha por fuerza bruta al inicio
         if (datos.fecha) {
             console.log(c.gris(`    - Llenando fechas faltantes...`));
