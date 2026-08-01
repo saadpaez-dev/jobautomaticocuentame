@@ -171,40 +171,69 @@ async function llenarFormularioNutricion(browser, content, datos) {
             return page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
         };
 
+        const getFieldsClientCode = `
+            function getFields(labelText, selector) {
+                const allElements = Array.from(document.querySelectorAll('label, span, td, div, p, th')).reverse();
+                const normalize = str => str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+                
+                const el = allElements.find(e => 
+                    e.innerText && 
+                    normalize(e.innerText.replace(/\\s+/g, ' ')).includes(normalize(labelText)) && 
+                    e.innerText.length < 300 
+                );
+                if (!el) return [];
+                
+                const containers = [
+                    el.closest('td'), 
+                    el.closest('.form-group'), 
+                    el.closest('[class*="col-"]'), 
+                    el.closest('tr')
+                ].filter(Boolean);
+
+                for (let c of containers) {
+                    let fields = c.querySelectorAll(selector);
+                    if (fields.length > 0) return Array.from(fields);
+                    if (c.nextElementSibling) {
+                        fields = c.nextElementSibling.querySelectorAll(selector);
+                        if (fields.length > 0) return Array.from(fields);
+                    }
+                }
+                
+                if (el.parentElement) {
+                    let fields = el.parentElement.querySelectorAll(selector);
+                    if (fields.length > 0) return Array.from(fields);
+                    if (el.parentElement.nextElementSibling) {
+                        fields = el.parentElement.nextElementSibling.querySelectorAll(selector);
+                        if (fields.length > 0) return Array.from(fields);
+                    }
+                }
+
+                // Check NEXT row (handles questions spanning a whole row)
+                let tr = el.closest('tr');
+                if (tr && tr.nextElementSibling) {
+                    let fields = tr.nextElementSibling.querySelectorAll(selector);
+                    if (fields.length > 0) return Array.from(fields);
+                }
+                
+                return [];
+            }
+        `;
+
         const safeFillText = async (labelText, value) => {
             if (!value) return;
             console.log(c.gris(`    - Llenando [Texto]: ${labelText}`));
             const frm = await getFrame();
             try {
                 await frm.evaluate((args) => {
-                    const normalize = str => str ? str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase() : '';
-                    const labelStr = normalize(args.labelText);
-                    
-                    const inputs = Array.from(document.querySelectorAll('input[type="text"], input[type="number"]'));
-                    let targetInput = null;
-                    
-                    for (let inp of inputs) {
-                        if (inp.disabled) continue;
-                        let p = inp.parentElement;
-                        let found = false;
-                        for(let i=0; i<4; i++) {
-                            if (!p) break;
-                            if (normalize(p.innerText).includes(labelStr)) { found = true; break; }
-                            if (p.tagName === 'TD' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
-                            if (p.tagName === 'TR' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
-                            p = p.parentElement;
-                        }
-                        
-                        if (found) { targetInput = inp; break; }
+                    eval(args.code);
+                    const fields = getFields(args.labelText, 'input[type="text"], input[type="number"]');
+                    if (fields.length > 0 && !fields[0].disabled) {
+                        fields[0].value = args.value;
+                        fields[0].dispatchEvent(new Event('input', { bubbles: true }));
+                        fields[0].dispatchEvent(new Event('change', { bubbles: true }));
+                        fields[0].dispatchEvent(new Event('blur', { bubbles: true }));
                     }
-                    
-                    if (targetInput) {
-                        targetInput.value = args.value;
-                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        targetInput.dispatchEvent(new Event('blur', { bubbles: true }));
-                    }
-                }, { labelText, value });
+                }, { code: getFieldsClientCode, labelText, value });
             } catch(e) { }
             await page.waitForTimeout(500);
         };
@@ -215,38 +244,21 @@ async function llenarFormularioNutricion(browser, content, datos) {
             const frm = await getFrame();
             try {
                 await frm.evaluate((args) => {
-                    const normalize = str => str ? str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase() : '';
-                    const labelStr = normalize(args.labelText);
-                    
-                    const selects = Array.from(document.querySelectorAll('select'));
-                    let targetSelect = null;
-                    
-                    for (let sel of selects) {
-                        if (sel.disabled) continue;
-                        let p = sel.parentElement;
-                        let found = false;
-                        for(let i=0; i<4; i++) {
-                            if (!p) break;
-                            if (normalize(p.innerText).includes(labelStr)) { found = true; break; }
-                            if (p.tagName === 'TD' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
-                            if (p.tagName === 'TR' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
-                            p = p.parentElement;
-                        }
-                        
-                        if (found) { targetSelect = sel; break; }
-                    }
-                    
-                    if (targetSelect) {
-                        const options = Array.from(targetSelect.options);
+                    eval(args.code);
+                    const fields = getFields(args.labelText, 'select');
+                    if (fields.length > 0 && !fields[0].disabled) {
+                        const select = fields[0];
+                        const options = Array.from(select.options);
+                        const normalize = str => str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
                         const match = options.find(o => normalize(o.text).includes(normalize(args.optionText)));
                         if (match) {
-                            targetSelect.value = match.value;
-                            targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            select.value = match.value;
+                            select.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                     }
-                }, { labelText, optionText });
+                }, { code: getFieldsClientCode, labelText, optionText });
             } catch(e) { }
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(1500); // Esperar si hay postback
         };
 
         const safeFillRadio = async (labelText, choice, fallbackIndex) => {
@@ -254,45 +266,33 @@ async function llenarFormularioNutricion(browser, content, datos) {
             const frm = await getFrame();
             try {
                 await frm.evaluate((args) => {
-                    const normalize = str => str ? str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase() : '';
-                    const labelStr = normalize(args.labelText);
-                    const choiceStr = normalize(args.choice);
-                    
-                    const radios = Array.from(document.querySelectorAll('input[type="radio"]'));
-                    let targetRadios = [];
-                    
-                    for (let r of radios) {
-                        let p = r.parentElement;
-                        let found = false;
-                        for(let i=0; i<5; i++) {
-                            if (!p) break;
-                            if (normalize(p.innerText).includes(labelStr)) { found = true; break; }
-                            if (p.tagName === 'TD' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
-                            if (p.tagName === 'TR' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
-                            p = p.parentElement;
-                        }
-                        if (found) targetRadios.push(r);
-                    }
-                    
-                    if (targetRadios.length > 0) {
+                    eval(args.code);
+                    const radios = getFields(args.labelText, 'input[type="radio"]');
+                    if (radios.length > 0) {
                         let clicked = false;
-                        for (let r of targetRadios) {
+                        const normalize = str => str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+                        const normChoice = normalize(args.choice);
+                        
+                        for (let i = 0; i < radios.length; i++) {
+                            const r = radios[i];
                             if (r.disabled) continue;
                             const nextText = r.nextSibling ? (r.nextSibling.textContent || '') : '';
                             const parentText = r.parentElement ? r.parentElement.innerText : '';
-                            if (normalize(nextText).includes(choiceStr) || normalize(parentText).includes(choiceStr) || (r.value && normalize(r.value).includes(choiceStr))) {
+                            if (normalize(nextText).includes(normChoice) || normalize(parentText).includes(normChoice) || (r.value && normalize(r.value).includes(normChoice))) {
                                 r.click();
                                 clicked = true;
                                 break;
                             }
                         }
-                        if (!clicked && targetRadios[args.fallbackIndex] && !targetRadios[args.fallbackIndex].disabled) {
-                            targetRadios[args.fallbackIndex].click();
+                        if (!clicked && radios[args.fallbackIndex] && !radios[args.fallbackIndex].disabled) {
+                            radios[args.fallbackIndex].click();
                         }
                     }
-                }, { labelText, choice, fallbackIndex });
-            } catch(e) { }
-            await page.waitForTimeout(2000);
+                }, { code: getFieldsClientCode, labelText, choice, fallbackIndex });
+            } catch(e) { 
+                // Ignoramos el Execution context destroyed porque significa que el click disparó un UpdatePanel con éxito
+            }
+            await page.waitForTimeout(2000); // Darle tiempo al UpdatePanel
         };
 
         // LLENADO TOP-TO-BOTTOM (De arriba hacia abajo)
