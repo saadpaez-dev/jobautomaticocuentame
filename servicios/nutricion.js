@@ -376,30 +376,22 @@ async function llenarFormularioNutricion(browser, content, datos) {
 
         // 1. Vacunación y Desarrollo
         await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
-        console.log(c.amarillo('    ⏳ Esperando al servidor de Cuéntame...'));
-        await page.waitForTimeout(4000); // ESPERA LARGA: Este click recarga la mitad del formulario
+        await page.waitForTimeout(500); 
         
         await safeFillText('esquema de vacunación', datos.fecha);
         await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
         
         await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
-        console.log(c.amarillo('    ⏳ Esperando al servidor de Cuéntame...'));
-        await page.waitForTimeout(3000); // ESPERA LARGA: Este click habilita los controles de crecimiento
+        await page.waitForTimeout(500);
         
-        await safeFillSelect('controles de crecimiento y desarrollo ha recibido', '1');
         await safeFillRadio('Antecedente de prematurez', 'No', 1);
 
         // 2. Antropometría
         await safeFillText('Peso (En Kilogramos)', datos.peso);
         await safeFillText('Talla (En Cent', datos.talla);
-        await safeFillText('Perimetro Braquial (cm)', datos.perimetro);
         await safeFillText('Fecha de medición', datos.fecha);
 
         // 3. Situaciones adicionales
-        await safeFillSelect('mujer gestante atendida', 'No');
-        console.log(c.amarillo('    ⏳ Esperando al servidor de Cuéntame...'));
-        await page.waitForTimeout(3000); // ESPERA LARGA: Este select muestra/oculta los servicios del ICBF
-        
         await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
         // 4. Lactancia
@@ -407,6 +399,29 @@ async function llenarFormularioNutricion(browser, content, datos) {
         const valTotal = Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
         await safeFillText('exclusiva (meses)', valExclusiva);
         await safeFillText('total (meses)', valTotal);
+        
+        // ==========================================
+        // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL)
+        // ==========================================
+        console.log(c.amarillo('\n  ⏳ Esperando 3 segundos para asegurar que el formulario esté estable...'));
+        await page.waitForTimeout(3000);
+        
+        console.log(c.amarillo('  🎯 Llenando campos conflictivos de Cuéntame con pausas...'));
+        
+        // A. Controles de crecimiento
+        await safeFillSelect('controles de crecimiento y desarrollo ha recibido', '1');
+        console.log(c.gris('    ⏳ Pausa (3s)...'));
+        await page.waitForTimeout(3000);
+
+        // B. Perimetro Braquial
+        await safeFillText('Perimetro Braquial (cm)', datos.perimetro);
+        console.log(c.gris('    ⏳ Pausa (3s)...'));
+        await page.waitForTimeout(3000);
+
+        // C. Mujer gestante atendida
+        await safeFillSelect('mujer gestante atendida', 'No');
+        console.log(c.gris('    ⏳ Pausa (3s)...'));
+        await page.waitForTimeout(3000);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
         console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla. Cuando estes seguro, haz clic en GUARDAR manualmente.'));
