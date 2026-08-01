@@ -609,13 +609,23 @@ async function main() {
                       const resp = readline.question(c.negrita('  > Escribe "consulta" para regresar al listado: '));
                       if (resp.toLowerCase() === 'consulta') {
                           // Simular volver atras desde la pantalla de toma
-                          console.log(c.amarillo('  ⏳ Volviendo a la consulta de ninos...'));
-                          const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"]').first();
-                          if (await btnBuscar.count() > 0) {
-                              await Promise.all([
-                                  content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                                  btnBuscar.evaluate(node => node.click())
-                              ]);
+                          console.log(c.amarillo('  ⏳ Volviendo a la consulta general de ninos...'));
+                          
+                          try {
+                              const rootMenu = page.frame({ name: 'frameMenu' }) || page;
+                              const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
+                              if (await childMenu.count() > 0) {
+                                  await Promise.all([
+                                      content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                      childMenu.evaluate(node => node.click())
+                                  ]);
+                              } else {
+                                  // Fallback
+                                  await rootMenu.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
+                                  await page.waitForTimeout(4000);
+                              }
+                          } catch(e) {
+                              console.log(c.rojo(`  ❌ Error volviendo a la consulta: ${e.message}`));
                           }
                           break;
                       }
