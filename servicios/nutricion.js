@@ -191,6 +191,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
                             if (!p) break;
                             if (normalize(p.innerText).includes(labelStr)) { found = true; break; }
                             if (p.tagName === 'TD' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
+                            if (p.tagName === 'TR' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
                             p = p.parentElement;
                         }
                         
@@ -228,6 +229,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
                             if (!p) break;
                             if (normalize(p.innerText).includes(labelStr)) { found = true; break; }
                             if (p.tagName === 'TD' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
+                            if (p.tagName === 'TR' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
                             p = p.parentElement;
                         }
                         
@@ -266,6 +268,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
                             if (!p) break;
                             if (normalize(p.innerText).includes(labelStr)) { found = true; break; }
                             if (p.tagName === 'TD' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
+                            if (p.tagName === 'TR' && p.previousElementSibling && normalize(p.previousElementSibling.innerText).includes(labelStr)) { found = true; break; }
                             p = p.parentElement;
                         }
                         if (found) targetRadios.push(r);
@@ -292,7 +295,10 @@ async function llenarFormularioNutricion(browser, content, datos) {
             await page.waitForTimeout(2000);
         };
 
-        // Inputs de fecha por fuerza bruta
+        // LLENADO TOP-TO-BOTTOM (De arriba hacia abajo)
+        // Esto evita que un UpdatePanel superior borre los campos inferiores
+        
+        // Inputs de fecha por fuerza bruta al inicio
         if (datos.fecha) {
             console.log(c.gris(`    - Llenando fechas faltantes...`));
             const frm = await getFrame();
@@ -311,24 +317,25 @@ async function llenarFormularioNutricion(browser, content, datos) {
         }
         await page.waitForTimeout(500);
 
-        // 1. Textos
+        // 1. Vacunación y Desarrollo
+        await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
+        await safeFillText('esquema de vacunación', datos.fecha);
+        await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
+        await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
+        await safeFillSelect('controles de crecimiento y desarrollo', '1');
+        await safeFillRadio('Antecedente de prematurez', 'No', 1);
+
+        // 2. Antropometría
         await safeFillText('Peso (En Kilogramos)', datos.peso);
         await safeFillText('Talla (En Cent', datos.talla);
         await safeFillText('Perimetro Braquial', datos.perimetro);
         await safeFillText('Fecha de medición', datos.fecha);
-        await safeFillText('esquema de vacunación', datos.fecha);
 
-        // 2. Radios en cadena (disparan UpdatePanels!)
-        await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
-        await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
-        await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
-
-        // 3. Selects y Radios independientes
-        await safeFillSelect('controles de crecimiento y desarrollo', '1');
-        await safeFillRadio('Antecedente de prematurez', 'No', 1);
+        // 3. Situaciones adicionales
         await safeFillSelect('mujer gestante atendida en alguno de los servicios', 'No');
         await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
+        // 4. Lactancia
         const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
         const valTotal = Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
         await safeFillText('exclusiva (meses)', valExclusiva);
