@@ -161,23 +161,23 @@ async function llenarFormularioNutricion(browser, content, datos) {
             console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
         }
         
-        await content.waitForTimeout(2000); // Dar un respiro a la página post-EPS
+        await content.waitForTimeout(3000); // Dar un respiro a la página post-EPS
         console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
 
-        // Llenar TODOS los campos dinámicos (Inputs, Radios, Selects) de manera unificada y ultra robusta
-        await content.evaluate(async (d) => {
-            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-            
+        const page = content.page ? content.page() : content; // Obtener la página principal
+
+        // Helper para reobtener el frame, porque los UpdatePanels de ASP.NET lo destruyen
+        const getFrame = async () => {
+            return page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
+        };
+
+        const getFieldsClientCode = `
             function getFields(labelText, selector) {
-                // Buscamos el elemento fresco en cada llamada, porque algunos aparecen dinámicamente
                 const allElements = Array.from(document.querySelectorAll('label, span, td, div, p, th')).reverse();
-                
-                // Buscamos el elemento más profundo que contiene el texto
-                // Limpiamos los saltos de línea para facilitar el includes
                 const el = allElements.find(e => 
                     e.innerText && 
-                    e.innerText.replace(/\s+/g, ' ').includes(labelText) && 
-                    e.innerText.length < 300 // Para evitar agarrar contenedores gigantes como body o form
+                    e.innerText.replace(/\\s+/g, ' ').includes(labelText) && 
+                    e.innerText.length < 300 
                 );
                 if (!el) return [];
                 
@@ -191,7 +191,6 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 for (let c of containers) {
                     let fields = c.querySelectorAll(selector);
                     if (fields.length > 0) return Array.from(fields);
-                    
                     if (c.nextElementSibling) {
                         fields = c.nextElementSibling.querySelectorAll(selector);
                         if (fields.length > 0) return Array.from(fields);
@@ -208,105 +207,116 @@ async function llenarFormularioNutricion(browser, content, datos) {
                 }
                 return [];
             }
+        `;
 
-            function fillText(labelText, value) {
-                if (!value) return;
-                const fields = getFields(labelText, 'input[type="text"], input[type="number"]');
-                if (fields.length > 0) {
-                    const input = fields[0];
-                    if (!input.disabled) {
-                        input.value = value;
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                        input.dispatchEvent(new Event('blur', { bubbles: true }));
+        const safeFillText = async (labelText, value) => {
+            if (!value) return;
+            const frm = await getFrame();
+            try {
+                await frm.evaluate((args) => {
+                    eval(args.code);
+                    const fields = getFields(args.labelText, 'input[type="text"], input[type="number"]');
+                    if (fields.length > 0 && !fields[0].disabled) {
+                        fields[0].value = args.value;
+                        fields[0].dispatchEvent(new Event('input', { bubbles: true }));
+                        fields[0].dispatchEvent(new Event('change', { bubbles: true }));
+                        fields[0].dispatchEvent(new Event('blur', { bubbles: true }));
                     }
-                }
-            }
+                }, { code: getFieldsClientCode, labelText, value });
+            } catch(e) { }
+            await page.waitForTimeout(500);
+        };
 
-            function fillSelect(labelText, optionText) {
-                const fields = getFields(labelText, 'select');
-                if (fields.length > 0) {
-                    const select = fields[0];
-                    if (!select.disabled) {
+        const safeFillSelect = async (labelText, optionText) => {
+            if (!optionText) return;
+            const frm = await getFrame();
+            try {
+                await frm.evaluate((args) => {
+                    eval(args.code);
+                    const fields = getFields(args.labelText, 'select');
+                    if (fields.length > 0 && !fields[0].disabled) {
+                        const select = fields[0];
                         const options = Array.from(select.options);
-                        const match = options.find(o => o.text.toUpperCase().includes(optionText.toUpperCase()));
+                        const match = options.find(o => o.text.toUpperCase().includes(args.optionText.toUpperCase()));
                         if (match) {
                             select.value = match.value;
                             select.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                     }
-                }
-            }
+                }, { code: getFieldsClientCode, labelText, optionText });
+            } catch(e) { }
+            await page.waitForTimeout(1500); // Esperar si hay postback
+        };
 
-            function fillRadio(labelText, choice, fallbackIndex) {
-                const radios = getFields(labelText, 'input[type="radio"]');
-                if (radios.length > 0) {
-                    let clicked = false;
-                    for (let i = 0; i < radios.length; i++) {
-                        const r = radios[i];
-                        if (r.disabled) continue;
-                        const nextText = r.nextSibling ? (r.nextSibling.textContent || '') : '';
-                        const parentText = r.parentElement ? r.parentElement.innerText : '';
-                        if (nextText.includes(choice) || parentText.includes(choice) || (r.value && r.value.includes(choice.replace('í', 'i')))) {
-                            r.click();
-                            clicked = true;
-                            break;
+        const safeFillRadio = async (labelText, choice, fallbackIndex) => {
+            const frm = await getFrame();
+            try {
+                await frm.evaluate((args) => {
+                    eval(args.code);
+                    const radios = getFields(args.labelText, 'input[type="radio"]');
+                    if (radios.length > 0) {
+                        let clicked = false;
+                        for (let i = 0; i < radios.length; i++) {
+                            const r = radios[i];
+                            if (r.disabled) continue;
+                            const nextText = r.nextSibling ? (r.nextSibling.textContent || '') : '';
+                            const parentText = r.parentElement ? r.parentElement.innerText : '';
+                            if (nextText.includes(args.choice) || parentText.includes(args.choice) || (r.value && r.value.includes(args.choice.replace('í', 'i')))) {
+                                r.click();
+                                clicked = true;
+                                break;
+                            }
+                        }
+                        if (!clicked && radios[args.fallbackIndex] && !radios[args.fallbackIndex].disabled) {
+                            radios[args.fallbackIndex].click();
                         }
                     }
-                    if (!clicked && radios[fallbackIndex] && !radios[fallbackIndex].disabled) {
-                        radios[fallbackIndex].click();
-                    }
-                }
+                }, { code: getFieldsClientCode, labelText, choice, fallbackIndex });
+            } catch(e) { 
+                // Ignoramos el Execution context destroyed porque significa que el click disparó un UpdatePanel con éxito
             }
+            await page.waitForTimeout(2000); // Darle tiempo al UpdatePanel
+        };
 
-            // --- EJECUCIÓN ---
+        // Inputs de fecha por fuerza bruta
+        if (datos.fecha) {
+            const frm = await getFrame();
+            try {
+                await frm.evaluate((fDate) => {
+                    const dateInputs = document.querySelectorAll('input[type="text"]');
+                    dateInputs.forEach(inp => {
+                        if (inp.outerHTML.includes('Date') || inp.outerHTML.includes('fecha') || inp.id.toLowerCase().includes('fecha')) {
+                            inp.value = fDate;
+                            inp.dispatchEvent(new Event('input', { bubbles: true }));
+                            inp.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    });
+                }, datos.fecha);
+            } catch(e) {}
+        }
+        await page.waitForTimeout(500);
 
-            // Inputs de fecha por fuerza bruta (por si están en otro formato)
-            if (d.fecha) {
-                const dateInputs = document.querySelectorAll('input[type="text"]');
-                dateInputs.forEach(inp => {
-                    if (inp.outerHTML.includes('Date') || inp.outerHTML.includes('fecha') || inp.id.toLowerCase().includes('fecha')) {
-                        inp.value = d.fecha;
-                        inp.dispatchEvent(new Event('input', { bubbles: true }));
-                        inp.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                });
-            }
+        // 1. Textos
+        await safeFillText('Peso (En Kilogramos)', datos.peso);
+        await safeFillText('Talla (En Cent', datos.talla);
+        await safeFillText('Perimetro Braquial', datos.perimetro);
+        await safeFillText('esquema de vacunación', datos.fecha);
 
-            // 1. Inputs de texto (pueden ser llenados en cualquier momento, pero mejor con retardo)
-            fillText('Peso (En Kilogramos)', d.peso);
-            await delay(100);
-            fillText('Talla (En Cent', d.talla);
-            await delay(100);
-            fillText('Perimetro Braquial', d.perimetro);
-            await delay(100);
-            fillText('esquema de vacunación', d.fecha);
-            await delay(100);
+        // 2. Radios en cadena (disparan UpdatePanels!)
+        await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Sí', 0);
+        await safeFillRadio('dosis que corresponden a la edad', 'Sí', 0);
+        await safeFillRadio('carnet de crecimiento y desarrollo', 'Sí', 0);
 
-            // 2. Radios en cadena (es fundamental esperar para que se muestre o habilite el siguiente)
-            fillRadio('beneficiario cuenta con el carnet de vacunación', 'Sí', 0);
-            await delay(500); // 0.5s para que se habilite el siguiente
+        // 3. Selects y Radios independientes
+        await safeFillSelect('controles de crecimiento y desarrollo', '1');
+        await safeFillRadio('Antecedente de prematurez', 'No', 1);
+        await safeFillRadio('mujer gestante atendida en alguno de los servicios', 'No', 1);
+        await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
-            fillRadio('dosis que corresponden a la edad', 'Sí', 0);
-            await delay(500);
-
-            fillRadio('carnet de crecimiento y desarrollo', 'Sí', 0);
-            await delay(500);
-
-            // 3. Selects y Radios independientes
-            fillSelect('controles de crecimiento y desarrollo', '1');
-            await delay(200);
-
-            fillRadio('Antecedente de prematurez', 'No', 1);
-            fillRadio('mujer gestante atendida en alguno de los servicios', 'No', 1);
-            fillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
-
-            const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
-            const valTotal = Math.floor(Math.random() * (17 - 12 + 1) + 12).toString();
-            fillSelect('exclusiva (meses)', valExclusiva);
-            fillSelect('total (meses)', valTotal);
-
-        }, datos);
+        const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
+        const valTotal = Math.floor(Math.random() * (17 - 12 + 1) + 12).toString();
+        await safeFillSelect('exclusiva (meses)', valExclusiva);
+        await safeFillSelect('total (meses)', valTotal);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
         console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla. Cuando estes seguro, haz clic en GUARDAR manualmente.'));
