@@ -213,6 +213,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
 
         const safeFillText = async (labelText, value) => {
             if (!value) return;
+            console.log(c.gris(`    - Llenando [Texto]: ${labelText}`));
             const frm = await getFrame();
             try {
                 await frm.evaluate((args) => {
@@ -231,6 +232,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
 
         const safeFillSelect = async (labelText, optionText) => {
             if (!optionText) return;
+            console.log(c.gris(`    - Llenando [Lista]: ${labelText}`));
             const frm = await getFrame();
             try {
                 await frm.evaluate((args) => {
@@ -252,6 +254,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
         };
 
         const safeFillRadio = async (labelText, choice, fallbackIndex) => {
+            console.log(c.gris(`    - Llenando [Opcion]: ${labelText}`));
             const frm = await getFrame();
             try {
                 await frm.evaluate((args) => {
@@ -286,6 +289,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
 
         // Inputs de fecha por fuerza bruta
         if (datos.fecha) {
+            console.log(c.gris(`    - Llenando fechas faltantes...`));
             const frm = await getFrame();
             try {
                 await frm.evaluate((fDate) => {
@@ -317,13 +321,13 @@ async function llenarFormularioNutricion(browser, content, datos) {
         // 3. Selects y Radios independientes
         await safeFillSelect('controles de crecimiento y desarrollo', '1');
         await safeFillRadio('Antecedente de prematurez', 'No', 1);
-        await safeFillRadio('mujer gestante atendida en alguno de los servicios', 'No', 1);
+        await safeFillSelect('mujer gestante atendida en alguno de los servicios', 'No');
         await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
         const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
         const valTotal = Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
-        await safeFillSelect('exclusiva (meses)', valExclusiva);
-        await safeFillSelect('total (meses)', valTotal);
+        await safeFillText('exclusiva (meses)', valExclusiva);
+        await safeFillText('total (meses)', valTotal);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
         console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla. Cuando estes seguro, haz clic en GUARDAR manualmente.'));
