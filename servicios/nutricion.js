@@ -175,44 +175,43 @@ async function llenarFormularioNutricion(browser, content, datos) {
             function getFields(labelText, selector) {
                 const allElements = Array.from(document.querySelectorAll('label, span, td, div, p, th')).reverse();
                 const normalize = str => str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+                const targetText = normalize(labelText);
                 
-                const el = allElements.find(e => 
-                    e.innerText && 
-                    normalize(e.innerText.replace(/\\s+/g, ' ')).includes(normalize(labelText)) && 
-                    e.innerText.length < 300 
-                );
-                if (!el) return [];
-                
-                const containers = [
-                    el.closest('td'), 
-                    el.closest('.form-group'), 
-                    el.closest('[class*="col-"]'), 
-                    el.closest('tr')
-                ].filter(Boolean);
+                for (let el of allElements) {
+                    if (el.innerText && normalize(el.innerText.replace(/\\s+/g, ' ')).includes(targetText) && el.innerText.length < 300) {
+                        
+                        const containers = [
+                            el.closest('td'), 
+                            el.closest('.form-group'), 
+                            el.closest('[class*="col-"]'), 
+                            el.closest('tr')
+                        ].filter(Boolean);
 
-                for (let c of containers) {
-                    let fields = c.querySelectorAll(selector);
-                    if (fields.length > 0) return Array.from(fields);
-                    if (c.nextElementSibling) {
-                        fields = c.nextElementSibling.querySelectorAll(selector);
-                        if (fields.length > 0) return Array.from(fields);
-                    }
-                }
-                
-                if (el.parentElement) {
-                    let fields = el.parentElement.querySelectorAll(selector);
-                    if (fields.length > 0) return Array.from(fields);
-                    if (el.parentElement.nextElementSibling) {
-                        fields = el.parentElement.nextElementSibling.querySelectorAll(selector);
-                        if (fields.length > 0) return Array.from(fields);
-                    }
-                }
+                        for (let c of containers) {
+                            let fields = c.querySelectorAll(selector);
+                            if (fields.length > 0) return Array.from(fields);
+                            if (c.nextElementSibling) {
+                                fields = c.nextElementSibling.querySelectorAll(selector);
+                                if (fields.length > 0) return Array.from(fields);
+                            }
+                        }
+                        
+                        if (el.parentElement) {
+                            let fields = el.parentElement.querySelectorAll(selector);
+                            if (fields.length > 0) return Array.from(fields);
+                            if (el.parentElement.nextElementSibling) {
+                                fields = el.parentElement.nextElementSibling.querySelectorAll(selector);
+                                if (fields.length > 0) return Array.from(fields);
+                            }
+                        }
 
-                // Check NEXT row (handles questions spanning a whole row)
-                let tr = el.closest('tr');
-                if (tr && tr.nextElementSibling) {
-                    let fields = tr.nextElementSibling.querySelectorAll(selector);
-                    if (fields.length > 0) return Array.from(fields);
+                        // Check NEXT row (handles questions spanning a whole row)
+                        let tr = el.closest('tr');
+                        if (tr && tr.nextElementSibling) {
+                            let fields = tr.nextElementSibling.querySelectorAll(selector);
+                            if (fields.length > 0) return Array.from(fields);
+                        }
+                    }
                 }
                 
                 return [];
@@ -226,7 +225,7 @@ async function llenarFormularioNutricion(browser, content, datos) {
             try {
                 found = await frm.evaluate((args) => {
                     eval(args.code);
-                    const fields = getFields(args.labelText, 'input[type="text"], input[type="number"]');
+                    const fields = getFields(args.labelText, 'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"])');
                     if (fields.length > 0 && !fields[0].disabled) {
                         fields[0].value = args.value;
                         fields[0].dispatchEvent(new Event('input', { bubbles: true }));
