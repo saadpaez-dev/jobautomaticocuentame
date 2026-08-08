@@ -7,9 +7,10 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const { chromium } = require('playwright');
 const readline = require('readline-sync');
-const { loginYLlegarARoles, seleccionarRolYEntrar } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
+const { parsearExcel } = require('../servicios/excel-parser');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -50,78 +51,198 @@ async function main() {
   let page = null;
   let loggedIn = false;
 
+  let ascSeleccionada = null;
+  let jardinSeleccionado = null;
+  let salirModulo = false;
+
   try {
     while (true) {
-      console.log(c.cyan('\n------------------------------------------------------'));
-      console.log(c.cyan('  📋 SELECCION DE ASOCIACION'));
-      console.log(c.cyan('------------------------------------------------------'));
-      asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
-      console.log(`  0. Salir`);
-
-      let idxAsociacion = -1;
-      while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
-        const res = readline.question(c.negrita('\n  > Selecciona la asociacion (0 para salir): '));
-        idxAsociacion = parseInt(res, 10);
-        if (isNaN(idxAsociacion)) idxAsociacion = -1;
-      }
-
-      if (idxAsociacion === 0) {
-        console.log(c.verde('\n  ✅ Proceso finalizado. Cerrando navegador...'));
-        if (browser) await browser.close();
-        break;
-      }
-
-      const ascSeleccionada = asociaciones[idxAsociacion - 1];
-
-      const jardines = ascSeleccionada.jardines;
-      if (!jardines || jardines.length === 0) {
-          console.log(c.rojo(`  ❌ No hay jardines (UDS) configurados para esta asociacion en el Excel.`));
-          continue;
-      }
-
-      console.log(c.cyan('\n------------------------------------------------------'));
-      console.log(c.cyan(`  📋 SELECCION DE JARDIN (UDS) - ${ascSeleccionada.nombreCorto}`));
-      console.log(c.cyan('------------------------------------------------------'));
-      jardines.forEach((jardin, i) => console.log(`  ${i + 1}. ${jardin.codigo} - ${jardin.nombre}`));
-      console.log(`  0. Volver a seleccionar asociacion`);
-
-      let idxJardin = -1;
-      while (idxJardin < 0 || idxJardin > jardines.length) {
-        const res = readline.question(c.negrita('\n  > Selecciona el Jardin (0 para volver): '));
-        idxJardin = parseInt(res, 10);
-        if (isNaN(idxJardin)) idxJardin = -1;
-      }
-
-      if (idxJardin === 0) {
-        continue;
-      }
-
-      const jardinSeleccionado = jardines[idxJardin - 1];
-
+      if (salirModulo) break;
+      
       let preFiltroBeneficiario = null;
       let accionRapida = null;
+      let modoExcel = null;
+      let ninosExcel = [];
+      let idxNinoExcelActual = 0;
 
       console.log(c.cyan('\n------------------------------------------------------'));
-      console.log(c.cyan('  📋 BUSQUEDA RAPIDA DE BENEFICIARIO (OPCIONAL)'));
+      console.log(c.cyan('  📋 MENU PRINCIPAL - BUSQUEDA RAPIDA'));
       console.log(c.cyan('------------------------------------------------------'));
-      console.log(c.amarillo('  ¿Sabes como se llama o identifica el beneficiario al que vas a agregar/editar?'));
-      console.log('  1. Si (Busqueda automatica)');
-      console.log('  2. No, continuar (Seleccion manual en la grilla)');
+      console.log('  1. Cargar excel jardin (Procesamiento masivo / Automático)');
+      console.log('  2. Cargar beneficiario con excel (Individual)');
+      console.log('  3. Cargar beneficiario sin excel (Manual)');
+      console.log('  4. Corregir/Editar masivo con Excel');
+      console.log(c.rojo('  0. Volver al menú principal'));
       
-      const respBenef = readline.question(c.negrita('\n  > Selecciona una opcion (1 o 2): '));
-      if (respBenef.trim() === '1') {
-          preFiltroBeneficiario = readline.question(c.negrita('  > Ingresa el nombre o documento (ej. LIAM): ')).trim().toLowerCase();
-          
+      let respBenef = '';
+      while (!['0', '1', '2', '3', '4'].includes(respBenef.trim())) {
+          respBenef = readline.question(c.negrita('\n  > Selecciona una opcion (0-4): '));
+      }
+
+      if (respBenef.trim() === '0') {
+          console.log(c.verde('\n  👋 Volviendo al menú principal...\n'));
+          break;
+      }
+      
+      const obtenerRutaExcel = () => {
+          const docsDir = require('path').join(__dirname, '..', 'Docs', 'peso y talla');
+          let archivos = [];
+          if (require('fs').existsSync(docsDir)) {
+              archivos = require('fs').readdirSync(docsDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
+          }
+          if (archivos.length > 0) {
+              console.log(c.cyan('\n  Archivos Excel encontrados en "Docs/peso y talla":'));
+              archivos.forEach((a, i) => console.log(`  ${i + 1}. ${a}`));
+              console.log(`  0. Escribir/Pegar ruta manualmente`);
+              let idxArchivo = -1;
+              while (idxArchivo < 0 || idxArchivo > archivos.length) {
+                  const res = readline.question(c.negrita('\n  > Selecciona el archivo a cargar (0-N): '));
+                  idxArchivo = parseInt(res, 10);
+                  if (isNaN(idxArchivo)) idxArchivo = -1;
+              }
+              if (idxArchivo > 0) {
+                  return require('path').join(docsDir, archivos[idxArchivo - 1]);
+              }
+          }
+          return readline.question(c.negrita('\n  > Arrastra el archivo Excel aqui o pega la ruta: ')).replace(/['"]/g, '').trim();
+      };
+      
+      if (respBenef.trim() === '1' || respBenef.trim() === '4') {
+          const accionMsj = respBenef.trim() === '1' ? 'Crear Nuevas Tomas' : 'Corregir/Editar Tomas Existentes';
+          console.log(c.amarillo(`\n  Has seleccionado Procesamiento Masivo (${accionMsj}).`));
+          const fileP = obtenerRutaExcel();
+          try {
+              const parseResult = parsearExcel(fileP);
+              ninosExcel = parseResult.ninos;
+              if (ninosExcel.length === 0) {
+                  console.log(c.rojo('  ❌ No se encontraron niños válidos en el Excel (o todos están retirados sin tomas válidas).'));
+                  continue;
+              }
+              console.log(c.verde(`  ✅ Excel cargado exitosamente. Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+              
+              const ascStr = parseResult.asociacion.trim().toUpperCase();
+              ascSeleccionada = asociaciones.find(a => ascStr.includes(a.nombreCorto.toUpperCase()) || a.nombreCorto.toUpperCase().includes(ascStr));
+              if (ascSeleccionada) {
+                  const udsStr = parseResult.uds.trim().toUpperCase();
+                  jardinSeleccionado = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
+                  if (!jardinSeleccionado) console.log(c.amarillo(`  ⚠️ No se encontró la UDS automáticamente. Se pedirá selección manual.`));
+              } else {
+                  console.log(c.amarillo(`  ⚠️ No se encontró la Asociación automáticamente. Se pedirá selección manual.`));
+              }
+
+              console.log(c.verde(`  ✅ Se encontraron ${ninosExcel.length} niños listos para procesar.`));
+              modoExcel = respBenef.trim() === '1' ? 'MASIVO_NUEVO' : 'MASIVO_EDITAR';
+          } catch(e) {
+              console.log(c.rojo(`  ❌ Error leyendo Excel: ${e.message}`));
+              continue;
+          }
+      } else if (respBenef.trim() === '2') {
+          const fileP = obtenerRutaExcel();
+          preFiltroBeneficiario = readline.question(c.negrita('\n  > Ingresa el/los nombre(s) o documento(s) (separados por coma, ej. LIAM,NICOLAS): ')).trim().toLowerCase();
           if (preFiltroBeneficiario) {
-              console.log(c.amarillo('\n  ¿Que deseas hacer con este beneficiario?'));
+              try {
+                  const parseResult = parsearExcel(fileP);
+                  const busquedas = preFiltroBeneficiario.split(',').map(b => b.trim()).filter(b => b);
+                  const filtrados = [];
+                  
+                  for (let b of busquedas) {
+                      const coincidencia = parseResult.ninos.find(n => n.documento.includes(b) || n.nombreCompleto.toLowerCase().includes(b));
+                      if (coincidencia) {
+                          if (!filtrados.some(f => f.documento === coincidencia.documento)) {
+                              filtrados.push(coincidencia);
+                          }
+                      } else {
+                          console.log(c.amarillo(`  ⚠️ No se encontró ningún beneficiario para: "${b}"`));
+                      }
+                  }
+
+                  if (filtrados.length > 0) {
+                      ninosExcel = filtrados;
+                      console.log(c.verde(`  ✅ Beneficiarios encontrados en Excel (${filtrados.length}):`));
+                      filtrados.forEach((f, idx) => console.log(c.verde(`      ${idx+1}. ${f.nombreCompleto}`)));
+                      modoExcel = 'INDIVIDUAL_EXCEL';
+                      accionRapida = '1';
+                      
+                      const ascStr = parseResult.asociacion.trim().toUpperCase();
+                      ascSeleccionada = asociaciones.find(a => ascStr.includes(a.nombreCorto.toUpperCase()) || a.nombreCorto.toUpperCase().includes(ascStr));
+                      if (ascSeleccionada) {
+                          const udsStr = parseResult.uds.trim().toUpperCase();
+                          jardinSeleccionado = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
+                      }
+                  } else {
+                      console.log(c.rojo(`  ❌ No se encontró ninguno de los beneficiarios ingresados.`));
+                      continue;
+                  }
+              } catch(e) {
+                  console.log(c.rojo(`  ❌ Error leyendo Excel: ${e.message}`));
+                  continue;
+              }
+          }
+      }
+
+      if (!ascSeleccionada) {
+          console.log(c.cyan('\n------------------------------------------------------'));
+          console.log(c.cyan('  📋 SELECCION DE ASOCIACION'));
+          console.log(c.cyan('------------------------------------------------------'));
+          asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
+          console.log(`  0. Salir`);
+
+          let idxAsociacion = -1;
+          while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
+              const res = readline.question(c.negrita('\n  > Selecciona la asociacion (0 para salir): '));
+              idxAsociacion = parseInt(res, 10);
+              if (isNaN(idxAsociacion)) idxAsociacion = -1;
+          }
+
+          if (idxAsociacion === 0) {
+              console.log(c.verde('\n  ✅ Proceso finalizado. Cerrando navegador...'));
+              if (browser) await browser.close();
+              break;
+          }
+          ascSeleccionada = asociaciones[idxAsociacion - 1];
+      } else {
+          console.log(c.verde(`  ✅ Asociación seleccionada: ${ascSeleccionada.nombreCorto}`));
+      }
+
+      if (!jardinSeleccionado) {
+          const jardines = ascSeleccionada.jardines;
+          if (!jardines || jardines.length === 0) {
+              console.log(c.rojo(`  ❌ No hay jardines (UDS) configurados para esta asociacion en el Excel.`));
+              continue;
+          }
+
+          console.log(c.cyan('\n------------------------------------------------------'));
+          console.log(c.cyan(`  📋 SELECCION DE JARDIN (UDS) - ${ascSeleccionada.nombreCorto}`));
+          console.log(c.cyan('------------------------------------------------------'));
+          jardines.forEach((jardin, i) => console.log(`  ${i + 1}. ${jardin.codigo} - ${jardin.nombre}`));
+          console.log(`  0. Volver al menu principal`);
+
+          let idxJardin = -1;
+          while (idxJardin < 0 || idxJardin > jardines.length) {
+              const res = readline.question(c.negrita('\n  > Selecciona el Jardin (0 para volver): '));
+              idxJardin = parseInt(res, 10);
+              if (isNaN(idxJardin)) idxJardin = -1;
+          }
+
+          if (idxJardin === 0) {
+              continue;
+          }
+          jardinSeleccionado = jardines[idxJardin - 1];
+      } else {
+          console.log(c.verde(`  ✅ Jardín (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
+      }
+      
+      if (respBenef.trim() === '3') {
+          preFiltroBeneficiario = readline.question(c.negrita('\n  > Ingresa el nombre o documento (ej. LIAM) (Vacio para omitir): ')).trim().toLowerCase();
+          if (preFiltroBeneficiario) {
+              console.log(c.amarillo('  ¿Que deseas hacer con este beneficiario?'));
               console.log('  1. Agregar una NUEVA toma (+)');
               console.log('  2. EDITAR una toma existente');
               const respAccion = readline.question(c.negrita('  > Selecciona (1 o 2): '));
               if (respAccion.trim() === '1' || respAccion.trim() === '2') {
                   accionRapida = respAccion.trim();
-                  console.log(c.verde('  ✅ Perfecto, el script hara la seleccion automaticamente una vez llegue a la UDS.'));
+                  console.log(c.verde('  ✅ Perfecto, seleccionare automaticamente al niño en la grilla.'));
               } else {
-                  console.log(c.rojo('  ❌ Opcion invalida. Se cancela el atajo, seleccion manual.'));
                   preFiltroBeneficiario = null;
               }
           }
@@ -129,15 +250,11 @@ async function main() {
 
       // Lanzar navegador e iniciar sesión SOLO si no se ha hecho
       if (!browser) {
-          console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesion...\n'));
-          browser = await chromium.launch({
-            headless: false,
-            slowMo: 100,
-            args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
-            // executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-          });
-          context = await browser.newContext({ viewport: null });
-          page = await context.newPage();
+          console.log(c.cyan('\n  🌐 Inicializando entorno de navegador...\n'));
+          const navData = await obtenerNavegador();
+          browser = navData.browser;
+          context = navData.context;
+          page = navData.page;
       }
 
       if (!loggedIn) {
@@ -151,7 +268,11 @@ async function main() {
           loggedIn = true;
       } else {
           // Si ya estábamos logueados, navegamos de vuelta a la selección de roles
-          await page.goto('https://rubonline.icbf.gov.co/Page/General/General/SeleccionRol.aspx');
+          await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle' });
+          if (page.url().includes('DefaultF.aspx')) {
+              console.log(c.amarillo('  ⚠️ Cuéntame cerró la sesión por seguridad. Iniciando sesión nuevamente...'));
+              await loginYLlegarARoles(page, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
+          }
       }
 
       console.log(c.amarillo(`  🏢 Entrando con la asociacion ${ascSeleccionada.nombreCorto}...`));
@@ -281,7 +402,7 @@ async function main() {
       // =========================================================================
       
       // Esperamos a que la grilla de ninos termine de cargar en la pagina principal
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(2500);
       
       // Refrescar rootContent
       let currentContentFrame = page.frame({ name: 'frameContent' });
@@ -358,6 +479,19 @@ async function main() {
           }
 
           console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS.`));
+          
+          if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+              if (idxNinoExcelActual >= ninosExcel.length) {
+                  console.log(c.verde('  🎉 ¡PROCESAMIENTO MASIVO COMPLETADO PARA ESTA UDS!'));
+                  modoExcel = null;
+                  break;
+              }
+              const ninoTarget = ninosExcel[idxNinoExcelActual];
+              console.log(c.cyan(`\n  🚀 PROCESANDO NIÑO ${idxNinoExcelActual + 1} de ${ninosExcel.length}: ${ninoTarget.nombreCompleto}`));
+              preFiltroBeneficiario = ninoTarget.documento;
+              accionRapida = modoExcel === 'MASIVO_NUEVO' ? '1' : '2';
+          }
+
           let input = '';
           if (preFiltroBeneficiario) {
               console.log(c.verde(`  ✨ Autocompletando busqueda con: "${preFiltroBeneficiario}"`));
@@ -365,10 +499,17 @@ async function main() {
           } else {
               console.log(c.amarillo('\n  ¿Sabes como se llama o identifica el beneficiario?'));
               console.log(c.gris('  (Escribe su nombre/documento, o presiona Enter para ver la lista de todos)'));
-              input = readline.question(c.negrita('  > Buscar (o escribe "consulta" para volver): '));
+              console.log(c.amarillo('  [0] Cambiar Jardin (UDS) | [00] Cambiar Asociacion'));
+              input = readline.question(c.negrita('  > Buscar / Seleccionar: '));
           }
 
           if (input.trim() === '0' || input.trim().toLowerCase() === 'consulta') {
+              break;
+          }
+          
+          if (input.trim() === '00') {
+              // Signal to outer loop to break Jardin
+              idxJardin = 0;
               break;
           }
 
@@ -426,6 +567,10 @@ async function main() {
           if (!ninoSeleccionado) {
               console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${input}".`));
               preFiltroBeneficiario = null; // Reset para evitar bucle
+              if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                  console.log(c.amarillo('  ⚠️ Saltando al siguiente niño del Excel...'));
+                  idxNinoExcelActual++;
+              }
               continue;
           }
 
@@ -446,7 +591,7 @@ async function main() {
               
               while (true) {
                   console.log(c.amarillo('\n  ⏳ Extrayendo historial de tomas del niño...'));
-                  await page.waitForTimeout(3000); // Esperar a que cargue la tabla del niño
+                  await page.waitForTimeout(2500); // Esperar a que cargue la tabla del niño
                   
                   // Localizar la tabla de tomas (Seguimiento nutrición Unidad de servicio Actual)
                   const tablaTomas = content.locator('table:has(tr:has-text("Fecha Toma"))').last();
@@ -541,9 +686,26 @@ async function main() {
                               numAccion = 1;
                               console.log(c.amarillo(`  ⏳ Editando la unica toma existente (${listaTomas[0].fechaToma})...`));
                           } else {
-                              const res = readline.question(c.negrita(`  > Selecciona cual toma editar (1 - ${listaTomas.length}): `));
+                              console.log(c.gris(`  [0] Volver a la consulta de niños (lupa)`));
+                              const res = readline.question(c.negrita(`  > Selecciona cual toma editar (1 - ${listaTomas.length}) o [0] para volver: `));
+                              if (res.trim() === '0') {
+                                  console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños...'));
+                                  try {
+                                      const btnBuscarBack = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"]').first();
+                                      if (await btnBuscarBack.count() > 0) {
+                                          await Promise.all([
+                                              content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                              btnBuscarBack.evaluate(node => node.click())
+                                          ]);
+                                      }
+                                  } catch(e) {
+                                      console.log(c.rojo(`  ❌ Error: ${e.message}`));
+                                  }
+                                  break; // Vuelve al bucle de selección de niño
+                              }
                               numAccion = parseInt(res.trim(), 10);
                           }
+
 
                           if (!isNaN(numAccion) && numAccion > 0 && numAccion <= listaTomas.length) {
                               const tomaSeleccionada = listaTomas[numAccion - 1];
@@ -576,64 +738,79 @@ async function main() {
                   }
 
                   let datosLlenado;
-                  while (true) {
-                      console.log(c.cyan('\n  📋 DATOS DE LA TOMA (Ingresa los datos para este niño)'));
-                      let fechaEntrada = readline.question(c.negrita('  > Fecha de valoracion (ej. "hoy", "22", "30/07/2026") [Opcional]: '));
-                      let pesoInput = readline.question(c.negrita('  > Peso en Kilogramos (ej. 12.5) [Opcional]: '));
-                      let tallaInput = readline.question(c.negrita('  > Talla en Centimetros (ej. 85) [Opcional]: '));
-                      let perimetroInput = readline.question(c.negrita('  > Perimetro Braquial (cm) [Opcional]: '));
-                      
-                      const resp = readline.question(c.amarillo(`\n  Has ingresado:\n  - Fecha: ${fechaEntrada || '(vacia)'}\n  - Peso: ${pesoInput || '(vacio)'}\n  - Talla: ${tallaInput || '(vacia)'}\n  - Perimetro: ${perimetroInput || '(vacio)'}\n  > ¿Deseas proceder con estos datos o editarlos nuevamente? (p = proceder / e = editar): `));
-                      
-                      if (resp.trim().toLowerCase() === 'p') {
-                          datosLlenado = {
-                              documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : '',
-                              fecha: parsearFecha(fechaEntrada),
-                              peso: pesoInput.trim(),
-                              talla: tallaInput.trim(),
-                              perimetro: perimetroInput.trim()
-                          };
-                          break;
-                      } else {
-                          console.log(c.rojo('  🔄 Reingresando datos...'));
+                  const hasHistory = (listaTomas.length > 0);
+
+                  if (modoExcel && (modoExcel.startsWith('MASIVO_') || modoExcel === 'INDIVIDUAL_EXCEL')) {
+                      const ninoInfo = ninosExcel[modoExcel.startsWith('MASIVO_') ? idxNinoExcelActual : 0];
+                      datosLlenado = {
+                          documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : '',
+                          fecha: parsearFecha(String(ninoInfo.fecha)),
+                          peso: String(ninoInfo.peso).trim(),
+                          talla: String(ninoInfo.talla).trim(),
+                          perimetro: ninoInfo.perimetro ? String(ninoInfo.perimetro).trim() : ''
+                      };
+                      console.log(c.amarillo(`  📥 Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro}`));
+                      await page.waitForTimeout(1500);
+                  } else {
+                      let regimenInput = null;
+                      let epsInput = null;
+
+                      while (true) {
+                          console.log(c.cyan('\n  📋 DATOS DE LA TOMA (Ingresa los datos para este niño)'));
+                          let fechaEntrada = readline.question(c.negrita('  > Fecha de valoracion (ej. "hoy", "22", "30/07/2026") [Opcional]: '));
+                          let pesoInput = readline.question(c.negrita('  > Peso en Kilogramos (ej. 12.5) [Opcional]: '));
+                          let tallaInput = readline.question(c.negrita('  > Talla en Centimetros (ej. 85) [Opcional]: '));
+                          let perimetroInput = readline.question(c.negrita('  > Perimetro Braquial (cm) [Opcional]: '));
+                          
+                          if (!hasHistory) {
+                              console.log(c.amarillo('\n  ⚠️ Al ser una toma NUEVA, el sistema de Cuéntame exige Régimen y EPS.'));
+                              const tieneEps = readline.question(c.negrita('  > ¿Tienes el nombre del regimen y EPS? (1 = Si, 2 = No / Aleatorio): '));
+                              if (tieneEps.trim() === '1') {
+                                  regimenInput = readline.question(c.negrita('  > Regimen (ej. contributivo, subsidiado): '));
+                                  epsInput = readline.question(c.negrita('  > EPS (ej. suramericana, capital salud): '));
+                              }
+                          }
+                          
+                          const resumen = `\n  Has ingresado:\n  - Fecha: ${fechaEntrada || '(vacia)'}\n  - Peso: ${pesoInput || '(vacio)'}\n  - Talla: ${tallaInput || '(vacia)'}\n  - Perimetro: ${perimetroInput || '(vacio)'}` + 
+                                          (!hasHistory && regimenInput ? `\n  - Regimen: ${regimenInput}\n  - EPS: ${epsInput}` : (!hasHistory ? `\n  - EPS: Aleatoria` : ''));
+
+                          const resp = readline.question(c.amarillo(`${resumen}\n  > ¿Deseas proceder con estos datos o editarlos nuevamente? (p = proceder / e = editar): `));
+                          
+                          if (resp.trim().toLowerCase() === 'p') {
+                              datosLlenado = {
+                                  documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : '',
+                                  fecha: parsearFecha(fechaEntrada),
+                                  peso: pesoInput.trim(),
+                                  talla: tallaInput.trim(),
+                                  perimetro: perimetroInput.trim(),
+                                  regimen: regimenInput ? regimenInput.trim() : null,
+                                  eps: epsInput ? epsInput.trim() : null
+                              };
+                              break;
+                          } else {
+                              console.log(c.rojo('  🔄 Reingresando datos...'));
+                          }
                       }
                   }
                   
                   // Ejecutar la magia del llenado automático y consulta ADRES
-                  await llenarFormularioNutricion(browser, content, datosLlenado);
+                  await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
 
                   console.log(c.amarillo('\n  ✨ Llenado automático finalizado.'));
-                  while (true) {
-                      console.log(c.cyan('\n  Opciones post-llenado:'));
-                      console.log(c.cyan('  [g] Guardar automáticamente en Cuéntame'));
-                      console.log(c.cyan('  [c] Cancelar / Regresar a consulta (sin guardar)'));
-                      console.log(c.cyan('  [m] Ya lo guardé manualmente, regresar a consulta'));
-                      
-                      const resp = readline.question(c.negrita('  > Elige una opcion (g/c/m): ')).toLowerCase().trim();
-                      
-                      if (resp === 'g') {
-                          console.log(c.amarillo('  ⏳ Haciendo clic en Guardar...'));
-                          try {
-                              // Buscar el botón de guardado típico en Cuéntame
-                              const btnGuardar = content.locator('#cphCont_btnGuardar, input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i]').first();
-                              if (await btnGuardar.count() > 0) {
-                                  await Promise.all([
-                                      content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                                      btnGuardar.evaluate(node => node.click())
-                                  ]);
-                                  console.log(c.verde('  ✅ Formulario guardado con éxito.'));
-                              } else {
-                                  console.log(c.rojo('  ❌ No se encontró el botón de Guardar. Por favor guárdalo manualmente.'));
-                                  continue; // Volver a preguntar para que el usuario pueda presionar 'm' luego de guardar a mano
-                              }
-                          } catch (e) {
-                              console.log(c.rojo(`  ❌ Error al guardar: ${e.message}`));
-                          }
-                      }
-                      
-                      if (resp === 'g' || resp === 'c' || resp === 'm') {
-                          console.log(c.amarillo('  ⏳ Volviendo a la consulta general de ninos...'));
-                          try {
+                  if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                      console.log(c.amarillo('  ⏳ [DRY-RUN MASIVO] Omitiendo guardado automático por solicitud de prueba...'));
+                      await page.waitForTimeout(1500); // 2 segundos para ver que pasó
+                      console.log(c.amarillo('  ⏳ Volviendo a la consulta general de ninos...'));
+                      idxNinoExcelActual++;
+                      try {
+                          const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"]').first();
+                          if (await btnBuscar.count() > 0) {
+                              await Promise.all([
+                                  content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                  btnBuscar.evaluate(node => node.click())
+                              ]);
+                          } else {
+                              // Fallback al menu lateral si no encuentra la lupa
                               const rootMenu = page.frame({ name: 'frameMenu' }) || page;
                               const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
                               if (await childMenu.count() > 0) {
@@ -642,20 +819,155 @@ async function main() {
                                       childMenu.evaluate(node => node.click())
                                   ]);
                               } else {
-                                  // Fallback
                                   await rootMenu.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
                                   await page.waitForTimeout(4000);
                               }
-                          } catch(e) {
-                              console.log(c.rojo(`  ❌ Error volviendo a la consulta: ${e.message}`));
                           }
-                          break;
-                      } else {
-                          console.log(c.rojo('  ❌ Opción no válida.'));
+                      } catch(e) {
+                          console.log(c.rojo(`  ❌ Error volviendo a la consulta (lupa): ${e.message}`));
                       }
+                      break; // Salir de Fase 3 y volver a Fase 2 (siguiente niño)
                   }
-                  break; // Salir de Fase 3 y volver a Fase 2 (selección de niño)
-              }
+
+                  // ── GUARDADO AUTOMÁTICO ─────────────────────────────────
+                  console.log(c.amarillo('  ⏳ Guardando automáticamente...'));
+                  try {
+                      const btnGuardar = content.locator('#cphCont_btnGuardar, input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i]').first();
+                      if (await btnGuardar.count() > 0) {
+                          await Promise.all([
+                              content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                              btnGuardar.evaluate(node => node.click())
+                          ]);
+
+                          // ── CERRAR POPUP DE ADVERTENCIA si aparece ──────────
+                          // Ej: "El valor de la TALLA es mayor al registrado en la última toma"
+                          await page.waitForTimeout(800);
+                          const btnAceptarPopup = page.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar")').first();
+                          if (await btnAceptarPopup.isVisible({ timeout: 2000 }).catch(() => false)) {
+                              console.log(c.amarillo('  ⚠️  Popup de advertencia detectado → cerrando automáticamente...'));
+                              await btnAceptarPopup.click();
+                              await page.waitForTimeout(500);
+                          }
+                          // También verificar dentro del frame content
+                          const btnAceptarFrame = content.locator('button:has-text("Aceptar"), input[value="Aceptar"]').first();
+                          if (await btnAceptarFrame.isVisible({ timeout: 1000 }).catch(() => false)) {
+                              await btnAceptarFrame.click();
+                              await page.waitForTimeout(500);
+                          }
+
+                          console.log(c.verde('  ✅ Formulario guardado con éxito.'));
+                      } else {
+                          console.log(c.rojo('  ❌ No se encontró el botón de Guardar. Por favor guárdalo manualmente.'));
+                      }
+                  } catch (e) {
+                      console.log(c.rojo(`  ❌ Error al guardar: ${e.message}`));
+                  }
+
+
+                  // ── MENÚ POST-GUARDADO ───────────────────────────────────
+                  console.log(c.cyan('\n  ╔════════════════════════════════════════════╗'));
+                  console.log(c.cyan('  ║       ¿Qué deseas hacer ahora?             ║'));
+                  console.log(c.cyan('  ╠════════════════════════════════════════════╣'));
+                  console.log(c.cyan('  ║  1. Otro niño del mismo jardín             ║'));
+                  console.log(c.cyan('  ║  2. Otro jardín de esta misma asociación   ║'));
+                  console.log(c.cyan('  ║  3. Cambiar de asociación                  ║'));
+                  console.log(c.cyan('  ║  0. Volver al menú principal               ║'));
+                  console.log(c.cyan('  ╚════════════════════════════════════════════╝'));
+
+                  let respNavPost = '';
+                  while (!['0', '1', '2', '3'].includes(respNavPost.trim())) {
+                      respNavPost = readline.question(c.negrita('  > Tu opcion: ')).trim();
+                  }
+
+                  if (respNavPost === '0') {
+                      // Salir al menú principal
+                      salirModulo = true;
+                      break;
+                  } else if (respNavPost === '1') {
+                      // Mismo jardín → Volver a llenar la lupa de UDS porque a veces Cuéntame la borra tras guardar
+                      console.log(c.amarillo('  ⏳ Recargando la UDS para asegurar que la lista de niños esté visible...'));
+                      try {
+                          let currentContentFrame = page.frame({ name: 'frameContent' });
+                          if (!currentContentFrame) {
+                              for (const f of page.frames()) {
+                                  if (f.name() === 'frameContent') {
+                                      currentContentFrame = f;
+                                      break;
+                                  }
+                              }
+                          }
+                          const currentContent = currentContentFrame || page;
+                          
+                          let lupaLocator = currentContent.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"], input[src*="lupa"]').first();
+                          
+                          if (await lupaLocator.count() > 0) {
+                              const [popup] = await Promise.all([
+                                  page.waitForEvent('popup'),
+                                  lupaLocator.evaluate(node => node.click())
+                              ]);
+
+                              await popup.waitForLoadState('networkidle');
+                              await popup.locator('input[id*="txtCodigoUnidadServicio"], input[name*="CodigoUnidadServicio"]').first().fill(String(jardinSeleccionado.codigo));
+                              
+                              // Clic en buscar dentro del popup
+                              await popup.locator('input[type="image"][id*="btnBuscar"], input[name*="btnBuscar"], a[id*="btnBuscar"]').first().click();
+                              
+                              const btnInfo = popup.locator('input[type="image"][id*="btnInfo"], input[src*="info.jpg"]').first();
+                              await btnInfo.waitFor({ state: 'visible', timeout: 15000 });
+                              await btnInfo.click();
+                              
+                              try {
+                                  await popup.waitForEvent('close', { timeout: 10000 });
+                              } catch (e) {}
+                              
+                              console.log(c.verde('  ✅ UDS recargada correctamente. Busca el siguiente.'));
+                          } else {
+                              console.log(c.rojo('  ❌ No se encontro la lupa de UDS para recargar.'));
+                          }
+                      } catch(e) {
+                          console.log(c.rojo(`  ❌ Error al recargar UDS: ${e.message}`));
+                      }
+                      
+                      await page.waitForTimeout(1500);
+                      break; // Sale de Fase 3 y regresa a Fase 2 (selección de niño)
+                  } else if (respNavPost === '2') {
+                      jardinSeleccionado = null;
+                      // Mismo jardín / misma asociación → volver a Seguimiento Nutrición (filtros limpios)
+                      console.log(c.amarillo('  ⏳ Volviendo a Seguimiento Nutrición para seleccionar otro jardín...'));
+                      try {
+                          const rootMenu2 = page.frame({ name: 'frameMenu' }) || page;
+                          const childMenu2 = rootMenu2.locator('a:has-text("Seguimiento nutricional")').first();
+                          if (await childMenu2.count() > 0) {
+                              await childMenu2.evaluate(node => node.click());
+                              await page.waitForTimeout(2500);
+                          } else {
+                              await page.goto('https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx', { waitUntil: 'networkidle', timeout: 20000 });
+                              await page.waitForTimeout(1500);
+                          }
+                          console.log(c.verde('  ✅ Listo. Selecciona el nuevo jardín desde los filtros.'));
+                      } catch(e) {
+                          console.log(c.rojo(`  ❌ Error navegando: ${e.message}`));
+                      }
+                      break; // Sale de Fase 3 y regresa al while(true) principal
+                  } else if (respNavPost === '3') {
+                      ascSeleccionada = null;
+                      jardinSeleccionado = null;
+                      // Cambiar de asociación → ir a selección de roles
+                      console.log(c.amarillo('  ⏳ Navegando a la pantalla de selección de asociación...'));
+                      try {
+                          await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
+                          if (page.url().includes('DefaultF.aspx')) {
+                              console.log(c.amarillo('  ⚠️ Sesión expirada. Reautenticando...'));
+                              await loginYLlegarARoles(page, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
+                          }
+                          loggedIn = true;
+                          console.log(c.verde('  ✅ Listo. El script seleccionará la nueva asociación.'));
+                      } catch(e) {
+                          console.log(c.rojo(`  ❌ Error navegando a roles: ${e.message}`));
+                      }
+                      break; // Sale de Fase 3 y regresa al while(true) principal
+                  }
+              } // fin try Fase 3
           } catch (err) {
               console.log(c.rojo(`  ❌ Error al abrir formulario del nino: ${err.message}`));
           }

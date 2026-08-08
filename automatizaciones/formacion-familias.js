@@ -7,13 +7,12 @@
  */
 
 require('dotenv').config();
-const { chromium } = require('playwright');
 const readline = require('readline-sync');
 const fs = require('fs');
 const path = require('path');
 
 const { leerJardines } = require('../servicios/excel-reader');
-const { login } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, obtenerNavegador } = require('../servicios/autenticacion');
 const { seleccionarUnidad } = require('../servicios/lupa-unidad');
 
 // ─────────────────────────────────────────────────────────────
@@ -118,7 +117,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     page.waitForLoadState('networkidle'),
     menuDestino.click()
   ]);
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1500);
 
   const frame = page.frameLocator('iframe').last();
 
@@ -127,7 +126,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     page.waitForLoadState('networkidle'),
     frame.locator('#btnNuevo, input[type="image"][src*="nuevo"], input[type="image"][title*="Nuevo"]').first().click()
   ]);
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1500);
 
   console.log(`  👉 Buscando UDS: ${jardin.nombre}...`);
   await seleccionarUnidad(page, frame, jardin.codigo);
@@ -163,7 +162,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     const estaChecked = await checkboxTodos.isChecked().catch(() => false);
     if (!estaChecked) {
       await checkboxTodos.click();
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(1500);
     }
     cantidadBenef = 'TODOS';
   } else {
@@ -240,7 +239,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     page.waitForLoadState('networkidle'),
     frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click()
   ]);
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1500);
 
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');
   const exitoso = contenidoFrame.includes('beneficiarios han sido ingresados') ||
@@ -337,23 +336,50 @@ async function main() {
     };
 
     if (!browser) {
-      console.log(c.cyan('\n  🌐 Abriendo navegador e iniciando sesion...\n'));
-      browser = await chromium.launch({
-        headless: false,
-        slowMo: 100,
-        args: ['--start-maximized'],
-        executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-      });
-      const context = await browser.newContext({ viewport: null });
-      page = await context.newPage();
+      console.log(c.cyan('\n  🌐 Inicializando entorno de navegador...\n'));
+      const navData = await obtenerNavegador();
+      browser = navData.browser;
+      const context = navData.context;
+      page = navData.page;
 
-      await login(page, {
-        usuario: USUARIO,
-        password: PASSWORD,
-        gmailUser: GMAIL_USER,
-        gmailAppPassword: GMAIL_APP_PASSWORD,
-        nombreAsociacion: ""
-      });
+      // Verificar si ya hay sesión activa; si no, hacer login
+      const pageText = await page.evaluate(() => document.body.innerText);
+      const urlActual = page.url();
+      const sessionActiva = urlActual.includes('MasterPrincipal') || urlActual.includes('Roles.aspx') || pageText.includes('Seleccione la entidad') || pageText.includes('Rub online');
+
+      if (!sessionActiva) {
+        console.log(c.amarillo('  🔐 Sin sesión activa. Iniciando login automático...'));
+        await loginYLlegarARoles(page, {
+          usuario: USUARIO,
+          password: PASSWORD,
+          gmailUser: GMAIL_USER,
+          gmailAppPassword: GMAIL_APP_PASSWORD
+        });
+      } else {
+        console.log(c.verde('  ✅ Sesión activa detectada. Reutilizando sesión existente.'));
+      }
+
+      // Si estamos en selección de entidad (Roles.aspx), elegir cualquier asociación al azar
+      const urlDespues = page.url();
+      const textoDespues = await page.evaluate(() => document.body.innerText);
+      if (urlDespues.includes('Roles.aspx') || textoDespues.includes('Seleccione la entidad')) {
+        console.log(c.amarillo('  🎲 Seleccionando una entidad automáticamente para acceder al módulo...'));
+        const opciones = await page.locator('select option').all();
+        const validas = [];
+        for (const op of opciones) {
+          const val = await op.getAttribute('value');
+          if (val && val !== '') validas.push(val);
+        }
+        if (validas.length > 0) {
+          const elegida = validas[Math.floor(Math.random() * validas.length)];
+          await page.locator('select').selectOption(elegida);
+          await Promise.all([
+            page.waitForLoadState('networkidle'),
+            page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
+          ]);
+          await page.waitForTimeout(1500);
+        }
+      }
     }
 
     console.log(c.negrita(c.cyan(`\n  🚀 Iniciando procesamiento de ${jardinesAProcesar.length} jardines...\n`)));
@@ -385,7 +411,7 @@ async function main() {
             fallidosTotales.push({ ...jardin, error: mensaje });
 
             await page.goto(URL_FORMACION, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
-            await page.waitForTimeout(2000);
+            await page.waitForTimeout(1500);
         }
         await page.waitForTimeout(1500);
     }

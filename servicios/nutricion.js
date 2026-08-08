@@ -55,8 +55,11 @@ function formatearFecha(date) {
     return `${d}/${m}/${y}`;
 }
 
-async function llenarFormularioNutricion(browser, content, datos) {
+async function llenarFormularioNutricion(browser, content, datos, hasHistory = false) {
     console.log(c.cyan('\n  ⚙️ Iniciando llenado automatico de formulario...'));
+    if (hasHistory) {
+        console.log(c.amarillo('  ℹ️ Niño con historial: Omitiendo campos precargados (EPS, vacunas, etc.)'));
+    }
     
     // 1. Extraer Documento de Cuéntame
     console.log(c.amarillo('  ⏳ Extrayendo datos del nino del formulario...'));
@@ -98,70 +101,104 @@ async function llenarFormularioNutricion(browser, content, datos) {
     console.log(c.cyan('\n  ✍️  Llenando formulario en Cuentame...'));
     
     try {
-        await content.waitForSelector('select', { state: 'attached', timeout: 10000 }).catch(()=>{});
-        const selectsIniciales = await content.locator('select').all();
-        
-        let selectRegimen;
-        let regimenOptions = [];
-        for (const s of selectsIniciales) {
-            const text = await s.innerText();
-            if (text.includes('SUBSIDIADO') && text.includes('CONTRIBUTIVO')) {
-                selectRegimen = s;
-                regimenOptions = await s.locator('option').allInnerTexts();
-                break;
-            }
-        }
-
-        if (selectRegimen && regimenOptions.length > 0) {
-            const validOptions = regimenOptions.filter(o => o.trim() !== 'Seleccione' && o.trim() !== '');
-            console.log(c.amarillo('\n  📋 Selecciona el Regimen de Salud en Cuentame:'));
-            validOptions.forEach((opt, idx) => console.log(`  ${idx + 1}. ${opt.trim()}`));
-            const idxStr = readline.question(c.negrita('  > Ingresa el numero de la opcion: '));
-            const idx = parseInt(idxStr) - 1;
-            if (idx >= 0 && idx < validOptions.length) {
-                const regimenElegido = validOptions[idx].trim();
-                await Promise.all([
-                    content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
-                    selectRegimen.selectOption({ label: regimenElegido }).catch(()=>{})
-                ]);
-                console.log(c.verde(`  ✅ Regimen seleccionado: ${regimenElegido}`));
-            }
-        } else {
-            console.log(c.rojo('  ❌ No se encontro el campo de Regimen en el formulario.'));
-        }
-        
-        await content.waitForTimeout(2000); // Esperar a que carguen las EPS o re-renderice
-        
-        const selectsEps = await content.locator('select').all();
-        let selectEps;
-        for (const s of selectsEps) {
-            const text = await s.innerText();
-            if (text.includes('CAPITAL SALUD') || text.includes('COMPENSAR')) {
-                selectEps = s;
-                break;
-            }
-        }
-
-        if (selectEps) {
-            console.log(c.amarillo('\n  🏥 Busqueda de EPS:'));
-            const epsSearch = readline.question(c.negrita('  > Escribe el nombre o parte del nombre de la EPS (ej. "Compensar"): '));
-            const epsOptions = await selectEps.locator('option').allInnerTexts();
-            const epsMatch = epsOptions.find(o => o.toUpperCase().includes(epsSearch.toUpperCase().trim()));
+        // --- SELECCION DE EPS Y REGIMEN SOLO SI NO HAY HISTORIAL ---
+        if (!hasHistory) {
+            await content.waitForSelector('select', { state: 'attached', timeout: 10000 }).catch(()=>{});
+            const selectsIniciales = await content.locator('select').all();
             
-            if (epsMatch) {
-                await Promise.all([
-                    content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
-                    selectEps.selectOption({ label: epsMatch }).catch(()=>{})
-                ]);
-                console.log(c.verde(`  ✅ EPS seleccionada en Cuentame: ${epsMatch}`));
-            } else {
-                console.log(c.rojo(`  ❌ No se encontro ninguna EPS que coincida con "${epsSearch}"`));
+            let selectRegimen;
+            let regimenOptions = [];
+            for (const s of selectsIniciales) {
+                const text = await s.innerText();
+                if (text.includes('SUBSIDIADO') && text.includes('CONTRIBUTIVO')) {
+                    selectRegimen = s;
+                    regimenOptions = await s.locator('option').allInnerTexts();
+                    break;
+                }
             }
-        } else {
-            console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
+
+            if (selectRegimen && regimenOptions.length > 0) {
+                const validOptions = regimenOptions.filter(o => o.trim() !== 'Seleccione' && o.trim() !== '');
+                let regimenElegido = null;
+                
+                // Si el usuario proveyó un regimen, intentar buscarlo
+                if (datos.regimen) {
+                    const idx = validOptions.findIndex(o => o.toUpperCase().includes(datos.regimen.toUpperCase()));
+                    if (idx !== -1) regimenElegido = validOptions[idx].trim();
+                }
+                
+                // Fallback: Seleccionar Contributivo automáticamente para niños nuevos
+                if (!regimenElegido) {
+                    const idx = validOptions.findIndex(o => o.toUpperCase().includes('CONTRIBUTIVO'));
+                    if (idx !== -1) regimenElegido = validOptions[idx].trim();
+                }
+
+                if (regimenElegido) {
+                    await Promise.all([
+                        content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
+                        selectRegimen.selectOption({ label: regimenElegido }).catch(()=>{})
+                    ]);
+                    console.log(c.verde(`  ✅ Regimen seleccionado automáticamente: ${regimenElegido}`));
+                } else {
+                    console.log(c.amarillo('  ⚠️ No se encontró la opción de Contributivo, omitiendo.'));
+                }
+            } else {
+                console.log(c.rojo('  ❌ No se encontro el campo de Regimen en el formulario.'));
+            }
+            
+            await content.waitForTimeout(2000); // Esperar a que carguen las EPS o re-renderice
+            
+            const selectsEps = await content.locator('select').all();
+            let selectEps;
+            for (const s of selectsEps) {
+                const text = await s.innerText();
+                if (text.includes('CAPITAL SALUD') || text.includes('COMPENSAR')) {
+                    selectEps = s;
+                    break;
+                }
+            }
+
+            if (selectEps) {
+                const epsOptions = await selectEps.locator('option').allInnerTexts();
+                let randomEps = null;
+                
+                if (datos.eps) {
+                    const idx = epsOptions.findIndex(o => o.toUpperCase().includes(datos.eps.toUpperCase()));
+                    if (idx !== -1) {
+                        randomEps = epsOptions[idx].trim();
+                    } else {
+                        console.log(c.amarillo(`  ⚠️ No se encontró EPS que coincida con "${datos.eps}". Procediendo aleatoriamente...`));
+                    }
+                }
+
+                if (!randomEps) {
+                    const epsComunes = [
+                        'CAPITAL SALUD', 'NUEVA EPS', 'COMPENSAR', 'FAMISANAR', 'SANITAS', 'MUTUAL SER', 'SURAMERICANA'
+                    ];
+                    // Elegir una aleatoriamente que exista en el select
+                    const matchingOptions = epsOptions.filter(o => epsComunes.some(eps => o.toUpperCase().includes(eps.toUpperCase())));
+                    if (matchingOptions.length > 0) {
+                        randomEps = matchingOptions[Math.floor(Math.random() * matchingOptions.length)];
+                    }
+                }
+                
+                if (randomEps) {
+                    await Promise.all([
+                        content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
+                        selectEps.selectOption({ label: randomEps }).catch(()=>{})
+                    ]);
+                    console.log(c.verde(`  ✅ EPS seleccionada en Cuentame: ${randomEps}`));
+                } else {
+                    console.log(c.rojo(`  ❌ No se encontró ninguna EPS común en el listado.`));
+                }
+            } else {
+                console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
+            }
+            
+            await content.waitForTimeout(3000); // Dar un respiro a la página post-EPS
         }
-        
-        await content.waitForTimeout(3000); // Dar un respiro a la página post-EPS
+        // -------------------------------------------------------------
+
         console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
 
         const page = content.page ? content.page() : content; // Obtener la página principal
@@ -374,17 +411,20 @@ async function llenarFormularioNutricion(browser, content, datos) {
         }
         await page.waitForTimeout(1000);
 
-        // 1. Vacunación y Desarrollo
-        await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
-        await page.waitForTimeout(500); 
-        
-        await safeFillText('esquema de vacunación', datos.fecha);
-        await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
-        
-        await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
-        await page.waitForTimeout(500);
-        
-        await safeFillRadio('Antecedente de prematurez', 'No', 1);
+        if (!hasHistory) {
+            // 1. Vacunación y Desarrollo
+            await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
+            await page.waitForTimeout(500); 
+            
+            await safeFillText('esquema de vacunación', datos.fecha);
+            await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
+            
+            // La pregunta extendida suele detectarse con esta palabra clave. El usuario indicó que debe ser "No".
+            await safeFillRadio('carnet de crecimiento y desarrollo', 'No', 1);
+            await page.waitForTimeout(500);
+            
+            await safeFillRadio('Antecedente de prematurez', 'No', 1);
+        }
 
         // 2. Antropometría
         await safeFillText('Peso (En Kilogramos)', datos.peso);
@@ -394,11 +434,21 @@ async function llenarFormularioNutricion(browser, content, datos) {
         // 3. Situaciones adicionales
         await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
-        // 4. Lactancia
-        const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
-        const valTotal = Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
-        await safeFillText('exclusiva (meses)', valExclusiva);
-        await safeFillText('total (meses)', valTotal);
+        if (!hasHistory) {
+            // 4. Lactancia
+            await safeFillSelect('¿Recibe leche materna?', 'Si');
+            
+            const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
+            const valTotal = Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
+            
+            // Campos originales de lactancia
+            await safeFillText('exclusiva (meses)', valExclusiva);
+            await safeFillText('total (meses)', valTotal);
+            
+            // Nuevos campos habilitados que deben tener el mismo valor
+            await safeFillText('¿Hasta qué edad fue alimentado exclusivamente', valExclusiva);
+            await safeFillText('¿A qué edad introdujo alimentos diferentes', valTotal);
+        }
         
         // ==========================================
         // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL Y MODO NATIVO)
@@ -410,12 +460,29 @@ async function llenarFormularioNutricion(browser, content, datos) {
         
         const f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
 
-        // A. Controles de crecimiento
-        try {
-            await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' });
-            console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento'));
-        } catch(e) { console.log(c.rojo('    ❌ [Lista] Error controles: ' + e.message.substring(0, 50))); }
-        await page.waitForTimeout(1000);
+        if (!hasHistory) {
+            // A. Controles de crecimiento
+            try {
+                await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' });
+                console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento'));
+            } catch(e) { console.log(c.rojo('    ❌ [Lista] Error controles: ' + e.message.substring(0, 50))); }
+            await page.waitForTimeout(1000);
+
+            // A2. Lactancia (Mayor / Menor 6 meses) - Nombres con errores tipográficos del ICBF
+            try {
+                const ddlMayor = f.locator('select[id*="ddlRecibeLechaMeternaMayorSeisMesesPI"]').first();
+                if (await ddlMayor.count() > 0 && await ddlMayor.isVisible() && !await ddlMayor.isDisabled()) {
+                    await ddlMayor.selectOption({ label: 'Si' }).catch(()=>{});
+                    console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): recibe leche materna (Mayor 6 meses)'));
+                }
+                const ddlMenor = f.locator('select[id*="ddlRecibeLecheMaternaMenorSeisMesesPI"], select[id*="ddlRecibeLechaMaternaMenor"]').first();
+                if (await ddlMenor.count() > 0 && await ddlMenor.isVisible() && !await ddlMenor.isDisabled()) {
+                    await ddlMenor.selectOption({ label: 'Si' }).catch(()=>{});
+                    console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): recibe leche materna (Menor 6 meses)'));
+                }
+            } catch(e) {}
+            await page.waitForTimeout(500);
+        }
 
         // B. Perimetro Braquial
         try {
@@ -424,12 +491,14 @@ async function llenarFormularioNutricion(browser, content, datos) {
         } catch(e) { console.log(c.rojo('    ❌ [Texto] Error perimetro: ' + e.message.substring(0, 50))); }
         await page.waitForTimeout(1000);
 
-        // C. Mujer gestante atendida
-        try {
-            await f.selectOption('#cphCont_ddlHijoMujerGestanteAtendidaServiciosICBF', { label: 'No' });
-            console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): mujer gestante atendida'));
-        } catch(e) { console.log(c.rojo('    ❌ [Lista] Error gestante: ' + e.message.substring(0, 50))); }
-        await page.waitForTimeout(1000);
+        if (!hasHistory) {
+            // C. Mujer gestante atendida
+            try {
+                await f.selectOption('#cphCont_ddlHijoMujerGestanteAtendidaServiciosICBF', { label: 'No' });
+                console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): mujer gestante atendida'));
+            } catch(e) { console.log(c.rojo('    ❌ [Lista] Error gestante: ' + e.message.substring(0, 50))); }
+            await page.waitForTimeout(1000);
+        }
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
         console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla y selecciona la opción de guardado en la consola.'));

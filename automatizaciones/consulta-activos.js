@@ -5,9 +5,8 @@
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
-const { chromium } = require('playwright');
 const readline = require('readline-sync');
-const { loginYLlegarARoles, seleccionarRolYEntrar } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 const ExcelJS = require('exceljs');
 const path = require('path');
@@ -53,9 +52,12 @@ async function main() {
   let page = null;
   let loggedIn = false;
 
+  let salirModulo = false;
+
   while (true) {
+      if (salirModulo) break;
       asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
-      console.log(`  0. Salir`);
+      console.log(`  ${c.rojo('0')}. Volver al menú principal`);
 
       let idxAsociacion = -1;
       while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
@@ -65,7 +67,7 @@ async function main() {
       }
 
       if (idxAsociacion === 0) {
-        console.log(c.verde('\n  ✅ Proceso finalizado. Cerrando navegador...'));
+        console.log(c.verde('\n  👋 Volviendo al menú principal...'));
         if (browser) await browser.close();
         break;
       }
@@ -73,31 +75,40 @@ async function main() {
       const ascSeleccionada = asociaciones[idxAsociacion - 1];
 
       if (!browser) {
-          console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
-          browser = await chromium.launch({
-            headless: false,
-            slowMo: 100,
-            args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
-            executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-          });
-          
-          context = await browser.newContext({ viewport: null });
-          page = await context.newPage();
+          console.log(c.cyan('\n  🌐 Conectando al navegador existente (CDP)...\n'));
+          const navData = await obtenerNavegador();
+          browser = navData.browser;
+          context = navData.context;
+          page = navData.page;
       }
 
       try {
         if (!loggedIn) {
-            await loginYLlegarARoles(page, {
-              usuario: USUARIO,
-              password: PASSWORD,
-              gmailUser: GMAIL_USER,
-              gmailAppPassword: GMAIL_APP_PASSWORD
-            });
-            loggedIn = true;
-            console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+            // Verificar si ya hay sesión activa antes de hacer login
+            const urlActual = page.url();
+            const textoActual = await page.evaluate(() => document.body.innerText).catch(() => '');
+            const sesionActiva = urlActual.includes('MasterPrincipal') ||
+                                 urlActual.includes('SeleccionRol') ||
+                                 textoActual.includes('Seleccione la entidad') ||
+                                 textoActual.includes('Bienvenido');
+
+            if (sesionActiva) {
+                console.log(c.verde('  ✅ Sesión activa detectada. Saltando login...'));
+                loggedIn = true;
+            } else {
+                console.log(c.amarillo('  🔐 Sin sesión activa. Iniciando login...'));
+                await loginYLlegarARoles(page, {
+                  usuario: USUARIO,
+                  password: PASSWORD,
+                  gmailUser: GMAIL_USER,
+                  gmailAppPassword: GMAIL_APP_PASSWORD
+                });
+                loggedIn = true;
+                console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+            }
         } else {
             // Si ya estamos logueados, regresar a la página de selección de rol
-            await page.goto('https://rubonline.icbf.gov.co/Page/General/General/SeleccionRol.aspx', { waitUntil: 'domcontentloaded' });
+            await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
         }
 
         console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
@@ -131,37 +142,73 @@ async function main() {
     } catch(e) {
         console.log(c.rojo(`  ❌ Error al intentar acceder a Información beneficiario: ${e.message}`));
     }
+    // (La obtención del frame se hará dentro del bucle para asegurar que esté listo)
     
-    let frame = page.frameLocator('#frameContent');
-    const frameEl = await page.$('#frameContent');
-    if (!frameEl) {
-        frame = page;
-    }
-
-    // Bucle interactivo
+    // Bucle interactivo de búsqueda
     while (true) {
         console.log(c.cyan('\n------------------------------------------------------'));
-        console.log(c.amarillo('  [0] Salir al menú principal'));
+        console.log(c.amarillo('  [0] Volver a selección de asociación'));
+        console.log(c.rojo('  [M] Volver al menú principal (npm start)'));
         console.log(c.amarillo('  Escribe el número de documento del niño para consultar.'));
         const documento = readline.question(c.negrita('\n  > Documento del niño: '));
 
-        if (documento.trim() === '0') {
+        if (documento.trim().toUpperCase() === 'M') {
+            salirModulo = true;
             break;
+        }
+        if (documento.trim() === '0') {
+            break; // Vuelve al loop de selección de asociación
         }
         if (documento.trim() === '') {
             continue;
         }
 
-        console.log(c.gris(`  Buscando beneficiario con documento: ${documento}...`));
+        const opcionesDoc = [
+            "REGISTRO CIVIL",
+            "PERMISO POR PROTECCION TEMPORAL",
+            "PERMISO ESPECIAL DE PERMANENCIA",
+            "PARTIDA O ACTA DE NACIMIENTO",
+            "TARJETA DE IDENTIDAD",
+            "CEDULA DE CIUDADANIA",
+            "CEDULA DE EXTRANJERIA",
+            "PASAPORTE",
+            "TARJETA DE MOVILIDAD FRONTERIZA",
+            "VISA",
+            "SIN DOCUMENTO"
+        ];
+        console.log();
+        const idxDoc = readline.keyInSelect(opcionesDoc, c.negrita('  > Selecciona el Tipo de Documento: '));
+        if (idxDoc === -1) {
+            console.log(c.amarillo('  Búsqueda cancelada.'));
+            continue;
+        }
+        const tipoDocId = opcionesDoc[idxDoc];
+
+        console.log(c.gris(`  Buscando beneficiario con documento: ${tipoDocId} - ${documento}...`));
         
         try {
+            // Re-evaluar el frame justo antes de interactuar, asegurando que esté listo
+            let frame = page.frame({ name: 'frameContent' });
+            if (!frame) {
+                for (const f of page.frames()) {
+                    if (f.name() === 'frameContent') {
+                        frame = f;
+                        break;
+                    }
+                }
+            }
+            if (!frame) frame = page;
+
             // Llenar tipo de documento
             const selectDoc = frame.locator('select').first();
-            await selectDoc.selectOption({ label: 'REGISTRO CIVIL' }).catch(() => {});
+            await selectDoc.selectOption({ label: tipoDocId }).catch(() => {});
             
-            // Llenar numero de documento
+            // Llenar numero de documento en modo "humano" (tecla a tecla)
             const inputDoc = frame.locator('input[type="text"]').first();
-            await inputDoc.fill(documento);
+            await inputDoc.click();
+            await inputDoc.clear();
+            await page.waitForTimeout(200);
+            await inputDoc.pressSequentially(documento, { delay: 100 });
             await page.waitForTimeout(500);
 
             // Hacer clic en el botón buscar (que según la imagen es <a id="btnBuscar">...</a>)
@@ -178,10 +225,16 @@ async function main() {
             await page.waitForTimeout(5000);
 
             // Re-obtener el frame (por si la navegación cambió el contexto)
-            frame = page.frameLocator('#frameContent');
-            if (await frame.locator('body').count() === 0) {
-                frame = page;
+            frame = page.frame({ name: 'frameContent' });
+            if (!frame) {
+                for (const f of page.frames()) {
+                    if (f.name() === 'frameContent') {
+                        frame = f;
+                        break;
+                    }
+                }
             }
+            if (!frame) frame = page;
 
             // Vamos a buscar todas las tablas de la página y procesar la tabla de resultados (suele tener > 15 columnas)
             const tablas = await frame.locator('table').all();
@@ -220,8 +273,7 @@ async function main() {
                 } else {
                     console.log(c.rojo('  ❌ No se encontró ninguna tabla de resultados. Revisa si la página mostró un error.'));
                 }
-                console.log('\n------------------------------------------------------');
-                console.log('  [0] Salir al menú principal');
+                // No hace nada especial, simplemente vuelve al top del loop
                 continue;
             }
 
@@ -249,7 +301,11 @@ async function main() {
             if (estadoMayus === 'VINCULADO') {
                 if (!esMismaAsociacion) {
                     console.log(c.rojo(`  ⚠️ El niño se encuentra VINCULADO pero en OTRA asociación (${masReciente.entidad}).`));
-                    const resp = readline.question('  ¿Deseas guardar esta novedad en el Excel oficial de ICBF? (s/n): ').toLowerCase();
+                    const resp = readline.question('  ¿Deseas guardar esta novedad en el Excel oficial de ICBF? (s/n) o [M] para menú principal: ').toLowerCase();
+                    if (resp === 'm') {
+                        salirModulo = true;
+                        break;
+                    }
                     if (resp === 's' || resp === 'si') {
                         // Guardar en el formato de excel f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx
                         console.log(c.amarillo('  ⏳ Guardando en el formato de desvinculación...'));
@@ -313,7 +369,11 @@ async function main() {
                             
                             console.log(c.verde(`  ✅ Novedad guardada exitosamente en el Excel (solo para este niño).`));
                             
-                            const armarCorreo = readline.question('  ¿Desea armar el correo para envio a la regional? (s/n): ').toLowerCase();
+                            const armarCorreo = readline.question('  ¿Desea armar el correo para envio a la regional? (s/n) o [M] para menú principal: ').toLowerCase();
+                            if (armarCorreo === 'm') {
+                                salirModulo = true;
+                                break;
+                            }
                             if (armarCorreo === 's' || armarCorreo === 'si') {
                                 console.log(c.amarillo('  ⏳ Generando borrador del correo (.eml)...'));
                                 const nodemailer = require('nodemailer');
@@ -397,19 +457,27 @@ async function main() {
                 console.log(c.gris(`  ℹ️ Estado desconocido: ${masReciente.estado}.`));
             }
 
-            console.log('\n------------------------------------------------------');
-            console.log('  [0] Salir al menú principal');
+            console.log(c.cyan('\n------------------------------------------------------'));
+            console.log(c.amarillo('  [0] Volver a selección de asociación'));
+            console.log(c.rojo('  [M] Volver al menú principal (npm start)'));
 
         } catch (e) {
             console.log(c.rojo(`  ❌ Error durante la búsqueda: ${e.message}`));
         }
-    } // End of inner while(true) (document loop)
+    } // fin loop de documentos
+
+    if (salirModulo) break; // propagar salida al loop externo
 
   } catch (err) {
     console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
   }
   
   } // End of outer while(true) (asociacion loop)
+
+  if (browser) {
+    await browser.close().catch(() => {});
+  }
+  process.exit(0);
 }
 
 main().catch(console.error);

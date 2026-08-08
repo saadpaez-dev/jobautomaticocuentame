@@ -8,7 +8,7 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
 const path = require('path');
-const { loginYLlegarARoles, seleccionarRolYEntrar } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador } = require('../servicios/autenticacion');
 
 // ─────────────────────────────────────────────────────────────
 // Colores en terminal
@@ -67,7 +67,7 @@ async function main() {
   let mesAtencion = '(Select All)';
   if (opcionReporte === 2) {
     console.log(c.cyan('\n  📋 Selecciona el mes de Toma:'));
-    console.log(c.gris(`  Puedes escribir "(Select All)" o el nombre exacto como "Julio".`));
+    console.log(c.gris(`  Puedes escribir "(Select All)" o varios meses separados por coma como "Julio,Junio".`));
     const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto (Select All)]: '));
     if (respuestaToma.trim() !== '') {
         seleccionToma = respuestaToma.trim();
@@ -134,15 +134,11 @@ async function main() {
   }
   
   if (!browser) {
-      console.log(c.cyan('\n  🌐 Abriendo navegador...\n'));
-      browser = await chromium.launch({
-        headless: false,
-        slowMo: 100,
-        args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
-        executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-      });
-      context = await browser.newContext({ viewport: null });
-      mainPage = await context.newPage();
+      console.log(c.cyan('\n  🌐 Inicializando entorno de navegador...\n'));
+      const navData = await obtenerNavegador();
+      browser = navData.browser;
+      context = navData.context;
+      mainPage = navData.page;
   }
   
   const fs = require('fs');
@@ -166,7 +162,7 @@ async function main() {
   let rolesUrl;
   let rolesHtml;
   try {
-    await loginYLlegarARoles(mainPage, {
+    rolesUrl = await loginYLlegarARoles(mainPage, {
       usuario: USUARIO,
       password: PASSWORD,
       gmailUser: GMAIL_USER,
@@ -195,9 +191,15 @@ async function main() {
           console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
           console.log(c.amarillo(`======================================================`));
           console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
+          
+          if (mainPage.url().includes('DefaultF.aspx')) {
+              console.log(c.amarillo('  ⚠️ Cuéntame cerró la sesión por seguridad. Iniciando sesión nuevamente...'));
+              await loginYLlegarARoles(mainPage, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
+          }
+          
           console.log('  🏢 Seleccionando entidad (asociación)...');
-          reportPage = await seleccionarRolYEntrar(mainPage, asc, true);
-          console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+          reportPage = await seleccionarRolYEntrar(mainPage, asc, false);
+          console.log(c.verde('  ✅ Asociación cargada exitosamente.'));
       } catch (e) {
           console.log(c.rojo(`  ❌ Error al seleccionar rol: ${e.message}`));
           continue;
@@ -241,7 +243,7 @@ async function main() {
                     console.log(c.gris(`      (Esperando a que "${labelText}" se habilite tras el postback...)`));
                 }
                 while (isDisabled && waitAttempts < 15) { 
-                    await reportPage.waitForTimeout(1000);
+                    await reportPage.waitForTimeout(1500);
                     isDisabled = await selectElement.evaluate(el => el.disabled);
                     waitAttempts++;
                 }
@@ -277,7 +279,7 @@ async function main() {
                     }
                 }
                 
-                await reportPage.waitForTimeout(2000); 
+                await reportPage.waitForTimeout(1500); 
                 return true;
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar "${labelText}": ${e.message}`));
@@ -294,7 +296,7 @@ async function main() {
                 } else {
                     await selectLocator.selectOption({ label: valueOrText });
                 }
-                await reportPage.waitForTimeout(2000); 
+                await reportPage.waitForTimeout(1500); 
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar en ${id}: ${e.message}`));
             }
@@ -309,34 +311,45 @@ async function main() {
                 const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
                 await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
                 
-                await reportPage.waitForTimeout(2000);
+                await reportPage.waitForTimeout(800);
 
                 if (valueOrText === '(Check All)') {
-                    const checkboxes = await divDropdown.locator('input[type="checkbox"]').all();
-                    for (const chk of checkboxes) {
-                        if (!(await chk.isChecked())) {
-                            await chk.check({ force: true });
-                        }
-                    }
+                    await divDropdown.evaluate(div => {
+                        const checkboxes = div.querySelectorAll('input[type="checkbox"]');
+                        checkboxes.forEach(chk => { if (!chk.checked) chk.click(); });
+                    });
                 } else {
-                    const escapedText = valueOrText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const regex = valueOrText === '(Select All)' 
-                        ? new RegExp('^\\(Select All\\)$', 'i') 
-                        : new RegExp(escapedText, 'i');
-
-                    try {
-                        const checkbox = divDropdown.getByRole('checkbox', { name: regex }).first();
-                        await checkbox.waitFor({ state: 'visible', timeout: 4000 });
-                        await checkbox.check({ force: true });
-                    } catch (err) {
-                        const textNode = divDropdown.getByText(regex).first();
-                        await textNode.waitFor({ state: 'visible', timeout: 4000 });
-                        await textNode.click({ force: true });
-                    }
+                    const valores = valueOrText.split(',').map(v => v.trim());
+                    
+                    await divDropdown.evaluate((div, vals) => {
+                        const labels = Array.from(div.querySelectorAll('label'));
+                        
+                        // Si no es (Select All), desmarcar (Select All) si está marcado
+                        if (!vals.includes('(Select All)')) {
+                            const selectAllLabel = labels.find(l => l.innerText.includes('(Select All)'));
+                            if (selectAllLabel) {
+                                let chk = document.getElementById(selectAllLabel.htmlFor);
+                                if (!chk) chk = selectAllLabel.querySelector('input[type="checkbox"]') || selectAllLabel.previousElementSibling;
+                                if (chk && chk.checked) chk.click();
+                            }
+                        }
+                        
+                        // Marcar los específicos
+                        for (const val of vals) {
+                            const label = labels.find(l => l.innerText.toUpperCase().includes(val.toUpperCase()));
+                            if (label) {
+                                let chk = document.getElementById(label.htmlFor);
+                                if (!chk) chk = label.querySelector('input[type="checkbox"]') || label.previousElementSibling;
+                                if (chk && !chk.checked) chk.click();
+                            }
+                        }
+                    }, valores);
+                    
+                    await reportPage.waitForTimeout(500); // Dar respiro al DOM
                 }
                 
                 await reportFrame.locator('body').click();
-                await reportPage.waitForTimeout(3000); 
+                await reportPage.waitForTimeout(1500); 
             } catch (e) {
                 try {
                     const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
@@ -354,7 +367,7 @@ async function main() {
               timeout: 120000
             });
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await mainPage.waitForTimeout(3000);
+            await mainPage.waitForTimeout(2500);
             
             reportFrame = mainPage.frame({ name: 'frameContent' }) || mainPage;
 
@@ -384,7 +397,7 @@ async function main() {
               timeout: 120000
             });
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await reportPage.waitForTimeout(3000);
+            await reportPage.waitForTimeout(2500);
             
             reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
 
@@ -437,7 +450,7 @@ async function main() {
             }
             
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await reportPage.waitForTimeout(3000);
+            await reportPage.waitForTimeout(2500);
             reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
 
             console.log('  ⏳ Esperando filtros SSRS...');
@@ -486,7 +499,7 @@ async function main() {
         }
 
 
-        await reportPage.waitForTimeout(1000);
+        await reportPage.waitForTimeout(1500);
         console.log('    👉 Generando reporte...');
         
         await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00').click();
@@ -500,24 +513,69 @@ async function main() {
         const exportBtn = reportFrame.locator('a[title="Exportar"], a[title="Export drop down menu"], img[alt="Exportar"], a[title="Export"]').first();
         if (await exportBtn.count() > 0) {
             await exportBtn.click({ force: true });
-            await reportPage.waitForTimeout(1000);
+            await reportPage.waitForTimeout(1500);
             
             const excelOption = reportFrame.locator('a:has-text("Excel")').first();
+            
+            // Forzamos el timeout a nivel de página para versiones antiguas de Playwright
+            reportPage.setDefaultTimeout(180000);
+            
             const [download] = await Promise.all([
-                reportPage.waitForEvent('download'),
-                excelOption.evaluate(el => el.click())
+                reportPage.waitForEvent('download', { timeout: 180000 }).catch(() => null),
+                reportFrame.evaluate(() => {
+                    try {
+                        // Prevenir que abra una ventana nueva (para que Playwright intercepte la descarga)
+                        const form = document.querySelector('form');
+                        if (form) form.target = '_self';
+                        window.open = function(url) { window.location.href = url; return window; };
+
+                        if (typeof $find !== 'undefined' && $find('ctl00_cphCont_rvTransversarReportes')) {
+                            $find('ctl00_cphCont_rvTransversarReportes').exportReport('EXCELOPENXML');
+                        } else {
+                            const links = Array.from(document.querySelectorAll('a'));
+                            const excel = links.find(a => a.textContent && a.textContent.includes('Excel'));
+                            if (excel) {
+                                excel.removeAttribute('target');
+                                excel.click();
+                            }
+                        }
+                    } catch (e) {
+                        const links = Array.from(document.querySelectorAll('a'));
+                        const excel = links.find(a => a.textContent && a.textContent.includes('Excel'));
+                        if (excel) {
+                            excel.removeAttribute('target');
+                            excel.click();
+                        }
+                    }
+                })
             ]);
+            
+            reportPage.setDefaultTimeout(30000); // restaurar
             
             const prefijo = opcionReporte === 1 ? 'Beneficiarios' : (opcionReporte === 2 ? 'Nutricion' : (opcionReporte === 4 ? 'Unidades' : 'Asistencia'));
             const fileName = `${prefijo}_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
             const savePath = path.join(reportesDir, fileName);
-            await download.saveAs(savePath);
-            console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
+            try {
+                await download.saveAs(savePath);
+                console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
+            } catch (saveError) {
+                console.log(c.amarillo(`    ⚠️ Recuperando reporte desde carpeta de Descargas (Modo Humano)...`));
+                const downloadsFolder = path.join(require('os').homedir(), 'Downloads');
+                const files = fs.readdirSync(downloadsFolder).filter(f => f.endsWith('.xlsx'));
+                if (files.length > 0) {
+                    files.sort((a, b) => fs.statSync(path.join(downloadsFolder, b)).mtimeMs - fs.statSync(path.join(downloadsFolder, a)).mtimeMs);
+                    const latestFile = path.join(downloadsFolder, files[0]);
+                    fs.copyFileSync(latestFile, savePath);
+                    console.log(c.verde(`    ✅ Reporte recuperado y guardado exitosamente: ${fileName}`));
+                } else {
+                    console.log(c.rojo(`    ❌ No se encontró el archivo descargado en la carpeta de Descargas.`));
+                }
+            }
 
             if (prepararExcel) {
                 console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
                 // Darle tiempo al sistema a actualizar la UI tras el postback
-                await reportPage.waitForTimeout(3000); 
+                await reportPage.waitForTimeout(2500); 
                 const { execSync } = require('child_process');
                 try {
                     const psScript = path.join(__dirname, 'preparar_excel.ps1');
@@ -533,9 +591,13 @@ async function main() {
       } catch (error) {
         console.error(c.rojo(`\n  ❌ Ocurrió un error con ${asc.nombreCorto}:`), error.message);
       } finally {
-        // Cierra la pestaña del reporte para volver a la principal
+        // Cierra la pestaña del reporte si se abrió en una nueva (fallback)
         if (reportPage && reportPage !== mainPage) {
             await reportPage.close().catch(() => {});
+        } else if (reportPage === mainPage && i < ascValidas.length - 1 && rolesUrl) {
+            console.log('  🔄 Volviendo a la selección de roles para la siguiente asociación...');
+            await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            await mainPage.waitForTimeout(1500);
         }
       }
   }
@@ -544,7 +606,7 @@ async function main() {
   console.log(c.verde('\n  ✅ Todas las asociaciones procesadas exitosamente.'));
 
   console.log(c.cyan('\n======================================================'));
-  const respFinal = readline.question(c.negrita('  > ¿Deseas generar otro reporte? (s/n) [por defecto s]: '));
+  const respFinal = readline.question(c.negrita('  > ¿Deseas generar otro reporte? (s = Si, n = Volver al menú principal) [por defecto s]: '));
   if (respFinal.toLowerCase().trim() === 'n') {
       console.log(c.verde('\n  ✅ Cerrando navegador...'));
       if (context) await context.close().catch(() => {});
