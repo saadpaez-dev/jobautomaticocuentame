@@ -170,6 +170,7 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
             if (datos.length >= 4) {
                 const documento = datos[1] || "N/A";
                 const nombreCompleto = datos.slice(2, -2).join(' ');
+                const tomas = datos[datos.length - 2] || "N/A";
 
                 const matchDoc = documento.includes(targetDocOrName);
                 const matchNom = removeAccents(nombreCompleto).includes(targetClean);
@@ -179,6 +180,7 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
                     return {
                         documento,
                         nombreCompleto,
+                        tomas,
                         locator: fila.locator('input[type="image"][src*="info.jpg"], input[id*="btnInfo"]').first()
                     };
                 }
