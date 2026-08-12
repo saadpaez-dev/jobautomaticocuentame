@@ -58,9 +58,10 @@ function formatearFecha(date) {
 async function llenarFormularioNutricion(browser, content, datos, hasHistory = false) {
     console.log(c.cyan('\n  ⚙️ Iniciando llenado automatico de formulario...'));
     if (hasHistory) {
-        console.log(c.amarillo('  ℹ️ Niño con historial: Omitiendo campos precargados (EPS, vacunas, etc.)'));
+        console.log(c.amarillo('  ℹ️ Niño con historial: Se conservan todos los datos anteriores precargados por Cuéntame (EPS, régimen, vacunación, lactancia).'));
+        console.log(c.verde('  👉 Únicamente actualizando: Peso, Talla y Fecha de valoración antropométrica *.'));
     }
-    
+
     // 1. Extraer Documento de Cuéntame
     console.log(c.amarillo('  ⏳ Extrayendo datos del nino del formulario...'));
     
