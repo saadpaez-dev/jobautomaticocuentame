@@ -327,10 +327,23 @@ async function main() {
               console.log(c.verde(`  ✅ Excel cargado exitosamente. Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
               
               const ascStr = parseResult.asociacion.trim().toUpperCase();
-              ascSeleccionada = asociaciones.find(a => ascStr.includes(a.nombreCorto.toUpperCase()) || a.nombreCorto.toUpperCase().includes(ascStr));
+              if (ascStr.length >= 3) {
+                  ascSeleccionada = asociaciones.find(a => 
+                      ascStr.includes(a.nombreCorto.toUpperCase()) || 
+                      a.nombreCorto.toUpperCase().includes(ascStr) ||
+                      (a.nombreLargo && (ascStr.includes(a.nombreLargo.toUpperCase()) || a.nombreLargo.toUpperCase().includes(ascStr)))
+                  );
+              } else {
+                  ascSeleccionada = null;
+              }
+
               if (ascSeleccionada) {
                   const udsStr = parseResult.uds.trim().toUpperCase();
-                  jardinSeleccionado = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
+                  if (udsStr.length >= 3) {
+                      jardinSeleccionado = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
+                  } else {
+                      jardinSeleccionado = null;
+                  }
                   if (!jardinSeleccionado) console.log(c.amarillo(`  ⚠️ No se encontró la UDS automáticamente. Se pedirá selección manual.`));
               } else {
                   console.log(c.amarillo(`  ⚠️ No se encontró la Asociación automáticamente. Se pedirá selección manual.`));
@@ -370,10 +383,23 @@ async function main() {
                       accionRapida = '1';
                       
                       const ascStr = parseResult.asociacion.trim().toUpperCase();
-                      ascSeleccionada = asociaciones.find(a => ascStr.includes(a.nombreCorto.toUpperCase()) || a.nombreCorto.toUpperCase().includes(ascStr));
+                      if (ascStr.length >= 3) {
+                          ascSeleccionada = asociaciones.find(a => 
+                              ascStr.includes(a.nombreCorto.toUpperCase()) || 
+                              a.nombreCorto.toUpperCase().includes(ascStr) ||
+                              (a.nombreLargo && (ascStr.includes(a.nombreLargo.toUpperCase()) || a.nombreLargo.toUpperCase().includes(ascStr)))
+                          );
+                      } else {
+                          ascSeleccionada = null;
+                      }
+
                       if (ascSeleccionada) {
                           const udsStr = parseResult.uds.trim().toUpperCase();
-                          jardinSeleccionado = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
+                          if (udsStr.length >= 3) {
+                              jardinSeleccionado = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
+                          } else {
+                              jardinSeleccionado = null;
+                          }
                       }
                   } else {
                       console.log(c.rojo(`  ❌ No se encontró ninguno de los beneficiarios ingresados.`));

@@ -60,25 +60,32 @@ function parsearExcel(filePath) {
             continue; // Hoja vacía o sin estructura de toma, omitir
         }
 
-        // Extraer Asociación y UDS (usualmente en las filas 5 a 12)
+        // Extraer Asociación y UDS (usualmente en las filas 4 a 15)
         if (!asociacion || !uds) {
-            for (let i = 5; i < 12; i++) {
-                if (!data[i]) continue;
-                const rowString = JSON.stringify(data[i]).toUpperCase();
-                if (rowString.includes('ASOCIACION')) {
-                    const rowData = data[i];
-                    const asocIndex = rowData.findIndex(val => typeof val === 'string' && val.toUpperCase().includes('ASOCIACION'));
-                    if (asocIndex !== -1 && !asociacion) {
-                        asociacion = rowData[asocIndex].trim();
+            for (let i = 3; i < Math.min(15, data.length); i++) {
+                if (!data[i] || !Array.isArray(data[i])) continue;
+                const rowData = data[i];
+
+                for (let colIdx = 0; colIdx < rowData.length; colIdx++) {
+                    const cellVal = String(rowData[colIdx] || '').trim().toUpperCase();
+
+                    // Buscar etiqueta de Asociación / Entidad Administradora
+                    if (!asociacion && (cellVal.includes('ASOCIACION') || cellVal.includes('ENTIDAD ADMINISTRADORA') || cellVal.includes('PRESTADOR') || cellVal.includes('EAS'))) {
+                        const nextVal = rowData.slice(colIdx + 1).find(v => v !== undefined && v !== null && String(v).trim().length > 2 && !String(v).toUpperCase().includes('NOMBRE DE LA UNIDAD') && !String(v).toUpperCase().includes('MODALIDAD'));
+                        if (nextVal) {
+                            asociacion = String(nextVal).trim();
+                        }
                     }
-                    // UDS suele estar más a la derecha
-                    const possibleUds = rowData.slice(asocIndex + 1).find(val => typeof val === 'string' && val.trim() !== '' && !val.toUpperCase().includes('NOMBRE DE LA UNIDAD'));
-                    if (possibleUds && !uds) {
-                        uds = possibleUds.trim();
-                    } else if (rowData.length > 23 && rowData[23] && !uds) {
-                        uds = rowData[23].toString().trim();
+
+                    // Buscar etiqueta de UDS / Unidad de Servicio
+                    if (!uds && (cellVal.includes('UNIDAD DE SERVICIO') || cellVal.includes('UNIDAD DE ATENCION') || cellVal.includes('UNIDAD COMUNITARIA') || cellVal.includes('NOMBRE UDS'))) {
+                        const nextVal = rowData.slice(colIdx + 1).find(v => v !== undefined && v !== null && String(v).trim().length > 2 && !String(v).toUpperCase().includes('MODALIDAD'));
+                        if (nextVal) {
+                            uds = String(nextVal).trim();
+                        } else if (rowData[23]) {
+                            uds = String(rowData[23]).trim();
+                        }
                     }
-                    break;
                 }
             }
         }
