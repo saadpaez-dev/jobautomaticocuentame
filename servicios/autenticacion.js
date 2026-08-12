@@ -371,6 +371,91 @@ async function verificarConexionOCaida(page) {
  * Intenta conectarse a un navegador existente en modo depuración (puerto 9222).
  * Si no lo encuentra, lanza un navegador nuevo en modo Bot Automático.
  */
+function removeAccents(str) {
+    if (!str) return '';
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+}
+
+/**
+ * Valida si la sesión activa en Cuéntame corresponde a la asociación seleccionada.
+ * Si la asociación activa es diferente, cierra sesión (clic en botón Logout)
+ * y hace clic en la casita (Home) para volver a la pantalla de login/roles.
+ *
+ * @param {import('playwright').Page} page
+ * @param {object|string} asociacionObj
+ * @returns {Promise<boolean>} true si la asociación activa es la misma (no requiere cambio), false si cerró sesión.
+ */
+async function validarYCambiarAsociacion(page, asociacionObj) {
+    const targetNombre = typeof asociacionObj === 'string' ? asociacionObj : (asociacionObj.nombreCorto || asociacionObj.nombre);
+    if (!targetNombre) return true;
+
+    const targetClean = removeAccents(targetNombre);
+    const pageUrl = page.url();
+    const pageText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+
+    const esLoginO2FA = pageText.includes('Iniciar Sesión') || 
+                        pageText.includes('Ingrese su código') || 
+                        pageText.includes('Se ha enviado un código') || 
+                        pageText.includes('¿Olvidaste tu Contraseña?');
+
+    if (esLoginO2FA || pageUrl.includes('DefaultF.aspx')) {
+        return false; // No hay sesión activa de todos modos
+    }
+
+    // Extraer texto de la cabecera donde Cuéntame muestra la asociación activa
+    const headerText = await page.evaluate(() => {
+        const cab = document.querySelector('#CabeceraPrincipal, div.ui-layout-north, table#CabeceraPrincipal');
+        return cab ? cab.innerText : document.body.innerText;
+    }).catch(() => '');
+
+    const headerClean = removeAccents(headerText);
+
+    // Si la cabecera contiene la asociación deseada, ¡la sesión es perfecta!
+    if (headerClean.includes(targetClean)) {
+        console.log(c.verde(`  ✅ Sesión activa confirmada para la asociación "${targetNombre}". Preservando sesión.`));
+        return true;
+    }
+
+    // Si la sesión activa pertenece a OTRA asociación, cerrar sesión según el flujo de las capturas
+    console.log(c.amarillo(`  🔄 La sesión activa pertenece a otra asociación (${headerClean.slice(0, 45)}...).`));
+    console.log(c.amarillo('  ⏳ Cerrando sesión (clic en icono de Cerrar Sesión)...'));
+
+    try {
+        const btnLogout = page.locator('a#btnLogOut, a[id*="btnLogOut"], a:has(img[src*="logout"])').first();
+        if (await btnLogout.count() > 0) {
+            await Promise.all([
+                page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                btnLogout.evaluate(node => node.click())
+            ]);
+            console.log(c.verde('  ✅ Clic en Cerrar Sesión ejecutado.'));
+            await page.waitForTimeout(1500);
+
+            // Hacer clic en la casita (Home) si estamos en LogOut.aspx
+            console.log(c.amarillo('  🏠 Haciendo clic en el botón de la casita (Inicio)...'));
+            const btnHome = page.locator('a:has(img[src*="home.png"]), a[href*="Default.aspx"], img[title="Inicio"]').first();
+            if (await btnHome.count() > 0) {
+                await Promise.all([
+                    page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                    btnHome.evaluate(node => node.click())
+                ]);
+                console.log(c.verde('  ✅ Regresado a la pantalla inicial de Cuéntame.'));
+            }
+        }
+    } catch(e) {
+        console.log(c.rojo(`  ❌ Error al cerrar sesión: ${e.message}`));
+    }
+
+    return false; // La sesión fue cerrada, se requiere nuevo ingreso
+}
+
+module.exports = {
+  loginYLlegarARoles,
+  seleccionarRolYEntrar,
+  obtenerNavegador,
+  verificarConexionOCaida,
+  validarYCambiarAsociacion
+};
+
 async function obtenerNavegador() {
     try {
         console.log(c.cyan('\n  🔍 Buscando navegador en Modo Humano (Puerto 9222)...'));

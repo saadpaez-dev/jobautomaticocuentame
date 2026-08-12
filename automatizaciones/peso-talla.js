@@ -7,7 +7,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const { chromium } = require('playwright');
 const readline = require('readline-sync');
-const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
 const { parsearExcel } = require('../servicios/excel-parser');
@@ -321,12 +321,12 @@ async function main() {
           console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
           loggedIn = true;
       } else {
-          // Si ya estábamos logueados, verificar si la sesión sigue activa
-          const currentUrl = page.url();
-          const pText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
-          if (currentUrl.includes('DefaultF.aspx') || pText.includes('Iniciar Sesión')) {
-              console.log(c.amarillo('  ⚠️ Cuéntame cerró la sesión por seguridad. Iniciando sesión nuevamente...'));
+          // Si ya estábamos logueados, validar si la sesión activa pertenece a la asociación elegida
+          const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
+          if (!mismaAsociacion) {
+              console.log(c.amarillo('  🔐 Reautenticando para ingresar con la nueva asociación...'));
               await loginYLlegarARoles(page, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
+              loggedIn = true;
           }
       }
 

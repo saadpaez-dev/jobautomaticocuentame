@@ -85,28 +85,50 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
           if (msg && msg.internalDate) {
             const fechaBuffer = new Date(fechaInicio.getTime() - 180000);
             if (msg.internalDate >= fechaBuffer) {
-              const m = await c.fetchOne(uid, { bodyParts: ['1'] }, { uid: true });
-              if (m && m.bodyParts && m.bodyParts.get('1')) {
-                const html = Buffer.from(m.bodyParts.get('1').toString('ascii'), 'base64').toString('utf8');
-                const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-                const match = text.match(/\b(\d{6})\b/);
-                if (match && match[1]) {
-                  console.log(`\n  ✅ Código 2FA recibido automáticamente: ${match[1]}`);
-                  
-                  // Limpiar todos los correos de ICBF en la bandeja de entrada
-                  if (todos && todos.length > 0) {
-                    try {
-                      await c.messageFlagsAdd(todos, ['\\Deleted'], { uid: true });
-                      console.log(`  🧹 Limpiados ${todos.length} correos de 2FA del buzón.`);
-                    } catch (errDel) {
-                      console.log(`  ⚠️ No se pudieron limpiar los correos: ${errDel.message}`);
-                    }
+              let fullRawText = '';
+              try {
+                const downloadRes = await c.download(uid, null, { uid: true });
+                if (downloadRes && downloadRes.content) {
+                  const chunks = [];
+                  for await (const chunk of downloadRes.content) {
+                    chunks.push(chunk);
                   }
-                  
-                  lock.release();
-                  try { await c.logout(); } catch (_) {}
-                  return match[1];
+                  fullRawText = Buffer.concat(chunks).toString('utf-8');
                 }
+              } catch(e) {}
+
+              // Intentar decodificar cualquier fragmento base64 o HTML en la fuente del correo
+              let decodedContent = fullRawText;
+              const base64Blocks = fullRawText.match(/([A-Za-z0-9+/=]{30,})/g);
+              if (base64Blocks) {
+                for (const block of base64Blocks) {
+                  try {
+                    const dec = Buffer.from(block, 'base64').toString('utf-8');
+                    if (/\d{6}/.test(dec)) {
+                      decodedContent += '\n' + dec;
+                    }
+                  } catch(e) {}
+                }
+              }
+
+              const textClean = decodedContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+              const match = textClean.match(/\b(\d{6})\b/);
+              if (match && match[1]) {
+                console.log(`\n  ✅ Código 2FA recibido automáticamente: ${match[1]}`);
+                
+                // Limpiar todos los correos de ICBF en la bandeja de entrada
+                if (todos && todos.length > 0) {
+                  try {
+                    await c.messageFlagsAdd(todos, ['\\Deleted'], { uid: true });
+                    console.log(`  🧹 Limpiados ${todos.length} correos de 2FA del buzón.`);
+                  } catch (errDel) {
+                    console.log(`  ⚠️ No se pudieron limpiar los correos: ${errDel.message}`);
+                  }
+                }
+                
+                lock.release();
+                try { await c.logout(); } catch (_) {}
+                return match[1];
               }
             }
           }
