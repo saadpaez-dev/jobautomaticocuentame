@@ -51,6 +51,13 @@ async function limpiarBuzon2FA(gmailUser, appPassword) {
  */
 async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
   const cleanPass = (appPassword || '').replace(/\s+/g, '').replace(/["']/g, '');
+  const readline = require('readline-sync');
+
+  if (!gmailUser || !cleanPass) {
+    console.log('  ⚠️ Credenciales de Gmail no configuradas en .env. Por favor ingresa el código manualmente.');
+    return readline.question('  > Ingresa el código 2FA (6 dígitos): ').trim();
+  }
+
   const c = new ImapFlow({
     host: 'imap.gmail.com', port: 993, secure: true,
     auth: { user: gmailUser, pass: cleanPass },
@@ -58,10 +65,11 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
   });
   
   console.log('  📧 Conectando a Gmail para leer el código 2FA...');
-  await c.connect();
   
-  const deadline = Date.now() + TIMEOUT_MS;
   try {
+    await c.connect();
+    const deadline = Date.now() + TIMEOUT_MS;
+    
     while (Date.now() < deadline) {
       const lock = await c.getMailboxLock('INBOX');
       try {
@@ -74,36 +82,32 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
           const uid = todos[i];
           const msg = await c.fetchOne(uid, { internalDate: true }, { uid: true });
           
-          if (msg.internalDate) {
-            // Se le resta un buffer de 3 minutos (180000 ms) a la fecha de inicio
-            // por si el reloj local está ligeramente adelantado respecto a Gmail
-            // Como leemos del más nuevo al más viejo, siempre agarra el último.
+          if (msg && msg.internalDate) {
             const fechaBuffer = new Date(fechaInicio.getTime() - 180000);
             if (msg.internalDate >= fechaBuffer) {
-              // Este correo llegó DESPUÉS de que iniciamos el login (o muy cerquita)
-            const m = await c.fetchOne(uid, { bodyParts: ['1'] }, { uid: true });
-            if (m.bodyParts && m.bodyParts.get('1')) {
-              const html = Buffer.from(m.bodyParts.get('1').toString('ascii'), 'base64').toString('utf8');
-              const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-              const match = text.match(/\b(\d{6})\b/);
-              if (match && match[1]) {
-                console.log(`\n  ✅ Código 2FA recibido: ${match[1]}`);
-                
-                // Limpiar todos los correos de ICBF en la bandeja de entrada
-                if (todos && todos.length > 0) {
-                  try {
-                    await c.messageFlagsAdd(todos, ['\\Deleted'], { uid: true });
-                    console.log(`  🧹 Limpiados ${todos.length} correos de 2FA del buzón.`);
-                  } catch (errDel) {
-                    console.log(`  ⚠️ No se pudieron limpiar los correos: ${errDel.message}`);
+              const m = await c.fetchOne(uid, { bodyParts: ['1'] }, { uid: true });
+              if (m && m.bodyParts && m.bodyParts.get('1')) {
+                const html = Buffer.from(m.bodyParts.get('1').toString('ascii'), 'base64').toString('utf8');
+                const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+                const match = text.match(/\b(\d{6})\b/);
+                if (match && match[1]) {
+                  console.log(`\n  ✅ Código 2FA recibido automáticamente: ${match[1]}`);
+                  
+                  // Limpiar todos los correos de ICBF en la bandeja de entrada
+                  if (todos && todos.length > 0) {
+                    try {
+                      await c.messageFlagsAdd(todos, ['\\Deleted'], { uid: true });
+                      console.log(`  🧹 Limpiados ${todos.length} correos de 2FA del buzón.`);
+                    } catch (errDel) {
+                      console.log(`  ⚠️ No se pudieron limpiar los correos: ${errDel.message}`);
+                    }
                   }
+                  
+                  lock.release();
+                  try { await c.logout(); } catch (_) {}
+                  return match[1];
                 }
-                
-                lock.release();
-                try { c.close(); } catch (_) {}
-                return match[1];
               }
-            }
             }
           }
         }
@@ -115,10 +119,22 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
       process.stdout.write(`\r  ⏳ Esperando código de Cuéntame... (${seg}s)  `);
       await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
     }
+  } catch (err) {
+    console.log(`\n  ⚠️ No se pudo leer el correo automáticamente de Gmail: ${err.message}`);
   } finally {
     try { await c.logout(); } catch (_) {}
   }
-  throw new Error('⏰ Tiempo agotado: no llegó el código 2FA en 180 segundos.');
+
+  // Fallback si falla la conexión IMAP o si expira el tiempo
+  console.log('\n  👉 Ingresa manualmente el código 2FA recibido en tu correo.');
+  let codManual = '';
+  while (!/^\d{6}$/.test(codManual)) {
+    codManual = readline.question('  > Ingresa el código 2FA (6 dígitos): ').trim();
+    if (!/^\d{6}$/.test(codManual)) {
+      console.log('  ⚠️ El código debe tener 6 dígitos numéricos. Inténtalo de nuevo.');
+    }
+  }
+  return codManual;
 }
 
 module.exports = { obtenerCodigo2FA, limpiarBuzon2FA };
