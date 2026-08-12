@@ -1371,27 +1371,8 @@ async function main() {
                           preFiltroBeneficiario = null;
                           modoExcel = null;
                       }
-                  }
-
-                  if (modoExcel && modoExcel.startsWith('MASIVO_')) {
-                          idxNinoExcelActual++;
-                          console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños para el siguiente en el Excel...'));
-                          await page.waitForTimeout(800);
-                          try {
-                              const btnBuscar = activeContent.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"], img[src*="lupa"]').first();
-                              if (await btnBuscar.count() > 0) {
-                                  await Promise.all([
-                                      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                                      btnBuscar.evaluate(node => node.click())
-                                  ]);
-                                  await page.waitForTimeout(1500);
-                              }
-                          } catch(e) {}
-                          break; // Pasa al siguiente niño en el Excel
-                      }
-                  }
-
-                  if (guardadoConfirmado) {
+                  } else if (guardadoConfirmado) {
+                      consecutivosDuplicados = 0;
                       console.log(c.verde('  🎉 ¡Confirmado! Banner "La Información ha sido guardada." recibido de Cuéntame.'));
                       if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                           const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
@@ -1403,7 +1384,6 @@ async function main() {
                               });
                           }
                           console.log(c.verde(`  🎉 Niño ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
-                          idxNinoExcelActual++;
                       }
                   } else {
                       console.log(c.rojo('  ❌ NO se confirmó el guardado ("La Información ha sido guardada.") por parte del servidor.'));
@@ -1416,10 +1396,11 @@ async function main() {
                                   observacion: 'El servidor de Cuéntame no retornó la confirmación de guardado.'
                               });
                           }
-                          idxNinoExcelActual++;
                       }
                   }
+
                   if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                      idxNinoExcelActual++;
                       console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños de la UDS para el siguiente...'));
                       
                       await page.waitForTimeout(800);
@@ -1556,6 +1537,7 @@ async function main() {
                       }
                       break; // Sale de Fase 3 y regresa al while(true) principal
                   }
+              } // fin while (true)
           } catch (err) {
               console.log(c.rojo(`  ❌ Error al abrir formulario del nino: ${err.message}`));
           }
