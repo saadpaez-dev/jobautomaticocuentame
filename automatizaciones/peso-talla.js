@@ -26,17 +26,20 @@ const c = {
 function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
     if (!ninosProcesados || ninosProcesados.length === 0) return null;
 
-    const reportesDir = path.join(__dirname, '..', 'Docs', 'reportes');
-    if (!fs.existsSync(reportesDir)) {
-        fs.mkdirSync(reportesDir, { recursive: true });
-    }
+    const rootReportesDir = path.join(__dirname, '..', 'reportes');
+    const docsReportesDir = path.join(__dirname, '..', 'Docs', 'reportes');
+
+    if (!fs.existsSync(rootReportesDir)) fs.mkdirSync(rootReportesDir, { recursive: true });
+    if (!fs.existsSync(docsReportesDir)) fs.mkdirSync(docsReportesDir, { recursive: true });
 
     const now = new Date();
     const fechaHoy = now.toISOString().slice(0, 10);
     const horaHoy = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
     const safeUds = (udsNombre || 'UDS').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 25);
     const fileName = `Reporte_PesoTalla_${safeUds}_${fechaHoy}_${horaHoy}.xlsx`;
-    const filePath = path.join(reportesDir, fileName);
+
+    const rootFilePath = path.join(rootReportesDir, fileName);
+    const docsFilePath = path.join(docsReportesDir, fileName);
 
     const rows = ninosProcesados.map((item, index) => ({
         '#': index + 1,
@@ -66,7 +69,13 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
     ];
 
     xlsx.utils.book_append_sheet(wb, ws, 'Resultados Procesamiento');
-    xlsx.writeFile(wb, filePath);
+    xlsx.writeFile(wb, rootFilePath);
+    xlsx.writeFile(wb, docsFilePath);
+
+    // Abrir automáticamente el Explorador de Windows destacando el archivo del reporte
+    try {
+        require('child_process').exec(`explorer.exe /select,"${rootFilePath}"`);
+    } catch (e) {}
 
     let exitosos = 0;
     let duplicados = 0;
@@ -87,10 +96,10 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
         console.log(c.rojo(`  ❌ No encontrados / Con error: ${noEncontrados}`));
     }
     console.log(c.cyan(`\n  📄 Reporte Excel generado exitosamente en:`));
-    console.log(c.negrita(`     "${filePath}"`));
+    console.log(c.negrita(`     "${rootFilePath}"`));
     console.log(c.verde('========================================================================================\n'));
 
-    return filePath;
+    return rootFilePath;
 }
 
 function removeAccents(str) {
