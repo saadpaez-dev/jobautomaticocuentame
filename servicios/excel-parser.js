@@ -19,6 +19,36 @@ function normalizarDecimal(val) {
     return String(val).trim().replace(',', '.');
 }
 
+function parsearFechaAObjeto(fechaStr) {
+    if (!fechaStr) return null;
+    const parts = String(fechaStr).trim().split(/[\/-]/);
+    if (parts.length === 3) {
+        let d = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10) - 1;
+        let y = parseInt(parts[2], 10);
+        if (parts[0].length === 4) { // YYYY-MM-DD
+            y = parseInt(parts[0], 10);
+            m = parseInt(parts[1], 10) - 1;
+            d = parseInt(parts[2], 10);
+        }
+        return new Date(y, m, d);
+    }
+    return null;
+}
+
+function esFechaMasReciente(fechaNueva, fechaExistente) {
+    if (!fechaExistente) return true;
+    if (!fechaNueva) return false;
+
+    const dNueva = parsearFechaAObjeto(fechaNueva);
+    const dExistente = parsearFechaAObjeto(fechaExistente);
+
+    if (dNueva && dExistente) {
+        return dNueva.getTime() >= dExistente.getTime();
+    }
+    return false;
+}
+
 function obtenerUltimaToma(fila) {
     // Las tomas inician en el índice 7 (Toma 1) y avanzan cada 12 columnas.
     // Toma 1: 7, Toma 2: 19, Toma 3: 31, Toma 4: 43
@@ -123,6 +153,19 @@ function parsearExcel(filePath) {
                         ...ultimaToma
                     });
                     ninosEnHoja++;
+                } else {
+                    const ninoExistente = ninosMap.get(documento);
+                    if (esFechaMasReciente(ultimaToma.fecha, ninoExistente.fecha)) {
+                        console.log(`\x1b[36m  ℹ️ [Hoja: "${sheetName}"] Registro duplicado detectado para ${nombres} ${apellidos} (${documento}). Se toma la toma más reciente: ${ultimaToma.fecha} (reemplaza a ${ninoExistente.fecha}).\x1b[0m`);
+                        ninosMap.set(documento, {
+                            documento: documento,
+                            nombres: nombres,
+                            apellidos: apellidos,
+                            nombreCompleto: `${nombres} ${apellidos}`,
+                            hoja: sheetName,
+                            ...ultimaToma
+                        });
+                    }
                 }
             }
         }
