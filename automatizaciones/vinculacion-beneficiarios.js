@@ -1117,25 +1117,50 @@ async function main() {
                                             await txtFechaNacM.press('Tab');
                                             await datePost;
                                         }
-
-                                        const selSexoMadre = currentFrame.locator('select:visible[id*="ddlSexo"], select:visible[id*="Sexo"]').first();
-                                        await selSexoMadre.waitFor({ state: 'visible', timeout: 4000 }).catch(() => {});
-                                        if (await selSexoMadre.count() > 0) await waitForAndSelect(selSexoMadre, sexoJefeVal);
-
-                                        // Pais, Depto, Muni
-                                        const selPaisM = currentFrame.locator('select:visible[id*="Pais"][id*="Nacimiento"], select:visible[id*="ddlPaisNacimiento"]').first();
-                                        await selPaisM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
-                                        if (await selPaisM.count() > 0) await waitForAndSelect(selPaisM, "COLOMBIA");
-                                        
-                                        const selDeptoM = currentFrame.locator('select:visible[id*="Departamento"], select:visible[id*="Depto"]').first();
-                                        await selDeptoM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
-                                        if (await selDeptoM.count() > 0) await waitForAndSelect(selDeptoM, "BOGOTA D.C.");
-                                        
-                                        const selMuniM = currentFrame.locator('select:visible[id*="Municipio"], select:visible[id*="Muni"]').first();
-                                        await selMuniM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
-                                        if (await selMuniM.count() > 0) await waitForAndSelect(selMuniM, "BOGOTA, D.C.");
                                     } else {
-                                        console.log(c.verde(`  ✅ ${labelJefe.toUpperCase()} ya existe: ${valNombre}`));
+                                        console.log(c.verde(`  ✅ ${labelJefe.toUpperCase()} ya existe en Cuéntame: ${valNombre || 'REGISTRADA'}`));
+                                    }
+
+                                    // --- VERIFICAR Y AUTOCOMPLETAR CAMPOS REQUERIDOS DEL ACUDIENTE (NUEVA O EXISTENTE) ---
+                                    console.log(c.amarillo(`  ℹ️ Verificando y completando campos requeridos de ${labelJefe} (Sexo, País, Depto, Municipio)...`));
+                                    
+                                    const selSexoMadre = currentFrame.locator('select:visible[id*="ddlSexo"], select:visible[id*="Sexo"]').first();
+                                    await selSexoMadre.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+                                    if (await selSexoMadre.count() > 0) {
+                                        const vSexo = await selSexoMadre.inputValue().catch(() => '');
+                                        if (!vSexo || vSexo === '0' || vSexo.includes('Seleccione')) {
+                                            await waitForAndSelect(selSexoMadre, sexoJefeVal);
+                                        }
+                                    }
+
+                                    const selPaisM = currentFrame.locator('select:visible[id*="Pais"][id*="Nacimiento"], select:visible[id*="ddlPaisNacimiento"]').first();
+                                    await selPaisM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+                                    if (await selPaisM.count() > 0) {
+                                        const vPais = await selPaisM.inputValue().catch(() => '');
+                                        if (!vPais || vPais === '0' || vPais.includes('Seleccione')) {
+                                            console.log(c.verde('    👉 Seleccionando País de Nacimiento (COLOMBIA)...'));
+                                            await waitForAndSelect(selPaisM, "COLOMBIA");
+                                        }
+                                    }
+                                    
+                                    const selDeptoM = currentFrame.locator('select:visible[id*="Departamento"], select:visible[id*="Depto"]').first();
+                                    await selDeptoM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+                                    if (await selDeptoM.count() > 0) {
+                                        const vDepto = await selDeptoM.inputValue().catch(() => '');
+                                        if (!vDepto || vDepto === '0' || vDepto.includes('Seleccione')) {
+                                            console.log(c.verde('    👉 Seleccionando Departamento de Nacimiento (BOGOTA D.C.)...'));
+                                            await waitForAndSelect(selDeptoM, "BOGOTA D.C.");
+                                        }
+                                    }
+                                    
+                                    const selMuniM = currentFrame.locator('select:visible[id*="Municipio"], select:visible[id*="Muni"]').first();
+                                    await selMuniM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+                                    if (await selMuniM.count() > 0) {
+                                        const vMuni = await selMuniM.inputValue().catch(() => '');
+                                        if (!vMuni || vMuni === '0' || vMuni.includes('Seleccione')) {
+                                            console.log(c.verde('    👉 Seleccionando Municipio de Nacimiento (BOGOTA, D.C.)...'));
+                                            await waitForAndSelect(selMuniM, "BOGOTA, D.C.");
+                                        }
                                     }
 
                                     const btnAgregarMadre = currentFrame.locator('a:visible:has-text("Agregar Persona"), a:visible[id*="btnAgregarPersona"], a[id*="LblAgregarPersona"]').first();
