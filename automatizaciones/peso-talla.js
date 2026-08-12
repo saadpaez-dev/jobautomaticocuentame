@@ -109,7 +109,20 @@ function removeAccents(str) {
 
 async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
     if (!targetDocOrName) return null;
-    const targetClean = removeAccents(targetDocOrName);
+    
+    let targetDoc = '';
+    let targetNombre = '';
+    let targetApellidos = '';
+    
+    if (typeof targetDocOrName === 'object') {
+        targetDoc = targetDocOrName.documento || '';
+        targetNombre = targetDocOrName.nombreCompleto || '';
+        targetApellidos = targetDocOrName.apellidos || '';
+    } else {
+        targetDoc = String(targetDocOrName).trim();
+        targetNombre = String(targetDocOrName).trim();
+    }
+
     let paginasProbadas = new Set([1]);
 
     while (true) {
@@ -172,10 +185,22 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
                 const nombreCompleto = datos.slice(2, -2).join(' ');
                 const tomas = datos[datos.length - 2] || "N/A";
 
-                const matchDoc = documento.includes(targetDocOrName);
-                const matchNom = removeAccents(nombreCompleto).includes(targetClean);
+                let isMatch = false;
 
-                if (matchDoc || matchNom) {
+                // 1. Match por documento
+                if (targetDoc && documento.includes(targetDoc)) isMatch = true;
+
+                // 2. Match por nombre exacto o contenido
+                if (!isMatch && targetNombre && removeAccents(nombreCompleto).includes(removeAccents(targetNombre))) isMatch = true;
+                if (!isMatch && targetNombre && removeAccents(targetNombre).includes(removeAccents(nombreCompleto))) isMatch = true;
+
+                // 3. Match por apellidos
+                if (!isMatch && targetApellidos && targetApellidos.length >= 4 && removeAccents(nombreCompleto).includes(removeAccents(targetApellidos))) isMatch = true;
+
+                // 4. Match por similitud Fuzzy (Levenshtein >= 0.78)
+                if (!isMatch && targetNombre && calcularSimilitudTexto(nombreCompleto, targetNombre) >= 0.78) isMatch = true;
+
+                if (isMatch) {
                     console.log(c.verde(`  ✅ ¡Beneficiario encontrado en la página ${numSiguiente}!: ${nombreCompleto}`));
                     return {
                         documento,
@@ -206,16 +231,56 @@ function normalizarFecha(str) {
     return str.trim();
 }
 
+function calcularSimilitudTexto(str1, str2) {
+    if (!str1 || !str2) return 0;
+    const s1 = removeAccents(str1).toUpperCase();
+    const s2 = removeAccents(str2).toUpperCase();
+    if (s1 === s2) return 1.0;
+    if (s1.includes(s2) || s2.includes(s1)) return 0.9;
+
+    const len1 = s1.length;
+    const len2 = s2.length;
+    const matrix = Array.from({ length: len1 + 1 }, () => Array(len2 + 1).fill(0));
+
+    for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+    for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= len1; i++) {
+        for (let j = 1; j <= len2; j++) {
+            const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+            matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + cost
+            );
+        }
+    }
+    const dist = matrix[len1][len2];
+    const maxLen = Math.max(len1, len2);
+    return 1 - (dist / maxLen);
+}
+
 function buscarCoincidenciaPorNombre(ninoTarget, listaNinos) {
     if (!ninoTarget || !ninoTarget.nombreCompleto) return null;
     
+    // 1. Coincidencia directa por Apellidos (si son únicos en la UDS)
+    if (ninoTarget.apellidos && ninoTarget.apellidos.trim().length >= 4) {
+        const cleanApellidos = removeAccents(ninoTarget.apellidos);
+        const porApellidos = listaNinos.filter(n => removeAccents(n.nombreCompleto).includes(cleanApellidos));
+        if (porApellidos.length === 1) {
+            console.log(c.verde(`  ✨ Coincidencia única por Apellidos ("${ninoTarget.apellidos}"): ${porApellidos[0].nombreCompleto}`));
+            return porApellidos[0];
+        }
+    }
+
+    // 2. Coincidencia Fuzzy / Tokens con tolerancia a errores ortográficos (JANSEHELL vs JANSHELL)
     const cleanTarget = removeAccents(ninoTarget.nombreCompleto);
     const tokensTarget = cleanTarget.split(/\s+/).filter(t => t.length > 2);
     
     if (tokensTarget.length === 0) return null;
 
     let mejorCoincidencia = null;
-    let maxCoincidencias = 0;
+    let maxPuntos = 0;
 
     for (const nino of listaNinos) {
         const cleanCuentame = removeAccents(nino.nombreCompleto);
@@ -223,14 +288,16 @@ function buscarCoincidenciaPorNombre(ninoTarget, listaNinos) {
         
         let coincidenciaCount = 0;
         for (const token of tokensTarget) {
-            if (tokensCuentame.some(tC => tC.includes(token) || token.includes(tC))) {
-                coincidenciaCount++;
-            }
+            const tokenMatch = tokensCuentame.some(tC => {
+                if (tC.includes(token) || token.includes(tC)) return true;
+                return calcularSimilitudTexto(token, tC) >= 0.75;
+            });
+            if (tokenMatch) coincidenciaCount++;
         }
 
         const minRequerido = Math.min(2, tokensTarget.length);
-        if (coincidenciaCount >= minRequerido && coincidenciaCount > maxCoincidencias) {
-            maxCoincidencias = coincidenciaCount;
+        if (coincidenciaCount >= minRequerido && coincidenciaCount > maxPuntos) {
+            maxPuntos = coincidenciaCount;
             mejorCoincidencia = nino;
         }
     }
@@ -897,8 +964,9 @@ async function main() {
           }
 
           if (!ninoSeleccionado) {
-              // Intentar buscar en páginas 2, 3... de la grilla de Cuéntame
-              const ninoEnOtraPagina = await buscarYCambiarPaginaGrilla(content, page, input);
+              // Intentar buscar en páginas 2, 3... de la grilla de Cuéntame por Documento, Apellidos o Similitud Fuzzy
+              const targetParaBusqueda = (modoExcel && ninosExcel[idxNinoExcelActual]) ? ninosExcel[idxNinoExcelActual] : input;
+              const ninoEnOtraPagina = await buscarYCambiarPaginaGrilla(content, page, targetParaBusqueda);
               if (ninoEnOtraPagina) {
                   ninoSeleccionado = ninoEnOtraPagina;
               }
