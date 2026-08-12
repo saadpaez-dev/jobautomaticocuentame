@@ -674,22 +674,20 @@ async function main() {
                       const ninoInfo = ninosExcel[idxNinoExcelActual];
                       const targetFecha = parsearFecha(String(ninoInfo.fecha)).trim();
                       const targetFechaNorm = normalizarFecha(targetFecha);
-                      const targetPeso = parseFloat(String(ninoInfo.peso).replace(',', '.'));
-                      const targetTalla = parseFloat(String(ninoInfo.talla).replace(',', '.'));
 
                       let esDuplicado = false;
+                      let fechaExistente = '';
+
                       for (const t of listaTomas) {
                           const tFechaValNorm = normalizarFecha(t.fechaValoracion || t.fechaToma);
                           const tFechaTomaNorm = normalizarFecha(t.fechaToma);
-                          const tPeso = parseFloat(t.peso.replace(',', '.'));
-                          const tTalla = parseFloat(t.talla.replace(',', '.'));
 
+                          // Cuéntame NO permite 2 tomas para la misma fecha de valoración antropométrica
                           const matchFecha = (tFechaValNorm === targetFechaNorm || tFechaTomaNorm === targetFechaNorm);
-                          const matchPeso = !isNaN(tPeso) && !isNaN(targetPeso) && Math.abs(tPeso - targetPeso) < 0.05;
-                          const matchTalla = !isNaN(tTalla) && !isNaN(targetTalla) && Math.abs(tTalla - targetTalla) < 0.05;
 
-                          if (matchFecha && matchPeso && matchTalla) {
+                          if (matchFecha) {
                               esDuplicado = true;
+                              fechaExistente = tFechaValNorm || tFechaTomaNorm;
                               break;
                           }
                       }
@@ -697,12 +695,12 @@ async function main() {
                       if (esDuplicado) {
                           consecutivosDuplicados++;
                           console.log(c.amarillo(`\n  ⚠️ TOMA DUPLICADA DETECTADA para ${ninoSeleccionado.nombreCompleto}:`));
-                          console.log(c.amarillo(`     - Fecha: ${targetFechaNorm} | Peso: ${targetPeso}kg | Talla: ${targetTalla}cm`));
-                          console.log(c.amarillo(`     ➡️ Este registro ya fue subido anteriormente a Cuéntame. Omitiendo niño (${consecutivosDuplicados} consecutivo(s)).`));
+                          console.log(c.amarillo(`     - Fecha: ${targetFechaNorm} (Ya tiene una toma registrada para esta fecha).`));
+                          console.log(c.amarillo(`     ➡️ Omitiendo niño (${consecutivosDuplicados} consecutivo(s)).`));
 
                           if (consecutivosDuplicados >= 3) {
                               console.log(c.rojo('\n  ========================================================================================'));
-                              console.log(c.rojo('  ⛔ SE VALIDÓ EN 3 REGISTROS CONSECUTIVOS FECHA, PESO Y TALLA IGUAL.'));
+                              console.log(c.rojo('  ⛔ SE VALIDÓ EN 3 REGISTROS CONSECUTIVOS FECHA, PESO Y TALLA IGUAL (O TOMA DUPLICADA).'));
                               console.log(c.rojo('  ⚠️  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
                               console.log(c.rojo('  ========================================================================================\n'));
 
@@ -946,9 +944,10 @@ async function main() {
                       await btnAceptarPopupFrame.click().catch(() => {});
                   }
 
-                  // ── ESPERAR CONFIRMACIÓN "La Información ha sido guardada." ──
+                  // ── ESPERAR CONFIRMACIÓN "La Información ha sido guardada." O ERROR DUPLICADO ──
                   console.log(c.amarillo('  ⏳ Esperando respuesta del servidor ("La Información ha sido guardada.")...'));
                   let guardadoConfirmado = false;
+                  let errorTomaExistente = false;
                   const tInicioSave = Date.now();
                   
                   while (Date.now() - tInicioSave < 10000) { // Esperar hasta 10 segundos la respuesta
@@ -960,15 +959,15 @@ async function main() {
                           guardadoConfirmado = true;
                           break;
                       }
+
+                      if (txtBody.includes('ya tiene una toma para la fecha') || txtMain.includes('ya tiene una toma para la fecha') || txtBody.includes('ya tiene una toma') || txtMain.includes('ya tiene una toma')) {
+                          errorTomaExistente = true;
+                          break;
+                      }
+
                       await page.waitForTimeout(500);
                   }
 
-                  if (guardadoConfirmado) {
-                      console.log(c.verde('  🎉 ¡Confirmado! Banner "La Información ha sido guardada." recibido de Cuéntame.'));
-                  } else {
-                      console.log(c.verde('  ✅ Formulario guardado en Cuéntame.'));
-                  }
-                  
                   page.off('dialog', dialogHandler);
 
                   // Re-obtener el frame actualizado tras el guardado
@@ -982,6 +981,45 @@ async function main() {
                       }
                   }
                   if (!activeContent) activeContent = page;
+
+                  if (errorTomaExistente) {
+                      consecutivosDuplicados++;
+                      console.log(c.amarillo(`\n  ⚠️ ALERTA DE CUÉNTAME: "El beneficiario ya tiene una toma para la fecha de antropométrica relacionada".`));
+                      console.log(c.amarillo(`     ➡️ Registro omitido por duplicidad de fecha (${consecutivosDuplicados} consecutivo(s)).`));
+
+                      if (consecutivosDuplicados >= 3) {
+                          console.log(c.rojo('\n  ========================================================================================'));
+                          console.log(c.rojo('  ⛔ SE VALIDÓ EN 3 REGISTROS CONSECUTIVOS QUE LA TOMA YA EXISTE EN CUÉNTAME.'));
+                          console.log(c.rojo('  ⚠️  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
+                          console.log(c.rojo('  ========================================================================================\n'));
+
+                          preFiltroBeneficiario = null;
+                          modoExcel = null;
+                      }
+
+                      if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                          idxNinoExcelActual++;
+                          console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños para el siguiente en el Excel...'));
+                          await page.waitForTimeout(800);
+                          try {
+                              const btnBuscar = activeContent.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"], img[src*="lupa"]').first();
+                              if (await btnBuscar.count() > 0) {
+                                  await Promise.all([
+                                      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                      btnBuscar.evaluate(node => node.click())
+                                  ]);
+                                  await page.waitForTimeout(1500);
+                              }
+                          } catch(e) {}
+                          break; // Pasa al siguiente niño en el Excel
+                      }
+                  }
+
+                  if (guardadoConfirmado) {
+                      console.log(c.verde('  🎉 ¡Confirmado! Banner "La Información ha sido guardada." recibido de Cuéntame.'));
+                  } else {
+                      console.log(c.verde('  ✅ Formulario guardado en Cuéntame.'));
+                  }
 
                   if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                       console.log(c.verde(`  🎉 Niño ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
