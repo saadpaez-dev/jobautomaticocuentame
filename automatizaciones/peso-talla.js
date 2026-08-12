@@ -567,31 +567,26 @@ async function main() {
           page = navData.page;
       }
 
-      if (!loggedIn) {
+      // Validar si la sesión activa pertenece a la asociación elegida
+      const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
+      
+      if (!mismaAsociacion) {
+          console.log(c.amarillo('  🔐 Verificando inicio de sesión en Cuéntame...'));
           await loginYLlegarARoles(page, {
             usuario: USUARIO,
             password: PASSWORD,
             gmailUser: GMAIL_USER,
             gmailAppPassword: GMAIL_APP_PASSWORD
           });
-          console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
           loggedIn = true;
+          console.log(c.amarillo(`  🏢 Entrando con la asociacion ${ascSeleccionada.nombreCorto}...`));
+          await seleccionarRolYEntrar(page, ascSeleccionada);
+          console.log(c.amarillo('  ⏳ Esperando a que cargue el menú de Cuéntame...'));
+          await page.waitForTimeout(3000); 
       } else {
-          // Si ya estábamos logueados, validar si la sesión activa pertenece a la asociación elegida
-          const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
-          if (!mismaAsociacion) {
-              console.log(c.amarillo('  🔐 Reautenticando para ingresar con la nueva asociación...'));
-              await loginYLlegarARoles(page, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
-              loggedIn = true;
-          }
-      }
-
-      console.log(c.amarillo(`  🏢 Entrando con la asociacion ${ascSeleccionada.nombreCorto}...`));
-      await seleccionarRolYEntrar(page, ascSeleccionada);
-      
-      // Esperar a que cargue la página principal
-      console.log(c.amarillo('  ⏳ Esperando a que cargue el menu de Cuentame...'));
-      await page.waitForTimeout(4000); 
+          console.log(c.verde(`  ✅ Preservando sesión y asociación activa: "${ascSeleccionada.nombreCorto}".`));
+          loggedIn = true;
+      } 
       
       let menuFrame = page.frame({ name: 'frameMenu' });
       if (!menuFrame) {
