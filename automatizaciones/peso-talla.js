@@ -98,6 +98,86 @@ function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 }
 
+async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
+    if (!targetDocOrName) return null;
+    const targetClean = removeAccents(targetDocOrName);
+    let paginasProbadas = new Set([1]);
+
+    while (true) {
+        // Buscar enlaces de paginación en la tabla de Cuéntame
+        const pagerLinks = content.locator('a[href*="Page$"], a[href*="gvBeneficiarios"]');
+        const countLinks = await pagerLinks.count();
+
+        let linkSiguiente = null;
+        let numSiguiente = -1;
+
+        for (let k = 0; k < countLinks; k++) {
+            const link = pagerLinks.nth(k);
+            const href = await link.getAttribute('href').catch(() => '');
+            const txt = await link.innerText().catch(() => '');
+
+            const match = href.match(/Page\$(\d+)/) || txt.match(/^(\d+)$/);
+            if (match) {
+                const pageNum = parseInt(match[1], 10);
+                if (!paginasProbadas.has(pageNum)) {
+                    linkSiguiente = link;
+                    numSiguiente = pageNum;
+                    break;
+                }
+            }
+        }
+
+        if (!linkSiguiente || numSiguiente <= 0) {
+            return null; // Se recorrieron todas las páginas disponibles y no estuvo
+        }
+
+        paginasProbadas.add(numSiguiente);
+        console.log(c.amarillo(`  🔍 El beneficiario no está en la página 1. Buscando en la página ${numSiguiente} de la grilla de Cuéntame...`));
+
+        try {
+            await Promise.all([
+                content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                linkSiguiente.evaluate(node => node.click())
+            ]);
+            await page.waitForTimeout(1500);
+        } catch(e) {
+            return null;
+        }
+
+        // Re-extraer las filas de la tabla de la nueva página
+        const filas = content.locator('tr:has(input[src*="info.jpg"], input[id*="btnInfo"])');
+        const count = await filas.count();
+
+        for (let i = 0; i < count; i++) {
+            const fila = filas.nth(i);
+            const celdas = fila.locator(':scope > td');
+            const numCeldas = await celdas.count();
+
+            if (numCeldas < 5 || numCeldas > 15) continue;
+
+            const textoCeldas = await celdas.allInnerTexts();
+            const datos = textoCeldas.map(t => t.trim()).filter(t => t.length > 0);
+
+            if (datos.length >= 4) {
+                const documento = datos[1] || "N/A";
+                const nombreCompleto = datos.slice(2, -2).join(' ');
+
+                const matchDoc = documento.includes(targetDocOrName);
+                const matchNom = removeAccents(nombreCompleto).includes(targetClean);
+
+                if (matchDoc || matchNom) {
+                    console.log(c.verde(`  ✅ ¡Beneficiario encontrado en la página ${numSiguiente}!: ${nombreCompleto}`));
+                    return {
+                        documento,
+                        nombreCompleto,
+                        locator: fila.locator('input[type="image"][src*="info.jpg"], input[id*="btnInfo"]').first()
+                    };
+                }
+            }
+        }
+    }
+}
+
 function normalizarFecha(str) {
     if (!str) return '';
     const parts = str.trim().split(/[\/-]/);
@@ -780,10 +860,26 @@ async function main() {
           }
 
           if (!ninoSeleccionado) {
-              console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${input}".`));
+              // Intentar buscar en páginas 2, 3... de la grilla de Cuéntame
+              const ninoEnOtraPagina = await buscarYCambiarPaginaGrilla(content, page, input);
+              if (ninoEnOtraPagina) {
+                  ninoSeleccionado = ninoEnOtraPagina;
+              }
+          }
+
+          if (!ninoSeleccionado) {
+              console.log(c.rojo(`  ❌ No se encontró ningún niño que coincida con "${input}" en ninguna de las páginas de la UDS.`));
               preFiltroBeneficiario = null;
               if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                   console.log(c.amarillo('  ⚠️ Saltando al siguiente niño del Excel...'));
+                  const ninoTarget = ninosExcel[idxNinoExcelActual];
+                  if (ninoTarget) {
+                      ninosProcesados.push({
+                          ...ninoTarget,
+                          estado: '❌ NO ENCONTRADO EN CUÉNTAME',
+                          observacion: 'El beneficiario no aparece en ninguna de las páginas de esta UDS en Cuéntame.'
+                      });
+                  }
                   idxNinoExcelActual++;
               }
               continue;
