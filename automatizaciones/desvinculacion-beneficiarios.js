@@ -375,7 +375,7 @@ async function main() {
             // --- Preguntar Fecha y Motivo con Validación ---
             while (true) {
                 const msgFecha = globalFechaRetiro 
-                    ? `\n  > Fecha de retiro (vacío para mantener ${globalFechaRetiro}): `
+                    ? `\n  > Fecha de retiro (vacio para mantener ${globalFechaRetiro}): `
                     : `\n  > Fecha de retiro (DD/MM/YYYY): `;
                 
                 const nuevaFecha = readline.question(c.negrita(msgFecha)).trim();
@@ -416,12 +416,12 @@ async function main() {
             ];
 
             const msgMot = globalMotivoId 
-                ? `\n  > Selecciona el Motivo de retiro (vacío para mantener "${globalMotivoId}")`
+                ? `\n  > Selecciona el Motivo de retiro (vacio para mantener "${globalMotivoId}")`
                 : `\n  --- SELECCIONA EL MOTIVO DE RETIRO ---`;
             
             if (globalMotivoId) {
                 console.log(c.cyan(msgMot));
-                const resMot = readline.question(c.negrita(`  > Opcion (vacío para mantener, 'c' para cambiar): `)).trim().toLowerCase();
+                const resMot = readline.question(c.negrita(`  > Opcion (vacio para mantener, 'c' para cambiar): `)).trim().toLowerCase();
                 if (resMot === 'c') {
                     globalMotivoId = null; // forzar selección nueva
                 }
@@ -432,7 +432,7 @@ async function main() {
                 opcionesMotivo.forEach((m, i) => console.log(`  ${i + 1}. ${m}`));
                 let sIdxMot = -1;
                 while (sIdxMot < 0 || sIdxMot >= opcionesMotivo.length) {
-                    const res = readline.question(c.negrita('\n  > Opcion (vacío para "otro"): ')).trim();
+                    const res = readline.question(c.negrita('\n  > Opcion (vacio para "otro"): ')).trim();
                     if (res === '') {
                         sIdxMot = opcionesMotivo.indexOf("otro");
                         break;

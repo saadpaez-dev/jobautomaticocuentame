@@ -70,7 +70,7 @@ function main() {
         const etiqueta = h.tipo === 'no-reconocida'
             ? c.rojo(`no reconocida (0 beneficiarios)`)
             : h.tipo === 'vacia'
-                ? c.gris('vacía')
+                ? c.gris('vacia')
                 : c.verde(`${h.tipo} → ${h.encontrados} beneficiario(s)`);
         console.log(`    - "${h.hoja}": ${etiqueta}`);
     });

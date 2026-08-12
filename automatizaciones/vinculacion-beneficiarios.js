@@ -527,7 +527,7 @@ async function main() {
                     }
                 } else if (paso === 3) {
                     const hint = datosNino.sNombre ? ` [actual: ${datosNino.sNombre}]` : '';
-                    const res = readline.question(c.negrita(`  > Segundo Nombre${hint} (Vacío para omitir): `)).trim().toUpperCase();
+                    const res = readline.question(c.negrita(`  > Segundo Nombre${hint} (Vacio para omitir): `)).trim().toUpperCase();
                     if (isGoBack(res)) {
                         paso--;
                     } else {
@@ -549,7 +549,7 @@ async function main() {
                     }
                 } else if (paso === 5) {
                     const hint = datosNino.sApellido ? ` [actual: ${datosNino.sApellido}]` : '';
-                    const res = readline.question(c.negrita(`  > Segundo Apellido${hint} (Vacío para omitir): `)).trim().toUpperCase();
+                    const res = readline.question(c.negrita(`  > Segundo Apellido${hint} (Vacio para omitir): `)).trim().toUpperCase();
                     if (isGoBack(res)) {
                         paso--;
                     } else {
