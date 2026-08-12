@@ -26,6 +26,23 @@ function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 }
 
+function normalizarFecha(str) {
+    if (!str) return '';
+    const parts = str.trim().split(/[\/-]/);
+    if (parts.length === 3) {
+        let d = parts[0].padStart(2, '0');
+        let m = parts[1].padStart(2, '0');
+        let y = parts[2];
+        if (d.length === 4) { // YYYY-MM-DD
+            y = parts[0];
+            m = parts[1].padStart(2, '0');
+            d = parts[2].padStart(2, '0');
+        }
+        return `${d}/${m}/${y}`;
+    }
+    return str.trim();
+}
+
 function buscarCoincidenciaPorNombre(ninoTarget, listaNinos) {
     if (!ninoTarget || !ninoTarget.nombreCompleto) return null;
     
@@ -485,25 +502,10 @@ async function main() {
               const textoCeldas = await celdas.allInnerTexts();
               const datos = textoCeldas.map(t => t.trim()).filter(t => t.length > 0);
               
-              let documento = "N/A";
-              let nombreCompleto = "";
-              let tomas = "N/A";
-
-              if (datos.length >= 6) {
-                  const docIndex = datos.findIndex(d => /^\d{6,15}$/.test(d));
-                  if (docIndex !== -1) {
-                      documento = datos[docIndex];
-                      let nombres = [];
-                      for (let j = docIndex + 1; j < datos.length - 2; j++) { 
-                          nombres.push(datos[j]);
-                      }
-                      nombreCompleto = nombres.join(' ');
-                      tomas = datos[datos.length - 2];
-                  } else {
-                      documento = datos[1] || "N/A";
-                      nombreCompleto = datos.slice(2, -2).join(' ');
-                      tomas = datos[datos.length - 2] || "N/A";
-                  }
+              if (datos.length >= 4) {
+                  documento = datos[1] || "N/A";
+                  nombreCompleto = datos.slice(2, -2).join(' ');
+                  tomas = datos[datos.length - 2] || "N/A";
               }
 
               listaNinos.push({
@@ -516,6 +518,9 @@ async function main() {
           }
 
           console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS.`));
+          
+          let idxNinoExcelActual = 0;
+          let consecutivosDuplicados = 0;
           
           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
               if (idxNinoExcelActual >= ninosExcel.length) {
@@ -545,7 +550,6 @@ async function main() {
           }
           
           if (input.trim() === '00') {
-              // Signal to outer loop to break Jardin
               idxJardin = 0;
               break;
           }
@@ -553,7 +557,6 @@ async function main() {
           let ninoSeleccionado = null;
           
           if (input.trim() === '') {
-              // Mostrar lista completa
               listaNinos.forEach((n, idx) => {
                   console.log(`  ${idx + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto} (Tomas: ${c.amarillo(n.tomas)})`);
               });
@@ -564,14 +567,12 @@ async function main() {
               if (input.trim() === '') continue;
           }
           
-          // Intentar parsear como numero de la lista SI input es solo digitos y corto
           const isNum = /^\d+$/.test(input.trim()) && input.trim().length <= 3;
           const numParsed = parseInt(input.trim(), 10);
           
           if (isNum && !isNaN(numParsed) && numParsed > 0 && numParsed <= listaNinos.length) {
               ninoSeleccionado = listaNinos[numParsed - 1];
           } else {
-              // Buscar por texto (Fast Track)
               const busqueda = input.trim().toLowerCase();
               const resultados = listaNinos.filter(n => 
                   n.documento.includes(busqueda) || 
@@ -583,7 +584,7 @@ async function main() {
               } else if (resultados.length > 1) {
                   if (preFiltroBeneficiario) {
                       console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para la busqueda automatica "${input}".`));
-                      preFiltroBeneficiario = null; // Quitar el auto-filtro para que el usuario pueda seleccionar manualmente
+                      preFiltroBeneficiario = null;
                   } else {
                       console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para "${input}":`));
                   }
@@ -613,7 +614,7 @@ async function main() {
 
           if (!ninoSeleccionado) {
               console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${input}".`));
-              preFiltroBeneficiario = null; // Reset para evitar bucle
+              preFiltroBeneficiario = null;
               if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                   console.log(c.amarillo('  ⚠️ Saltando al siguiente niño del Excel...'));
                   idxNinoExcelActual++;
@@ -651,18 +652,82 @@ async function main() {
                       const celdas = fila.locator(':scope > td');
                       if (await celdas.count() > 3) {
                           const fechaToma = await celdas.nth(2).innerText().catch(()=>'');
+                          const fechaValoracion = await celdas.nth(3).innerText().catch(()=>'');
                           const peso = await celdas.nth(7).innerText().catch(()=>'');
                           const talla = await celdas.nth(8).innerText().catch(()=>'');
                           if (fechaToma.trim()) {
                               listaTomas.push({
                                   index: i,
                                   fechaToma: fechaToma.trim(),
+                                  fechaValoracion: fechaValoracion.trim(),
                                   peso: peso.trim(),
                                   talla: talla.trim(),
                                   chkLocator: fila.locator('input[type="checkbox"]').first(),
                                   btnInfoLocator: fila.locator('input[type="image"][src*="info.jpg"], input[id*="btnInfo"]').first()
                               });
                           }
+                      }
+                  }
+
+                  // ── VERIFICACIÓN DE TOMA DUPLICADA ─────────────────────────
+                  if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                      const ninoInfo = ninosExcel[idxNinoExcelActual];
+                      const targetFecha = parsearFecha(String(ninoInfo.fecha)).trim();
+                      const targetFechaNorm = normalizarFecha(targetFecha);
+                      const targetPeso = parseFloat(String(ninoInfo.peso).replace(',', '.'));
+                      const targetTalla = parseFloat(String(ninoInfo.talla).replace(',', '.'));
+
+                      let esDuplicado = false;
+                      for (const t of listaTomas) {
+                          const tFechaValNorm = normalizarFecha(t.fechaValoracion || t.fechaToma);
+                          const tFechaTomaNorm = normalizarFecha(t.fechaToma);
+                          const tPeso = parseFloat(t.peso.replace(',', '.'));
+                          const tTalla = parseFloat(t.talla.replace(',', '.'));
+
+                          const matchFecha = (tFechaValNorm === targetFechaNorm || tFechaTomaNorm === targetFechaNorm);
+                          const matchPeso = !isNaN(tPeso) && !isNaN(targetPeso) && Math.abs(tPeso - targetPeso) < 0.05;
+                          const matchTalla = !isNaN(tTalla) && !isNaN(targetTalla) && Math.abs(tTalla - targetTalla) < 0.05;
+
+                          if (matchFecha && matchPeso && matchTalla) {
+                              esDuplicado = true;
+                              break;
+                          }
+                      }
+
+                      if (esDuplicado) {
+                          consecutivosDuplicados++;
+                          console.log(c.amarillo(`\n  ⚠️ TOMA DUPLICADA DETECTADA para ${ninoSeleccionado.nombreCompleto}:`));
+                          console.log(c.amarillo(`     - Fecha: ${targetFechaNorm} | Peso: ${targetPeso}kg | Talla: ${targetTalla}cm`));
+                          console.log(c.amarillo(`     ➡️ Este registro ya fue subido anteriormente a Cuéntame. Omitiendo niño (${consecutivosDuplicados} consecutivo(s)).`));
+
+                          if (consecutivosDuplicados >= 3) {
+                              console.log(c.rojo('\n  ========================================================================================'));
+                              console.log(c.rojo('  ⛔ SE VALIDÓ EN 3 REGISTROS CONSECUTIVOS FECHA, PESO Y TALLA IGUAL.'));
+                              console.log(c.rojo('  ⚠️  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
+                              console.log(c.rojo('  ========================================================================================\n'));
+
+                              preFiltroBeneficiario = null;
+                              modoExcel = null;
+                              break; // Salir del bucle y volver al menú principal
+                          } else {
+                              idxNinoExcelActual++;
+                              console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños para el siguiente en el Excel...'));
+                              await page.waitForTimeout(800);
+                              try {
+                                  const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"], img[src*="lupa"]').first();
+                                  if (await btnBuscar.count() > 0) {
+                                      await Promise.all([
+                                          content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                          btnBuscar.evaluate(node => node.click())
+                                      ]);
+                                      await page.waitForTimeout(1500);
+                                  }
+                              } catch(e) {}
+                              break; // Salir de la Fase 3 del niño actual y pasar al siguiente
+                          }
+                      } else {
+                          // Registro nuevo (no duplicado): reiniciar contador de consecutivos
+                          consecutivosDuplicados = 0;
                       }
                   }
 
