@@ -1121,8 +1121,32 @@ async function main() {
                                         console.log(c.verde(`  ✅ ${labelJefe.toUpperCase()} ya existe en Cuéntame: ${valNombre || 'REGISTRADA'}`));
                                     }
 
-                                    // --- VERIFICAR Y AUTOCOMPLETAR CAMPOS REQUERIDOS DEL ACUDIENTE (NUEVA O EXISTENTE) ---
-                                    console.log(c.amarillo(`  ℹ️ Verificando y completando campos requeridos de ${labelJefe} (Sexo, País, Depto, Municipio)...`));
+                                    // --- PREGUNTAR / CONFIRMAR LUGAR DE NACIMIENTO DEL ACUDIENTE ---
+                                    console.log(c.cyan(`\n  📝 LUGAR DE NACIMIENTO DE ${labelJefe.toUpperCase()}`));
+                                    const resPaisM = readline.question(c.negrita(`  > ¿País de Nacimiento? (Enter/Tab para COLOMBIA): `)).trim().toUpperCase();
+                                    const valPaisM = (resPaisM === '' || resPaisM === '1') ? 'COLOMBIA' : resPaisM;
+
+                                    const resDeptoM = readline.question(c.negrita(`  > ¿Departamento de Nacimiento? (Enter/Tab para BOGOTA D.C.): `)).trim().toUpperCase();
+                                    const valDeptoM = (resDeptoM === '' || resDeptoM === '1') ? 'BOGOTA D.C.' : resDeptoM;
+
+                                    const resMuniM = readline.question(c.negrita(`  > ¿Municipio de Nacimiento? (Enter/Tab para BOGOTA, D.C.): `)).trim().toUpperCase();
+                                    const valMuniM = (resMuniM === '' || resMuniM === '1') ? 'BOGOTA, D.C.' : resMuniM;
+
+                                    // Helper para seleccionar dropdowns en cascada con postback de ASP.NET
+                                    const selectCascadingDropdown = async (selectLoc, textToSelect) => {
+                                        if (await selectLoc.count() === 0) return false;
+                                        await selectLoc.waitFor({ state: 'attached', timeout: 4000 }).catch(() => {});
+                                        const postP = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 6000 }).catch(() => {});
+                                        await waitForAndSelect(selectLoc, textToSelect);
+                                        await selectLoc.evaluate(el => {
+                                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                                        }).catch(() => {});
+                                        await postP;
+                                        await page.waitForTimeout(1000);
+                                    };
+
+                                    // --- AUTOCOMPLETAR CAMPOS REQUERIDOS EN CUÉNTAME ---
+                                    console.log(c.amarillo(`  ℹ️ Completando campos en el formulario de ${labelJefe} (Sexo, País, Depto, Municipio)...`));
                                     
                                     const selSexoMadre = currentFrame.locator('select:visible[id*="ddlSexo"], select:visible[id*="Sexo"]').first();
                                     await selSexoMadre.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
@@ -1133,33 +1157,36 @@ async function main() {
                                         }
                                     }
 
-                                    const selPaisM = currentFrame.locator('select:visible[id*="Pais"][id*="Nacimiento"], select:visible[id*="ddlPaisNacimiento"]').first();
-                                    await selPaisM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+                                    // 1. País
+                                    const selPaisM = currentFrame.locator('select:visible[id*="PaisNacimiento"], select:visible[id*="Pais"]').first();
+                                    await selPaisM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
                                     if (await selPaisM.count() > 0) {
                                         const vPais = await selPaisM.inputValue().catch(() => '');
                                         if (!vPais || vPais === '0' || vPais.includes('Seleccione')) {
-                                            console.log(c.verde('    👉 Seleccionando País de Nacimiento (COLOMBIA)...'));
-                                            await waitForAndSelect(selPaisM, "COLOMBIA");
+                                            console.log(c.verde(`    👉 Seleccionando País de Nacimiento (${valPaisM})...`));
+                                            await selectCascadingDropdown(selPaisM, valPaisM);
                                         }
                                     }
                                     
-                                    const selDeptoM = currentFrame.locator('select:visible[id*="Departamento"], select:visible[id*="Depto"]').first();
-                                    await selDeptoM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+                                    // 2. Departamento (Cargado tras postback del País)
+                                    const selDeptoM = currentFrame.locator('select:visible[id*="DepartamentoNacimiento"], select:visible[id*="DeptoNacimiento"], select:visible[id*="Departamento"], select:visible[id*="Depto"]').first();
+                                    await selDeptoM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
                                     if (await selDeptoM.count() > 0) {
                                         const vDepto = await selDeptoM.inputValue().catch(() => '');
                                         if (!vDepto || vDepto === '0' || vDepto.includes('Seleccione')) {
-                                            console.log(c.verde('    👉 Seleccionando Departamento de Nacimiento (BOGOTA D.C.)...'));
-                                            await waitForAndSelect(selDeptoM, "BOGOTA D.C.");
+                                            console.log(c.verde(`    👉 Seleccionando Departamento de Nacimiento (${valDeptoM})...`));
+                                            await selectCascadingDropdown(selDeptoM, valDeptoM);
                                         }
                                     }
                                     
-                                    const selMuniM = currentFrame.locator('select:visible[id*="Municipio"], select:visible[id*="Muni"]').first();
-                                    await selMuniM.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+                                    // 3. Municipio (Cargado tras postback del Departamento)
+                                    const selMuniM = currentFrame.locator('select:visible[id*="MunicipioNacimiento"], select:visible[id*="MuniNacimiento"], select:visible[id*="Municipio"], select:visible[id*="Muni"]').first();
+                                    await selMuniM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
                                     if (await selMuniM.count() > 0) {
                                         const vMuni = await selMuniM.inputValue().catch(() => '');
                                         if (!vMuni || vMuni === '0' || vMuni.includes('Seleccione')) {
-                                            console.log(c.verde('    👉 Seleccionando Municipio de Nacimiento (BOGOTA, D.C.)...'));
-                                            await waitForAndSelect(selMuniM, "BOGOTA, D.C.");
+                                            console.log(c.verde(`    👉 Seleccionando Municipio de Nacimiento (${valMuniM})...`));
+                                            await waitForAndSelect(selMuniM, valMuniM);
                                         }
                                     }
 
