@@ -321,9 +321,10 @@ async function main() {
           console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
           loggedIn = true;
       } else {
-          // Si ya estábamos logueados, navegamos de vuelta a la selección de roles
-          await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle' });
-          if (page.url().includes('DefaultF.aspx')) {
+          // Si ya estábamos logueados, verificar si la sesión sigue activa
+          const currentUrl = page.url();
+          const pText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+          if (currentUrl.includes('DefaultF.aspx') || pText.includes('Iniciar Sesión')) {
               console.log(c.amarillo('  ⚠️ Cuéntame cerró la sesión por seguridad. Iniciando sesión nuevamente...'));
               await loginYLlegarARoles(page, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
           }
@@ -349,17 +350,29 @@ async function main() {
       
       console.log(c.cyan('\n  🚀 Navegando al modulo de Seguimiento nutricional...'));
       try {
-          // Buscamos directamente el enlace hijo y forzamos el clic con JS
+          // 1. Asegurar que el menú desplegable "Rub online" esté expandido
+          const parentRubOnline = rootMenu.locator('a:has-text("Rub online"), a:has-text("RUB ONLINE")').first();
+          if (await parentRubOnline.count() > 0 && await parentRubOnline.isVisible().catch(() => false)) {
+              await parentRubOnline.click().catch(() => parentRubOnline.evaluate(node => node.click()));
+              await page.waitForTimeout(1000);
+          }
+
+          // 2. Buscamos directamente el enlace hijo "Seguimiento nutricional"
           const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
-          if (await childMenu.count() > 0) {
+          if (await childMenu.count() > 0 && await childMenu.isVisible().catch(() => false)) {
               await childMenu.evaluate(node => node.click());
               await page.waitForTimeout(4000);
               console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
           } else {
-              console.log(c.amarillo('  ⚠️ No se encontro "Seguimiento nutricional" con texto exacto. Intentando alternativa...'));
-              await rootMenu.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
-              await page.waitForTimeout(4000);
-              console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
+              console.log(c.amarillo('  ⚠️ Buscando alternativa para "Seguimiento nutricional"...'));
+              const altMenu = rootMenu.locator('a[onclick*="SeguimientoNutricional"], a[href*="SeguimientoNutricional"]').first();
+              if (await altMenu.count() > 0) {
+                  await altMenu.evaluate(node => node.click());
+                  await page.waitForTimeout(4000);
+                  console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
+              } else {
+                  console.log(c.rojo('  ❌ No se encontró el enlace de Seguimiento nutricional en el menú.'));
+              }
           }
       } catch (err) {
           console.log(c.rojo(`  ❌ Error al intentar acceder a Seguimiento nutricional: ${err.message}`));

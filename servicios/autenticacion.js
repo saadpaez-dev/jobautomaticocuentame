@@ -41,10 +41,6 @@ async function loginYLlegarARoles(page, credenciales) {
 
   if (!esLoginO2FA && (currentUrl.includes('Roles.aspx') || currentUrl.includes('MasterPrincipal') || currentUrl.includes('General') || pageText.includes('Seleccione la entidad'))) {
       console.log('  ✅ Ya se detectó una sesión activa en Cuéntame. Omitiendo inicio de sesión.');
-      if (!pageText.includes('Seleccione la entidad')) {
-          console.log('  🔄 Navegando a la pantalla de selección de asociación...');
-          await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
-      }
       return;
   }
 
