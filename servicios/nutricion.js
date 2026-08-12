@@ -55,8 +55,21 @@ function formatearFecha(date) {
     return `${d}/${m}/${y}`;
 }
 
+async function descartarAlertasInformativas(content) {
+    try {
+        const btnAceptarFrame = content.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
+        if (await btnAceptarFrame.isVisible().catch(() => false)) {
+            console.log(c.amarillo('  ⚠️  Mensaje informativo Cuéntame detectado (SGSSS / Alerta) → haciendo clic en Aceptar...'));
+            await btnAceptarFrame.click().catch(() => btnAceptarFrame.evaluate(n => n.click()));
+            await content.waitForTimeout(500);
+        }
+    } catch(e) {}
+}
+
 async function llenarFormularioNutricion(browser, content, datos, hasHistory = false) {
     console.log(c.cyan('\n  ⚙️ Iniciando llenado automatico de formulario...'));
+    await descartarAlertasInformativas(content);
+
     if (hasHistory) {
         console.log(c.amarillo('  ℹ️ Niño con historial: Se conservan todos los datos anteriores precargados por Cuéntame (EPS, régimen, vacunación, lactancia).'));
         console.log(c.verde('  👉 Únicamente actualizando: Peso, Talla y Fecha de valoración antropométrica *.'));

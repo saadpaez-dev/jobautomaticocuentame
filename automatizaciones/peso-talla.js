@@ -1212,6 +1212,12 @@ async function main() {
                                   btnNuevo.evaluate(node => node.click())
                               ]);
                               console.log(c.verde('  ✅ Nueva ventana (Nuevo) cargada.'));
+                               const btnAceptarPop = content.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
+                               if (await btnAceptarPop.isVisible().catch(() => false)) {
+                                   console.log(c.amarillo('  ⚠️  Mensaje Informativo Cuéntame detectado (SGSSS / Alerta) → haciendo clic en Aceptar...'));
+                                   await btnAceptarPop.click().catch(() => btnAceptarPop.evaluate(n => n.click()));
+                                   await page.waitForTimeout(600);
+                               }
                           } else {
                               console.log(c.rojo('  ❌ No se encontro el boton (+) Nuevo en la pantalla.'));
                           }
