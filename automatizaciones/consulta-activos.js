@@ -6,7 +6,7 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const readline = require('readline-sync');
-const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 const ExcelJS = require('exceljs');
 const path = require('path');
@@ -83,37 +83,22 @@ async function main() {
       }
 
       try {
-        if (!loggedIn) {
-            // Verificar si ya hay sesión activa antes de hacer login
-            const urlActual = page.url();
-            const textoActual = await page.evaluate(() => document.body.innerText).catch(() => '');
-            const sesionActiva = urlActual.includes('MasterPrincipal') ||
-                                 urlActual.includes('SeleccionRol') ||
-                                 textoActual.includes('Seleccione la entidad') ||
-                                 textoActual.includes('Bienvenido');
-
-            if (sesionActiva) {
-                console.log(c.verde('  ✅ Sesión activa detectada. Saltando login...'));
-                loggedIn = true;
-            } else {
-                console.log(c.amarillo('  🔐 Sin sesión activa. Iniciando login...'));
-                await loginYLlegarARoles(page, {
-                  usuario: USUARIO,
-                  password: PASSWORD,
-                  gmailUser: GMAIL_USER,
-                  gmailAppPassword: GMAIL_APP_PASSWORD
-                });
-                loggedIn = true;
-                console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
-            }
+        const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
+        if (!mismaAsociacion) {
+            console.log(c.amarillo('  🔐 Verificando inicio de sesión en Cuéntame...'));
+            await loginYLlegarARoles(page, {
+              usuario: USUARIO,
+              password: PASSWORD,
+              gmailUser: GMAIL_USER,
+              gmailAppPassword: GMAIL_APP_PASSWORD
+            });
+            loggedIn = true;
+            console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
+            await seleccionarRolYEntrar(page, ascSeleccionada);
         } else {
-            // Si ya estamos logueados, regresar a la página de selección de rol
-            await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
+            console.log(c.verde(`  ✅ Preservando sesión y asociación activa: "${ascSeleccionada.nombreCorto}".`));
+            loggedIn = true;
         }
-
-        console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
-        await seleccionarRolYEntrar(page, ascSeleccionada);
-        
 
         // Navegar a Información del Beneficiario
     console.log(c.cyan('  🚀 Navegando al módulo de Información del Beneficiario...'));

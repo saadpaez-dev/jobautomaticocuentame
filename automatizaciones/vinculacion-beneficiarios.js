@@ -6,7 +6,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const path = require('path');
 const readline = require('readline-sync');
-const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, verificarConexionOCaida } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, verificarConexionOCaida, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 
 const c = {
@@ -119,22 +119,9 @@ async function main() {
             
             const isSessionLost = await verificarConexionOCaida(page);
             
-            if (!isSessionLost) {
-                const urlActual = page.url();
-                const textoActual = await page.evaluate(() => document.body.innerText).catch(() => '');
-                const sesionActiva = urlActual.includes('MasterPrincipal') ||
-                                     urlActual.includes('SeleccionRol') ||
-                                     textoActual.includes('Seleccione la entidad') ||
-                                     textoActual.includes('Bienvenido');
-                
-                if (sesionActiva) {
-                    console.log(c.verde('  ✅ Sesión activa detectada. Saltando login...'));
-                    loggedIn = true;
-                }
-            }
-
-            if (!loggedIn) {
-                console.log(c.amarillo('  🔐 Sin sesión activa. Iniciando login (2FA)...'));
+            const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
+            if (!mismaAsociacion) {
+                console.log(c.amarillo('  🔐 Verificando inicio de sesión en Cuéntame...'));
                 await loginYLlegarARoles(page, {
                   usuario: USUARIO,
                   password: PASSWORD,
@@ -142,7 +129,11 @@ async function main() {
                   gmailAppPassword: GMAIL_APP_PASSWORD
                 });
                 loggedIn = true;
-                console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+                console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
+                await seleccionarRolYEntrar(page, ascSeleccionada);
+            } else {
+                console.log(c.verde(`  ✅ Preservando sesión y asociación activa: "${ascSeleccionada.nombreCorto}".`));
+                loggedIn = true;
             }
         } else {
             await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });

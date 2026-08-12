@@ -8,7 +8,7 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
 const path = require('path');
-const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 
 // ─────────────────────────────────────────────────────────────
 // Colores en terminal
@@ -192,14 +192,19 @@ async function main() {
           console.log(c.amarillo(`======================================================`));
           console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
           
-          if (mainPage.url().includes('DefaultF.aspx')) {
-              console.log(c.amarillo('  ⚠️ Cuéntame cerró la sesión por seguridad. Iniciando sesión nuevamente...'));
-              await loginYLlegarARoles(mainPage, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
+          const mismaAsociacion = await validarYCambiarAsociacion(mainPage, asc);
+          if (!mismaAsociacion) {
+              const currentText = await mainPage.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+              if (currentText.includes('Iniciar Sesión') || currentText.includes('Ingrese su código') || mainPage.url().includes('DefaultF.aspx')) {
+                  await loginYLlegarARoles(mainPage, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
+              }
+              console.log('  🏢 Seleccionando entidad (asociación)...');
+              reportPage = await seleccionarRolYEntrar(mainPage, asc, false);
+              console.log(c.verde('  ✅ Asociación cargada exitosamente.'));
+          } else {
+              console.log(c.verde(`  ✅ Preservando sesión y asociación activa: "${asc.nombreCorto}".`));
+              reportPage = mainPage;
           }
-          
-          console.log('  🏢 Seleccionando entidad (asociación)...');
-          reportPage = await seleccionarRolYEntrar(mainPage, asc, false);
-          console.log(c.verde('  ✅ Asociación cargada exitosamente.'));
       } catch (e) {
           console.log(c.rojo(`  ❌ Error al seleccionar rol: ${e.message}`));
           continue;
