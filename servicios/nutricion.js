@@ -312,7 +312,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             if (found) console.log(c.verde(`    ✅ [Lista] Lleno: ${labelText}`));
             else console.log(c.rojo(`    ❌ [Lista] NO encontrado/deshabilitado: ${labelText}`));
             
-            await page.waitForTimeout(1500); // Esperar si hay postback
+            await page.waitForTimeout(200); // Esperar si hay postback
         };
 
         const safeFillRadio = async (labelText, choice, fallbackIndex) => {
@@ -356,7 +356,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             if (found) console.log(c.verde(`    ✅ [Opcion] Lleno: ${labelText}`));
             else console.log(c.rojo(`    ❌ [Opcion] NO encontrado/deshabilitado: ${labelText}`));
             
-            await page.waitForTimeout(2000); // Darle tiempo al UpdatePanel
+            await page.waitForTimeout(200); // Darle tiempo al UpdatePanel
         };
 
         // LLENADO TOP-TO-BOTTOM (De arriba hacia abajo)
@@ -420,13 +420,13 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         if (!hasHistory) {
             // 1. Vacunación y Desarrollo (SOLO PARA REGISTROS NUEVOS)
             await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
-            await page.waitForTimeout(500); 
+            await page.waitForTimeout(200); 
             
             await safeFillText('esquema de vacunación', datos.fecha);
             await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
             
             await safeFillRadio('carnet de crecimiento y desarrollo', 'No', 1);
-            await page.waitForTimeout(500);
+            await page.waitForTimeout(200);
             
             await safeFillRadio('Antecedente de prematurez', 'No', 1);
         } else {
@@ -455,8 +455,8 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         // ==========================================
         // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL Y MODO NATIVO)
         // ==========================================
-        console.log(c.amarillo('\n  ⏳ Esperando 1 segundo para asegurar que el formulario esté estable...'));
-        await page.waitForTimeout(1000);
+        console.log(c.amarillo('\n  ⏳ Esperando 200ms para asegurar que el formulario esté estable...'));
+        await page.waitForTimeout(200);
         
         console.log(c.amarillo('  🎯 Llenando campos finales con simulación nativa...'));
         
@@ -465,25 +465,25 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         if (!hasHistory) {
             // A. Controles de crecimiento
             try {
-                await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' });
+                await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' }, { timeout: 1500 });
                 console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento'));
             } catch(e) { console.log(c.rojo('    ❌ [Lista] Error controles: ' + e.message.substring(0, 50))); }
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(200);
 
             // A2. Lactancia (Mayor / Menor 6 meses) - Nombres con errores tipográficos del ICBF
             try {
                 const ddlMayor = f.locator('select[id*="ddlRecibeLechaMeternaMayorSeisMesesPI"]').first();
                 if (await ddlMayor.count() > 0 && await ddlMayor.isVisible() && !await ddlMayor.isDisabled()) {
-                    await ddlMayor.selectOption({ label: 'Si' }).catch(()=>{});
+                    await ddlMayor.selectOption({ label: 'Si' }, { timeout: 1500 }).catch(()=>{});
                     console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): recibe leche materna (Mayor 6 meses)'));
                 }
                 const ddlMenor = f.locator('select[id*="ddlRecibeLecheMaternaMenorSeisMesesPI"], select[id*="ddlRecibeLechaMaternaMenor"]').first();
                 if (await ddlMenor.count() > 0 && await ddlMenor.isVisible() && !await ddlMenor.isDisabled()) {
-                    await ddlMenor.selectOption({ label: 'Si' }).catch(()=>{});
+                    await ddlMenor.selectOption({ label: 'Si' }, { timeout: 1500 }).catch(()=>{});
                     console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): recibe leche materna (Menor 6 meses)'));
                 }
             } catch(e) {}
-            await page.waitForTimeout(500);
+            await page.waitForTimeout(200);
         }
 
         // B. Perimetro Braquial (SI YA TIENE VALOR REGISTRADO, SE IGNORA / CONSERVA)
@@ -503,22 +503,25 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             } else {
                 if (datos.fecha) await safeFillText('Fecha de medición', datos.fecha);
                 if (datos.perimetro) {
-                    await f.fill('#cphCont_txtMedicionPerimetroBraquial', datos.perimetro.toString());
-                    console.log(c.verde('    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial'));
+                    const inpPb = f.locator('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]').first();
+                    if (await inpPb.count() > 0 && await inpPb.isVisible().catch(() => false) && !await inpPb.isDisabled().catch(() => true)) {
+                        await inpPb.fill(datos.perimetro.toString(), { timeout: 1500 }).catch(() => {});
+                        console.log(c.verde('    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial'));
+                    }
                 }
             }
         } catch(e) { 
             console.log(c.rojo('    ❌ [Texto] Error perimetro: ' + e.message.substring(0, 50))); 
         }
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(200);
 
         if (!hasHistory) {
             // C. Mujer gestante atendida
             try {
-                await f.selectOption('#cphCont_ddlHijoMujerGestanteAtendidaServiciosICBF', { label: 'No' });
+                await f.selectOption('#cphCont_ddlHijoMujerGestanteAtendidaServiciosICBF', { label: 'No' }, { timeout: 1500 });
                 console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): mujer gestante atendida'));
             } catch(e) { console.log(c.rojo('    ❌ [Lista] Error gestante: ' + e.message.substring(0, 50))); }
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(200);
         }
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
