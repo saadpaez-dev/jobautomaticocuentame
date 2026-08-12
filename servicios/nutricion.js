@@ -499,7 +499,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             await page.waitForTimeout(200);
         }
 
-        // B. Perimetro Braquial (SI YA TIENE VALOR REGISTRADO, SE IGNORA / CONSERVA)
+        // B. Perimetro Braquial (SI YA TIENE VALOR REGISTRADO O VIENE ERRONEO EN EXCEL, SE IGNORA / CONSERVA)
         try {
             const pbEstado = await f.evaluate(() => {
                 const inpPbVal = document.querySelector('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]');
@@ -511,14 +511,20 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 return { tieneVal, tieneFecha };
             });
 
+            // Validar si el perímetro del Excel es un número válido entre 5.0 y 30.0 cm
+            const numPb = parseFloat(String(datos.perimetro || '').replace(',', '.'));
+            const pbEsValido = !isNaN(numPb) && numPb >= 5.0 && numPb <= 30.0;
+
             if (pbEstado.tieneVal || pbEstado.tieneFecha) {
                 console.log(c.gris('    ℹ️ Perímetro Braquial ya registrado previamente → se ignora y se conserva el valor existente.'));
+            } else if (!pbEsValido && datos.perimetro) {
+                console.log(c.amarillo(`    ⚠️ Perímetro Braquial en Excel ("${datos.perimetro}") está fuera de rango válido (5-30 cm) → Se omite para conservar datos y continuar el guardado.`));
             } else {
-                if (datos.fecha) await safeFillText('Fecha de medición', datos.fecha);
-                if (datos.perimetro) {
+                if (datos.fecha && pbEsValido) await safeFillText('Fecha de medición', datos.fecha);
+                if (datos.perimetro && pbEsValido) {
                     const inpPb = f.locator('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]').first();
                     if (await inpPb.count() > 0 && await inpPb.isVisible().catch(() => false) && !await inpPb.isDisabled().catch(() => true)) {
-                        await inpPb.fill(datos.perimetro.toString(), { timeout: 1500 }).catch(() => {});
+                        await inpPb.fill(numPb.toString(), { timeout: 1500 }).catch(() => {});
                         console.log(c.verde('    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial'));
                     }
                 }
