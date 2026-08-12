@@ -42,66 +42,85 @@ function parsearExcel(filePath) {
     }
 
     const wb = xlsx.readFile(filePath);
-    const sheetName = wb.SheetNames[0];
-    const sheet = wb.Sheets[sheetName];
-    // Leer como matriz bidimensional
-    const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-
-    if (data.length < 16) {
-        throw new Error("El archivo no tiene el formato esperado (muy pocas filas).");
-    }
-
-    // Extraer Asociación y UDS (usualmente en la fila 9, índice 8)
+    
     let asociacion = '';
     let uds = '';
-    for (let i = 5; i < 12; i++) {
-        if (!data[i]) continue;
-        const rowString = JSON.stringify(data[i]).toUpperCase();
-        if (rowString.includes('ASOCIACION')) {
-            const rowData = data[i];
-            const asocIndex = rowData.findIndex(val => typeof val === 'string' && val.toUpperCase().includes('ASOCIACION'));
-            if (asocIndex !== -1) {
-                asociacion = rowData[asocIndex].trim();
+    const ninosMap = new Map(); // Mapa para evitar duplicados por número de documento entre hojas
+
+    console.log(`\n  📄 Leyendo libro de Excel (${wb.SheetNames.length} hoja(s) detectada(s)): [ ${wb.SheetNames.join(', ')} ]`);
+
+    for (const sheetName of wb.SheetNames) {
+        const sheet = wb.Sheets[sheetName];
+        if (!sheet) continue;
+
+        // Leer como matriz bidimensional
+        const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+
+        if (!data || data.length < 15) {
+            continue; // Hoja vacía o sin estructura de toma, omitir
+        }
+
+        // Extraer Asociación y UDS (usualmente en las filas 5 a 12)
+        if (!asociacion || !uds) {
+            for (let i = 5; i < 12; i++) {
+                if (!data[i]) continue;
+                const rowString = JSON.stringify(data[i]).toUpperCase();
+                if (rowString.includes('ASOCIACION')) {
+                    const rowData = data[i];
+                    const asocIndex = rowData.findIndex(val => typeof val === 'string' && val.toUpperCase().includes('ASOCIACION'));
+                    if (asocIndex !== -1 && !asociacion) {
+                        asociacion = rowData[asocIndex].trim();
+                    }
+                    // UDS suele estar más a la derecha
+                    const possibleUds = rowData.slice(asocIndex + 1).find(val => typeof val === 'string' && val.trim() !== '' && !val.toUpperCase().includes('NOMBRE DE LA UNIDAD'));
+                    if (possibleUds && !uds) {
+                        uds = possibleUds.trim();
+                    } else if (rowData.length > 23 && rowData[23] && !uds) {
+                        uds = rowData[23].toString().trim();
+                    }
+                    break;
+                }
             }
-            // UDS suele estar más a la derecha
-            const possibleUds = rowData.slice(asocIndex + 1).find(val => typeof val === 'string' && val.trim() !== '' && !val.toUpperCase().includes('NOMBRE DE LA UNIDAD'));
-            if (possibleUds) {
-                uds = possibleUds.trim();
-            } else if (rowData.length > 23 && rowData[23]) {
-                uds = rowData[23].toString().trim();
+        }
+
+        // Procesar niños desde la fila 16 (índice 15) en adelante
+        let ninosEnHoja = 0;
+        for (let i = 15; i < data.length; i++) {
+            const row = data[i];
+            if (!row || !row[1] || !row[2]) continue; // Fila vacía o sin documento/nombre
+            
+            const documento = String(row[1]).trim();
+            const nombres = String(row[2]).trim();
+            const apellidos = String(row[3] || '').trim();
+            
+            if (String(row[7]).toLowerCase().includes('retirad') || String(row[19]).toLowerCase().includes('retirad')) {
+                console.log(`\x1b[33m  ⚠️ [Hoja: "${sheetName}"] Se omite a ${nombres} ${apellidos} porque está RETIRADO(A).\x1b[0m`);
+                continue;
             }
-            break;
+
+            const ultimaToma = obtenerUltimaToma(row);
+            
+            if (ultimaToma) {
+                if (!ninosMap.has(documento)) {
+                    ninosMap.set(documento, {
+                        documento: documento,
+                        nombres: nombres,
+                        apellidos: apellidos,
+                        nombreCompleto: `${nombres} ${apellidos}`,
+                        hoja: sheetName,
+                        ...ultimaToma
+                    });
+                    ninosEnHoja++;
+                }
+            }
+        }
+
+        if (ninosEnHoja > 0) {
+            console.log(`  ✅ Hoja "${sheetName}": ${ninosEnHoja} niños encontrados.`);
         }
     }
 
-    const ninos = [];
-    
-    // Procesar niños desde la fila 16 (índice 15) en adelante
-    for (let i = 15; i < data.length; i++) {
-        const row = data[i];
-        if (!row || !row[1] || !row[2]) continue; // Fila vacía o sin documento/nombre
-        
-        const documento = String(row[1]).trim();
-        const nombres = String(row[2]).trim();
-        const apellidos = String(row[3] || '').trim();
-        
-        if (String(row[7]).toLowerCase().includes('retirad') || String(row[19]).toLowerCase().includes('retirad')) {
-            console.log(`\x1b[33m  ⚠️ Se omite a ${nombres} ${apellidos} porque está RETIRADO(A).\x1b[0m`);
-            continue;
-        }
-
-        const ultimaToma = obtenerUltimaToma(row);
-        
-        if (ultimaToma) {
-            ninos.push({
-                documento: documento,
-                nombres: nombres,
-                apellidos: apellidos,
-                nombreCompleto: `${nombres} ${apellidos}`,
-                ...ultimaToma
-            });
-        }
-    }
+    const ninos = Array.from(ninosMap.values());
 
     return {
         asociacion,
