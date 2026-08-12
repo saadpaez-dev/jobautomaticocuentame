@@ -493,6 +493,9 @@ async function main() {
       }
       const content = currentContentFrame || page;
 
+      idxNinoExcelActual = 0;
+      let consecutivosDuplicados = 0;
+
       while (true) {
           console.log(c.cyan('\n------------------------------------------------------'));
           console.log(c.cyan('  📋 SELECCION DE BENEFICIARIO (NINO)'));
@@ -541,9 +544,6 @@ async function main() {
           }
 
           console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS.`));
-          
-          let idxNinoExcelActual = 0;
-          let consecutivosDuplicados = 0;
           
           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
               if (idxNinoExcelActual >= ninosExcel.length) {
