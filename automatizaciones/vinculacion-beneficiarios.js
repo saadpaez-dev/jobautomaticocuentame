@@ -999,38 +999,29 @@ async function main() {
 
                                 console.log(c.verde(`  ✅ Pestaña "Datos de Ubicación" llenada automáticamente.`));
                                 
-                                // (Guardado intermedio de Datos de Ubicación removido por solicitud del usuario para agilizar)
-
                                 // --- PESTAÑA PERTENENCIA ÉTNICA ---
                                 console.log(c.amarillo('\n  ⏳ Procediendo a pestaña Pertenencia Étnica...'));
                                 const tabEtnica = currentFrame.locator('.ajax__tab_tab:has-text("Etnica"), .ajax__tab_tab:has-text("Étnica"), .ajax__tab_tab:has-text("Pertenencia")').first();
                                 if (await tabEtnica.count() > 0) {
-                                    const postTabEtnica = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
-                                    await tabEtnica.click();
-                                    await postTabEtnica;
-                                    await page.waitForTimeout(500); // Dar un respiro mínimo al UpdatePanel
+                                    await tabEtnica.click().catch(() => {});
+                                    await page.waitForTimeout(300);
                                     currentFrame = page.frame({ name: 'frameContent' }) || page;
                                     
                                     // Intentar autocompletar "No se autorreconoce en ninguno de los anteriores" si es posible
                                     const selEtnia = currentFrame.locator('select:visible[id*="Etnico"], select:visible[id*="Etnia"], select:visible[id*="Pertenencia"]').first();
-                                    await selEtnia.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
                                     if (await selEtnia.count() > 0) {
                                         await waitForAndSelect(selEtnia, "NO SE AUTORRECONOCE EN NINGUNO DE LOS ANTERIORES");
                                     } else {
                                         console.log(c.rojo('  ⚠️ No se encontró la lista de Grupo Étnico.'));
                                     }
-                                    
-                                    // (Guardado intermedio de Pertenencia Étnica removido)
                                 }
 
                                 // --- PESTAÑA GRUPO FAMILIAR ---
                                 console.log(c.amarillo('\n  ⏳ Procediendo a pestaña Grupo Familiar...'));
                                 const tabFam = currentFrame.locator('.ajax__tab_tab:has-text("Familiar")').first();
                                 if (await tabFam.count() > 0) {
-                                    const postTabFam = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
-                                    await tabFam.click();
-                                    await postTabFam;
-                                    await page.waitForTimeout(1000);
+                                    await tabFam.click().catch(() => {});
+                                    await page.waitForTimeout(300);
                                     currentFrame = page.frame({ name: 'frameContent' }) || page;
                                     
                                     // 1. Preguntar quién es el Jefe del Grupo Familiar
