@@ -562,10 +562,34 @@ async function main() {
                     if (isGoBack(res)) {
                         paso--;
                     } else {
-                        if (res !== '') datosNino.fechaNac = res;
-                        if (!datosNino.fechaNac) {
-                            console.log(c.rojo('  ❌ La fecha de nacimiento es obligatoria.'));
+                        const valProbada = res !== '' ? res : datosNino.fechaNac;
+                        const esValida = (str) => {
+                            if (!str) return false;
+                            const s = str.trim();
+                            if (/^\d{8}$/.test(s)) {
+                                const dia = parseInt(s.substring(0, 2), 10);
+                                const mes = parseInt(s.substring(2, 4), 10);
+                                const anio = parseInt(s.substring(4, 8), 10);
+                                return dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12 && anio >= 2000 && anio <= 2035;
+                            }
+                            const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+                            if (m) {
+                                const dia = parseInt(m[1], 10);
+                                const mes = parseInt(m[2], 10);
+                                const anio = parseInt(m[3], 10);
+                                return dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12 && anio >= 2000 && anio <= 2035;
+                            }
+                            return false;
+                        };
+
+                        if (!esValida(valProbada)) {
+                            console.log(c.rojo('  ❌ Formato de fecha no válido. Debe tener el formato DD/MM/YYYY (ej: 19/04/2021 o 19042021).'));
                         } else {
+                            if (/^\d{8}$/.test(valProbada)) {
+                                datosNino.fechaNac = `${valProbada.substring(0,2)}/${valProbada.substring(2,4)}/${valProbada.substring(4,8)}`;
+                            } else {
+                                datosNino.fechaNac = valProbada;
+                            }
                             paso++;
                         }
                     }

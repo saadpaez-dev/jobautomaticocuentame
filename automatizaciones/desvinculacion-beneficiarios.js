@@ -353,14 +353,48 @@ async function main() {
 
             console.log(c.rojo(c.negrita('\n  ⚠️ IMPORTANTE: Validar el RAM antes de Desvincular')));
             
-            // --- Preguntar Fecha y Motivo ---
-            const msgFecha = globalFechaRetiro 
-                ? `\n  > Fecha de retiro (vacío para mantener ${globalFechaRetiro}): `
-                : `\n  > Fecha de retiro (DD/MM/YYYY): `;
-            
-            const nuevaFecha = readline.question(c.negrita(msgFecha)).trim();
-            if (nuevaFecha !== '') {
-                globalFechaRetiro = nuevaFecha;
+            // Helper de validación estricta de fecha (DD/MM/YYYY o DDMMYYYY)
+            const esFechaValida = (str) => {
+                if (!str) return false;
+                const s = str.trim();
+                if (/^\d{8}$/.test(s)) {
+                    const dia = parseInt(s.substring(0, 2), 10);
+                    const mes = parseInt(s.substring(2, 4), 10);
+                    const anio = parseInt(s.substring(4, 8), 10);
+                    return dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12 && anio >= 2000 && anio <= 2035;
+                }
+                const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+                if (m) {
+                    const dia = parseInt(m[1], 10);
+                    const mes = parseInt(m[2], 10);
+                    const anio = parseInt(m[3], 10);
+                    return dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12 && anio >= 2000 && anio <= 2035;
+                }
+                return false;
+            };
+
+            // --- Preguntar Fecha y Motivo con Validación ---
+            while (true) {
+                const msgFecha = globalFechaRetiro 
+                    ? `\n  > Fecha de retiro (vacío para mantener ${globalFechaRetiro}): `
+                    : `\n  > Fecha de retiro (DD/MM/YYYY): `;
+                
+                const nuevaFecha = readline.question(c.negrita(msgFecha)).trim();
+                
+                if (nuevaFecha === '' && globalFechaRetiro) {
+                    break; // Mantener la fecha actual previa
+                }
+                
+                if (esFechaValida(nuevaFecha)) {
+                    if (/^\d{8}$/.test(nuevaFecha)) {
+                        globalFechaRetiro = `${nuevaFecha.substring(0,2)}/${nuevaFecha.substring(2,4)}/${nuevaFecha.substring(4,8)}`;
+                    } else {
+                        globalFechaRetiro = nuevaFecha;
+                    }
+                    break;
+                } else {
+                    console.log(c.rojo('  ❌ Formato de fecha no válido. Debe ser DD/MM/YYYY (ej: 05/08/2026 o 05082026). Intenta nuevamente.'));
+                }
             }
             
             const opcionesMotivo = [
