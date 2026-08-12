@@ -4,7 +4,9 @@
  * Fase 1: Selección de Asociación y Jardín (UDS), e ingreso al módulo correspondiente.
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+const xlsx = require('xlsx');
+const fs = require('fs');
+const path = require('path');
 const { chromium } = require('playwright');
 const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
@@ -20,6 +22,76 @@ const c = {
   gris:     (t) => `\x1b[90m${t}\x1b[0m`,
   negrita:  (t) => `\x1b[1m${t}\x1b[0m`,
 };
+
+function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
+    if (!ninosProcesados || ninosProcesados.length === 0) return null;
+
+    const reportesDir = path.join(__dirname, '..', 'Docs', 'reportes');
+    if (!fs.existsSync(reportesDir)) {
+        fs.mkdirSync(reportesDir, { recursive: true });
+    }
+
+    const now = new Date();
+    const fechaHoy = now.toISOString().slice(0, 10);
+    const horaHoy = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+    const safeUds = (udsNombre || 'UDS').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 25);
+    const fileName = `Reporte_PesoTalla_${safeUds}_${fechaHoy}_${horaHoy}.xlsx`;
+    const filePath = path.join(reportesDir, fileName);
+
+    const rows = ninosProcesados.map((item, index) => ({
+        '#': index + 1,
+        'Documento': item.documento || '',
+        'Nombre Completo': item.nombreCompleto || '',
+        'Fecha Toma': item.fecha || '',
+        'Peso (kg)': item.peso || '',
+        'Talla (cm)': item.talla || '',
+        'PB (cm)': item.perimetro || '',
+        'Estado': item.estado || 'PENDIENTE',
+        'Detalle / Observación': item.observacion || ''
+    }));
+
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.json_to_sheet(rows);
+
+    ws['!cols'] = [
+        { wch: 5 },  // #
+        { wch: 15 }, // Documento
+        { wch: 35 }, // Nombre Completo
+        { wch: 14 }, // Fecha Toma
+        { wch: 10 }, // Peso
+        { wch: 10 }, // Talla
+        { wch: 10 }, // PB
+        { wch: 25 }, // Estado
+        { wch: 55 }  // Observación
+    ];
+
+    xlsx.utils.book_append_sheet(wb, ws, 'Resultados Procesamiento');
+    xlsx.writeFile(wb, filePath);
+
+    let exitosos = 0;
+    let duplicados = 0;
+    let noEncontrados = 0;
+
+    ninosProcesados.forEach(item => {
+        if (item.estado.includes('EXITOSO') || item.estado.includes('GUARDADO')) exitosos++;
+        else if (item.estado.includes('DUPLICADO')) duplicados++;
+        else noEncontrados++;
+    });
+
+    console.log(c.verde('\n========================================================================================'));
+    console.log(c.verde('  📊 RESUMEN FINAL DEL PROCESAMIENTO MASIVO:'));
+    console.log(c.verde('========================================================================================'));
+    console.log(c.verde(`  ✅ Cargados exitosamente: ${exitosos}`));
+    console.log(c.amarillo(`  ⚠️ Omitidos (Toma ya existente): ${duplicados}`));
+    if (noEncontrados > 0) {
+        console.log(c.rojo(`  ❌ No encontrados / Con error: ${noEncontrados}`));
+    }
+    console.log(c.cyan(`\n  📄 Reporte Excel generado exitosamente en:`));
+    console.log(c.negrita(`     "${filePath}"`));
+    console.log(c.verde('========================================================================================\n'));
+
+    return filePath;
+}
 
 function removeAccents(str) {
     if (!str) return '';
@@ -495,6 +567,7 @@ async function main() {
 
       idxNinoExcelActual = 0;
       let consecutivosDuplicados = 0;
+      let ninosProcesados = [];
 
       while (true) {
           console.log(c.cyan('\n------------------------------------------------------'));
@@ -547,6 +620,8 @@ async function main() {
           
           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
               if (idxNinoExcelActual >= ninosExcel.length) {
+                  generarReporteExcel(ninosProcesados, jardinSeleccionado ? jardinSeleccionado.nombre : '', ascSeleccionada ? ascSeleccionada.nombreCorto : '');
+
                   console.log(c.verde('\n========================================================================================'));
                   console.log(c.verde('  🎉 ¡PROCESAMIENTO MASIVO COMPLETADO EXITOSAMENTE PARA ESTE EXCEL!'));
                   console.log(c.verde('========================================================================================'));
@@ -586,6 +661,7 @@ async function main() {
                           modoExcel = 'MASIVO_NUEVO';
                           idxNinoExcelActual = 0;
                           consecutivosDuplicados = 0;
+                          ninosProcesados = [];
 
                           if (parseResult.uds && ascSeleccionada) {
                               const udsStr = parseResult.uds.trim().toUpperCase();
@@ -1140,6 +1216,17 @@ async function main() {
                       console.log(c.amarillo(`\n  ⚠️ ALERTA DE CUÉNTAME: "El beneficiario ya tiene una toma para la fecha de antropométrica relacionada".`));
                       console.log(c.amarillo(`     ➡️ Registro omitido por duplicidad de fecha (${consecutivosDuplicados} consecutivo(s)).`));
 
+                      if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                          const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
+                          if (ninoTarget) {
+                              ninosProcesados.push({
+                                  ...ninoTarget,
+                                  estado: '⚠️ OMITIDO (TOMA DUPLICADA)',
+                                  observacion: 'Cuéntame indicó que el beneficiario ya tiene una toma para esa fecha.'
+                              });
+                          }
+                      }
+
                       if (consecutivosDuplicados >= 3) {
                           console.log(c.rojo('\n  ========================================================================================'));
                           console.log(c.rojo('  ⛔ SE VALIDÓ EN 3 REGISTROS CONSECUTIVOS QUE LA TOMA YA EXISTE EN CUÉNTAME.'));
@@ -1175,6 +1262,14 @@ async function main() {
                   }
 
                   if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                      const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
+                      if (ninoTarget) {
+                          ninosProcesados.push({
+                              ...ninoTarget,
+                              estado: '✅ CARGADO EXITOSAMENTE',
+                              observacion: 'La información de la toma se guardó en Cuéntame.'
+                          });
+                      }
                       console.log(c.verde(`  🎉 Niño ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                       idxNinoExcelActual++;
                       console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños de la UDS para el siguiente...'));
