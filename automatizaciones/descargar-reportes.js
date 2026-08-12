@@ -55,12 +55,18 @@ async function main() {
   console.log(c.amarillo(`  2. Seguimiento nutricional de niños y niñas por toma`));
   console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
   console.log(c.amarillo(`  4. Unidades de servicio`));
+  console.log(c.rojo(`  0. Volver al panel principal (AutoTrabajo / Start)`));
   
   let opcionReporte = -1;
-  while (opcionReporte < 1 || opcionReporte > 4) {
-    const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (1, 2, 3 o 4): '));
+  while (opcionReporte < 0 || opcionReporte > 4) {
+    const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (0, 1, 2, 3 o 4): '));
     opcionReporte = parseInt(respuesta, 10);
     if (isNaN(opcionReporte)) opcionReporte = -1;
+  }
+  
+  if (opcionReporte === 0) {
+      console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
+      break;
   }
   
   let seleccionToma = '(Select All)';
@@ -611,11 +617,9 @@ async function main() {
   console.log(c.verde('\n  ✅ Todas las asociaciones procesadas exitosamente.'));
 
   console.log(c.cyan('\n======================================================'));
-  const respFinal = readline.question(c.negrita('  > ¿Deseas generar otro reporte? (s = Si, n = Volver al menú principal) [por defecto s]: '));
+  const respFinal = readline.question(c.negrita('  > ¿Deseas generar otro reporte? (s = Si, n = Volver al panel principal) [por defecto s]: '));
   if (respFinal.toLowerCase().trim() === 'n') {
-      console.log(c.verde('\n  ✅ Cerrando navegador...'));
-      if (context) await context.close().catch(() => {});
-      if (browser) await browser.close().catch(() => {});
+      console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
       break;
   }
   }
