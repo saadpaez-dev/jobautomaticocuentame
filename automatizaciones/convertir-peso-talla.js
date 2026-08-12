@@ -15,6 +15,7 @@ const path = require('path');
 const fs = require('fs');
 const readline = require('readline-sync');
 const { analizarExcel, convertirArchivo } = require('../servicios/conversor-peso-talla');
+const { resolverRutaConEspeciales } = require('../servicios/excel-parser');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -43,7 +44,8 @@ function obtenerRutaExcel() {
         }
         if (idx > 0) return path.join(docsDir, archivos[idx - 1]);
     }
-    return readline.question(c.negrita('\n  > Arrastra el archivo Excel aquí o pega la ruta: ')).replace(/['"]/g, '').trim();
+    const rutaRaw = readline.question(c.negrita('\n  > Arrastra el archivo Excel aquí o pega la ruta: ')).replace(/['"]/g, '').trim();
+    return resolverRutaConEspeciales(rutaRaw);
 }
 
 function main() {
@@ -51,7 +53,13 @@ function main() {
     console.log(c.cyan('   🔄  CONVERSOR DE EXCEL DE PESO Y TALLA'));
     console.log(c.cyan('======================================================'));
 
-    const rutaEntrada = obtenerRutaExcel();
+    let rutaEntrada = obtenerRutaExcel();
+    while (rutaEntrada && !fs.existsSync(rutaEntrada)) {
+        console.log(c.rojo(`  ❌ El archivo no existe: ${rutaEntrada}`));
+        const reintento = readline.question(c.negrita('  > Arrastra nuevamente el archivo Excel o pega la ruta (ENTER para cancelar): ')).replace(/['"]/g, '').trim();
+        if (!reintento) break;
+        rutaEntrada = resolverRutaConEspeciales(reintento);
+    }
     if (!rutaEntrada || !fs.existsSync(rutaEntrada)) {
         console.log(c.rojo('\n  ❌ No se encontró el archivo indicado.\n'));
         return;

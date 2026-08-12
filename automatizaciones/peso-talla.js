@@ -12,7 +12,7 @@ const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
-const { parsearExcel } = require('../servicios/excel-parser');
+const { parsearExcel, resolverRutaConEspeciales } = require('../servicios/excel-parser');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -388,13 +388,24 @@ async function main() {
                   return require('path').join(docsDir, archivos[idxArchivo - 1]);
               }
           }
-          return readline.question(c.negrita('\n  > Arrastra el archivo Excel aqui o pega la ruta: ')).replace(/['"]/g, '').trim();
+          const rutaRaw = readline.question(c.negrita('\n  > Arrastra el archivo Excel aqui o pega la ruta: ')).replace(/['"]/g, '').trim();
+          return resolverRutaConEspeciales(rutaRaw);
       };
       
       if (respBenef.trim() === '1' || respBenef.trim() === '4') {
           const accionMsj = respBenef.trim() === '1' ? 'Crear Nuevas Tomas' : 'Corregir/Editar Tomas Existentes';
           console.log(c.amarillo(`\n  Has seleccionado Procesamiento Masivo (${accionMsj}).`));
-          const fileP = obtenerRutaExcel();
+          
+          let fileP = obtenerRutaExcel();
+          while (fileP && !fs.existsSync(fileP)) {
+              console.log(c.rojo(`  ❌ El archivo no existe: ${fileP}`));
+              const reintento = readline.question(c.negrita('  > Arrastra nuevamente el archivo Excel o pega la ruta (ENTER para cancelar): ')).replace(/['"]/g, '').trim();
+              if (!reintento) break;
+              fileP = resolverRutaConEspeciales(reintento);
+          }
+
+          if (!fileP || !fs.existsSync(fileP)) continue;
+
           try {
               const parseResult = parsearExcel(fileP);
               ninosExcel = parseResult.ninos;

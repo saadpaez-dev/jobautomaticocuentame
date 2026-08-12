@@ -71,12 +71,53 @@ function obtenerUltimaToma(fila) {
     return null;
 }
 
+function resolverRutaConEspeciales(inputPath) {
+    if (!inputPath) return inputPath;
+    let limpia = inputPath.replace(/['"]/g, '').trim();
+    if (fs.existsSync(limpia)) return limpia;
+
+    try {
+        const dir = path.dirname(limpia);
+        const baseCorrupto = path.basename(limpia);
+        if (fs.existsSync(dir)) {
+            const archivos = fs.readdirSync(dir);
+            const prefix = baseCorrupto.split(/[\uFFFD\?\s_]/)[0];
+            const ext = path.extname(baseCorrupto);
+            
+            let match = null;
+            if (prefix && prefix.length >= 4) {
+                match = archivos.find(f => f.startsWith(prefix) && f.toLowerCase().endsWith(ext.toLowerCase()));
+            }
+            
+            if (!match) {
+                const palabras = baseCorrupto.toUpperCase().replace(/[\uFFFD\?]/g, ' ').split(/[^A-Z0-9]/).filter(p => p.length >= 3);
+                if (palabras.length > 0) {
+                    match = archivos.find(f => {
+                        const fUpper = f.toUpperCase();
+                        return palabras.every(p => fUpper.includes(p));
+                    });
+                }
+            }
+            
+            if (match) {
+                const rutaReal = path.join(dir, match);
+                console.log(`\n  ✅ Ruta corregida automáticamente (carácter Ñ/tilde detectado):`);
+                console.log(`     Archivo encontrado: ${match}\n`);
+                return rutaReal;
+            }
+        }
+    } catch (e) {}
+
+    return limpia;
+}
+
 function parsearExcel(filePath) {
-    if (!fs.existsSync(filePath)) {
+    const rutaReal = resolverRutaConEspeciales(filePath);
+    if (!fs.existsSync(rutaReal)) {
         throw new Error(`El archivo no existe: ${filePath}`);
     }
 
-    const wb = xlsx.readFile(filePath);
+    const wb = xlsx.readFile(rutaReal);
     
     let asociacion = '';
     let uds = '';
@@ -185,5 +226,6 @@ function parsearExcel(filePath) {
 }
 
 module.exports = {
-    parsearExcel
+    parsearExcel,
+    resolverRutaConEspeciales
 };
