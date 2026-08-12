@@ -392,44 +392,40 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             console.log(c.amarillo('  --------------------------------------------------\n'));
         } catch(e) {}
 
-        // Inputs de fecha por fuerza bruta al inicio
-        if (datos.fecha) {
-            console.log(c.gris(`    - Llenando fechas faltantes...`));
+        // 2. Antropometría principales (SIEMPRE SE LLENAN)
+        await safeFillText('Peso (En Kilogramos)', datos.peso);
+        await safeFillText('Talla (En Cent', datos.talla);
+        
+        // Fecha de valoración antropométrica (SIEMPRE SE ACTUALIZA CON LA FECHA DEL EXCEL)
+        await safeFillText('Fecha de valoración', datos.fecha);
+        try {
             const frm = await getFrame();
-            try {
-                await frm.evaluate((fDate) => {
-                    const dateInputs = document.querySelectorAll('input[type="text"]');
-                    dateInputs.forEach(inp => {
-                        if (inp.outerHTML.includes('Date') || inp.outerHTML.includes('fecha') || inp.id.toLowerCase().includes('fecha')) {
-                            inp.value = fDate;
-                            inp.dispatchEvent(new Event('input', { bubbles: true }));
-                            inp.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    });
-                }, datos.fecha);
-            } catch(e) {}
-        }
-        await page.waitForTimeout(1000);
+            await frm.evaluate((fDate) => {
+                const inpVal = document.querySelector('input[id*="cuwFechaValoracionNuricional_txtFecha"]');
+                if (inpVal) {
+                    inpVal.value = fDate;
+                    inpVal.dispatchEvent(new Event('input', { bubbles: true }));
+                    inpVal.dispatchEvent(new Event('change', { bubbles: true }));
+                    inpVal.dispatchEvent(new Event('blur', { bubbles: true }));
+                }
+            }, datos.fecha);
+        } catch(e) {}
 
         if (!hasHistory) {
-            // 1. Vacunación y Desarrollo
+            // 1. Vacunación y Desarrollo (SOLO PARA REGISTROS NUEVOS)
             await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
             await page.waitForTimeout(500); 
             
             await safeFillText('esquema de vacunación', datos.fecha);
             await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
             
-            // La pregunta extendida suele detectarse con esta palabra clave. El usuario indicó que debe ser "No".
             await safeFillRadio('carnet de crecimiento y desarrollo', 'No', 1);
             await page.waitForTimeout(500);
             
             await safeFillRadio('Antecedente de prematurez', 'No', 1);
+        } else {
+            console.log(c.gris('    ℹ️ Niño con historial: Omitiendo modificación de "Fecha de verificación del esquema de vacunación".'));
         }
-
-        // 2. Antropometría
-        await safeFillText('Peso (En Kilogramos)', datos.peso);
-        await safeFillText('Talla (En Cent', datos.talla);
-        await safeFillText('Fecha de medición', datos.fecha);
 
         // 3. Situaciones adicionales
         await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
@@ -484,11 +480,30 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             await page.waitForTimeout(500);
         }
 
-        // B. Perimetro Braquial
+        // B. Perimetro Braquial (SI YA TIENE VALOR REGISTRADO, SE IGNORA / CONSERVA)
         try {
-            await f.fill('#cphCont_txtMedicionPerimetroBraquial', datos.perimetro.toString());
-            console.log(c.verde('    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial'));
-        } catch(e) { console.log(c.rojo('    ❌ [Texto] Error perimetro: ' + e.message.substring(0, 50))); }
+            const pbEstado = await f.evaluate(() => {
+                const inpPbVal = document.querySelector('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]');
+                const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
+                
+                const tieneVal = inpPbVal && inpPbVal.value && inpPbVal.value.trim() !== '' && inpPbVal.value.trim() !== '0';
+                const tieneFecha = inpPbFecha && inpPbFecha.value && inpPbFecha.value.trim() !== '';
+                
+                return { tieneVal, tieneFecha };
+            });
+
+            if (pbEstado.tieneVal || pbEstado.tieneFecha) {
+                console.log(c.gris('    ℹ️ Perímetro Braquial ya registrado previamente → se ignora y se conserva el valor existente.'));
+            } else {
+                if (datos.fecha) await safeFillText('Fecha de medición', datos.fecha);
+                if (datos.perimetro) {
+                    await f.fill('#cphCont_txtMedicionPerimetroBraquial', datos.perimetro.toString());
+                    console.log(c.verde('    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial'));
+                }
+            }
+        } catch(e) { 
+            console.log(c.rojo('    ❌ [Texto] Error perimetro: ' + e.message.substring(0, 50))); 
+        }
         await page.waitForTimeout(1000);
 
         if (!hasHistory) {

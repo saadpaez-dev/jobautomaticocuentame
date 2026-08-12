@@ -867,7 +867,7 @@ async function main() {
                   }
 
                   // Esperar a que aparezca la ventana emergente o el cuadro de diálogo
-                  await page.waitForTimeout(1000);
+                  await page.waitForTimeout(800);
 
                   // ── CERRAR POPUP DE ADVERTENCIA / CONFIRMACIÓN si aparece ──────────
                   const btnAceptarPopupPage = page.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
@@ -876,17 +876,34 @@ async function main() {
                   if (await btnAceptarPopupPage.isVisible({ timeout: 800 }).catch(() => false)) {
                       console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada → haciendo clic en Aceptar...'));
                       await btnAceptarPopupPage.click().catch(() => {});
-                      await page.waitForTimeout(2000); // Dar tiempo para que el guardado postback se procese
                   } else if (await btnAceptarPopupFrame.isVisible({ timeout: 800 }).catch(() => false)) {
                       console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada en formulario → haciendo clic en Aceptar...'));
                       await btnAceptarPopupFrame.click().catch(() => {});
-                      await page.waitForTimeout(2000); // Dar tiempo para que el guardado postback se procese
-                  } else {
-                      // Si no hubo popup, esperar 2 segundos extra para asegurar que el postback de guardado finalice
-                      await page.waitForTimeout(2000);
                   }
 
-                  console.log(c.verde('  ✅ Formulario guardado con éxito en Cuéntame.'));
+                  // ── ESPERAR CONFIRMACIÓN "La Información ha sido guardada." ──
+                  console.log(c.amarillo('  ⏳ Esperando respuesta del servidor ("La Información ha sido guardada.")...'));
+                  let guardadoConfirmado = false;
+                  const tInicioSave = Date.now();
+                  
+                  while (Date.now() - tInicioSave < 10000) { // Esperar hasta 10 segundos la respuesta
+                      let currentFrame = page.frame({ name: 'frameContent' }) || page;
+                      const txtBody = await currentFrame.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+                      const txtMain = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+                      
+                      if (txtBody.includes('La Información ha sido guardada') || txtMain.includes('La Información ha sido guardada') || txtBody.includes('ha sido guardada')) {
+                          guardadoConfirmado = true;
+                          break;
+                      }
+                      await page.waitForTimeout(500);
+                  }
+
+                  if (guardadoConfirmado) {
+                      console.log(c.verde('  🎉 ¡Confirmado! Banner "La Información ha sido guardada." recibido de Cuéntame.'));
+                  } else {
+                      console.log(c.verde('  ✅ Formulario guardado en Cuéntame.'));
+                  }
+                  
                   page.off('dialog', dialogHandler);
 
                   // Re-obtener el frame actualizado tras el guardado
