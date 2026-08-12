@@ -458,33 +458,141 @@ async function main() {
                 "PASAPORTE",
                 "PARTIDA O ACTA DE NACIMIENTO"
             ];
-            console.log(c.cyan('\n  --- TIPO DE DOCUMENTO ---'));
-            opcionesDoc.forEach((m, i) => console.log(`  ${i + 1}. ${m}`));
-            
-            let idxDoc = -1;
-            let docNum = '';
+            // --- CUESTIONARIO INTERACTIVO CON NAVEGACIÓN HACIA ATRÁS ---
+            console.log(c.cyan('\n  📝 INGRESO DE DATOS DEL BENEFICIARIO'));
+            console.log(c.gris('  💡 Tip: Presiona ENTER/TAB para avanzar o escribe "<" / "b" (retroceso) para corregir el dato anterior.\n'));
 
-            if (docRecuperacion) {
-                console.log(c.cyan(`  🔄 Recuperando sesión... retomando automáticamente el último documento ingresado: ${docRecuperacion.docNum}`));
-                idxDoc = docRecuperacion.idxDoc;
-                docNum = docRecuperacion.docNum;
-            } else {
-                while (idxDoc < 0 || idxDoc >= opcionesDoc.length) {
-                    const res = readline.question(c.negrita('\n  > Selecciona el Tipo de Documento de Identidad (Enter para 2. REGISTRO CIVIL): ')).trim();
-                    if (res === '') {
-                        idxDoc = 1; // Índice 1 es "REGISTRO CIVIL"
-                        break;
+            let datosNino = {
+                idxDoc: 1, // Registro civil por defecto
+                docNum: docRecuperacion ? docRecuperacion.docNum : '',
+                pNombre: '',
+                sNombre: '',
+                pApellido: '',
+                sApellido: '',
+                fechaNac: '',
+                sexo: 'Hombre'
+            };
+
+            const isGoBack = (v) => {
+                if (!v) return false;
+                const str = v.trim().toLowerCase();
+                return str === '<' || str === 'b' || str === 'back' || str === '-' || str === 'retroceso' || str === 'sup';
+            };
+
+            let paso = docRecuperacion ? 2 : 0; // Si recuperamos doc, empezamos en Primer Nombre
+
+            while (paso >= 0 && paso <= 7) {
+                if (paso === 0) {
+                    console.log(c.cyan('  --- TIPO DE DOCUMENTO ---'));
+                    opcionesDoc.forEach((m, i) => console.log(`  ${i + 1}. ${m}`));
+                    const defLabel = opcionesDoc[datosNino.idxDoc] || 'REGISTRO CIVIL';
+                    const res = readline.question(c.negrita(`\n  > Selecciona Tipo de Documento (Enter/Tab para ${defLabel}): `)).trim();
+                    if (isGoBack(res)) {
+                        paso = 0;
+                    } else {
+                        if (res !== '') {
+                            const parsed = parseInt(res, 10) - 1;
+                            if (!isNaN(parsed) && parsed >= 0 && parsed < opcionesDoc.length) {
+                                datosNino.idxDoc = parsed;
+                            }
+                        }
+                        paso++;
                     }
-                    idxDoc = parseInt(res, 10) - 1;
-                    if (isNaN(idxDoc)) idxDoc = -1;
+                } else if (paso === 1) {
+                    const hint = datosNino.docNum ? ` [actual: ${datosNino.docNum}]` : '';
+                    const res = readline.question(c.negrita(`  > Número de Documento${hint}: `)).trim();
+                    if (isGoBack(res)) {
+                        paso--;
+                    } else {
+                        if (res !== '') datosNino.docNum = res;
+                        if (!datosNino.docNum) {
+                            console.log(c.rojo('  ❌ El número de documento es obligatorio.'));
+                        } else {
+                            docRecuperacion = { idxDoc: datosNino.idxDoc, docNum: datosNino.docNum };
+                            paso++;
+                        }
+                    }
+                } else if (paso === 2) {
+                    const hint = datosNino.pNombre ? ` [actual: ${datosNino.pNombre}]` : '';
+                    const res = readline.question(c.negrita(`  > Primer Nombre${hint}: `)).trim().toUpperCase();
+                    if (isGoBack(res)) {
+                        paso--;
+                    } else {
+                        if (res !== '') datosNino.pNombre = res;
+                        if (!datosNino.pNombre) {
+                            console.log(c.rojo('  ❌ El primer nombre es obligatorio.'));
+                        } else {
+                            paso++;
+                        }
+                    }
+                } else if (paso === 3) {
+                    const hint = datosNino.sNombre ? ` [actual: ${datosNino.sNombre}]` : '';
+                    const res = readline.question(c.negrita(`  > Segundo Nombre${hint} (Vacío para omitir): `)).trim().toUpperCase();
+                    if (isGoBack(res)) {
+                        paso--;
+                    } else {
+                        if (res !== '') datosNino.sNombre = res;
+                        paso++;
+                    }
+                } else if (paso === 4) {
+                    const hint = datosNino.pApellido ? ` [actual: ${datosNino.pApellido}]` : '';
+                    const res = readline.question(c.negrita(`  > Primer Apellido${hint}: `)).trim().toUpperCase();
+                    if (isGoBack(res)) {
+                        paso--;
+                    } else {
+                        if (res !== '') datosNino.pApellido = res;
+                        if (!datosNino.pApellido) {
+                            console.log(c.rojo('  ❌ El primer apellido es obligatorio.'));
+                        } else {
+                            paso++;
+                        }
+                    }
+                } else if (paso === 5) {
+                    const hint = datosNino.sApellido ? ` [actual: ${datosNino.sApellido}]` : '';
+                    const res = readline.question(c.negrita(`  > Segundo Apellido${hint} (Vacío para omitir): `)).trim().toUpperCase();
+                    if (isGoBack(res)) {
+                        paso--;
+                    } else {
+                        if (res !== '') datosNino.sApellido = res;
+                        paso++;
+                    }
+                } else if (paso === 6) {
+                    const hint = datosNino.fechaNac ? ` [actual: ${datosNino.fechaNac}]` : '';
+                    const res = readline.question(c.negrita(`  > Fecha Nacimiento (DD/MM/YYYY)${hint}: `)).trim();
+                    if (isGoBack(res)) {
+                        paso--;
+                    } else {
+                        if (res !== '') datosNino.fechaNac = res;
+                        if (!datosNino.fechaNac) {
+                            console.log(c.rojo('  ❌ La fecha de nacimiento es obligatoria.'));
+                        } else {
+                            paso++;
+                        }
+                    }
+                } else if (paso === 7) {
+                    const hint = ` [actual: ${datosNino.sexo}]`;
+                    const res = readline.question(c.negrita(`  > Sexo (1: Hombre, 2: Mujer)${hint}: `)).trim();
+                    if (isGoBack(res)) {
+                        paso--;
+                    } else {
+                        if (res === '2' || res.toLowerCase() === 'm' || res.toLowerCase() === 'mujer') {
+                            datosNino.sexo = 'Mujer';
+                        } else if (res === '1' || res.toLowerCase() === 'h' || res.toLowerCase() === 'hombre') {
+                            datosNino.sexo = 'Hombre';
+                        }
+                        paso++;
+                    }
                 }
-                docNum = readline.question(c.negrita('  > Documento: ')).trim();
-                
-                // Guardar en memoria de recuperación
-                docRecuperacion = { idxDoc, docNum };
             }
 
-            const tipoDocId = opcionesDoc[idxDoc];
+            const tipoDocId = opcionesDoc[datosNino.idxDoc];
+            const docNum = datosNino.docNum;
+            const pNombre = datosNino.pNombre;
+            const sNombre = datosNino.sNombre;
+            const pApellido = datosNino.pApellido;
+            const sApellido = datosNino.sApellido;
+            const fechaNac = datosNino.fechaNac;
+            const sexo = datosNino.sexo;
 
             const selectTipoDoc = currentFrame.locator('select').filter({ hasText: 'REGISTRO CIVIL' }).first();
             if (await selectTipoDoc.count() > 0) {
@@ -494,9 +602,7 @@ async function main() {
 
             // Número de documento
             const inputDoc = currentFrame.locator('input[type="text"]').first(); 
-            // Buscar la lupa por su src (icoPagBuscar.gif) o ID (btnBuscar)
             const btnLupa = currentFrame.locator('input[type="image"][src*="icoPagBuscar"], input[id*="btnBuscar"]').first();
-            const imgLupa = btnLupa;
             
             if (await inputDoc.count() > 0) {
                 await inputDoc.fill(docNum);
@@ -509,27 +615,19 @@ async function main() {
             // Damos click en la lupa para validar el documento
             console.log(c.amarillo('  ⏳ Validando Documento (Lupa)...'));
             if (await btnLupa.count() > 0) {
-                // Interceptamos la petición POST que hace la lupa (ya sea AJAX o Postback)
                 const postPromise = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 5000 }).catch(() => {});
                 await btnLupa.click();
                 await postPromise;
-                
-                // Dar un pequeñísimo tiempo adicional para que el DOM se actualice
                 await page.waitForTimeout(500);
-            } else {
-                console.log(c.rojo('  ❌ No se encontró el botón de la lupa en el DOM.'));
             }
 
-            // Locators robustos basados en secuencia después del Documento
             textInputs = await currentFrame.locator('input[type="text"]').all();
             
-            // Optimización: Buscar el índice de forma síncrona en el navegador (evita demoras de red por cada input)
             let docIndex = await currentFrame.evaluate((docNumVal) => {
                 const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
                 for (let i = 0; i < inputs.length; i++) {
                     const val = (inputs[i].value || '').replace(/\D/g, '');
                     const cleanDocNum = docNumVal.replace(/\D/g, '');
-                    // Si coinciden exactamente, o si Cuéntame truncó el final (ej. maxlength 11 vs 12)
                     if (val.length >= 6 && (val === cleanDocNum || cleanDocNum.startsWith(val))) {
                         return i;
                     }
@@ -560,26 +658,8 @@ async function main() {
                 }
             }
 
-            if (!ninoExiste) {
-                console.log(c.amarillo('  El niño parece ser NUEVO. Asumiendo validación exitosa para crearlo.'));
-            }
-
             if (continuarLlenado) {
-                // Escenario 2: Llenar el formulario (o completar si ya existe)
-                let sexo = 'Hombre';
-
                 if (!ninoExiste) {
-                    let pNombre = '';
-                    while(!pNombre) pNombre = readline.question('  Primer Nombre: ').trim().toUpperCase();
-                    const sNombre = readline.question('  Segundo Nombre: ').trim().toUpperCase();
-                    let pApellido = '';
-                    while(!pApellido) pApellido = readline.question('  Primer Apellido: ').trim().toUpperCase();
-                    const sApellido = readline.question('  Segundo Apellido: ').trim().toUpperCase();
-                    let fechaNac = '';
-                    while(!fechaNac) fechaNac = readline.question('  Fecha Nacimiento (DD/MM/YYYY): ').trim();
-                    const sexoInput = readline.question('  Sexo (1: Hombre, 2: Mujer) [1]: ').trim();
-                    sexo = (sexoInput === '2' || sexoInput.toLowerCase() === 'm') ? 'Mujer' : 'Hombre';
-
                     if (inputPNombre) {
                         await inputPNombre.fill(pNombre);
                         await inputSNombre.fill(sNombre);
