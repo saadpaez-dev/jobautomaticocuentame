@@ -350,30 +350,40 @@ async function main() {
       
       console.log(c.cyan('\n  🚀 Navegando al modulo de Seguimiento nutricional...'));
       try {
-          // 1. Asegurar que el menú desplegable "Rub online" esté expandido
-          const parentRubOnline = rootMenu.locator('a:has-text("Rub online"), a:has-text("RUB ONLINE")').first();
-          if (await parentRubOnline.count() > 0 && await parentRubOnline.isVisible().catch(() => false)) {
-              await parentRubOnline.click().catch(() => parentRubOnline.evaluate(node => node.click()));
-              await page.waitForTimeout(1000);
-          }
-
-          // 2. Buscamos directamente el enlace hijo "Seguimiento nutricional"
-          const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
-          if (await childMenu.count() > 0 && await childMenu.isVisible().catch(() => false)) {
-              await childMenu.evaluate(node => node.click());
-              await page.waitForTimeout(4000);
-              console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
-          } else {
-              console.log(c.amarillo('  ⚠️ Buscando alternativa para "Seguimiento nutricional"...'));
-              const altMenu = rootMenu.locator('a[onclick*="SeguimientoNutricional"], a[href*="SeguimientoNutricional"]').first();
-              if (await altMenu.count() > 0) {
-                  await altMenu.evaluate(node => node.click());
-                  await page.waitForTimeout(4000);
-                  console.log(c.verde('  ✅ Clic en "Seguimiento nutricional".'));
-              } else {
-                  console.log(c.rojo('  ❌ No se encontró el enlace de Seguimiento nutricional en el menú.'));
+          // 1. Ejecutar evaluador DOM dentro del marco de menú (frameMenu) para buscar enlaces <a>
+          let result = await rootMenu.evaluate(() => {
+              const links = Array.from(document.querySelectorAll('a'));
+              
+              // Si "Seguimiento nutricional" ya está visible en el menú, hacerle clic directamente
+              const target = links.find(a => a.innerText && a.innerText.toLowerCase().includes('seguimiento nutricional'));
+              if (target) {
+                  target.click();
+                  return 'TARGET_CLICKED';
               }
+
+              // Si no, buscar el enlace exacto "Rub online" (el <a> que tiene la flechita > Rub online)
+              const rubLink = links.find(a => a.innerText && a.innerText.trim().toLowerCase().includes('rub online'));
+              if (rubLink) {
+                  rubLink.click();
+                  return 'RUB_EXPANDED';
+              }
+              return 'NOT_FOUND';
+          }).catch(() => 'ERROR');
+
+          console.log(c.gris(`  ℹ️ Estado del menú: ${result}`));
+
+          if (result === 'RUB_EXPANDED') {
+              await page.waitForTimeout(1500); // Esperar a que el sub-menú se expanda
+              // Ahora hacer clic en "Seguimiento nutricional"
+              await rootMenu.evaluate(() => {
+                  const links = Array.from(document.querySelectorAll('a'));
+                  const target = links.find(a => a.innerText && a.innerText.toLowerCase().includes('seguimiento nutricional'));
+                  if (target) target.click();
+              }).catch(() => {});
           }
+          
+          await page.waitForTimeout(3000);
+          console.log(c.verde('  ✅ Clic en "Seguimiento nutricional" enviado.'));
       } catch (err) {
           console.log(c.rojo(`  ❌ Error al intentar acceder a Seguimiento nutricional: ${err.message}`));
       }
