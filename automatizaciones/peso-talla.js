@@ -547,9 +547,77 @@ async function main() {
           
           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
               if (idxNinoExcelActual >= ninosExcel.length) {
-                  console.log(c.verde('  🎉 ¡PROCESAMIENTO MASIVO COMPLETADO PARA ESTA UDS!'));
-                  modoExcel = null;
-                  break;
+                  console.log(c.verde('\n========================================================================================'));
+                  console.log(c.verde('  🎉 ¡PROCESAMIENTO MASIVO COMPLETADO EXITOSAMENTE PARA ESTE EXCEL!'));
+                  console.log(c.verde('========================================================================================'));
+
+                  console.log(c.cyan('\n  ╔════════════════════════════════════════════════════════════════════╗'));
+                  console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
+                  console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
+                  if (ascSeleccionada) {
+                      console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociación (${ascSeleccionada.nombreCorto.padEnd(20)}) ║`));
+                  } else {
+                      console.log(c.cyan('  ║  1. Cargar otro Excel de esta misma asociación                     ║'));
+                  }
+                  console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
+                  console.log(c.cyan('  ║  3. Cambiar de Asociación                                          ║'));
+                  console.log(c.cyan('  ║  0. Volver al menú principal                                       ║'));
+                  console.log(c.cyan('  ╚════════════════════════════════════════════════════════════════════╝'));
+
+                  let opt = '';
+                  while (!['0', '1', '2', '3'].includes(opt.trim())) {
+                      opt = readline.question(c.negrita('  > Selecciona una opción (0-3): ')).trim();
+                  }
+
+                  if (opt === '1') {
+                      console.log(c.cyan('\n  📂 Carga de nuevo Excel para ' + (ascSeleccionada ? ascSeleccionada.nombreCorto : 'la asociación activa')));
+                      const fileP = obtenerRutaExcel();
+                      try {
+                          const parseResult = parsearExcel(fileP);
+                          ninosExcel = parseResult.ninos;
+                          if (!ninosExcel || ninosExcel.length === 0) {
+                              console.log(c.rojo('  ❌ No se encontraron niños válidos en el nuevo Excel.'));
+                              modoExcel = null;
+                              break;
+                          }
+                          console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} niños).`));
+                          console.log(c.verde(`  Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+
+                          modoExcel = 'MASIVO_NUEVO';
+                          idxNinoExcelActual = 0;
+                          consecutivosDuplicados = 0;
+
+                          if (parseResult.uds && ascSeleccionada) {
+                              const udsStr = parseResult.uds.trim().toUpperCase();
+                              const nuevoJardin = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
+                              if (nuevoJardin) {
+                                  jardinSeleccionado = nuevoJardin;
+                                  console.log(c.verde(`  ✅ Jardín (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
+                              } else {
+                                  jardinSeleccionado = null;
+                              }
+                          } else {
+                              jardinSeleccionado = null;
+                          }
+                          break;
+                      } catch(e) {
+                          console.log(c.rojo(`  ❌ Error leyendo el nuevo Excel: ${e.message}`));
+                          modoExcel = null;
+                          break;
+                      }
+                  } else if (opt === '2') {
+                      jardinSeleccionado = null;
+                      modoExcel = null;
+                      break;
+                  } else if (opt === '3') {
+                      ascSeleccionada = null;
+                      jardinSeleccionado = null;
+                      modoExcel = null;
+                      break;
+                  } else {
+                      modoExcel = null;
+                      break;
+                  }
               }
               const ninoTarget = ninosExcel[idxNinoExcelActual];
               console.log(c.cyan(`\n  🚀 PROCESANDO NIÑO ${idxNinoExcelActual + 1} de ${ninosExcel.length}: ${ninoTarget.nombreCompleto}`));
@@ -727,9 +795,71 @@ async function main() {
                               console.log(c.rojo('  ⚠️  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
                               console.log(c.rojo('  ========================================================================================\n'));
 
+                              console.log(c.cyan('  ╔════════════════════════════════════════════════════════════════════╗'));
+                              console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
+                              console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
+                              if (ascSeleccionada) {
+                                  console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociación (${ascSeleccionada.nombreCorto.padEnd(20)}) ║`));
+                              } else {
+                                  console.log(c.cyan('  ║  1. Cargar otro Excel de esta misma asociación                     ║'));
+                              }
+                              console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
+                              console.log(c.cyan('  ║  3. Cambiar de Asociación                                          ║'));
+                              console.log(c.cyan('  ║  0. Volver al menú principal                                       ║'));
+                              console.log(c.cyan('  ╚════════════════════════════════════════════════════════════════════╝'));
+
+                              let opt = '';
+                              while (!['0', '1', '2', '3'].includes(opt.trim())) {
+                                  opt = readline.question(c.negrita('  > Selecciona una opción (0-3): ')).trim();
+                              }
+
+                              if (opt === '1') {
+                                  console.log(c.cyan('\n  📂 Carga de nuevo Excel para ' + (ascSeleccionada ? ascSeleccionada.nombreCorto : 'la asociación activa')));
+                                  const fileP = obtenerRutaExcel();
+                                  try {
+                                      const parseResult = parsearExcel(fileP);
+                                      ninosExcel = parseResult.ninos;
+                                      if (!ninosExcel || ninosExcel.length === 0) {
+                                          console.log(c.rojo('  ❌ No se encontraron niños válidos en el nuevo Excel.'));
+                                          modoExcel = null;
+                                      } else {
+                                          console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} niños).`));
+                                          console.log(c.verde(`  Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+
+                                          modoExcel = 'MASIVO_NUEVO';
+                                          idxNinoExcelActual = 0;
+                                          consecutivosDuplicados = 0;
+
+                                          if (parseResult.uds && ascSeleccionada) {
+                                              const udsStr = parseResult.uds.trim().toUpperCase();
+                                              const nuevoJardin = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
+                                              if (nuevoJardin) {
+                                                  jardinSeleccionado = nuevoJardin;
+                                                  console.log(c.verde(`  ✅ Jardín (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
+                                              } else {
+                                                  jardinSeleccionado = null;
+                                              }
+                                          } else {
+                                              jardinSeleccionado = null;
+                                          }
+                                      }
+                                  } catch(e) {
+                                      console.log(c.rojo(`  ❌ Error leyendo el nuevo Excel: ${e.message}`));
+                                      modoExcel = null;
+                                  }
+                              } else if (opt === '2') {
+                                  jardinSeleccionado = null;
+                                  modoExcel = null;
+                              } else if (opt === '3') {
+                                  ascSeleccionada = null;
+                                  jardinSeleccionado = null;
+                                  modoExcel = null;
+                              } else {
+                                  modoExcel = null;
+                              }
+
                               preFiltroBeneficiario = null;
-                              modoExcel = null;
-                              break; // Salir del bucle y volver al menú principal
+                              break;
                           } else {
                               idxNinoExcelActual++;
                               console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños para el siguiente en el Excel...'));
