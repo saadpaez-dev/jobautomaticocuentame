@@ -132,7 +132,7 @@ async function main() {
             console.log(c.verde('  ✅ Autenticación completada. ¡Cuéntame listo para operar!\n'));
         }
         
-        await browser.close();
+        await browser.disconnect().catch(() => {});
     } catch (err) {
         console.log(c.amarillo(`  ⚠️ No se pudo verificar sesión automáticamente: ${err.message.slice(0, 60)}`));
         console.log(c.gris('  (Continúa de todas formas, cada módulo manejará su propia sesión)\n'));

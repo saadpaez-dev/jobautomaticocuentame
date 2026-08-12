@@ -434,8 +434,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             console.error(err); 
         }
     }
-    console.log(c.verde('\n  🎉 FASE 1 COMPLETADA CON ÉXITO. Cerrando navegador...'));
-    await browser.close();
+    console.log(c.verde('\n  🎉 FASE 1 COMPLETADA CON ÉXITO. Navegador mantenido activo.'));
 }
 
 // ==========================================
