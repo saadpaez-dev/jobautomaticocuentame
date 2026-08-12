@@ -350,13 +350,13 @@ async function main() {
       let idxNinoExcelActual = 0;
 
       console.log(c.cyan('\n------------------------------------------------------'));
-      console.log(c.cyan('  📋 MENU PRINCIPAL - BUSQUEDA RAPIDA'));
+      console.log(c.cyan('  📋 MENÚ DE OPCIONES - PESO Y TALLA'));
       console.log(c.cyan('------------------------------------------------------'));
       console.log('  1. Cargar excel jardin (Procesamiento masivo / Automático)');
       console.log('  2. Cargar beneficiario con excel (Individual)');
       console.log('  3. Cargar beneficiario sin excel (Manual)');
       console.log('  4. Corregir/Editar masivo con Excel');
-      console.log(c.rojo('  0. Volver al menú principal'));
+      console.log(c.rojo('  0. Volver al panel principal (AutoTrabajo / Start)'));
       
       let respBenef = '';
       while (!['0', '1', '2', '3', '4'].includes(respBenef.trim())) {
@@ -364,7 +364,7 @@ async function main() {
       }
 
       if (respBenef.trim() === '0') {
-          console.log(c.verde('\n  👋 Volviendo al menú principal...\n'));
+          console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
           break;
       }
       
@@ -809,21 +809,28 @@ async function main() {
                   console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
                   console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
                   if (ascSeleccionada) {
-                      console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociación (${ascSeleccionada.nombreCorto.padEnd(20)}) ║`));
+                      const ascNom = (ascSeleccionada.nombreCorto || '').slice(0, 18);
+                      console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociación (${ascNom.padEnd(18)}) ║`));
                   } else {
                       console.log(c.cyan('  ║  1. Cargar otro Excel de esta misma asociación                     ║'));
                   }
                   console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
                   console.log(c.cyan('  ║  3. Cambiar de Asociación                                          ║'));
-                  console.log(c.cyan('  ║  0. Volver al menú principal                                       ║'));
+                  console.log(c.cyan('  ║  4. Volver al menú de opciones de Peso y Talla                     ║'));
+                  console.log(c.cyan('  ║  0. Volver al panel principal (AutoTrabajo / Start)               ║'));
                   console.log(c.cyan('  ╚════════════════════════════════════════════════════════════════════╝'));
 
                   let opt = '';
-                  while (!['0', '1', '2', '3'].includes(opt.trim())) {
-                      opt = readline.question(c.negrita('  > Selecciona una opción (0-3): ')).trim();
+                  while (!['0', '1', '2', '3', '4'].includes(opt.trim())) {
+                      opt = readline.question(c.negrita('  > Selecciona una opción (0-4): ')).trim();
                   }
 
-                  if (opt === '1') {
+                  if (opt === '0') {
+                      console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
+                      salirModulo = true;
+                      modoExcel = null;
+                      break;
+                  } else if (opt === '1') {
                       console.log(c.cyan('\n  📂 Carga de nuevo Excel para ' + (ascSeleccionada ? ascSeleccionada.nombreCorto : 'la asociación activa')));
                       const fileP = obtenerRutaExcel();
                       try {
@@ -869,8 +876,9 @@ async function main() {
                       jardinSeleccionado = null;
                       modoExcel = null;
                       break;
-                  } else {
+                  } else if (opt === '4') {
                       modoExcel = null;
+                      jardinSeleccionado = null;
                       break;
                   }
               }
@@ -1526,23 +1534,27 @@ async function main() {
 
 
                   // ── MENÚ POST-GUARDADO ───────────────────────────────────
-                  console.log(c.cyan('\n  ╔════════════════════════════════════════════╗'));
-                  console.log(c.cyan('  ║       ¿Qué deseas hacer ahora?             ║'));
-                  console.log(c.cyan('  ╠════════════════════════════════════════════╣'));
-                  console.log(c.cyan('  ║  1. Otro niño del mismo jardín             ║'));
-                  console.log(c.cyan('  ║  2. Otro jardín de esta misma asociación   ║'));
-                  console.log(c.cyan('  ║  3. Cambiar de asociación                  ║'));
-                  console.log(c.cyan('  ║  0. Volver al menú principal               ║'));
-                  console.log(c.cyan('  ╚════════════════════════════════════════════╝'));
+                  console.log(c.cyan('\n  ╔════════════════════════════════════════════════════════════════════╗'));
+                  console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
+                  console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
+                  console.log(c.cyan('  ║  1. Otro niño del mismo jardín                                     ║'));
+                  console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
+                  console.log(c.cyan('  ║  3. Cambiar de Asociación                                          ║'));
+                  console.log(c.cyan('  ║  4. Volver al menú de opciones de Peso y Talla                     ║'));
+                  console.log(c.cyan('  ║  0. Volver al panel principal (AutoTrabajo / Start)               ║'));
+                  console.log(c.cyan('  ╚════════════════════════════════════════════════════════════════════╝'));
 
                   let respNavPost = '';
-                  while (!['0', '1', '2', '3'].includes(respNavPost.trim())) {
-                      respNavPost = readline.question(c.negrita('  > Tu opcion: ')).trim();
+                  while (!['0', '1', '2', '3', '4'].includes(respNavPost.trim())) {
+                      respNavPost = readline.question(c.negrita('  > Tu opcion (0-4): ')).trim();
                   }
 
                   if (respNavPost === '0') {
-                      // Salir al menú principal
+                      console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
                       salirModulo = true;
+                      break;
+                  } else if (respNavPost === '4') {
+                      jardinSeleccionado = null;
                       break;
                   } else if (respNavPost === '1') {
                       // Mismo jardín → Volver a llenar la lupa de UDS porque a veces Cuéntame la borra tras guardar
