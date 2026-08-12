@@ -235,7 +235,12 @@ async function main() {
                 
                 if (textToMatch) {
                     const removeAccents = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[,.]/g, "").replace(/\s+/g, " ").trim();
-                    const match = opts.find(o => removeAccents(o.t.toUpperCase()).includes(removeAccents(textToMatch.toUpperCase())));
+                    const cleanTarget = removeAccents(textToMatch.toUpperCase());
+                    let match = opts.find(o => removeAccents(o.t.toUpperCase()).includes(cleanTarget) || o.v.includes(cleanTarget));
+                    if (!match && opts.length > 0) {
+                        console.log(c.amarillo(`  ℹ️ Opción/Contrato "${textToMatch}" no tiene coincidencia exacta. Seleccionando la opción disponible: "${opts[0].t}"`));
+                        match = opts[0];
+                    }
                     if (match) {
                         await selectLocator.selectOption(match.v).catch(()=>{});
                         await selectLocator.evaluate(el => {

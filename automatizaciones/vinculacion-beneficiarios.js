@@ -317,16 +317,23 @@ async function main() {
                         if (textToMatch) {
                             const cleanTarget = removeAccents(textToMatch.toUpperCase());
                             
-                            // 1. Priorizar coincidencia EXACTA (para evitar que "CARRERA" seleccione "AVENIDA CARRERA")
-                            match = opts.find(o => removeAccents(o.t.toUpperCase()) === cleanTarget);
+                            // 1. Priorizar coincidencia EXACTA
+                            match = opts.find(o => removeAccents(o.t.toUpperCase()) === cleanTarget || o.v === cleanTarget);
                             
                             // 2. Si no hay coincidencia exacta, usar coincidencia parcial (includes)
                             if (!match) {
-                                match = opts.find(o => removeAccents(o.t.toUpperCase()).includes(cleanTarget));
+                                match = opts.find(o => removeAccents(o.t.toUpperCase()).includes(cleanTarget) || o.v.includes(cleanTarget));
+                            }
+                            
+                            // 3. Fallback inteligente si no hay coincidencia parcial pero hay opciones válidas en el select
+                            if (!match && opts.length > 0) {
+                                console.log(c.amarillo(`  ℹ️ Contrato/Opción "${textToMatch}" no tiene coincidencia exacta. Seleccionando la opción disponible: "${opts[0].t}"`));
+                                match = opts[0];
                             }
                             
                             if (match) break; 
                         } else if (opts.length > 0) {
+                            match = opts[0];
                             break;
                         }
                     }
