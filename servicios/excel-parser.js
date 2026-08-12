@@ -14,6 +14,11 @@ function formatDate(excelDate) {
     return `${day}/${month}/${year}`;
 }
 
+function normalizarDecimal(val) {
+    if (val === undefined || val === null) return '';
+    return String(val).trim().replace(',', '.');
+}
+
 function obtenerUltimaToma(fila) {
     // Las tomas inician en el índice 7 (Toma 1) y avanzan cada 12 columnas.
     // Toma 1: 7, Toma 2: 19, Toma 3: 31, Toma 4: 43
@@ -27,9 +32,9 @@ function obtenerUltimaToma(fila) {
         if (fechaToma && pesoToma && String(fechaToma).trim().toLowerCase() !== 'retirado' && String(fechaToma).trim().toLowerCase() !== 'retirada') {
             return {
                 fecha: formatDate(fechaToma),
-                peso: pesoToma.toString(),
-                talla: tallaToma ? tallaToma.toString() : '',
-                perimetro: perimetroToma ? perimetroToma.toString() : ''
+                peso: normalizarDecimal(pesoToma),
+                talla: normalizarDecimal(tallaToma),
+                perimetro: normalizarDecimal(perimetroToma)
             };
         }
     }

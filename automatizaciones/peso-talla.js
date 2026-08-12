@@ -1217,9 +1217,9 @@ async function main() {
                       datosLlenado = {
                           documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : '',
                           fecha: parsearFecha(String(ninoInfo.fecha)),
-                          peso: String(ninoInfo.peso).trim(),
-                          talla: String(ninoInfo.talla).trim(),
-                          perimetro: ninoInfo.perimetro ? String(ninoInfo.perimetro).trim() : ''
+                          peso: String(ninoInfo.peso || '').trim().replace(',', '.'),
+                          talla: String(ninoInfo.talla || '').trim().replace(',', '.'),
+                          perimetro: ninoInfo.perimetro ? String(ninoInfo.perimetro).trim().replace(',', '.') : ''
                       };
                       console.log(c.amarillo(`  📥 Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro}`));
                       await page.waitForTimeout(1500);
@@ -1298,26 +1298,32 @@ async function main() {
                   console.log(c.amarillo('  ⏳ Esperando respuesta del servidor ("La Información ha sido guardada.")...'));
                   let guardadoConfirmado = false;
                   let errorTomaExistente = false;
+                  let clickAceptarRealizado = false;
                   const tInicioSave = Date.now();
                   
-                  while (Date.now() - tInicioSave < 12000) { // Esperar hasta 12 segundos la respuesta
+                  while (Date.now() - tInicioSave < 15000) { // Esperar hasta 15 segundos la respuesta
                       let currentFrame = page.frame({ name: 'frameContent' }) || page;
                       
-                      // 1. Re-verificar en cada ciclo si aparece alguna ventana emergente de confirmación
-                      const btnAceptarPage = page.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
-                      const btnAceptarFrame = currentFrame.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
+                      // 1. Re-verificar solo una vez si aparece alguna ventana emergente de confirmación
+                      if (!clickAceptarRealizado) {
+                          const btnAceptarPage = page.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
+                          const btnAceptarFrame = currentFrame.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
 
-                      if (await btnAceptarPage.isVisible().catch(() => false)) {
-                          console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada → haciendo clic en Aceptar...'));
-                          await btnAceptarPage.click().catch(() => btnAceptarPage.evaluate(n => n.click()));
-                          await page.waitForTimeout(1000);
-                      } else if (await btnAceptarFrame.isVisible().catch(() => false)) {
-                          console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada en formulario → haciendo clic en Aceptar...'));
-                          await btnAceptarFrame.click().catch(() => btnAceptarFrame.evaluate(n => n.click()));
-                          await page.waitForTimeout(1000);
+                          if (await btnAceptarPage.isVisible().catch(() => false)) {
+                              console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada → haciendo clic en Aceptar...'));
+                              clickAceptarRealizado = true;
+                              await btnAceptarPage.click().catch(() => btnAceptarPage.evaluate(n => n.click()));
+                              await page.waitForTimeout(1500);
+                          } else if (await btnAceptarFrame.isVisible().catch(() => false)) {
+                              console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada en formulario → haciendo clic en Aceptar...'));
+                              clickAceptarRealizado = true;
+                              await btnAceptarFrame.click().catch(() => btnAceptarFrame.evaluate(n => n.click()));
+                              await page.waitForTimeout(1500);
+                          }
                       }
 
                       // 2. Verificar si apareció la confirmación de guardado
+                      currentFrame = page.frame({ name: 'frameContent' }) || page;
                       const txtBody = await currentFrame.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
                       const txtMain = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
                       
@@ -1388,14 +1394,28 @@ async function main() {
                           console.log(c.verde(`  🎉 Niño ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                       }
                   } else {
-                      console.log(c.rojo('  ❌ NO se confirmó el guardado ("La Información ha sido guardada.") por parte del servidor.'));
+                      let currentFrameErr = page.frame({ name: 'frameContent' }) || page;
+                      const txtError = await currentFrameErr.evaluate(() => {
+                          const errorElms = Array.from(document.querySelectorAll('span, div, td')).filter(el => {
+                              const style = window.getComputedStyle(el);
+                              return (style.color === 'rgb(255, 0, 0)' || el.className.includes('error') || el.className.includes('validator')) && el.innerText.trim().length > 3;
+                          });
+                          return errorElms.map(e => e.innerText.trim()).join(' | ');
+                      }).catch(() => '');
+
+                      if (txtError) {
+                          console.log(c.rojo(`  ❌ Error reportado por Cuéntame en la pantalla: "${txtError}"`));
+                      } else {
+                          console.log(c.rojo('  ❌ NO se confirmó el guardado ("La Información ha sido guardada.") por parte del servidor.'));
+                      }
+
                       if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                           const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
                           if (ninoTarget) {
                               ninosProcesados.push({
                                   ...ninoTarget,
                                   estado: '❌ ERROR EN GUARDADO',
-                                  observacion: 'El servidor de Cuéntame no retornó la confirmación de guardado.'
+                                  observacion: txtError ? `Cuéntame reportó: ${txtError}` : 'El servidor de Cuéntame no retornó la confirmación de guardado.'
                               });
                           }
                       }

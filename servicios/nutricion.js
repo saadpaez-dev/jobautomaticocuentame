@@ -62,6 +62,11 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         console.log(c.verde('  👉 Únicamente actualizando: Peso, Talla y Fecha de valoración antropométrica *.'));
     }
 
+    // Normalizar comas por puntos en peso, talla y perímetro
+    if (datos.peso) datos.peso = String(datos.peso).trim().replace(',', '.');
+    if (datos.talla) datos.talla = String(datos.talla).trim().replace(',', '.');
+    if (datos.perimetro) datos.perimetro = String(datos.perimetro).trim().replace(',', '.');
+
     // 1. Extraer Documento de Cuéntame
     console.log(c.amarillo('  ⏳ Extrayendo datos del nino del formulario...'));
     
