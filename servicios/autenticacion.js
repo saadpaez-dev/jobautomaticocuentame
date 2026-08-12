@@ -32,9 +32,14 @@ async function loginYLlegarARoles(page, credenciales) {
   await limpiarBuzon2FA(gmailUser, gmailAppPassword);
 
   const currentUrl = page.url();
-  const pageText = await page.evaluate(() => document.body.innerText);
+  const pageText = await page.evaluate(() => document.body.innerText).catch(() => '');
   
-  if (currentUrl.includes('Roles.aspx') || currentUrl.includes('MasterPrincipal') || currentUrl.includes('General') || pageText.includes('Seleccione la entidad')) {
+  const esLoginO2FA = pageText.includes('Iniciar Sesión') || 
+                      pageText.includes('Ingrese su código') || 
+                      pageText.includes('Se ha enviado un código') || 
+                      pageText.includes('¿Olvidaste tu Contraseña?');
+
+  if (!esLoginO2FA && (currentUrl.includes('Roles.aspx') || currentUrl.includes('MasterPrincipal') || currentUrl.includes('General') || pageText.includes('Seleccione la entidad'))) {
       console.log('  ✅ Ya se detectó una sesión activa en Cuéntame. Omitiendo inicio de sesión.');
       if (!pageText.includes('Seleccione la entidad')) {
           console.log('  🔄 Navegando a la pantalla de selección de asociación...');
@@ -44,81 +49,87 @@ async function loginYLlegarARoles(page, credenciales) {
   }
 
   const fechaInicio = new Date();
-  const MAX_INTENTOS = 3;
-  let intentoActual = 0;
+  
+  // Verificar si la página YA está en la pantalla de 2FA
+  let tiene2FA = await detectar2FA(page);
 
-  while (intentoActual < MAX_INTENTOS) {
-    intentoActual++;
-    if (intentoActual > 1) {
-      console.log(c.amarillo(`\n  🔄 Reintentando login (intento ${intentoActual} de ${MAX_INTENTOS})...`));
-    }
+  if (!tiene2FA) {
+    const MAX_INTENTOS = 3;
+    let intentoActual = 0;
 
-    await page.goto(URL_LOGIN, { waitUntil: 'networkidle', timeout: 30000 });
-
-    // Llenar usuario y contraseña
-    await page.locator('input[type="text"]').first().fill(usuario);
-    await page.locator('input[type="password"]').first().fill(password);
-
-    const hasCaptcha = await page.locator('img[src*="Captcha"]:visible').count() > 0;
-
-    if (hasCaptcha) {
-      console.log('\n  ⚠️ CAPTCHA DETECTADO. Por favor, ingresa el Captcha y haz clic en "Iniciar Sesión" manualmente en el navegador.');
-      console.log('  ⏳ Esperando a que inicies sesión...');
-
-      let captchaActivo = true;
-      while (captchaActivo) {
-        try {
-          await page.waitForNavigation({ timeout: 120000 });
-          captchaActivo = await page.locator('img[src*="Captcha"]:visible').count() > 0;
-          if (captchaActivo) {
-            console.log('  ⚠️ El Captcha fue incorrecto. Por favor, inténtalo de nuevo.');
-          }
-        } catch (e) {
-          captchaActivo = await page.locator('img[src*="Captcha"]').count() > 0;
-        }
+    while (intentoActual < MAX_INTENTOS) {
+      intentoActual++;
+      if (intentoActual > 1) {
+        console.log(c.amarillo(`\n  🔄 Reintentando login (intento ${intentoActual} de ${MAX_INTENTOS})...`));
       }
-      console.log('  ✅ Captcha resuelto exitosamente, continuando con el proceso automático...');
-    } else {
-      await Promise.all([
-        page.waitForLoadState('networkidle'),
-        page.locator('input[value="Iniciar Sesión"], input[type="submit"]').first().click()
-      ]);
-    }
 
-    // ─── Verificar si la cuenta fue bloqueada ───────────────────────────────
-    const contenidoTras = await page.content();
-    if (contenidoTras.includes('bloqueado') || contenidoTras.includes('número de intentos')) {
-      throw new Error(
-        '🔒 CUENTA BLOQUEADA: el sistema bloqueó el usuario por demasiados intentos fallidos.\n' +
-        '   ➡️  Solución: ve a rubonline.icbf.gov.co y usa "¿Olvidaste tu Contraseña?" para desbloquearte.\n' +
-        '   ⚠️  NO vuelvas a intentar el login hasta desbloquear la cuenta.'
-      );
-    }
+      await page.goto(URL_LOGIN, { waitUntil: 'networkidle', timeout: 30000 });
 
-    // ─── Verificar si las credenciales fueron rechazadas ────────────────────
-    const credencialesInvalidas = contenidoTras.includes('Usuario o contraseña incorrectos') ||
-                                  contenidoTras.includes('Datos incorrectos') ||
-                                  contenidoTras.includes('no válido') ||
-                                  contenidoTras.includes('incorrecto');
+      // Llenar usuario y contraseña
+      await page.locator('input[type="text"]').first().fill(usuario);
+      await page.locator('input[type="password"]').first().fill(password);
 
-    if (credencialesInvalidas) {
-      if (intentoActual >= MAX_INTENTOS) {
+      const hasCaptcha = await page.locator('img[src*="Captcha"]:visible').count() > 0;
+
+      if (hasCaptcha) {
+        console.log('\n  ⚠️ CAPTCHA DETECTADO. Por favor, ingresa el Captcha y haz clic en "Iniciar Sesión" manualmente en el navegador.');
+        console.log('  ⏳ Esperando a que inicies sesión...');
+
+        let captchaActivo = true;
+        while (captchaActivo) {
+          try {
+            await page.waitForNavigation({ timeout: 120000 });
+            captchaActivo = await page.locator('img[src*="Captcha"]:visible').count() > 0;
+            if (captchaActivo) {
+              console.log('  ⚠️ El Captcha fue incorrecto. Por favor, inténtalo de nuevo.');
+            }
+          } catch (e) {
+            captchaActivo = await page.locator('img[src*="Captcha"]').count() > 0;
+          }
+        }
+        console.log('  ✅ Captcha resuelto exitosamente, continuando con el proceso automático...');
+      } else {
+        await Promise.all([
+          page.waitForLoadState('networkidle'),
+          page.locator('input[value="Iniciar Sesión"], input[type="submit"]').first().click()
+        ]);
+      }
+
+      // ─── Verificar si la cuenta fue bloqueada ───────────────────────────────
+      const contenidoTras = await page.content();
+      if (contenidoTras.includes('bloqueado') || contenidoTras.includes('número de intentos')) {
         throw new Error(
-          `🔒 Login fallido ${MAX_INTENTOS} veces seguidas. Se detuvo el proceso para EVITAR EL BLOQUEO de la cuenta.\n` +
-          '   ➡️  Verifica que el usuario y contraseña en el archivo .env sean correctos.'
+          '🔒 CUENTA BLOQUEADA: el sistema bloqueó el usuario por demasiados intentos fallidos.\n' +
+          '   ➡️  Solución: ve a rubonline.icbf.gov.co y usa "¿Olvidaste tu Contraseña?" para desbloquearte.\n' +
+          '   ⚠️  NO vuelvas a intentar el login hasta desbloquear la cuenta.'
         );
       }
-      console.log(c.rojo(`  ❌ Credenciales incorrectas. Intento ${intentoActual} de ${MAX_INTENTOS}.`));
-      console.log(c.amarillo(`  ⚠️  CUIDADO: ${MAX_INTENTOS - intentoActual} intento(s) restante(s) antes del bloqueo.`));
-      await page.waitForTimeout(2000);
-      continue; // Reintentar
+
+      // ─── Verificar si las credenciales fueron rechazadas ────────────────────
+      const credencialesInvalidas = contenidoTras.includes('Usuario o contraseña incorrectos') ||
+                                    contenidoTras.includes('Datos incorrectos') ||
+                                    contenidoTras.includes('no válido') ||
+                                    contenidoTras.includes('incorrecto');
+
+      if (credencialesInvalidas) {
+        if (intentoActual >= MAX_INTENTOS) {
+          throw new Error(
+            `🔒 Login fallido ${MAX_INTENTOS} veces seguidas. Se detuvo el proceso para EVITAR EL BLOQUEO de la cuenta.\n` +
+            '   ➡️  Verifica que el usuario y contraseña en el archivo .env sean correctos.'
+          );
+        }
+        console.log(c.rojo(`  ❌ Credenciales incorrectas. Intento ${intentoActual} de ${MAX_INTENTOS}.`));
+        console.log(c.amarillo(`  ⚠️  CUIDADO: ${MAX_INTENTOS - intentoActual} intento(s) restante(s) antes del bloqueo.`));
+        await page.waitForTimeout(2000);
+        continue; // Reintentar
+      }
+
+      // ─── Si llegó aquí, las credenciales fueron aceptadas ────────────────
+      break;
     }
 
-    // ─── Si llegó aquí, las credenciales fueron aceptadas ────────────────
-    break;
+    tiene2FA = await detectar2FA(page);
   }
-
-  const tiene2FA = await detectar2FA(page);
 
   if (tiene2FA) {
     console.log('  🔑 El sistema solicita código 2FA...');
@@ -128,13 +139,13 @@ async function loginYLlegarARoles(page, credenciales) {
     console.log(); // salto de línea después del spinner
 
     // Ingresar el código
-    const campoCodigo = page.locator('input[placeholder*="código"], input[placeholder*="codigo"], input[type="text"]').first();
+    const campoCodigo = page.locator('input[placeholder*="código" i], input[placeholder*="codigo" i], input[id*="Codigo" i], input[type="text"]:visible').first();
     await campoCodigo.fill(codigo);
 
     // Click en botón "Verificar Código"
     await Promise.all([
-      page.waitForLoadState('networkidle'),
-      page.locator('input[value="Verificar Código"], button:has-text("Verificar"), input[value*="Verificar"]').first().click()
+      page.waitForLoadState('networkidle').catch(() => {}),
+      page.locator('input[value*="Verificar" i], button:has-text("Verificar"), input[type="submit"][value*="Verificar" i]').first().click()
     ]);
     // Darle tiempo extra a ASP.NET para asimilar el 2FA
     await page.waitForTimeout(3000);

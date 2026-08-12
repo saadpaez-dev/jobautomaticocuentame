@@ -107,21 +107,29 @@ async function main() {
         // Verificar si ya hay sesión activa
         const urlActual = page.url();
         const textoActual = await page.evaluate(() => document.body.innerText).catch(() => '');
-        const sesionActiva = urlActual.includes('MasterPrincipal') || 
-                             textoActual.includes('Seleccione la entidad') || 
-                             textoActual.includes('Rub online');
+        
+        const esLoginO2FA = textoActual.includes('Iniciar Sesión') || 
+                            textoActual.includes('Ingrese su código') || 
+                            textoActual.includes('Se ha enviado un código') || 
+                            textoActual.includes('¿Olvidaste tu Contraseña?');
+
+        const sesionActiva = !esLoginO2FA && (
+            urlActual.includes('MasterPrincipal') || 
+            urlActual.includes('Roles.aspx') || 
+            textoActual.includes('Seleccione la entidad')
+        );
 
         if (sesionActiva) {
             console.log(c.verde('  ✅ Sesión activa detectada en Cuéntame. ¡Listo para trabajar!\n'));
         } else {
-            console.log(c.amarillo('  🔐 Sin sesión activa. Iniciando login automático en Cuéntame...'));
+            console.log(c.amarillo('  🔐 Autenticando en Cuéntame (procesando 2FA)...'));
             await loginYLlegarARoles(page, {
                 usuario: USUARIO,
                 password: PASSWORD,
                 gmailUser: GMAIL_USER,
                 gmailAppPassword: GMAIL_APP_PASSWORD
             });
-            console.log(c.verde('  ✅ Login completado. ¡Cuéntame listo para operar!\n'));
+            console.log(c.verde('  ✅ Autenticación completada. ¡Cuéntame listo para operar!\n'));
         }
         
         await browser.close();

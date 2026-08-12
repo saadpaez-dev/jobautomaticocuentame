@@ -21,6 +21,43 @@ const c = {
   negrita:  (t) => `\x1b[1m${t}\x1b[0m`,
 };
 
+function removeAccents(str) {
+    if (!str) return '';
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+}
+
+function buscarCoincidenciaPorNombre(ninoTarget, listaNinos) {
+    if (!ninoTarget || !ninoTarget.nombreCompleto) return null;
+    
+    const cleanTarget = removeAccents(ninoTarget.nombreCompleto);
+    const tokensTarget = cleanTarget.split(/\s+/).filter(t => t.length > 2);
+    
+    if (tokensTarget.length === 0) return null;
+
+    let mejorCoincidencia = null;
+    let maxCoincidencias = 0;
+
+    for (const nino of listaNinos) {
+        const cleanCuentame = removeAccents(nino.nombreCompleto);
+        const tokensCuentame = cleanCuentame.split(/\s+/).filter(t => t.length > 2);
+        
+        let coincidenciaCount = 0;
+        for (const token of tokensTarget) {
+            if (tokensCuentame.some(tC => tC.includes(token) || token.includes(tC))) {
+                coincidenciaCount++;
+            }
+        }
+
+        const minRequerido = Math.min(2, tokensTarget.length);
+        if (coincidenciaCount >= minRequerido && coincidenciaCount > maxCoincidencias) {
+            maxCoincidencias = coincidenciaCount;
+            mejorCoincidencia = nino;
+        }
+    }
+
+    return mejorCoincidencia;
+}
+
 async function main() {
   const USUARIO = process.env.CUENTAME_USUARIO;
   const PASSWORD = process.env.CUENTAME_PASSWORD;
@@ -561,6 +598,16 @@ async function main() {
                   } else {
                       continue;
                   }
+              } else if (resultados.length === 0 && modoExcel && modoExcel.startsWith('MASIVO_')) {
+                  const ninoTarget = ninosExcel[idxNinoExcelActual];
+                  const ninoPorNombre = buscarCoincidenciaPorNombre(ninoTarget, listaNinos);
+                  if (ninoPorNombre) {
+                      console.log(c.amarillo(`  ⚠️ Documento "${input}" no se encontró en Cuéntame (posible error de digitación).`));
+                      console.log(c.verde(`  ✨ Coincidencia encontrada por Nombre/Apellido:`));
+                      console.log(c.verde(`     - Nombre Excel: ${ninoTarget.nombreCompleto}`));
+                      console.log(c.verde(`     - Niño en Cuéntame: ${c.cyan(ninoPorNombre.documento)} - ${ninoPorNombre.nombreCompleto}`));
+                      ninoSeleccionado = ninoPorNombre;
+                  }
               }
           }
 
@@ -797,27 +844,87 @@ async function main() {
                   await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
 
                   console.log(c.amarillo('\n  ✨ Llenado automático finalizado.'));
+                  // ── GUARDADO AUTOMÁTICO ─────────────────────────────────
+                  console.log(c.amarillo('  ⏳ Guardando automáticamente en Cuéntame (clic en disco de guardar)...'));
+                  
+                  // Escuchar diálogos/alertas nativos del navegador por si Cuéntame lanza un alert() nativo
+                  const dialogHandler = async dialog => {
+                      console.log(c.amarillo(`  ⚠️  Diálogo nativo de la página: "${dialog.message().slice(0, 80)}" → Aceptando...`));
+                      await dialog.accept().catch(() => {});
+                  };
+                  page.on('dialog', dialogHandler);
+
+                  try {
+                      const btnGuardar = content.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
+                      if (await btnGuardar.count() > 0) {
+                          await btnGuardar.click({ timeout: 3000 }).catch(() => btnGuardar.evaluate(node => node.click()));
+                          console.log(c.verde('  ✅ Clic en botón Guardar enviado.'));
+                      } else {
+                          console.log(c.rojo('  ❌ No se encontró el botón de Guardar. Por favor guárdalo manualmente.'));
+                      }
+                  } catch (e) {
+                      console.log(c.rojo(`  ❌ Error al presionar Guardar: ${e.message}`));
+                  }
+
+                  // Esperar a que aparezca la ventana emergente o el cuadro de diálogo
+                  await page.waitForTimeout(1000);
+
+                  // ── CERRAR POPUP DE ADVERTENCIA / CONFIRMACIÓN si aparece ──────────
+                  const btnAceptarPopupPage = page.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
+                  const btnAceptarPopupFrame = content.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
+
+                  if (await btnAceptarPopupPage.isVisible({ timeout: 800 }).catch(() => false)) {
+                      console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada → haciendo clic en Aceptar...'));
+                      await btnAceptarPopupPage.click().catch(() => {});
+                      await page.waitForTimeout(2000); // Dar tiempo para que el guardado postback se procese
+                  } else if (await btnAceptarPopupFrame.isVisible({ timeout: 800 }).catch(() => false)) {
+                      console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada en formulario → haciendo clic en Aceptar...'));
+                      await btnAceptarPopupFrame.click().catch(() => {});
+                      await page.waitForTimeout(2000); // Dar tiempo para que el guardado postback se procese
+                  } else {
+                      // Si no hubo popup, esperar 2 segundos extra para asegurar que el postback de guardado finalice
+                      await page.waitForTimeout(2000);
+                  }
+
+                  console.log(c.verde('  ✅ Formulario guardado con éxito en Cuéntame.'));
+                  page.off('dialog', dialogHandler);
+
+                  // Re-obtener el frame actualizado tras el guardado
+                  let activeContent = page.frame({ name: 'frameContent' });
+                  if (!activeContent) {
+                      for (const f of page.frames()) {
+                          if (f.name() === 'frameContent') {
+                              activeContent = f;
+                              break;
+                          }
+                      }
+                  }
+                  if (!activeContent) activeContent = page;
+
                   if (modoExcel && modoExcel.startsWith('MASIVO_')) {
-                      console.log(c.amarillo('  ⏳ [DRY-RUN MASIVO] Omitiendo guardado automático por solicitud de prueba...'));
-                      await page.waitForTimeout(1500); // 2 segundos para ver que pasó
-                      console.log(c.amarillo('  ⏳ Volviendo a la consulta general de ninos...'));
+                      console.log(c.verde(`  🎉 Niño ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                       idxNinoExcelActual++;
+                      console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños de la UDS para el siguiente...'));
+                      
+                      await page.waitForTimeout(800);
+                      
                       try {
-                          const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"]').first();
+                          const btnBuscar = activeContent.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"], img[src*="lupa"]').first();
                           if (await btnBuscar.count() > 0) {
                               await Promise.all([
-                                  content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                  activeContent.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                   btnBuscar.evaluate(node => node.click())
                               ]);
+                              await page.waitForTimeout(1500); // Esperar a que cargue la grilla de niños de la UDS
                           } else {
-                              // Fallback al menu lateral si no encuentra la lupa
                               const rootMenu = page.frame({ name: 'frameMenu' }) || page;
                               const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
                               if (await childMenu.count() > 0) {
                                   await Promise.all([
-                                      content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                                      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                       childMenu.evaluate(node => node.click())
                                   ]);
+                                  await page.waitForTimeout(2000);
                               } else {
                                   await rootMenu.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
                                   await page.waitForTimeout(4000);
@@ -826,41 +933,7 @@ async function main() {
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error volviendo a la consulta (lupa): ${e.message}`));
                       }
-                      break; // Salir de Fase 3 y volver a Fase 2 (siguiente niño)
-                  }
-
-                  // ── GUARDADO AUTOMÁTICO ─────────────────────────────────
-                  console.log(c.amarillo('  ⏳ Guardando automáticamente...'));
-                  try {
-                      const btnGuardar = content.locator('#cphCont_btnGuardar, input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i]').first();
-                      if (await btnGuardar.count() > 0) {
-                          await Promise.all([
-                              content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                              btnGuardar.evaluate(node => node.click())
-                          ]);
-
-                          // ── CERRAR POPUP DE ADVERTENCIA si aparece ──────────
-                          // Ej: "El valor de la TALLA es mayor al registrado en la última toma"
-                          await page.waitForTimeout(800);
-                          const btnAceptarPopup = page.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar")').first();
-                          if (await btnAceptarPopup.isVisible({ timeout: 2000 }).catch(() => false)) {
-                              console.log(c.amarillo('  ⚠️  Popup de advertencia detectado → cerrando automáticamente...'));
-                              await btnAceptarPopup.click();
-                              await page.waitForTimeout(500);
-                          }
-                          // También verificar dentro del frame content
-                          const btnAceptarFrame = content.locator('button:has-text("Aceptar"), input[value="Aceptar"]').first();
-                          if (await btnAceptarFrame.isVisible({ timeout: 1000 }).catch(() => false)) {
-                              await btnAceptarFrame.click();
-                              await page.waitForTimeout(500);
-                          }
-
-                          console.log(c.verde('  ✅ Formulario guardado con éxito.'));
-                      } else {
-                          console.log(c.rojo('  ❌ No se encontró el botón de Guardar. Por favor guárdalo manualmente.'));
-                      }
-                  } catch (e) {
-                      console.log(c.rojo(`  ❌ Error al guardar: ${e.message}`));
+                      break; // Salir de la Fase 3 del niño actual y pasar al siguiente en la lista masiva
                   }
 
 

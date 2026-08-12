@@ -14,9 +14,10 @@ const POLL_INTERVAL_MS = 3000;
  * para asegurar que no leamos un código viejo por error.
  */
 async function limpiarBuzon2FA(gmailUser, appPassword) {
+  const cleanPass = (appPassword || '').replace(/\s+/g, '').replace(/["']/g, '');
   const c = new ImapFlow({
     host: 'imap.gmail.com', port: 993, secure: true,
-    auth: { user: gmailUser, pass: appPassword },
+    auth: { user: gmailUser, pass: cleanPass },
     logger: false
   });
   
@@ -49,9 +50,10 @@ async function limpiarBuzon2FA(gmailUser, appPassword) {
  * @returns {Promise<string>} El código de 6 dígitos
  */
 async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
+  const cleanPass = (appPassword || '').replace(/\s+/g, '').replace(/["']/g, '');
   const c = new ImapFlow({
     host: 'imap.gmail.com', port: 993, secure: true,
-    auth: { user: gmailUser, pass: appPassword },
+    auth: { user: gmailUser, pass: cleanPass },
     logger: false
   });
   
