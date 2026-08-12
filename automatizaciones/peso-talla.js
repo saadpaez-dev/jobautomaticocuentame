@@ -505,8 +505,7 @@ async function main() {
           }
 
           if (idxAsociacion === 0) {
-              console.log(c.verde('\n  ✅ Proceso finalizado. Cerrando navegador...'));
-              if (browser) await browser.close();
+              console.log(c.verde('\n  👋 Volviendo al panel principal...'));
               break;
           }
           ascSeleccionada = asociaciones[idxAsociacion - 1];

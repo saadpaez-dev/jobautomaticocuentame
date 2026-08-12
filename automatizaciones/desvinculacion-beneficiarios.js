@@ -70,7 +70,6 @@ async function main() {
 
           if (idxAsociacion === 0) {
             console.log(c.verde('\n  👋 Volviendo al menú principal...'));
-            if (browser) await browser.close();
             break;
           }
           ascSeleccionada = asociaciones[idxAsociacion - 1];
@@ -583,7 +582,6 @@ async function main() {
       }
   }
 
-  if (browser) await browser.close();
   console.log(c.verde('\n  👋 Módulo finalizado.\n'));
 }
 

@@ -444,10 +444,7 @@ async function main() {
   const archivoLog = guardarLog(log);
   console.log(c.gris(`  📄 Log guardado en: ${archivoLog}\n`));
 
-  if (browser) {
-    await browser.close();
-    console.log(c.cyan('  Navegador cerrado. Hasta luego!\n'));
-  }
+  console.log(c.verde('  👋 Módulo finalizado. Navegador mantenido activo.\n'));
 }
 
 main().catch((err) => {

@@ -1321,8 +1321,7 @@ async function main() {
 
   }
   
-  // Asegurar que cerramos la conexión para no dejar el proceso colgado
-  if (browser) await browser.close();
+  console.log(c.verde('\n  👋 Módulo finalizado.\n'));
 }
 
 if (require.main === module) {

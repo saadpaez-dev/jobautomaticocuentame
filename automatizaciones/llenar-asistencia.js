@@ -451,11 +451,8 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociacion: '), { cancel: 'Atras' });
         
         if (ascIdx === -1) {
-            if (browser) {
-                console.log(c.verde('\n  🎉 FASE 2 COMPLETADA CON ÉXITO. Cerrando navegador...'));
-                await browser.close();
-            }
-            process.exit(0);
+            console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+            break;
         }
 
         const asc = asociaciones[ascIdx];

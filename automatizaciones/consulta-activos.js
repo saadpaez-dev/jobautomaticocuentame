@@ -68,7 +68,6 @@ async function main() {
 
       if (idxAsociacion === 0) {
         console.log(c.verde('\n  👋 Volviendo al menú principal...'));
-        if (browser) await browser.close();
         break;
       }
 
@@ -459,10 +458,7 @@ async function main() {
   
   } // End of outer while(true) (asociacion loop)
 
-  if (browser) {
-    await browser.close().catch(() => {});
-  }
-  process.exit(0);
+  console.log(c.verde('\n  👋 Módulo finalizado.\n'));
 }
 
 main().catch(console.error);
