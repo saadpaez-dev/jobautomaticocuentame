@@ -16,7 +16,7 @@ const c = {
 
 /**
  * Normaliza y clasifica documentos de una carpeta de entrada y genera los 3 PDFs requeridos
- * @param {string} documento - El número de documento del niño (para buscar en docs/entradas/)
+ * @param {string} documento - El numero de documento del nino (para buscar en docs/entradas/)
  * @returns {Promise<boolean>} true si se generaron los 3 PDFs correctamente, false en caso contrario
  */
 async function procesarDocumentos(documento) {
@@ -25,8 +25,8 @@ async function procesarDocumentos(documento) {
 
     if (!fs.existsSync(inputDir)) {
         fs.mkdirSync(inputDir, { recursive: true });
-        console.log(c.amarillo(`  ⚠️ La carpeta de entradas generales no existía, la he creado en: ${inputDir}`));
-        console.log(c.amarillo(`     Por favor coloca allí los archivos de soporte y vuelve a intentar.`));
+        console.log(c.amarillo(`  ⚠️ La carpeta de entradas generales no existia, la he creado en: ${inputDir}`));
+        console.log(c.amarillo(`     Por favor coloca alli los archivos de soporte y vuelve a intentar.`));
         return false;
     }
 
@@ -36,9 +36,9 @@ async function procesarDocumentos(documento) {
 
     const allFiles = fs.readdirSync(inputDir).filter(f => !f.startsWith('.'));
     if (allFiles.length === 0) {
-        console.log(c.amarillo(`  ⚠️ La carpeta general de entradas está vacía.`));
+        console.log(c.amarillo(`  ⚠️ La carpeta general de entradas esta vacia.`));
         console.log(c.amarillo(`     Ruta esperada: ${inputDir}`));
-        console.log(c.amarillo(`     (Coloca allí los PDFs/JPGs antes de generar el correo).`));
+        console.log(c.amarillo(`     (Coloca alli los PDFs/JPGs antes de generar el correo).`));
         return false;
     }
 
@@ -73,7 +73,7 @@ async function procesarDocumentos(documento) {
                     tipoOriginal: 'pdf',
                     bytes: subPdfBytes,
                     texto: pdfTextoGlobal.toLowerCase(),
-                    origen: `${file} (Pág ${i + 1})`
+                    origen: `${file} (Pag ${i + 1})`
                 });
             }
         } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
@@ -104,7 +104,7 @@ async function procesarDocumentos(documento) {
         paginasExtraidas.push(...paginasTemporales);
     }
 
-    // Fase 3: Clasificación Inteligente
+    // Fase 3: Clasificacion Inteligente
     let clasificacion = {
         RC: [],
         RAM: [],
@@ -117,40 +117,40 @@ async function procesarDocumentos(documento) {
         const txt = pag.texto;
         const origen = pag.origen.toLowerCase();
         
-        let esRC = txt.includes('nuip') || txt.includes('registro civil') || txt.includes('registraduria nacional') || txt.includes('lugar de nacimiento') || txt.includes('república de colombia') || txt.includes('tarjeta de identidad') || origen.includes('registro') || origen.includes('rc') || origen.includes('identidad');
-        let esRAM = txt.includes('formato registro asistencia mensual') || txt.includes('asistencia') || txt.includes('ram') || txt.includes('días') || txt.includes('icbf') || origen.includes('ram') || origen.includes('asistencia');
+        let esRC = txt.includes('nuip') || txt.includes('registro civil') || txt.includes('registraduria nacional') || txt.includes('lugar de nacimiento') || txt.includes('republica de colombia') || txt.includes('tarjeta de identidad') || origen.includes('registro') || origen.includes('rc') || origen.includes('identidad');
+        let esRAM = txt.includes('formato registro asistencia mensual') || txt.includes('asistencia') || txt.includes('ram') || txt.includes('dias') || txt.includes('icbf') || origen.includes('ram') || origen.includes('asistencia');
         let esCarta = txt.includes('certifico') || txt.includes('constancia') || txt.includes('por medio de') || txt.includes('asiste') || txt.includes('cordial saludo') || origen.includes('carta') || origen.includes('madre comunitaria');
 
-        // Ponderación básica si coinciden varios
+        // Ponderacion basica si coinciden varios
         if (esRC) clasificacion.RC.push(pag);
         else if (esRAM) clasificacion.RAM.push(pag);
         else if (esCarta) clasificacion.CARTA.push(pag);
         else noClasificados.push(pag);
     }
 
-    // Fase 3.5: Lógica de descarte (si falta 1 categoría y sobra 1 documento no clasificado)
+    // Fase 3.5: Logica de descarte (si falta 1 categoria y sobra 1 documento no clasificado)
     const categoriasFaltantes = [];
     if (clasificacion.RC.length === 0) categoriasFaltantes.push('RC');
     if (clasificacion.RAM.length === 0) categoriasFaltantes.push('RAM');
     if (clasificacion.CARTA.length === 0) categoriasFaltantes.push('CARTA');
 
     if (categoriasFaltantes.length === 1 && noClasificados.length === 1) {
-        console.log(c.cyan(`     🧠 Aplicando descarte: El documento no clasificado '${noClasificados[0].origen}' será asignado a ${categoriasFaltantes[0]}`));
+        console.log(c.cyan(`     🧠 Aplicando descarte: El documento no clasificado '${noClasificados[0].origen}' sera asignado a ${categoriasFaltantes[0]}`));
         clasificacion[categoriasFaltantes[0]].push(noClasificados[0]);
         noClasificados = [];
         categoriasFaltantes.pop(); // Ya no falta
     }
 
-    // Si aún hay no clasificados, los metemos a la carta por defecto, que es la más informal y difícil de leer
+    // Si aun hay no clasificados, los metemos a la carta por defecto, que es la mas informal y dificil de leer
     if (noClasificados.length > 0 && clasificacion.CARTA.length === 0) {
-        console.log(c.cyan(`     🧠 Aplicando descarte: Asignando hojas no reconocidas a CARTA por ser el documento más informal.`));
+        console.log(c.cyan(`     🧠 Aplicando descarte: Asignando hojas no reconocidas a CARTA por ser el documento mas informal.`));
         clasificacion.CARTA = [...noClasificados];
     } else if (noClasificados.length > 0) {
         // Si ya hay carta, metemos lo extra a la carta
         clasificacion.CARTA.push(...noClasificados);
     }
 
-    // Fase 4: Ensamblaje y Validación
+    // Fase 4: Ensamblaje y Validacion
     let todoExitoso = true;
     const archivosGenerar = [
         { key: 'RAM', name: 'RAM.pdf' },
@@ -176,7 +176,7 @@ async function procesarDocumentos(documento) {
         const pdfBytes = await mergedPdf.save();
         const outputPath = path.join(outputDir, doc.name);
         fs.writeFileSync(outputPath, pdfBytes);
-        console.log(c.verde(`     ✔️ Generado ${doc.name} (compuesto por ${paginas.length} página(s))`));
+        console.log(c.verde(`     ✔️ Generado ${doc.name} (compuesto por ${paginas.length} pagina(s))`));
     }
 
     if (todoExitoso) {

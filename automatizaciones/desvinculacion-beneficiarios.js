@@ -1,6 +1,6 @@
 /**
  * desvinculacion-beneficiarios.js
- * Script para retirar beneficiarios en Cuéntame.
+ * Script para retirar beneficiarios en Cuentame.
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
@@ -39,7 +39,7 @@ async function main() {
   }
 
   console.log(c.cyan('\n======================================================'));
-  console.log(c.cyan('   ❌ DESVINCULACIÓN DE BENEFICIARIOS (RETIRO)'));
+  console.log(c.cyan('   ❌ DESVINCULACION DE BENEFICIARIOS (RETIRO)'));
   console.log(c.cyan('======================================================\n'));
   
   let browser = null;
@@ -76,7 +76,7 @@ async function main() {
       }
 
 
-      // --- Conexión al navegador ---
+      // --- Conexion al navegador ---
       if (!browser) {
           console.log(c.cyan('\n  🌐 Conectando al navegador existente (CDP)...\n'));
           const navData = await obtenerNavegador();
@@ -88,7 +88,7 @@ async function main() {
       try {
         const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
         if (!mismaAsociacion) {
-            console.log(c.amarillo('  🔐 Verificando inicio de sesión en Cuéntame...'));
+            console.log(c.amarillo('  🔐 Verificando inicio de sesion en Cuentame...'));
             await loginYLlegarARoles(page, {
               usuario: USUARIO,
               password: PASSWORD,
@@ -99,12 +99,12 @@ async function main() {
             console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
             await seleccionarRolYEntrar(page, ascSeleccionada);
         } else {
-            console.log(c.verde(`  ✅ Preservando sesión y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
+            console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
             loggedIn = true;
         }
         
         // Navegar a Beneficiario > Beneficiario
-        console.log(c.cyan('  🚀 Navegando al módulo de Beneficiarios...'));
+        console.log(c.cyan('  🚀 Navegando al modulo de Beneficiarios...'));
         
         let menuFrame = page.frame({ name: 'frameMenu' });
         if (!menuFrame) {
@@ -126,13 +126,13 @@ async function main() {
             } else if (links.length === 1) {
                 await links[0].evaluate(n => n.click());
                 await page.waitForTimeout(500);
-                // Si abrió submenu y aparecieron más, clic al hijo
+                // Si abrio submenu y aparecieron mas, clic al hijo
                 const nuevosLinks = await rootMenu.locator('a:text-is("Beneficiario")').all();
                 if (nuevosLinks.length >= 2) {
                     await nuevosLinks[1].evaluate(n => n.click());
                 }
             } else {
-                console.log(c.rojo('  ⚠️ No se encontró el menu Beneficiario.'));
+                console.log(c.rojo('  ⚠️ No se encontro el menu Beneficiario.'));
             }
             await page.waitForTimeout(3000);
         } catch(e) {
@@ -187,9 +187,9 @@ async function main() {
             }
 
             console.log(c.cyan(`\n---------------------------------------------------------`));
-            console.log(c.cyan(`Jardín actual: ${jardinSeleccionado.nombre}`));
+            console.log(c.cyan(`Jardin actual: ${jardinSeleccionado.nombre}`));
 
-            // Click en el botón de Desvincular (-) si existe
+            // Click en el boton de Desvincular (-) si existe
             console.log(c.amarillo('  ⏳ Entrando al modo de Desvinculacion...'));
             const btnDesvincular = contentFrame.locator('img[src*="delete.gif"], a[id*="btnDesvincular"]').first();
             if (await btnDesvincular.count() > 0) {
@@ -197,17 +197,17 @@ async function main() {
                 await page.waitForTimeout(2500); // Esperar a que cargue la interfaz de desvinculacion
             }
 
-            // --- LLENAR FILTROS (Misma lógica robusta) ---
+            // --- LLENAR FILTROS (Misma logica robusta) ---
             console.log(c.amarillo(`  ⏳ Llenando filtros de Contrato para ${ascSeleccionada.nombreCorto}...`));
             
-            // Área misional: Direccion de Primera Infancia
+            // Area misional: Direccion de Primera Infancia
             const selectArea = contentFrame.locator('select').filter({ hasText: 'Primera Infancia' }).first();
             if (await selectArea.count() > 0) {
                 await selectArea.selectOption({ label: 'Direccion de Primera Infancia' }).catch(()=>{});
                 await page.waitForTimeout(1000);
             }
 
-            // Vigencia: Usar la del Excel, si no, el año actual
+            // Vigencia: Usar la del Excel, si no, el ano actual
             let vigenciaStr = ascSeleccionada.vigenciaContrato || new Date().getFullYear().toString();
             if (!vigenciaStr) vigenciaStr = new Date().getFullYear().toString();
 
@@ -217,7 +217,7 @@ async function main() {
                 await page.waitForTimeout(1500);
             }
 
-            // Función auxiliar robusta
+            // Funcion auxiliar robusta
             const waitForAndSelect = async (selectLocator, textToMatch = null) => {
                 if (await selectLocator.count() === 0) return null;
                 let opts = [];
@@ -286,14 +286,14 @@ async function main() {
             const selectServicio = contentFrame.locator('select[id*="ddlServicio"], select[id*="Servicio"]').first();
             const servOpts = await waitForAndSelect(selectServicio);
             if (servOpts && servOpts.length > 1) {
-                // --- INICIO Lógica Automatica Agrupado vs Individual ---
+                // --- INICIO Logica Automatica Agrupado vs Individual ---
                 let esAgrupado = false;
                 const nomAsc = ascSeleccionada.nombreCorto.toUpperCase();
                 const nomJardin = (jardinSeleccionado.nombre || "").toUpperCase();
                 
                 if (nomAsc.includes("DELICIAS DEL CARMEN")) {
                     esAgrupado = true;
-                } else if (nomAsc.includes("VERBENAL Y REFUGIO") && (nomJardin.includes("OSITO CARIÑOSITO") || nomJardin.includes("MUNDO DE FANTASIA"))) {
+                } else if (nomAsc.includes("VERBENAL Y REFUGIO") && (nomJardin.includes("OSITO CARINOSITO") || nomJardin.includes("MUNDO DE FANTASIA"))) {
                     esAgrupado = true;
                 } else if (nomAsc.includes("BUENAVISTA") && nomJardin.includes("EL SOLECITO")) {
                     esAgrupado = true;
@@ -303,16 +303,16 @@ async function main() {
                 
                 let matchInd = null;
                 if (esAgrupado) {
-                    matchInd = servOpts.find(o => o.t.toUpperCase().includes("JARDÍN COMUNITARIO") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                    matchInd = servOpts.find(o => o.t.toUpperCase().includes("JARDIN COMUNITARIO") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
                 } else {
                     matchInd = servOpts.find(o => o.t.toUpperCase().includes("HCB FAMI") || o.t.toUpperCase().includes("BIENVENIR"));
                     // Fallback para Individual
-                    if (!matchInd) matchInd = servOpts.find(o => !o.t.toUpperCase().includes("JARDÍN COMUNITARIO") && !o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                    if (!matchInd) matchInd = servOpts.find(o => !o.t.toUpperCase().includes("JARDIN COMUNITARIO") && !o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
                 }
                 
-                // Fallback a lógica original si no encuentra
+                // Fallback a logica original si no encuentra
                 if (!matchInd) matchInd = servOpts.find(o => o.t.includes(jardinSeleccionado.codigo));
-                // --- FIN Lógica Automatica ---
+                // --- FIN Logica Automatica ---
 
                 if (matchInd) {
                     await selectServicio.selectOption(matchInd.v).catch(()=>{});
@@ -392,7 +392,7 @@ async function main() {
                     }
                     break;
                 } else {
-                    console.log(c.rojo('  ❌ Formato de fecha no válido. Debe ser DD/MM/YYYY (ej: 05/08/2026 o 05082026). Intenta nuevamente.'));
+                    console.log(c.rojo('  ❌ Formato de fecha no valido. Debe ser DD/MM/YYYY (ej: 05/08/2026 o 05082026). Intenta nuevamente.'));
                 }
             }
             
@@ -515,7 +515,7 @@ async function main() {
                 }
                 
                 if (!encontrado) {
-                    console.log(c.amarillo(`  ⚠️ No se encontró al beneficiario "${beneficiarioBuscado}" en este jardin. Intenta otro nombre o escribe 0 para cambiar de jardin.`));
+                    console.log(c.amarillo(`  ⚠️ No se encontro al beneficiario "${beneficiarioBuscado}" en este jardin. Intenta otro nombre o escribe 0 para cambiar de jardin.`));
                 }
             }
             
@@ -523,7 +523,7 @@ async function main() {
                 jardinSeleccionado = null; // Para que lo vuelva a pedir
                 continue;
             }
-            // --- GUARDAR DESVINCULACIÓN ---
+            // --- GUARDAR DESVINCULACION ---
             console.log(c.amarillo('\n  ⏳ Ejecutando Guardar...'));
             
             const dialogHandler = async dialog => {
@@ -537,7 +537,7 @@ async function main() {
                 await btnGuardar.click();
                 await page.waitForTimeout(4000); // Esperar respuesta del servidor
                 
-                // Buscar si hay algún mensaje de error o éxito en la pantalla
+                // Buscar si hay algun mensaje de error o exito en la pantalla
                 const lblMensaje = contentFrame.locator('span[id*="lblMensaje"], span[id*="Mensaje"]').first();
                 if (await lblMensaje.count() > 0) {
                     const textoMensaje = await lblMensaje.innerText();
@@ -548,14 +548,14 @@ async function main() {
                 
                 console.log(c.verde(`  ✅ Se ha completado la desvinculacion de ${beneficiarioBuscado}.`));
             } else {
-                console.log(c.rojo('  ❌ No se encontró el botón de Guardar.'));
+                console.log(c.rojo('  ❌ No se encontro el boton de Guardar.'));
             }
             
             page.off('dialog', dialogHandler);
-            // Opciones de qué hacer a continuación
-            console.log(c.cyan('\n  ¿Qué deseas hacer ahora?'));
+            // Opciones de que hacer a continuacion
+            console.log(c.cyan('\n  Que deseas hacer ahora?'));
             console.log(`  ${c.cyan('1')}. Hacer otro retiro (mismos filtros)`);
-            console.log(`  ${c.cyan('2')}. Cambiar de jardín (mantiene Fecha y Motivo)`);
+            console.log(`  ${c.cyan('2')}. Cambiar de jardin (mantiene Fecha y Motivo)`);
             console.log(`  ${c.cyan('3')}. Cambiar de asociacion`);
             console.log(`  ${c.rojo('0')}. Volver al menu principal`);
             
@@ -565,7 +565,7 @@ async function main() {
                 bucleRetiro = false;
             } else if (reqSalir === '2') {
                 jardinSeleccionado = null;
-                // No rompemos bucleRetiro para que pida el jardín y siga en esta pantalla
+                // No rompemos bucleRetiro para que pida el jardin y siga en esta pantalla
             } else if (reqSalir === '3') {
                 ascSeleccionada = null;
                 jardinSeleccionado = null;
@@ -575,14 +575,14 @@ async function main() {
       } catch (err) {
           console.error(c.rojo(`\n❌ Error en el proceso: ${err.message}`));
           console.error(err.stack);
-          const recargar = readline.question(c.amarillo('\n¿Deseas volver a seleccionar asociacion? (s/n): ')).toLowerCase();
+          const recargar = readline.question(c.amarillo('\nDeseas volver a seleccionar asociacion? (s/n): ')).toLowerCase();
           if (recargar !== 's') {
               salirModulo = true;
           }
       }
   }
 
-  console.log(c.verde('\n  👋 Módulo finalizado.\n'));
+  console.log(c.verde('\n  👋 Modulo finalizado.\n'));
   if (browser) await browser.disconnect().catch(() => {});
   process.exit(0);
 }

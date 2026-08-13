@@ -1,14 +1,14 @@
 /**
  * conversor-peso-talla.js
  *
- * Convierte Excels de peso/talla con formato variable (los que envían las
+ * Convierte Excels de peso/talla con formato variable (los que envian las
  * asociaciones) a la estructura fija que ya sabe leer `servicios/excel-parser.js`
  * (mismo layout posicional del "Formato captura" oficial ICBF).
  *
  * Solo importan 6 datos por beneficiario: documento, nombres, apellidos,
- * fecha de la toma, peso, talla y perímetro braquial. Todo lo demás del
+ * fecha de la toma, peso, talla y perimetro braquial. Todo lo demas del
  * formato oficial (sexo, fecha nacimiento, lactancia, etc.) se deja en blanco
- * a propósito: no se necesita para el llenado en Cuéntame.
+ * a proposito: no se necesita para el llenado en Cuentame.
  */
 
 const xlsx = require('xlsx');
@@ -39,7 +39,7 @@ function formatearFecha(dia, mes, anio) {
     return `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${anio}`;
 }
 
-/** Intenta extraer una fecha (dd/mm/aaaa) de un texto libre (título de hoja, nombre de archivo, etc.) */
+/** Intenta extraer una fecha (dd/mm/aaaa) de un texto libre (titulo de hoja, nombre de archivo, etc.) */
 function extraerFechaDeTexto(txt) {
     if (!txt) return null;
     const norm = normalizar(txt).replace(/_/g, ' ');
@@ -56,7 +56,7 @@ function extraerFechaDeTexto(txt) {
         return formatearFecha(m[1], idxMes + 1, m[3]);
     }
 
-    // Solo "MES AAAA" (sin día) -> usa el día 1
+    // Solo "MES AAAA" (sin dia) -> usa el dia 1
     m = norm.match(/(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|SETIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)\.?\s*(\d{4})/);
     if (m) {
         let idxMes = MESES.indexOf(m[1]);
@@ -104,7 +104,7 @@ function parseFechaComparable(fechaDDMMAAAA) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// Detección y extracción: layout OFICIAL (posicional, igual a excel-parser.js)
+// Deteccion y extraccion: layout OFICIAL (posicional, igual a excel-parser.js)
 // ────────────────────────────────────────────────────────────────
 
 function encontrarFilaEncabezadoOficial(data) {
@@ -139,7 +139,7 @@ function extraerAsociacionUds(data) {
     return { asociacion, uds };
 }
 
-/** Igual a `obtenerUltimaToma` de excel-parser.js, pero devolviendo también el índice de toma usado */
+/** Igual a `obtenerUltimaToma` de excel-parser.js, pero devolviendo tambien el indice de toma usado */
 function obtenerUltimaTomaOficial(row) {
     const iniciosToma = [43, 31, 19, 7];
     for (const inicio of iniciosToma) {
@@ -186,7 +186,7 @@ function extraerHojaOficial(data, nombreHoja) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// Detección y extracción: layout GENÉRICO (por encabezados, cualquier posición)
+// Deteccion y extraccion: layout GENERICO (por encabezados, cualquier posicion)
 // ────────────────────────────────────────────────────────────────
 
 const PATRONES_COLUMNA = {
@@ -216,7 +216,7 @@ function encontrarEncabezadoGenerico(data) {
                 }
             }
         });
-        // Header válido si trae al menos peso y talla, y (nombres o documento)
+        // Header valido si trae al menos peso y talla, y (nombres o documento)
         if (columnas.peso !== undefined && columnas.talla !== undefined &&
             (columnas.nombres !== undefined || columnas.documento !== undefined)) {
             return { headerIdx: i, columnas };
@@ -230,7 +230,7 @@ function extraerHojaGenerica(data, nombreHoja) {
     if (!encontrado) return null;
     const { headerIdx, columnas } = encontrado;
 
-    // Fecha de respaldo: busca en las filas de título (arriba del encabezado) o en el nombre de la hoja
+    // Fecha de respaldo: busca en las filas de titulo (arriba del encabezado) o en el nombre de la hoja
     let fechaRespaldo = null;
     for (let i = 0; i < headerIdx; i++) {
         const row = data[i];
@@ -255,7 +255,7 @@ function extraerHojaGenerica(data, nombreHoja) {
         const pesoCrudo = columnas.peso !== undefined ? celdaTexto(row, columnas.peso) : '';
         const tallaCrudo = columnas.talla !== undefined ? celdaTexto(row, columnas.talla) : '';
 
-        // Fila vacía o de cierre de tabla
+        // Fila vacia o de cierre de tabla
         if (!nombreCrudo && !docCrudo) continue;
         if (!pesoCrudo && !tallaCrudo) continue;
         if (filaEsRetirado(row)) continue;
@@ -325,7 +325,7 @@ function analizarExcel(rutaEntrada) {
     }
 
     // Deduplicar: si el mismo documento (o el mismo nombre cuando no hay documento)
-    // aparece varias veces, se conserva la toma con la fecha más reciente.
+    // aparece varias veces, se conserva la toma con la fecha mas reciente.
     const porClave = new Map();
     for (const b of todos) {
         const clave = (b.documento && b.documento !== 'SIN DOCUMENTO')
@@ -342,7 +342,7 @@ function analizarExcel(rutaEntrada) {
         if (fechaNueva && fechaPrevia) {
             if (fechaNueva >= fechaPrevia) porClave.set(clave, b);
         } else {
-            // Sin fechas comparables: se conserva la última encontrada (asumida más reciente)
+            // Sin fechas comparables: se conserva la ultima encontrada (asumida mas reciente)
             porClave.set(clave, b);
         }
     }
@@ -357,16 +357,16 @@ function analizarExcel(rutaEntrada) {
 
 /**
  * Genera un workbook con la estructura posicional que `excel-parser.js` espera
- * (documento en B, nombres en C, apellidos en D, Toma 1 = fecha/peso/talla/perímetro
+ * (documento en B, nombres en C, apellidos en D, Toma 1 = fecha/peso/talla/perimetro
  * en H:K, empezando en la fila 16). El resto de columnas del formato oficial
- * (sexo, fecha nacimiento, lactancia, etc.) se dejan en blanco a propósito.
+ * (sexo, fecha nacimiento, lactancia, etc.) se dejan en blanco a proposito.
  */
 function generarWorkbookOficial({ asociacion, uds, beneficiarios }) {
     const filas = [];
     filas[0] = [];
     filas[7] = ['REGIONAL:', null, null, null, null];
-    filas[8] = ['NOMBRE DE LA ENTIDAD ADMINISTRADORA DE SERVICIO O DEL PRESTADOR DIRECTO DE ATENCIÓN:', null, null, null, asociacion || ''];
-    filas[8][13] = 'NOMBRE DE LA UNIDAD DE SERVICIO / UNIDAD DE ATENCIÓN / UNIDAD COMUNITARIA DE ATENCIÓN:';
+    filas[8] = ['NOMBRE DE LA ENTIDAD ADMINISTRADORA DE SERVICIO O DEL PRESTADOR DIRECTO DE ATENCION:', null, null, null, asociacion || ''];
+    filas[8][13] = 'NOMBRE DE LA UNIDAD DE SERVICIO / UNIDAD DE ATENCION / UNIDAD COMUNITARIA DE ATENCION:';
     filas[8][23] = uds || '';
     filas[13] = [];
     filas[13][0] = 'No. DE ORDEN';
@@ -381,7 +381,7 @@ function generarWorkbookOficial({ asociacion, uds, beneficiarios }) {
     filas[14][7] = 'FECHA DE LA TOMA\n\n(dd/mm/aaaa)';
     filas[14][8] = 'PESO (kg)';
     filas[14][9] = 'TALLA (cm)';
-    filas[14][10] = 'PERÍMETRO BRAQUIAL (cm)';
+    filas[14][10] = 'PERIMETRO BRAQUIAL (cm)';
 
     beneficiarios.forEach((b, idx) => {
         const fila = [];
@@ -400,7 +400,7 @@ function generarWorkbookOficial({ asociacion, uds, beneficiarios }) {
 
     // aoa_to_sheet calcula el rango (!ref) solo a partir de las celdas con
     // contenido. Como las primeras filas del encabezado institucional suelen
-    // quedar vacías, el rango podía "empezar" más abajo de la fila 1 y eso
+    // quedar vacias, el rango podia "empezar" mas abajo de la fila 1 y eso
     // desfasaba la lectura posicional de excel-parser.js. Se fuerza A1 como
     // esquina superior para que las filas de datos siempre caigan donde
     // excel-parser.js las espera (fila 16 en adelante).

@@ -2,7 +2,7 @@
  * llenar-asistencia.js
  * Script para automatizar el llenado masivo de RAM y el desmarcado de inasistencias interactivamente.
  * FASE 1: Llenado masivo de asociaciones.
- * FASE 2: Subida individual y específica.
+ * FASE 2: Subida individual y especifica.
  */
 
 require('dotenv').config();
@@ -32,7 +32,7 @@ function filtrarServiciosPorAsociacion(servOptions, ascNombre, tipoServicio) {
     ascNombre = ascNombre.toUpperCase();
 
     if (ascNombre.includes("DELICIAS DEL CARMEN")) {
-        options = options.filter(o => o.text.includes("420269") || o.text.includes("JARDÍN COMUNITARIO"));
+        options = options.filter(o => o.text.includes("420269") || o.text.includes("JARDIN COMUNITARIO"));
     } else if (ascNombre.includes("BARRIOS UNIDOS") || 
                ascNombre.includes("PROGRESO INFANTIL") || 
                ascNombre.includes("BRISAS DE BUENAVISTA")) {
@@ -42,7 +42,7 @@ function filtrarServiciosPorAsociacion(servOptions, ascNombre, tipoServicio) {
         if (tipoServicio === 'Individual') {
             options = options.filter(o => (o.text.includes("420267") || o.text.includes("HCB")) && !o.text.includes("420269"));
         } else if (tipoServicio === 'Agrupado') {
-            options = options.filter(o => o.text.includes("420269") || o.text.includes("JARDÍN COMUNITARIO"));
+            options = options.filter(o => o.text.includes("420269") || o.text.includes("JARDIN COMUNITARIO"));
         }
     }
     return options;
@@ -73,12 +73,12 @@ async function main() {
 
 
   if (asociaciones.length === 0) {
-    console.error(c.rojo("  ⚠️ No hay asociaciones válidas con contrato en el Excel."));
+    console.error(c.rojo("  ⚠️ No hay asociaciones validas con contrato en el Excel."));
     process.exit(1);
   }
 
   console.log(c.cyan('\n  ======================================================'));
-  console.log(c.cyan('  🤖 BOT DE ASISTENCIA CUÉNTAME - V3'));
+  console.log(c.cyan('  🤖 BOT DE ASISTENCIA CUENTAME - V3'));
   console.log(c.cyan('  ======================================================'));
   
   while (true) {
@@ -119,9 +119,9 @@ async function iniciarNavegador() {
 // FASE 1: LLENADO MASIVO
 // ==========================================
 async function ejecutarFase1(asociaciones, mesAtencion) {
-    console.log(c.cyan('\n  📋 [FASE 1] SELECCIONA LA ASOCIACIÓN PARA SUBIDA GENERAL:'));
+    console.log(c.cyan('\n  📋 [FASE 1] SELECCIONA LA ASOCIACION PARA SUBIDA GENERAL:'));
     console.log(c.amarillo(`  T. 🌟 TODAS LAS ASOCIACIONES`));
-    console.log(c.amarillo(`  0. Atrás`));
+    console.log(c.amarillo(`  0. Atras`));
     asociaciones.forEach((asc, idx) => {
         console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato})`);
     });
@@ -129,7 +129,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     let ascAProcesar = [];
     while (ascAProcesar.length === 0) {
         console.log(c.gris('  (Puedes ingresar varios numeros separados por coma, ej: 1,3,4)'));
-        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es) (o 0 para Atrás): '));
+        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es) (o 0 para Atras): '));
         
         const respTrim = respuesta.trim().toUpperCase();
         if (respTrim === '0') return; // Atras
@@ -143,29 +143,29 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
         const invalidos = partes.filter(n => n < 1 || n > asociaciones.length);
         if (invalidos.length > 0) {
-            console.log(c.rojo(`  ⚠️ Opciones inválidas: ${invalidos.join(', ')}`));
+            console.log(c.rojo(`  ⚠️ Opciones invalidas: ${invalidos.join(', ')}`));
             continue;
         }
         ascAProcesar = partes.map(n => asociaciones[n - 1]);
     }
 
-    // Configurar días a ignorar (Capacitaciones, etc)
+    // Configurar dias a ignorar (Capacitaciones, etc)
     let diasIgnorarStr = readline.question(c.negrita('\n  > Dias a ignorar en todo el mes (separados por coma, ej: 20,25) o ENTER para ninguno: '));
     const diasIgnorar = diasIgnorarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 
     for (let asc of ascAProcesar) {
         if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => asc.nombreCorto.toUpperCase().includes(x))) {
-            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDÍN COMUNITARIO - 420269)'];
+            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDIN COMUNITARIO - 420269)'];
             const res = readline.keyInSelect(opciones, c.negrita(`\n  > La asociacion ${asc.nombreCorto} es MIXTA. Que jardines desea procesar?`), { cancel: false });
             asc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
         }
     }
 
-    console.log(c.verde(`\n  ✅ Iniciando Fase 1: ${ascAProcesar.length} Asociacion(es) | Ignorando días: [${diasIgnorar.join(',') || 'Ninguno'}]`));
+    console.log(c.verde(`\n  ✅ Iniciando Fase 1: ${ascAProcesar.length} Asociacion(es) | Ignorando dias: [${diasIgnorar.join(',') || 'Ninguno'}]`));
 
     const { browser, context, mainPage } = await iniciarNavegador();
     let authCookies = null;
-    let rolesPage = mainPage; // Página que se quedará en Roles.aspx
+    let rolesPage = mainPage; // Pagina que se quedara en Roles.aspx
 
     for (let i = 0; i < ascAProcesar.length; i++) {
         const asc = ascAProcesar[i];
@@ -175,7 +175,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
         if (i === 0) {
             console.log(c.cyan('\n======================================================'));
-            console.log(c.cyan('▶ Iniciando sesión única y 2FA...'));
+            console.log(c.cyan('▶ Iniciando sesion unica y 2FA...'));
             console.log(c.cyan('======================================================\n'));
             await loginYLlegarARoles(rolesPage, { 
                 usuario: process.env.CUENTAME_USUARIO, 
@@ -189,26 +189,26 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
         let workPage = rolesPage;
         try {
             console.log('  🏢 Seleccionando entidad (asociacion)...');
-            // Si NO es la ultima asociacion, abrimos el trabajo en una PESTAÑA NUEVA,
-            // manteniendo rolesPage intacta en la página de roles para el siguiente ciclo.
+            // Si NO es la ultima asociacion, abrimos el trabajo en una PESTANA NUEVA,
+            // manteniendo rolesPage intacta en la pagina de roles para el siguiente ciclo.
             const mantenerRolesTab = (i < ascAProcesar.length - 1);
             workPage = await seleccionarRolYEntrar(rolesPage, asc, mantenerRolesTab);
             await workPage.bringToFront();
-            console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+            console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
             
             console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
             await workPage.waitForTimeout(2500);
 
             let contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
-            if (!contentFrame) throw new Error('No se encontró el frameContent.');
+            if (!contentFrame) throw new Error('No se encontro el frameContent.');
 
             console.log('  📝 Llenando filtros del RAM...');
             const selectDropdown = async (keyword, textOrIndex) => {
             try {
                 const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
                 
-                // Esperar hasta que el select aparezca (máx 10 segs)
+                // Esperar hasta que el select aparezca (max 10 segs)
                 let attempts = 0;
                 while (await sel.count() === 0 && attempts < 20) {
                     await workPage.waitForTimeout(300);
@@ -238,7 +238,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     if (valueToSelect) {
                         break; // Encontrado
                     }
-                    await workPage.waitForTimeout(100); // Esperar a que Cuéntame actualice el select
+                    await workPage.waitForTimeout(100); // Esperar a que Cuentame actualice el select
                 }
 
                 if (valueToSelect) {
@@ -248,7 +248,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
                     await workPage.waitForTimeout(100);
                 } else {
-                    console.log(c.rojo(`    ⚠️ No se encontró la opcion para ${keyword} (${textOrIndex}). Intentando fallback a la primera opcion válida...`));
+                    console.log(c.rojo(`    ⚠️ No se encontro la opcion para ${keyword} (${textOrIndex}). Intentando fallback a la primera opcion valida...`));
                     const fallbackVal = await sel.evaluate(s => {
                         const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
                         return opt ? opt.value : null;
@@ -260,7 +260,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                         await sel.selectOption(fallbackVal, { timeout: 5000 });
                         await workPage.waitForTimeout(100);
                     } else {
-                        console.log(c.rojo(`    ❌ Fallback falló: No hay opciones válidas en ${keyword}.`));
+                        console.log(c.rojo(`    ❌ Fallback fallo: No hay opciones validas en ${keyword}.`));
                     }
                 }
             } catch (e) {
@@ -290,7 +290,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             // Filtrar servicios de 2026 y por reglas de asociacion
             console.log(c.gris(`    [DEBUG] Servicios encontrados sin filtrar: ${serviciosOptions.map(s => s.text).join(' | ')}`));
         let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto, asc.tipoServicio);
-            console.log(c.cyan(`  Encontrados ${serviciosFiltrados.length} servicios válidos (2026).`));
+            console.log(c.cyan(`  Encontrados ${serviciosFiltrados.length} servicios validos (2026).`));
 
             for (let sIdx = 0; sIdx < serviciosFiltrados.length; sIdx++) {
                 const serv = serviciosFiltrados[sIdx];
@@ -340,7 +340,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     }
                     await workPage.waitForTimeout(1500);
 
-                    console.log('    👉 Habilitando edicion (clic en el lápiz)...');
+                    console.log('    👉 Habilitando edicion (clic en el lapiz)...');
                     const lapiz = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
                     if (await lapiz.count() > 0 && await lapiz.isVisible()) {
                         await lapiz.click();
@@ -402,7 +402,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                         continue;
                     }
 
-                    console.log(c.gris('    🔄 Recargando página para desbloquear filtros de la siguiente UDS...'));
+                    console.log(c.gris('    🔄 Recargando pagina para desbloquear filtros de la siguiente UDS...'));
                     await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
                     await workPage.waitForTimeout(1500);
                     contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
@@ -425,16 +425,16 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 } // fin loop UDS
             } // fin loop SERVICIOS
             
-            // Cerrar la pestaña de trabajo temporal si no es la principal
+            // Cerrar la pestana de trabajo temporal si no es la principal
             if (workPage !== rolesPage) {
                 await workPage.close();
             }
         } catch (err) {
-            console.error(c.rojo(`  ❌ Ocurrió un error con ${asc.nombreCorto}: ${err && err.message ? err.message : err}`));
+            console.error(c.rojo(`  ❌ Ocurrio un error con ${asc.nombreCorto}: ${err && err.message ? err.message : err}`));
             console.error(err); 
         }
     }
-    console.log(c.verde('\n  🎉 FASE 1 COMPLETADA CON ÉXITO. Navegador mantenido activo.'));
+    console.log(c.verde('\n  🎉 FASE 1 COMPLETADA CON EXITO. Navegador mantenido activo.'));
 }
 
 // ==========================================
@@ -445,7 +445,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
     let authDone = false;
 
     while (true) {
-        console.log(c.cyan('\n  📋 [FASE 2] SELECCIONA *UNA SOLA* ASOCIACIÓN:'));
+        console.log(c.cyan('\n  📋 [FASE 2] SELECCIONA *UNA SOLA* ASOCIACION:'));
         const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
         const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociacion: '), { cancel: 'Atras' });
         
@@ -456,7 +456,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
         const asc = asociaciones[ascIdx];
         if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => asc.nombreCorto.toUpperCase().includes(x))) {
-            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDÍN COMUNITARIO - 420269)'];
+            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDIN COMUNITARIO - 420269)'];
             const res = readline.keyInSelect(opciones, c.negrita(`\n  > La asociacion ${asc.nombreCorto} es MIXTA. Que jardines desea procesar?`), { cancel: false });
             asc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
         }
@@ -472,7 +472,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         }
 
         console.log(c.cyan('\n======================================================'));
-        console.log(c.cyan('▶ Iniciando sesión única y 2FA...'));
+        console.log(c.cyan('▶ Iniciando sesion unica y 2FA...'));
         console.log(c.cyan('======================================================\n'));
         await loginYLlegarARoles(rolesPage, { 
             usuario: process.env.CUENTAME_USUARIO, 
@@ -486,7 +486,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             console.log('  🏢 Seleccionando entidad (asociacion)...');
             workPage = await seleccionarRolYEntrar(rolesPage, asc, true);
             await workPage.bringToFront();
-            console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
+            console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
             
             console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
@@ -499,7 +499,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             try {
                 const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
                 
-                // Esperar hasta que el select aparezca (máx 10 segs)
+                // Esperar hasta que el select aparezca (max 10 segs)
                 let attempts = 0;
                 while (await sel.count() === 0 && attempts < 20) {
                     await workPage.waitForTimeout(300);
@@ -529,7 +529,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     if (valueToSelect) {
                         break; // Encontrado
                     }
-                    await workPage.waitForTimeout(100); // Esperar a que Cuéntame actualice el select
+                    await workPage.waitForTimeout(100); // Esperar a que Cuentame actualice el select
                 }
 
                 if (valueToSelect) {
@@ -539,7 +539,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
                     await workPage.waitForTimeout(100);
                 } else {
-                    console.log(c.rojo(`    ⚠️ No se encontró la opcion para ${keyword} (${textOrIndex}). Intentando fallback a la primera opcion válida...`));
+                    console.log(c.rojo(`    ⚠️ No se encontro la opcion para ${keyword} (${textOrIndex}). Intentando fallback a la primera opcion valida...`));
                     const fallbackVal = await sel.evaluate(s => {
                         const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
                         return opt ? opt.value : null;
@@ -551,7 +551,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                         await sel.selectOption(fallbackVal, { timeout: 5000 });
                         await workPage.waitForTimeout(100);
                     } else {
-                        console.log(c.rojo(`    ❌ Fallback falló: No hay opciones válidas en ${keyword}.`));
+                        console.log(c.rojo(`    ❌ Fallback fallo: No hay opciones validas en ${keyword}.`));
                     }
                 }
             } catch (e) {
@@ -580,7 +580,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
         console.log(c.gris(`    [DEBUG] Servicios encontrados sin filtrar: ${serviciosOptions.map(s => s.text).join(' | ')}`));
         let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto, asc.tipoServicio);
-        console.log(c.cyan(`  Escaneando ${serviciosFiltrados.length} servicios válidos para encontrar todos los jardines...`));
+        console.log(c.cyan(`  Escaneando ${serviciosFiltrados.length} servicios validos para encontrar todos los jardines...`));
 
         let todasLasUdsMap = [];
         
@@ -596,7 +596,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                         .map(o => ({ value: o.value, text: o.text }));
                 });
                 
-                // Filtrar según el excel si es necesario, o mantenerlas todas
+                // Filtrar segun el excel si es necesario, o mantenerlas todas
                 let udsAIncluir = udsOpts;
                 if (asc.jardinesAProcesar && asc.jardinesAProcesar.length > 0) {
                     udsAIncluir = udsOpts.filter(webUds => {
@@ -614,7 +614,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         }
 
         if (todasLasUdsMap.length === 0) {
-            console.log(c.rojo('  ❌ No se encontró ningún jardín en los servicios de 2026.'));
+            console.log(c.rojo('  ❌ No se encontro ningun jardin en los servicios de 2026.'));
             if (workPage !== rolesPage) await workPage.close();
             continue;
         }
@@ -627,12 +627,12 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             let udsIdx;
             
             if (todasLasUdsMap.length === 1 && !jardinAutoProcesado) {
-                console.log(c.verde(`  ✅ Se encontró un solo jardín: ${todasLasUdsMap[0].uds.text}`));
-                console.log(c.verde(`  Seleccionándolo automaticamente...`));
+                console.log(c.verde(`  ✅ Se encontro un solo jardin: ${todasLasUdsMap[0].uds.text}`));
+                console.log(c.verde(`  Seleccionandolo automaticamente...`));
                 udsIdx = 0;
                 jardinAutoProcesado = true;
             } else if (todasLasUdsMap.length === 1 && jardinAutoProcesado) {
-                console.log(c.verde(`  ✅ Jardín único procesado. Volviendo a seleccion de asociacion...`));
+                console.log(c.verde(`  ✅ Jardin unico procesado. Volviendo a seleccion de asociacion...`));
                 break;
             } else {
                 const udsOptsNombres = todasLasUdsMap.map(u => u.uds.text);
@@ -662,14 +662,14 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             }
             await workPage.waitForTimeout(1500);
 
-            // Llamar a la función unificada
+            // Llamar a la funcion unificada
             await modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown);
         } // Fin while true (Menu jardines)
             if (workPage !== rolesPage) {
                 await workPage.close();
             }
         } catch (err) {
-            console.error(c.rojo(`  ❌ Ocurrió un error: ${err && err.message ? err.message : err}`));
+            console.error(c.rojo(`  ❌ Ocurrio un error: ${err && err.message ? err.message : err}`));
             console.error(err); 
             if (workPage !== rolesPage) await workPage.close();
         }
@@ -711,13 +711,13 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         } else {
             ninosAfectados = listaNinos.filter(n => n.nombre.toUpperCase().includes(nombreBuscado));
             if (ninosAfectados.length === 0) {
-                console.log(c.rojo(`    ⚠️ No se encontró ningún nino con "${seleccionNina}"`));
+                console.log(c.rojo(`    ⚠️ No se encontro ningun nino con "${seleccionNina}"`));
                 continue;
             }
             if (ninosAfectados.length > 1) {
                 console.log(c.amarillo(`    ⚠️ Se encontraron varios ninos que coinciden:`));
                 ninosAfectados.forEach(n => console.log(`      - ${n.nombre}`));
-                console.log(c.amarillo(`    Por favor sea más específico.`));
+                console.log(c.amarillo(`    Por favor sea mas especifico.`));
                 continue;
             }
         }
@@ -736,7 +736,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         const diasInput = readline.question(c.negrita('\n    > Ingrese los dias. Puede usar comas (1,5) o rangos (1-15): ')).trim();
         if (!diasInput) continue;
 
-        // Parsear días
+        // Parsear dias
         let diasAfectados = [];
         const partes = diasInput.split(',');
         for (let p of partes) {
@@ -755,18 +755,18 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         }
 
         if (diasAfectados.length === 0) {
-            console.log(c.rojo('    ⚠️ No se detectaron días válidos.'));
+            console.log(c.rojo('    ⚠️ No se detectaron dias validos.'));
             continue;
         }
 
-        console.log(`    👉 Habilitando edicion (clic en el lápiz)...`);
+        console.log(`    👉 Habilitando edicion (clic en el lapiz)...`);
         const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
         if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
             await lapizNuevo.click();
             await workPage.waitForTimeout(1500);
             contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             
-            // Re-vincular los locators de las filas de los ninos seleccionados porque el DOM cambió
+            // Re-vincular los locators de las filas de los ninos seleccionados porque el DOM cambio
             const rowsNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
             for (let n of ninosAfectados) {
                 if (n.idxOriginal < rowsNuevas.length) {
@@ -776,7 +776,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         }
 
         let modificados = 0;
-        console.log(c.cyan(`    Aplicando cambios a ${diasAfectados.length} días para ${ninosAfectados.length} ninos...`));
+        console.log(c.cyan(`    Aplicando cambios a ${diasAfectados.length} dias para ${ninosAfectados.length} ninos...`));
 
         for (const nino of ninosAfectados) {
             const celdas = await nino.row.locator(':scope > td').all();
@@ -804,8 +804,8 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         const accionStr = marcarAsistencia ? 'asistencias marcadas' : 'inasistencias registradas (desmarcadas)';
         console.log(c.verde(`    ✔️ Se aplicaron ${modificados} cambios (${accionStr}).`));
 
-        // PREGUNTAR AL USUARIO QUÉ HACER
-        const opcionesFin = ['Continuar con OTRO nino (Sin guardar aún)', 'Guardar todos los cambios', 'Cancelar cambios y salir'];
+        // PREGUNTAR AL USUARIO QUE HACER
+        const opcionesFin = ['Continuar con OTRO nino (Sin guardar aun)', 'Guardar todos los cambios', 'Cancelar cambios y salir'];
         const finIdx = readline.keyInSelect(opcionesFin, c.negrita(`  > Que desea hacer ahora?`), { cancel: false });
 
         if (finIdx === 0) {
@@ -824,9 +824,9 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
             }
             await workPage.waitForTimeout(1500);
             console.log(c.verde('    ✅ Guardado exitoso.'));
-            // Cuando guarda, normalmente la página vuelve al modo solo lectura.
-            // Recargamos los filtros para que pueda seleccionar otro jardín correctamente
-            console.log(c.gris('    🔄 Recargando página para desbloquear filtros (equivalente a Volver)...'));
+            // Cuando guarda, normalmente la pagina vuelve al modo solo lectura.
+            // Recargamos los filtros para que pueda seleccionar otro jardin correctamente
+            console.log(c.gris('    🔄 Recargando pagina para desbloquear filtros (equivalente a Volver)...'));
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
             await workPage.waitForTimeout(1500);
             contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
@@ -843,9 +843,9 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
             break;
         } else {
             // Cancelar
-            console.log(c.rojo('    ❌ Cancelando cambios y saliendo de este jardín...'));
+            console.log(c.rojo('    ❌ Cancelando cambios y saliendo de este jardin...'));
             
-            console.log(c.gris('    🔄 Recargando página para restaurar el estado original...'));
+            console.log(c.gris('    🔄 Recargando pagina para restaurar el estado original...'));
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
             await workPage.waitForTimeout(1500);
             contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;

@@ -1,6 +1,6 @@
 /**
  * descargar-reportes.js
- * Script base para navegar al módulo de reportes y preparar la automatización.
+ * Script base para navegar al modulo de reportes y preparar la automatizacion.
  *
  * Uso: npm run reportes
  */
@@ -52,7 +52,7 @@ async function main() {
   
   console.log(c.cyan('\n  📋 Selecciona el Reporte a generar:'));
   console.log(c.amarillo(`  1. Beneficiarios vinculados`));
-  console.log(c.amarillo(`  2. Seguimiento nutricional de ninos y niñas por toma`));
+  console.log(c.amarillo(`  2. Seguimiento nutricional de ninos y ninas por toma`));
   console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
   console.log(c.amarillo(`  4. Unidades de servicio`));
   console.log(c.rojo(`  0. Volver al panel principal (AutoTrabajo / Start)`));
@@ -137,7 +137,7 @@ async function main() {
         if (validas.length > 0) {
             asociacionesSeleccionadas = validas.map(n => asociaciones[n - 1]);
         } else {
-            console.log(c.rojo('  ❌ Opcion no válida. Intenta nuevamente.'));
+            console.log(c.rojo('  ❌ Opcion no valida. Intenta nuevamente.'));
         }
     }
   }
@@ -145,7 +145,7 @@ async function main() {
   let prepararExcel = false;
   
   if (opcionReporte === 1 || opcionReporte === 2) {
-      console.log(c.cyan('\n  📋 ¿Qué acción realizar con el reporte descargado?'));
+      console.log(c.cyan('\n  📋 Que accion realizar con el reporte descargado?'));
       console.log(c.amarillo(`  1. Dejar por defecto (Original)`));
       console.log(c.amarillo(`  2. Preparar reporte (Elimina col A-F, ordena A-Z y agrega filtro)`));
       
@@ -158,7 +158,7 @@ async function main() {
       }
       prepararExcel = (opcionPreparar === 2);
   } else {
-      console.log(c.gris('\n  ℹ️ El reporte se descargará en su formato original (sin modificar).'));
+      console.log(c.gris('\n  ℹ️ El reporte se descargara en su formato original (sin modificar).'));
   }
   
   if (!browser) {
@@ -179,12 +179,12 @@ async function main() {
   const ascValidas = asociacionesSeleccionadas.filter(a => a.numeroContrato);
 
   if (ascValidas.length === 0) {
-    console.log(c.rojo("  ⚠️ No hay asociaciones válidas con contrato seleccionadas."));
+    console.log(c.rojo("  ⚠️ No hay asociaciones validas con contrato seleccionadas."));
     continue;
   }
 
   console.log(c.amarillo(`\n======================================================`));
-  console.log(c.amarillo(`▶ Iniciando sesión y navegacion...`));
+  console.log(c.amarillo(`▶ Iniciando sesion y navegacion...`));
   console.log(c.amarillo(`======================================================`));
 
   let rolesUrl;
@@ -206,13 +206,13 @@ async function main() {
   for (let i = 0; i < ascValidas.length; i++) {
       const asc = ascValidas[i];
 
-      // Corrección manual de contrato solicitada por el usuario
+      // Correccion manual de contrato solicitada por el usuario
       if (asc.nombreCorto && asc.nombreCorto.toUpperCase().includes('VERBENAL')) {
           asc.numeroContrato = '11027492024';
       }
 
-      // La página principal se queda en la seleccion de roles.
-      // Le pedimos a seleccionarRolYEntrar que abra Cuéntame en una pestaña nueva
+      // La pagina principal se queda en la seleccion de roles.
+      // Le pedimos a seleccionarRolYEntrar que abra Cuentame en una pestana nueva
       let reportPage;
       try {
           console.log(c.amarillo(`\n======================================================`));
@@ -220,10 +220,10 @@ async function main() {
           console.log(c.amarillo(`======================================================`));
           console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
           
-          // Para asegurar el cambio limpio de sesión ASP.NET en el servidor de Cuéntame,
-          // forzar cierre de sesión (LogOut) e ingresar limpiamente desde el login
+          // Para asegurar el cambio limpio de sesion ASP.NET en el servidor de Cuentame,
+          // forzar cierre de sesion (LogOut) e ingresar limpiamente desde el login
           if (i > 0) {
-              console.log(c.amarillo(`  🔄 Cerrando sesión para forzar la actualización limpia a "${asc.nombreCorto}"...`));
+              console.log(c.amarillo(`  🔄 Cerrando sesion para forzar la actualizacion limpia a "${asc.nombreCorto}"...`));
               try {
                   await mainPage.goto('https://rubonline.icbf.gov.co/LogOut.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
                   await mainPage.waitForTimeout(1000);
@@ -233,7 +233,7 @@ async function main() {
                   }
               } catch (e) {}
 
-              console.log('  🔐 Re-iniciando sesión limpia en Cuéntame...');
+              console.log('  🔐 Re-iniciando sesion limpia en Cuentame...');
               rolesUrl = await loginYLlegarARoles(mainPage, {
                   usuario: USUARIO,
                   password: PASSWORD,
@@ -254,13 +254,13 @@ async function main() {
         // Definimos la variable para que las funciones helper la capturen.
         let reportFrame = reportPage;
 
-        // Función helper que busca un select en SSRS a partir de su label (texto) y lo llena
+        // Funcion helper que busca un select en SSRS a partir de su label (texto) y lo llena
         const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
             try {
                 const tdElements = reportFrame.locator('td', { hasText: labelText });
                 
                 if (await tdElements.count() === 0) {
-                    console.log(c.amarillo(`    ⚠️ No se encontró la etiqueta "${labelText}" en la página.`));
+                    console.log(c.amarillo(`    ⚠️ No se encontro la etiqueta "${labelText}" en la pagina.`));
                     return false;
                 }
                 
@@ -276,7 +276,7 @@ async function main() {
                 }
                 
                 if (await selectElement.count() === 0) {
-                    console.log(c.amarillo(`    ⚠️ Se encontró el texto "${labelText}" pero no hay un <select> cerca.`));
+                    console.log(c.amarillo(`    ⚠️ Se encontro el texto "${labelText}" pero no hay un <select> cerca.`));
                     return false;
                 }
 
@@ -319,7 +319,7 @@ async function main() {
                         if (foundValue !== null) {
                             await selectElement.selectOption({ value: foundValue });
                         } else {
-                            throw new Error(`No se encontró ninguna opcion que contenga "${valueOrText}". Opciones disponibles: [${availableTexts.join(', ')}]`);
+                            throw new Error(`No se encontro ninguna opcion que contenga "${valueOrText}". Opciones disponibles: [${availableTexts.join(', ')}]`);
                         }
                     }
                 }
@@ -379,7 +379,7 @@ async function main() {
                             }
                         }
                         
-                        // Marcar los específicos
+                        // Marcar los especificos
                         for (const val of vals) {
                             const label = labels.find(l => l.innerText.toUpperCase().includes(val.toUpperCase()));
                             if (label) {
@@ -401,7 +401,7 @@ async function main() {
                     const labels = await divDropdown.locator('label').allInnerTexts();
                     console.log(c.amarillo(`      ⚠️ No se pudo seleccionar "${valueOrText}". Opciones vistas: ${labels.join(', ')}`));
                 } catch(ign) {}
-                console.log(c.rojo(`    ⚠️ Error al seleccionar múltiple en ${id}: ${e.message}`));
+                console.log(c.rojo(`    ⚠️ Error al seleccionar multiple en ${id}: ${e.message}`));
             }
         };
 
@@ -448,7 +448,7 @@ async function main() {
             
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19_ddValue', '2026');
             
-            console.log('    👉 Marcando casilla NULL en Código de la UDS...');
+            console.log('    👉 Marcando casilla NULL en Codigo de la UDS...');
             try {
                 const nullCheckboxId = 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_cbNull';
                 const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
@@ -458,7 +458,7 @@ async function main() {
                 }
             } catch(e) {}
         } else if (opcionReporte === 2) {
-            console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de ninos y niñas...\n');
+            console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de ninos y ninas...\n');
             await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
               waitUntil: 'domcontentloaded',
               timeout: 120000
@@ -484,7 +484,7 @@ async function main() {
             const reportName = opcionReporte === 3 ? "Informe de registro asistencia mensual" : "Unidades de servicio";
             console.log(`  🚀 Navegando a ${reportName}...\n`);
             
-            // Si es la opcion 4 (Unidades de servicio), tomamos el ÚLTIMO que coincida
+            // Si es la opcion 4 (Unidades de servicio), tomamos el ULTIMO que coincida
             // para evitar darle clic al que esta bajo "Calidad de datos"
             let reportLink = opcionReporte === 4 
                 ? reportPage.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).last()
@@ -501,8 +501,8 @@ async function main() {
 
             if (await reportLink.count() === 0) {
                 const text = await reportPage.locator('body').innerText();
-                console.log(c.amarillo('  ⚠️ Texto de la página principal (primeros 500 chars):\n' + text.substring(0, 500)));
-                throw new Error(`No se encontró el enlace al reporte "${reportName}" en el menu.`);
+                console.log(c.amarillo('  ⚠️ Texto de la pagina principal (primeros 500 chars):\n' + text.substring(0, 500)));
+                throw new Error(`No se encontro el enlace al reporte "${reportName}" en el menu.`);
             }
             
             console.log('  👉 Haciendo clic en el menu del reporte...');
@@ -544,7 +544,7 @@ async function main() {
                         const path = require('path');
                         fs.writeFileSync(path.join(__dirname, '..', 'reportes', 'debug_unidades_ssrs.html'), html);
                         console.log(c.amarillo('\n    ⚠️ He guardado el HTML del formulario en reportes/debug_unidades_ssrs.html'));
-                        console.log(c.amarillo('    Por favor envíaselo a la IA (o avísale) para que lea los IDs exactos.'));
+                        console.log(c.amarillo('    Por favor enviaselo a la IA (o avisale) para que lea los IDs exactos.'));
                     }
 
                     await seleccionarSSRSByLabel('Direccion ICBF *', 'Direccion de Primera Infancia');
@@ -576,7 +576,7 @@ async function main() {
         
         console.log('    👉 Iniciando descarga en Excel...');
         
-        // 1. Intentar desplegar el menu de exportación
+        // 1. Intentar desplegar el menu de exportacion
         let exportBtn = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl05_ctl04_ctl00_ButtonImg, input[id*="ButtonImg"], a[title*="Export" i], img[alt*="Export" i], a[id*="ButtonLink"]').first();
         if (await exportBtn.count() === 0) {
             exportBtn = exportButton;
@@ -592,7 +592,7 @@ async function main() {
             }
         }
 
-        // 2. Ejecutar la función interna de exportación de SSRS $find().exportReport() por JavaScript como respaldo infalible
+        // 2. Ejecutar la funcion interna de exportacion de SSRS $find().exportReport() por JavaScript como respaldo infalible
         reportPage.setDefaultTimeout(180000);
         
         const [download] = await Promise.all([
@@ -652,10 +652,10 @@ async function main() {
                     fs.copyFileSync(latestFile, savePath);
                     console.log(c.verde(`    ✅ Reporte recuperado y guardado exitosamente: ${fileName}`));
                 } else {
-                    console.log(c.rojo(`    ❌ No se encontró una descarga reciente para ${asc.nombreCorto}. El archivo en Downloads es de una ejecución anterior.`));
+                    console.log(c.rojo(`    ❌ No se encontro una descarga reciente para ${asc.nombreCorto}. El archivo en Downloads es de una ejecucion anterior.`));
                 }
             } else {
-                console.log(c.rojo(`    ❌ No se encontró el archivo descargado en la carpeta de Descargas.`));
+                console.log(c.rojo(`    ❌ No se encontro el archivo descargado en la carpeta de Descargas.`));
             }
         }
 
@@ -673,9 +673,9 @@ async function main() {
         }
         
       } catch (error) {
-        console.error(c.rojo(`\n  ❌ Ocurrió un error con ${asc.nombreCorto}:`), error.message);
+        console.error(c.rojo(`\n  ❌ Ocurrio un error con ${asc.nombreCorto}:`), error.message);
       } finally {
-        // Cierra la pestaña del reporte si se abrió en una nueva (fallback)
+        // Cierra la pestana del reporte si se abrio en una nueva (fallback)
         if (reportPage && reportPage !== mainPage) {
             await reportPage.close().catch(() => {});
         } else if (reportPage === mainPage && i < ascValidas.length - 1 && rolesUrl) {
@@ -686,18 +686,18 @@ async function main() {
       }
   }
 
-  // Al finalizar todas, no cerramos el contexto todavía
+  // Al finalizar todas, no cerramos el contexto todavia
   console.log(c.verde('\n  ✅ Todas las asociaciones procesadas exitosamente.'));
 
   console.log(c.cyan('\n======================================================'));
-  const respFinal = readline.question(c.negrita('  > ¿Deseas generar otro reporte? (s = Si, n = Volver al panel principal) [por defecto s]: '));
+  const respFinal = readline.question(c.negrita('  > Deseas generar otro reporte? (s = Si, n = Volver al panel principal) [por defecto s]: '));
   if (respFinal.toLowerCase().trim() === 'n') {
       console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
       break;
   }
   } // fin while (true)
 
-  console.log(c.verde('\n  👋 Módulo finalizado.\n'));
+  console.log(c.verde('\n  👋 Modulo finalizado.\n'));
   if (browser) await browser.disconnect().catch(() => {});
   process.exit(0);
 }

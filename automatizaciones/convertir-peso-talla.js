@@ -1,14 +1,14 @@
 /**
  * convertir-peso-talla.js
  *
- * Convierte un Excel de peso/talla con formato variable (el que te envían las
+ * Convierte un Excel de peso/talla con formato variable (el que te envian las
  * asociaciones) al formato posicional que ya sabe leer `servicios/excel-parser.js`,
  * para poder cargarlo directo en `automatizaciones/peso-talla.js` (opcion 1 o 2
  * del menu) sin que el script original falle por formato distinto.
  *
  * Solo se conservan: documento, nombres, apellidos, fecha de la toma, peso,
- * talla y perímetro braquial. El resto del formato oficial (sexo, fecha de
- * nacimiento, lactancia, etc.) se deja en blanco a propósito.
+ * talla y perimetro braquial. El resto del formato oficial (sexo, fecha de
+ * nacimiento, lactancia, etc.) se deja en blanco a proposito.
  */
 
 const path = require('path');
@@ -62,7 +62,7 @@ function main() {
         rutaEntrada = resolverRutaConEspeciales(reintento);
     }
     if (!rutaEntrada || !fs.existsSync(rutaEntrada)) {
-        console.log(c.rojo('\n  ❌ No se encontró el archivo indicado.\n'));
+        console.log(c.rojo('\n  ❌ No se encontro el archivo indicado.\n'));
         return;
     }
 
@@ -85,14 +85,14 @@ function main() {
     });
 
     if (resultado.beneficiarios.length === 0) {
-        console.log(c.rojo('\n  ❌ No se detectó ningún beneficiario en este Excel. Revísalo manualmente.\n'));
+        console.log(c.rojo('\n  ❌ No se detecto ningun beneficiario en este Excel. Revisalo manualmente.\n'));
         return;
     }
 
     const sinDocumento = resultado.beneficiarios.filter(b => b.documento === 'SIN DOCUMENTO');
     console.log(c.verde(`\n  ✅ Total beneficiarios detectados: ${resultado.beneficiarios.length}`));
     if (sinDocumento.length > 0) {
-        console.log(c.amarillo(`  ⚠️ ${sinDocumento.length} sin numero de documento (se buscarán por nombre en Cuéntame):`));
+        console.log(c.amarillo(`  ⚠️ ${sinDocumento.length} sin numero de documento (se buscaran por nombre en Cuentame):`));
         sinDocumento.forEach(b => console.log(c.gris(`     - ${b.nombres} ${b.apellidos}`.trim())));
     }
 
@@ -101,7 +101,7 @@ function main() {
         console.log(c.gris(`   - ${b.documento} | ${b.nombres} ${b.apellidos} | ${b.fecha} | ${b.peso}kg | ${b.talla}cm | PB ${b.perimetro}cm`));
     });
 
-    const confirmar = readline.keyInYNStrict(c.negrita('\n  ¿Generar el Excel convertido?'));
+    const confirmar = readline.keyInYNStrict(c.negrita('\n  Generar el Excel convertido?'));
     if (!confirmar) {
         console.log(c.amarillo('\n  Cancelado.\n'));
         return;

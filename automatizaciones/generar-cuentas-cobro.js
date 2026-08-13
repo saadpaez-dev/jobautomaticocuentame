@@ -61,7 +61,7 @@ const RUTA_CONSECUTIVOS = path.join(__dirname, "consecutivos.json");
 // cobro para una asociacion que todavia no tiene historial guardado.
 const CONSECUTIVO_INICIAL = 2282;
 
-// Nombre del mes en español para el encabezado ("Bogota, {DIA} de {MesTexto} de {ANIO}")
+// Nombre del mes en espanol para el encabezado ("Bogota, {DIA} de {MesTexto} de {ANIO}")
 const MESES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
@@ -96,12 +96,12 @@ function log(mensaje) {
 
 /**
  * Calcula el mes/fecha del encabezado con la fecha REAL del dia en que se
- * corre el script (ya no depende de columnas del Excel). El MES y AÑO son
+ * corre el script (ya no depende de columnas del Excel). El MES y ANO son
  * los de hoy; el DIA siempre es el ULTIMO dia de ese mes (dia de cierre/
  * envio), sin importar que dia del mes se corra el script.
  * Ej: si hoy es 27 de julio de 2026, la cuenta de cobro sale con
  * "30 de Julio de 2026" (julio tiene 31 dias... el ultimo dia real de cada
- * mes se calcula automaticamente, incluyendo febrero en años bisiestos).
+ * mes se calcula automaticamente, incluyendo febrero en anos bisiestos).
  */
 function obtenerMesActual() {
   const hoy = new Date();
@@ -375,10 +375,10 @@ async function preguntarYEnviar(resultados) {
   const rl = readline.createInterface({ input: stdin, output: stdout });
   try {
     const respuesta = (await rl.question(
-      "\n¿Deseas enviar las cuentas de cobro por correo? (s/n): "
+      "\nDeseas enviar las cuentas de cobro por correo? (s/n): "
     )).trim().toLowerCase();
 
-    if (respuesta !== "s" && respuesta !== "si" && respuesta !== "sí") {
+    if (respuesta !== "s" && respuesta !== "si" && respuesta !== "si") {
       console.log("No se enviaron correos.");
       return;
     }
@@ -394,7 +394,7 @@ async function preguntarYEnviar(resultados) {
     });
 
     const modo = (await rl.question(
-      "\n¿Enviar a TODAS o SELECCIONAR algunas? (todas/seleccionar): "
+      "\nEnviar a TODAS o SELECCIONAR algunas? (todas/seleccionar): "
     )).trim().toLowerCase();
 
     let seleccionados;

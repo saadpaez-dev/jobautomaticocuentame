@@ -59,7 +59,7 @@ async function descartarAlertasInformativas(content) {
     try {
         const btnAceptarFrame = content.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
         if (await btnAceptarFrame.isVisible().catch(() => false)) {
-            console.log(c.amarillo('  ⚠️  Mensaje informativo Cuéntame detectado (SGSSS / Alerta) → haciendo clic en Aceptar...'));
+            console.log(c.amarillo('  ⚠️  Mensaje informativo Cuentame detectado (SGSSS / Alerta) → haciendo clic en Aceptar...'));
             await btnAceptarFrame.click().catch(() => btnAceptarFrame.evaluate(n => n.click()));
             await content.waitForTimeout(500);
         }
@@ -71,22 +71,22 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
     await descartarAlertasInformativas(content);
 
     if (hasHistory) {
-        console.log(c.amarillo('  ℹ️ Niño con historial: Se conservan todos los datos anteriores precargados por Cuéntame (EPS, régimen, vacunación, lactancia).'));
-        console.log(c.verde('  👉 Únicamente actualizando: Peso, Talla y Fecha de valoración antropométrica *.'));
+        console.log(c.amarillo('  ℹ️ Nino con historial: Se conservan todos los datos anteriores precargados por Cuentame (EPS, regimen, vacunacion, lactancia).'));
+        console.log(c.verde('  👉 Unicamente actualizando: Peso, Talla y Fecha de valoracion antropometrica *.'));
     }
 
-    // Normalizar comas por puntos en peso, talla y perímetro
+    // Normalizar comas por puntos en peso, talla y perimetro
     if (datos.peso) datos.peso = String(datos.peso).trim().replace(',', '.');
     if (datos.talla) datos.talla = String(datos.talla).trim().replace(',', '.');
     if (datos.perimetro) datos.perimetro = String(datos.perimetro).trim().replace(',', '.');
 
-    // 1. Extraer Documento de Cuéntame
+    // 1. Extraer Documento de Cuentame
     console.log(c.amarillo('  ⏳ Extrayendo datos del nino del formulario...'));
     
     let tipoDoc = '';
     let numDoc = '';
     try {
-        const numLabel = content.locator('label:has-text("Número de Documento"), span:has-text("Número de Documento")').first();
+        const numLabel = content.locator('label:has-text("Numero de Documento"), span:has-text("Numero de Documento")').first();
         if (await numLabel.count() > 0) {
             numDoc = await numLabel.evaluate(node => {
                 let next = node.nextElementSibling;
@@ -116,7 +116,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         if (datos.documentoPrevio) numDoc = datos.documentoPrevio;
     }
     
-    // 3. Llenar Cuéntame
+    // 3. Llenar Cuentame
     console.log(c.cyan('\n  ✍️  Llenando formulario en Cuentame...'));
     
     try {
@@ -140,13 +140,13 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 const validOptions = regimenOptions.filter(o => o.trim() !== 'Seleccione' && o.trim() !== '');
                 let regimenElegido = null;
                 
-                // Si el usuario proveyó un regimen, intentar buscarlo
+                // Si el usuario proveyo un regimen, intentar buscarlo
                 if (datos.regimen) {
                     const idx = validOptions.findIndex(o => o.toUpperCase().includes(datos.regimen.toUpperCase()));
                     if (idx !== -1) regimenElegido = validOptions[idx].trim();
                 }
                 
-                // Fallback: Seleccionar Contributivo automáticamente para niños nuevos
+                // Fallback: Seleccionar Contributivo automaticamente para ninos nuevos
                 if (!regimenElegido) {
                     const idx = validOptions.findIndex(o => o.toUpperCase().includes('CONTRIBUTIVO'));
                     if (idx !== -1) regimenElegido = validOptions[idx].trim();
@@ -157,9 +157,9 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                         content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
                         selectRegimen.selectOption({ label: regimenElegido }).catch(()=>{})
                     ]);
-                    console.log(c.verde(`  ✅ Regimen seleccionado automáticamente: ${regimenElegido}`));
+                    console.log(c.verde(`  ✅ Regimen seleccionado automaticamente: ${regimenElegido}`));
                 } else {
-                    console.log(c.amarillo('  ⚠️ No se encontró la opción de Contributivo, omitiendo.'));
+                    console.log(c.amarillo('  ⚠️ No se encontro la opcion de Contributivo, omitiendo.'));
                 }
             } else {
                 console.log(c.rojo('  ❌ No se encontro el campo de Regimen en el formulario.'));
@@ -186,7 +186,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                     if (idx !== -1) {
                         randomEps = epsOptions[idx].trim();
                     } else {
-                        console.log(c.amarillo(`  ⚠️ No se encontró EPS que coincida con "${datos.eps}". Procediendo aleatoriamente...`));
+                        console.log(c.amarillo(`  ⚠️ No se encontro EPS que coincida con "${datos.eps}". Procediendo aleatoriamente...`));
                     }
                 }
 
@@ -208,19 +208,19 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                     ]);
                     console.log(c.verde(`  ✅ EPS seleccionada en Cuentame: ${randomEps}`));
                 } else {
-                    console.log(c.rojo(`  ❌ No se encontró ninguna EPS común en el listado.`));
+                    console.log(c.rojo(`  ❌ No se encontro ninguna EPS comun en el listado.`));
                 }
             } else {
                 console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
             }
             
-            await content.waitForTimeout(3000); // Dar un respiro a la página post-EPS
+            await content.waitForTimeout(3000); // Dar un respiro a la pagina post-EPS
         }
         // -------------------------------------------------------------
 
         console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
 
-        const page = content.page ? content.page() : content; // Obtener la página principal
+        const page = content.page ? content.page() : content; // Obtener la pagina principal
 
         // Helper para reobtener el frame, porque los UpdatePanels de ASP.NET lo destruyen
         const getFrame = async () => {
@@ -375,9 +375,9 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         // LLENADO TOP-TO-BOTTOM (De arriba hacia abajo)
         // Esto evita que un UpdatePanel superior borre los campos inferiores
         
-        // --- DIAGNÓSTICO ---
+        // --- DIAGNOSTICO ---
         try {
-            console.log(c.amarillo('\n  🔍 DIAGNÓSTICO DE CAMPOS (Solo para el desarrollador):'));
+            console.log(c.amarillo('\n  🔍 DIAGNOSTICO DE CAMPOS (Solo para el desarrollador):'));
             const frm = await getFrame();
             const dump = await frm.evaluate(() => {
                 const res = [];
@@ -411,12 +411,12 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             console.log(c.amarillo('  --------------------------------------------------\n'));
         } catch(e) {}
 
-        // 2. Antropometría principales (SIEMPRE SE LLENAN)
+        // 2. Antropometria principales (SIEMPRE SE LLENAN)
         await safeFillText('Peso (En Kilogramos)', datos.peso);
         await safeFillText('Talla (En Cent', datos.talla);
         
-        // Fecha de valoración antropométrica (SIEMPRE SE ACTUALIZA CON LA FECHA DEL EXCEL)
-        await safeFillText('Fecha de valoración', datos.fecha);
+        // Fecha de valoracion antropometrica (SIEMPRE SE ACTUALIZA CON LA FECHA DEL EXCEL)
+        await safeFillText('Fecha de valoracion', datos.fecha);
         try {
             const frm = await getFrame();
             await frm.evaluate((fDate) => {
@@ -431,11 +431,11 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         } catch(e) {}
 
         if (!hasHistory) {
-            // 1. Vacunación y Desarrollo (SOLO PARA REGISTROS NUEVOS)
-            await safeFillRadio('beneficiario cuenta con el carnet de vacunación', 'Si', 0);
+            // 1. Vacunacion y Desarrollo (SOLO PARA REGISTROS NUEVOS)
+            await safeFillRadio('beneficiario cuenta con el carnet de vacunacion', 'Si', 0);
             await page.waitForTimeout(200); 
             
-            await safeFillText('esquema de vacunación', datos.fecha);
+            await safeFillText('esquema de vacunacion', datos.fecha);
             await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
             
             await safeFillRadio('carnet de crecimiento y desarrollo', 'No', 1);
@@ -443,15 +443,15 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             
             await safeFillRadio('Antecedente de prematurez', 'No', 1);
         } else {
-            console.log(c.gris('    ℹ️ Niño con historial: Omitiendo modificación de "Fecha de verificación del esquema de vacunación".'));
+            console.log(c.gris('    ℹ️ Nino con historial: Omitiendo modificacion de "Fecha de verificacion del esquema de vacunacion".'));
         }
 
         // 3. Situaciones adicionales
-        await safeFillSelect('desnutrición aguda moderada o severa', 'NO TIENE DESNUTRICI');
+        await safeFillSelect('desnutricion aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
         if (!hasHistory) {
             // 4. Lactancia
-            await safeFillSelect('¿Recibe leche materna?', 'Si');
+            await safeFillSelect('Recibe leche materna?', 'Si');
             
             const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
             const valTotal = Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
@@ -461,17 +461,17 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             await safeFillText('total (meses)', valTotal);
             
             // Nuevos campos habilitados que deben tener el mismo valor
-            await safeFillText('¿Hasta qué edad fue alimentado exclusivamente', valExclusiva);
-            await safeFillText('¿A qué edad introdujo alimentos diferentes', valTotal);
+            await safeFillText('Hasta que edad fue alimentado exclusivamente', valExclusiva);
+            await safeFillText('A que edad introdujo alimentos diferentes', valTotal);
         }
         
         // ==========================================
         // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL Y MODO NATIVO)
         // ==========================================
-        console.log(c.amarillo('\n  ⏳ Esperando 200ms para asegurar que el formulario esté estable...'));
+        console.log(c.amarillo('\n  ⏳ Esperando 200ms para asegurar que el formulario este estable...'));
         await page.waitForTimeout(200);
         
-        console.log(c.amarillo('  🎯 Llenando campos finales con simulación nativa...'));
+        console.log(c.amarillo('  🎯 Llenando campos finales con simulacion nativa...'));
         
         const f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
 
@@ -483,7 +483,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             } catch(e) { console.log(c.rojo('    ❌ [Lista] Error controles: ' + e.message.substring(0, 50))); }
             await page.waitForTimeout(200);
 
-            // A2. Lactancia (Mayor / Menor 6 meses) - Nombres con errores tipográficos del ICBF
+            // A2. Lactancia (Mayor / Menor 6 meses) - Nombres con errores tipograficos del ICBF
             try {
                 const ddlMayor = f.locator('select[id*="ddlRecibeLechaMeternaMayorSeisMesesPI"]').first();
                 if (await ddlMayor.count() > 0 && await ddlMayor.isVisible() && !await ddlMayor.isDisabled()) {
@@ -499,15 +499,15 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             await page.waitForTimeout(200);
         }
 
-        // B. Perimetro Braquial (Sincronizar fecha siempre con Fecha de valoración antropométrica para evitar errores de validación)
+        // B. Perimetro Braquial (Sincronizar fecha siempre con Fecha de valoracion antropometrica para evitar errores de validacion)
         try {
             const numPb = parseFloat(String(datos.perimetro || '').replace(',', '.'));
             const pbEsValido = !isNaN(numPb) && numPb >= 5.0 && numPb <= 30.0;
 
             if (datos.perimetro && !pbEsValido) {
-                console.log(c.amarillo(`    ⚠️ Perímetro Braquial en Excel ("${datos.perimetro}") está fuera de rango válido (5-30 cm) → Se omite.`));
+                console.log(c.amarillo(`    ⚠️ Perimetro Braquial en Excel ("${datos.perimetro}") esta fuera de rango valido (5-30 cm) → Se omite.`));
             } else {
-                // Sincronizar SIEMPRE la Fecha de medición del perímetro con la Fecha de valoración antropométrica
+                // Sincronizar SIEMPRE la Fecha de medicion del perimetro con la Fecha de valoracion antropometrica
                 if (datos.fecha) {
                     await f.evaluate((fDate) => {
                         const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
@@ -518,7 +518,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                             inpPbFecha.dispatchEvent(new Event('blur', { bubbles: true }));
                         }
                     }, datos.fecha).catch(() => {});
-                    console.log(c.verde('    ✅ [Texto] Sincronizada Fecha de medición de perímetro braquial con Fecha de valoración'));
+                    console.log(c.verde('    ✅ [Texto] Sincronizada Fecha de medicion de perimetro braquial con Fecha de valoracion'));
                 }
 
                 if (datos.perimetro && pbEsValido) {
@@ -544,10 +544,10 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         }
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
-        console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla y selecciona la opción de guardado en la consola.'));
+        console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla y selecciona la opcion de guardado en la consola.'));
         
     } catch(e) {
-        console.log(c.rojo(`  ❌ Error llenando Cuéntame: ${e.message}`));
+        console.log(c.rojo(`  ❌ Error llenando Cuentame: ${e.message}`));
     }
 }
 

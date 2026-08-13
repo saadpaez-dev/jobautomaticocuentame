@@ -1,26 +1,26 @@
 /**
  * lupa-unidad.js
- * Maneja la ventana emergente "Lupa Atención Beneficiario"
- * para seleccionar la Unidad de Servicio (jardín) correcta.
+ * Maneja la ventana emergente "Lupa Atencion Beneficiario"
+ * para seleccionar la Unidad de Servicio (jardin) correcta.
  *
  * Flujo:
- * 1. Click en ícono lupa del campo "Unidad de Servicio"
+ * 1. Click en icono lupa del campo "Unidad de Servicio"
  * 2. Esperar popup
- * 3. Escribir código del jardín en "Código Unidad de Servicio"
+ * 3. Escribir codigo del jardin en "Codigo Unidad de Servicio"
  * 4. Buscar
- * 5. Si los resultados tienen más de una página, ir a página 2
+ * 5. Si los resultados tienen mas de una pagina, ir a pagina 2
  * 6. Encontrar la fila con Vigencia = 2026
- * 7. Click en el botón "Detalle" (ícono azul ℹ️) de esa fila
+ * 7. Click en el boton "Detalle" (icono azul ℹ️) de esa fila
  */
 
 /**
- * Selecciona la unidad de servicio del jardín usando la ventana emergente.
- * @param {import('playwright').Page} page - Página principal del formulario
- * @param {import('playwright').FrameLocator} frame - Iframe principal donde está la lupa
- * @param {string} codigoJardin - Código Cuéntame del jardín (ej: "110011120318")
+ * Selecciona la unidad de servicio del jardin usando la ventana emergente.
+ * @param {import('playwright').Page} page - Pagina principal del formulario
+ * @param {import('playwright').FrameLocator} frame - Iframe principal donde esta la lupa
+ * @param {string} codigoJardin - Codigo Cuentame del jardin (ej: "110011120318")
  */
 async function seleccionarUnidad(page, frame, codigoJardin) {
-  // 1. Click en el ícono de lupa (dentro del iframe) con reintentos
+  // 1. Click en el icono de lupa (dentro del iframe) con reintentos
   const lupaSelector = 'img[id*="imgBCodigoUsuario"], img[title*="Buscar"], img[src*="lupa"], img[src*="Buscar"]';
   let popup = null;
   
@@ -29,27 +29,27 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
       const lupaPromise = page.waitForEvent('popup', { timeout: 5000 });
       await frame.locator(lupaSelector).first().click({ force: true });
       popup = await lupaPromise;
-      break; // Si abrió, salimos del ciclo de reintentos
+      break; // Si abrio, salimos del ciclo de reintentos
     } catch (e) {
       console.log(`  ⚠️ Reintentando abrir la lupa (intento ${i + 2})...`);
     }
   }
 
   if (!popup) {
-    throw new Error('No se pudo abrir la ventana de la lupa después de varios intentos.');
+    throw new Error('No se pudo abrir la ventana de la lupa despues de varios intentos.');
   }
   await popup.waitForLoadState('domcontentloaded');
 
-  // 3. Buscar el campo "Código Unidad de Servicio" y escribir el código
+  // 3. Buscar el campo "Codigo Unidad de Servicio" y escribir el codigo
   await popup.waitForSelector('input[type="text"]', { state: 'visible', timeout: 10000 });
 
-  // El campo de código es el primer input de texto del popup
+  // El campo de codigo es el primer input de texto del popup
   const camposCodigo = popup.locator('input[type="text"]');
   const primerCampo = camposCodigo.first();
   await primerCampo.click();
   await primerCampo.fill(codigoJardin);
 
-  // 4. Click en el botón buscar (la lupa del popup)
+  // 4. Click en el boton buscar (la lupa del popup)
   const botonBuscar = popup.locator('a#btnBuscar, img[alt="Consultar"]').first();
   await Promise.all([
     popup.waitForLoadState('networkidle'),
@@ -57,23 +57,23 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
   ]);
   await popup.waitForTimeout(1000); // Pausa para renderizado de ASP.NET
   
-  // Esperar a que la tabla de resultados cargue después de la búsqueda
-  console.log('  👉 Esperando resultados de búsqueda en la lupa...');
+  // Esperar a que la tabla de resultados cargue despues de la busqueda
+  console.log('  👉 Esperando resultados de busqueda en la lupa...');
   await popup.waitForSelector('#cphCont_gvLupaAtencionBeneficiario', { state: 'visible', timeout: 15000 }).catch(() => {});
 
   let encontrado = await buscarYSeleccionar2026(popup);
   let paginaSiguiente = 2;
 
   while (!encontrado) {
-    // Buscar el link de la siguiente página (2, 3, 4...)
+    // Buscar el link de la siguiente pagina (2, 3, 4...)
     const linkPagina = popup.locator(`a[href*="Page$${paginaSiguiente}"], a`).filter({ hasText: new RegExp(`^\\s*${paginaSiguiente}\\s*$`) }).first();
     const existePagina = await linkPagina.count() > 0;
 
     if (!existePagina) {
-      break; // No hay más páginas para buscar
+      break; // No hay mas paginas para buscar
     }
 
-    console.log(`  👉 Buscando en la página ${paginaSiguiente} de resultados...`);
+    console.log(`  👉 Buscando en la pagina ${paginaSiguiente} de resultados...`);
     await Promise.all([
       popup.waitForLoadState('networkidle'),
       linkPagina.click()
@@ -85,19 +85,19 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
   }
 
   if (!encontrado) {
-    throw new Error(`No se encontró vigencia 2026 para el jardín ${codigoJardin}`);
+    throw new Error(`No se encontro vigencia 2026 para el jardin ${codigoJardin}`);
   }
 
-  // Ya no esperamos a que el popup se cierre ni usamos networkidle aquí, 
+  // Ya no esperamos a que el popup se cierre ni usamos networkidle aqui, 
   // porque el script principal (formacion-familias.js) ya usa una espera inteligente
-  // waitFor({ state: 'visible' }) en el campo de observaciones, lo que es mucho más rápido y seguro.
+  // waitFor({ state: 'visible' }) en el campo de observaciones, lo que es mucho mas rapido y seguro.
 }
 
 /**
  * Busca una fila con Vigencia=2026 en la tabla actual del popup
- * y hace click en su botón "Detalle".
+ * y hace click en su boton "Detalle".
  * @param {import('playwright').Page} popup
- * @returns {Promise<boolean>} true si encontró y seleccionó la fila
+ * @returns {Promise<boolean>} true si encontro y selecciono la fila
  */
 async function buscarYSeleccionar2026(popup) {
   // Buscar todas las filas solo de la tabla de resultados
@@ -123,7 +123,7 @@ async function buscarYSeleccionar2026(popup) {
 
     // Verificar si esta fila corresponde a la vigencia 2026
     if (esFila2026) {
-      // Hacer click en el botón de detalle (primer enlace/botón de la fila)
+      // Hacer click en el boton de detalle (primer enlace/boton de la fila)
       const botonDetalle = fila.locator('input[type="image"][title="Detalle"], input[id*="btnInfo"]').first();
       const existe = await botonDetalle.count() > 0;
 

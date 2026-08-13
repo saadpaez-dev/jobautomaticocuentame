@@ -50,7 +50,7 @@ function esFechaMasReciente(fechaNueva, fechaExistente) {
 }
 
 function obtenerUltimaToma(fila) {
-    // Las tomas inician en el índice 7 (Toma 1) y avanzan cada 12 columnas.
+    // Las tomas inician en el indice 7 (Toma 1) y avanzan cada 12 columnas.
     // Toma 1: 7, Toma 2: 19, Toma 3: 31, Toma 4: 43
     const iniciosToma = [43, 31, 19, 7];
     for (const inicio of iniciosToma) {
@@ -101,7 +101,7 @@ function resolverRutaConEspeciales(inputPath) {
             
             if (match) {
                 const rutaReal = path.join(dir, match);
-                console.log(`\n  ✅ Ruta corregida automaticamente (carácter Ñ/tilde detectado):`);
+                console.log(`\n  ✅ Ruta corregida automaticamente (caracter N/tilde detectado):`);
                 console.log(`     Archivo encontrado: ${match}\n`);
                 return rutaReal;
             }
@@ -133,7 +133,7 @@ function parsearExcel(filePath) {
         const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
 
         if (!data || data.length < 15) {
-            continue; // Hoja vacía o sin estructura de toma, omitir
+            continue; // Hoja vacia o sin estructura de toma, omitir
         }
 
         // Extraer Asociacion y UDS (usualmente en las filas 4 a 15)
@@ -166,11 +166,11 @@ function parsearExcel(filePath) {
             }
         }
 
-        // Procesar ninos desde la fila 16 (índice 15) en adelante
+        // Procesar ninos desde la fila 16 (indice 15) en adelante
         let ninosEnHoja = 0;
         for (let i = 15; i < data.length; i++) {
             const row = data[i];
-            if (!row || !row[1] || !row[2]) continue; // Fila vacía o sin documento/nombre
+            if (!row || !row[1] || !row[2]) continue; // Fila vacia o sin documento/nombre
             
             const documento = String(row[1]).trim();
             const nombres = String(row[2]).trim();
@@ -197,7 +197,7 @@ function parsearExcel(filePath) {
                 } else {
                     const ninoExistente = ninosMap.get(documento);
                     if (esFechaMasReciente(ultimaToma.fecha, ninoExistente.fecha)) {
-                        console.log(`\x1b[36m  ℹ️ [Hoja: "${sheetName}"] Registro duplicado detectado para ${nombres} ${apellidos} (${documento}). Se toma la toma más reciente: ${ultimaToma.fecha} (reemplaza a ${ninoExistente.fecha}).\x1b[0m`);
+                        console.log(`\x1b[36m  ℹ️ [Hoja: "${sheetName}"] Registro duplicado detectado para ${nombres} ${apellidos} (${documento}). Se toma la toma mas reciente: ${ultimaToma.fecha} (reemplaza a ${ninoExistente.fecha}).\x1b[0m`);
                         ninosMap.set(documento, {
                             documento: documento,
                             nombres: nombres,

@@ -1,7 +1,7 @@
 /**
  * peso-talla.js
  * Script interactivo para el registro de toma de peso y talla.
- * Fase 1: Seleccion de Asociacion y Jardín (UDS), e ingreso al módulo correspondiente.
+ * Fase 1: Seleccion de Asociacion y Jardin (UDS), e ingreso al modulo correspondiente.
  */
 
 const path = require('path');
@@ -51,7 +51,7 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
         'Talla (cm)': item.talla || '',
         'PB (cm)': item.perimetro || '',
         'Estado': item.estado || 'PENDIENTE',
-        'Detalle / Observación': item.observacion || ''
+        'Detalle / Observacion': item.observacion || ''
     }));
 
     const wb = xlsx.utils.book_new();
@@ -66,7 +66,7 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
         { wch: 10 }, // Talla
         { wch: 10 }, // PB
         { wch: 25 }, // Estado
-        { wch: 55 }  // Observación
+        { wch: 55 }  // Observacion
     ];
 
     xlsx.utils.book_append_sheet(wb, ws, 'Resultados Procesamiento');
@@ -127,7 +127,7 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
     let paginasProbadas = new Set([1]);
 
     while (true) {
-        // Buscar enlaces de paginación en la tabla de Cuéntame
+        // Buscar enlaces de paginacion en la tabla de Cuentame
         const pagerLinks = content.locator('a[href*="Page$"], a[href*="gvBeneficiarios"]');
         const countLinks = await pagerLinks.count();
 
@@ -151,11 +151,11 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
         }
 
         if (!linkSiguiente || numSiguiente <= 0) {
-            return null; // Se recorrieron todas las páginas disponibles y no estuvo
+            return null; // Se recorrieron todas las paginas disponibles y no estuvo
         }
 
         paginasProbadas.add(numSiguiente);
-        console.log(c.amarillo(`  🔍 El beneficiario no esta en la página 1. Buscando en la página ${numSiguiente} de la grilla de Cuéntame...`));
+        console.log(c.amarillo(`  🔍 El beneficiario no esta en la pagina 1. Buscando en la pagina ${numSiguiente} de la grilla de Cuentame...`));
 
         try {
             await Promise.all([
@@ -167,7 +167,7 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
             return null;
         }
 
-        // Re-extraer las filas de la tabla de la nueva página
+        // Re-extraer las filas de la tabla de la nueva pagina
         const filas = content.locator('tr:has(input[src*="info.jpg"], input[id*="btnInfo"])');
         const count = await filas.count();
 
@@ -202,7 +202,7 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
                 if (!isMatch && targetNombre && calcularSimilitudTexto(nombreCompleto, targetNombre) >= 0.78) isMatch = true;
 
                 if (isMatch) {
-                    console.log(c.verde(`  ✅ ¡Beneficiario encontrado en la página ${numSiguiente}!: ${nombreCompleto}`));
+                    console.log(c.verde(`  ✅ Beneficiario encontrado en la pagina ${numSiguiente}!: ${nombreCompleto}`));
                     return {
                         documento,
                         nombreCompleto,
@@ -308,7 +308,7 @@ function buscarCoincidenciaSegura(ninoTarget, listaNinos) {
 
     const tokensApellidos = apellidosTarget.split(/\s+/).filter(t => t.length > 1);
 
-    // 2. PASO 2: CONFIRMAR DESPUÉS POR APELLIDOS (Match by Last Names)
+    // 2. PASO 2: CONFIRMAR DESPUES POR APELLIDOS (Match by Last Names)
     if (tokensApellidos.length > 0) {
         const candidatosPorApellido = listaNinos.filter(n => {
             const nombreCuentame = removeAccents(n.nombreCompleto).toUpperCase();
@@ -371,7 +371,7 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
     }
     const rootContent = contentFrame || page;
 
-    console.log(c.cyan(`  🔍 Cargando UDS en Cuéntame: ${jardinSeleccionado.nombre} (Código: ${jardinSeleccionado.codigo})...`));
+    console.log(c.cyan(`  🔍 Cargando UDS en Cuentame: ${jardinSeleccionado.nombre} (Codigo: ${jardinSeleccionado.codigo})...`));
 
     let lupaLocator = rootContent.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"], input[src*="lupa"]').first();
 
@@ -387,7 +387,7 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
     }
 
     if (await lupaLocator.count() === 0) {
-        console.log(c.rojo('  ❌ No se encontró la lupa de UDS para recargar.'));
+        console.log(c.rojo('  ❌ No se encontro la lupa de UDS para recargar.'));
         return false;
     }
 
@@ -399,7 +399,7 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
     await popup.waitForLoadState('networkidle');
     console.log(c.verde('  ✅ Ventana emergente Lupa abierta.'));
 
-    console.log(c.cyan(`  📝 Ingresando código de UDS: ${jardinSeleccionado.codigo}...`));
+    console.log(c.cyan(`  📝 Ingresando codigo de UDS: ${jardinSeleccionado.codigo}...`));
     await popup.locator('input[id*="txtCodigoUnidadServicio"], input[name*="CodigoUnidadServicio"]').first().fill(String(jardinSeleccionado.codigo));
 
     let ddlDepto = popup.locator('select[id*="ddlDepartamento"], select[name*="ddlDepartamento"]').first();
@@ -525,7 +525,7 @@ async function main() {
               archivosDocs.forEach((a, i) => console.log(`  ${i + 1}. ${a}`));
           }
 
-          console.log(c.cyan('\n  📥 SELECCIÓN Y MULTI-CARGA DE ARCHIVOS EXCEL:'));
+          console.log(c.cyan('\n  📥 SELECCION Y MULTI-CARGA DE ARCHIVOS EXCEL:'));
           console.log(c.gris('     • Presiona ENTER (o escribe 0) para procesar TODOS los archivos de "Docs/peso y talla".'));
           console.log(c.gris('     • O escribe el numero o lista de numeros (ej: 1, 3 o solo 2).'));
           console.log(c.gris('     • O arrastra UNO o VARIOS archivos / CARPETA directamente a esta consola.\n'));
@@ -582,7 +582,7 @@ async function main() {
                       rutasValidadas.push(resolved);
                   }
               } else {
-                  console.log(c.amarillo(`  ⚠️ No se encontró la ruta: ${r}`));
+                  console.log(c.amarillo(`  ⚠️ No se encontro la ruta: ${r}`));
               }
           }
 
@@ -595,7 +595,7 @@ async function main() {
           
           let listaArchivos = obtenerRutasExcelMultiples();
           while (listaArchivos.length === 0) {
-              const reintento = readline.question(c.negrita('  > No se encontraron archivos válidos. Arrastra los archivos/carpeta nuevamente (ENTER para cancelar): ')).trim();
+              const reintento = readline.question(c.negrita('  > No se encontraron archivos validos. Arrastra los archivos/carpeta nuevamente (ENTER para cancelar): ')).trim();
               if (!reintento) break;
               listaArchivos = obtenerRutasExcelMultiples();
           }
@@ -613,7 +613,7 @@ async function main() {
               const parseResult = parsearExcel(fileP);
               ninosExcel = parseResult.ninos;
               if (ninosExcel.length === 0) {
-                  console.log(c.rojo(`  ❌ No se encontraron ninos válidos en el primer Excel (${path.basename(fileP)}).`));
+                  console.log(c.rojo(`  ❌ No se encontraron ninos validos en el primer Excel (${path.basename(fileP)}).`));
                   continue;
               }
               console.log(c.verde(`\n  📄 [1/${listaArchivosPendientes.length}] Leyendo Excel: ${path.basename(fileP)}`));
@@ -624,9 +624,9 @@ async function main() {
               jardinSeleccionado = match.jardinSeleccionado;
 
               if (!ascSeleccionada) {
-                  console.log(c.amarillo(`  ⚠️ No se encontró la Asociacion automaticamente. Se pedirá seleccion manual.`));
+                  console.log(c.amarillo(`  ⚠️ No se encontro la Asociacion automaticamente. Se pedira seleccion manual.`));
               } else if (!jardinSeleccionado) {
-                  console.log(c.amarillo(`  ⚠️ No se encontró la UDS automaticamente. Se pedirá seleccion manual.`));
+                  console.log(c.amarillo(`  ⚠️ No se encontro la UDS automaticamente. Se pedira seleccion manual.`));
               }
 
               console.log(c.verde(`  ✅ Se encontraron ${ninosExcel.length} ninos listos para procesar.`));
@@ -653,7 +653,7 @@ async function main() {
                               filtrados.push(coincidencia);
                           }
                       } else {
-                          console.log(c.amarillo(`  ⚠️ No se encontró ningún beneficiario para: "${b}"`));
+                          console.log(c.amarillo(`  ⚠️ No se encontro ningun beneficiario para: "${b}"`));
                       }
                   }
 
@@ -668,7 +668,7 @@ async function main() {
                       ascSeleccionada = matchIndiv.ascSeleccionada;
                       jardinSeleccionado = matchIndiv.jardinSeleccionado;
                   } else {
-                      console.log(c.rojo(`  ❌ No se encontró ninguno de los beneficiarios ingresados.`));
+                      console.log(c.rojo(`  ❌ No se encontro ninguno de los beneficiarios ingresados.`));
                       continue;
                   }
               } catch(e) {
@@ -726,13 +726,13 @@ async function main() {
           }
           jardinSeleccionado = jardines[idxJardin - 1];
       } else {
-          console.log(c.verde(`  ✅ Jardín (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
+          console.log(c.verde(`  ✅ Jardin (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
       }
       
       if (respBenef.trim() === '3') {
           preFiltroBeneficiario = readline.question(c.negrita('\n  > Ingresa el nombre o documento (ej. LIAM) (Vacio para omitir): ')).trim().toLowerCase();
           if (preFiltroBeneficiario) {
-              console.log(c.amarillo('  ¿Que deseas hacer con este beneficiario?'));
+              console.log(c.amarillo('  Que deseas hacer con este beneficiario?'));
               console.log('  1. Agregar una NUEVA toma (+)');
               console.log('  2. EDITAR una toma existente');
               const respAccion = readline.question(c.negrita('  > Selecciona (1 o 2): '));
@@ -745,7 +745,7 @@ async function main() {
           }
       }
 
-      // Lanzar navegador e iniciar sesión SOLO si no se ha hecho
+      // Lanzar navegador e iniciar sesion SOLO si no se ha hecho
       if (!browser) {
           console.log(c.cyan('\n  🌐 Inicializando entorno de navegador...\n'));
           const navData = await obtenerNavegador();
@@ -754,11 +754,11 @@ async function main() {
           page = navData.page;
       }
 
-      // Validar si la sesión activa pertenece a la asociacion elegida
+      // Validar si la sesion activa pertenece a la asociacion elegida
       const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
       
       if (!mismaAsociacion) {
-          console.log(c.amarillo('  🔐 Verificando inicio de sesión en Cuéntame...'));
+          console.log(c.amarillo('  🔐 Verificando inicio de sesion en Cuentame...'));
           await loginYLlegarARoles(page, {
             usuario: USUARIO,
             password: PASSWORD,
@@ -768,10 +768,10 @@ async function main() {
           loggedIn = true;
           console.log(c.amarillo(`  🏢 Entrando con la asociacion ${ascSeleccionada.nombreCorto}...`));
           await seleccionarRolYEntrar(page, ascSeleccionada);
-          console.log(c.amarillo('  ⏳ Esperando a que cargue el menu de Cuéntame...'));
+          console.log(c.amarillo('  ⏳ Esperando a que cargue el menu de Cuentame...'));
           await page.waitForTimeout(3000); 
       } else {
-          console.log(c.verde(`  ✅ Preservando sesión y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
+          console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
           loggedIn = true;
       } 
       
@@ -920,12 +920,12 @@ async function main() {
               if (idxNinoExcelActual >= ninosExcel.length) {
                   generarReporteExcel(ninosProcesados, jardinSeleccionado ? jardinSeleccionado.nombre : '', ascSeleccionada ? ascSeleccionada.nombreCorto : '');
 
-                  // Si hay más archivos en la lista pendiente de multi-carga, avanzar automaticamente al siguiente jardín
+                  // Si hay mas archivos en la lista pendiente de multi-carga, avanzar automaticamente al siguiente jardin
                   if (listaArchivosPendientes && idxArchivoActual < listaArchivosPendientes.length - 1) {
                       idxArchivoActual++;
                       const proximoFile = listaArchivosPendientes[idxArchivoActual];
                       console.log(c.verde('\n========================================================================================'));
-                      console.log(c.verde(`  🎉 JARDÍN PROCESADO EXITOSAMENTE. AVANZANDO AUTOMÁTICAMENTE AL ARCHIVO ${idxArchivoActual + 1} DE ${listaArchivosPendientes.length}:`));
+                      console.log(c.verde(`  🎉 JARDIN PROCESADO EXITOSAMENTE. AVANZANDO AUTOMATICAMENTE AL ARCHIVO ${idxArchivoActual + 1} DE ${listaArchivosPendientes.length}:`));
                       console.log(c.verde(`  📄 ${path.basename(proximoFile)}`));
                       console.log(c.verde('========================================================================================\n'));
 
@@ -957,13 +957,13 @@ async function main() {
                           ninosProcesados = [];
 
                           if (jardinSeleccionado) {
-                              console.log(c.cyan(`  🔄 Cambiando la UDS en Cuéntame al nuevo Jardín: ${jardinSeleccionado.nombre} (Código: ${jardinSeleccionado.codigo})...`));
+                              console.log(c.cyan(`  🔄 Cambiando la UDS en Cuentame al nuevo Jardin: ${jardinSeleccionado.nombre} (Codigo: ${jardinSeleccionado.codigo})...`));
                               await cargarUdsEnCuentame(page, jardinSeleccionado);
                           } else {
-                              console.log(c.amarillo(`  ⚠️ No se pudo emparejar la UDS automaticamente. Se mantendrá la actual.`));
+                              console.log(c.amarillo(`  ⚠️ No se pudo emparejar la UDS automaticamente. Se mantendra la actual.`));
                           }
 
-                          continue; // Continúa la ejecución del loop procesando los ninos del NUEVO Jardín
+                          continue; // Continua la ejecucion del loop procesando los ninos del NUEVO Jardin
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error leyendo el siguiente Excel (${path.basename(proximoFile)}): ${e.message}`));
                       }
@@ -971,14 +971,14 @@ async function main() {
 
                   const numTotalArchivos = listaArchivosPendientes ? listaArchivosPendientes.length : 1;
                   console.log(c.verde('\n========================================================================================'));
-                  console.log(c.verde(`  🎉 ¡MULTI-PROCESAMIENTO COMPLETADO EXITOSAMENTE PARA LOS ${numTotalArchivos} ARCHIVO(S) EXCEL!`));
+                  console.log(c.verde(`  🎉 MULTI-PROCESAMIENTO COMPLETADO EXITOSAMENTE PARA LOS ${numTotalArchivos} ARCHIVO(S) EXCEL!`));
                   console.log(c.verde('========================================================================================'));
 
                   console.log(c.cyan('\n  ╔════════════════════════════════════════════════════════════════════╗'));
-                  console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
+                  console.log(c.cyan('  ║                Que deseas hacer a continuacion?                   ║'));
                   console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
-                  console.log(c.cyan('  ║  1. Cargar más archivos Excel / carpetas                           ║'));
-                  console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
+                  console.log(c.cyan('  ║  1. Cargar mas archivos Excel / carpetas                           ║'));
+                  console.log(c.cyan('  ║  2. Cambiar de Jardin (UDS)                                        ║'));
                   console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
                   console.log(c.cyan('  ║  4. Volver al menu de opciones de Peso y Talla                     ║'));
                   console.log(c.cyan('  ║  0. Volver al panel principal (AutoTrabajo / Start)               ║'));
@@ -1005,7 +1005,7 @@ async function main() {
                               const parseResult = parsearExcel(fileP);
                               ninosExcel = parseResult.ninos;
                               if (!ninosExcel || ninosExcel.length === 0) {
-                                  console.log(c.rojo('  ❌ No se encontraron ninos válidos en el nuevo Excel.'));
+                                  console.log(c.rojo('  ❌ No se encontraron ninos validos en el nuevo Excel.'));
                                   modoExcel = null;
                                   break;
                               }
@@ -1050,7 +1050,7 @@ async function main() {
               if (!modoExcel) continue;
 
               const ninoTarget = ninosExcel[idxNinoExcelActual];
-              console.log(c.cyan(`\n  🚀 PROCESANDO NIÑO ${idxNinoExcelActual + 1} de ${ninosExcel.length}: ${ninoTarget.nombreCompleto}`));
+              console.log(c.cyan(`\n  🚀 PROCESANDO NINO ${idxNinoExcelActual + 1} de ${ninosExcel.length}: ${ninoTarget.nombreCompleto}`));
               preFiltroBeneficiario = ninoTarget.documento;
               accionRapida = modoExcel === 'MASIVO_NUEVO' ? '1' : '2';
           }
@@ -1060,7 +1060,7 @@ async function main() {
               console.log(c.verde(`  ✨ Autocompletando busqueda con: "${preFiltroBeneficiario}"`));
               input = preFiltroBeneficiario;
           } else {
-              console.log(c.amarillo('\n  ¿Sabes como se llama o identifica el beneficiario?'));
+              console.log(c.amarillo('\n  Sabes como se llama o identifica el beneficiario?'));
               console.log(c.gris('  (Escribe su nombre/documento, o presiona Enter para ver la lista de todos)'));
               console.log(c.amarillo('  [0] Cambiar Jardin (UDS) | [00] Cambiar Asociacion'));
               input = readline.question(c.negrita('  > Buscar / Seleccionar: '));
@@ -1097,7 +1097,7 @@ async function main() {
               const busquedaNorm = normalizarDoc(input);
               const busquedaTexto = removeAccents(input).toUpperCase();
 
-              // Si venimos de Excel, aplicar validacion jerárquica estricta:
+              // Si venimos de Excel, aplicar validacion jerarquica estricta:
               // 1. Documento exacto -> 2. Apellidos -> 3. Nombre
               let coincidenciaModoExcel = null;
               if (modoExcel && modoExcel.startsWith('MASIVO_') && ninosExcel[idxNinoExcelActual]) {
@@ -1106,7 +1106,7 @@ async function main() {
 
               if (coincidenciaModoExcel) {
                   ninoSeleccionado = coincidenciaModoExcel.nino;
-                  console.log(c.verde(`  ✅ Nino identificado en Cuéntame (por ${coincidenciaModoExcel.metodo}): ${c.cyan(ninoSeleccionado.documento)} - ${ninoSeleccionado.nombreCompleto}`));
+                  console.log(c.verde(`  ✅ Nino identificado en Cuentame (por ${coincidenciaModoExcel.metodo}): ${c.cyan(ninoSeleccionado.documento)} - ${ninoSeleccionado.nombreCompleto}`));
               } else {
                   const resultados = listaNinos.filter(n => 
                       (busquedaNorm.length >= 3 && normalizarDoc(n.documento).includes(busquedaNorm)) || 
@@ -1138,7 +1138,7 @@ async function main() {
           }
 
           if (!ninoSeleccionado) {
-              // Intentar buscar en páginas 2, 3... de la grilla de Cuéntame por Documento, Apellidos o Similitud Fuzzy
+              // Intentar buscar en paginas 2, 3... de la grilla de Cuentame por Documento, Apellidos o Similitud Fuzzy
               const targetParaBusqueda = (modoExcel && ninosExcel[idxNinoExcelActual]) ? ninosExcel[idxNinoExcelActual] : input;
               const ninoEnOtraPagina = await buscarYCambiarPaginaGrilla(content, page, targetParaBusqueda);
               if (ninoEnOtraPagina) {
@@ -1147,7 +1147,7 @@ async function main() {
           }
 
           if (!ninoSeleccionado) {
-              console.log(c.rojo(`  ❌ No se encontró ningún nino que coincida con "${input}" en ninguna de las páginas de la UDS.`));
+              console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${input}" en ninguna de las paginas de la UDS.`));
               preFiltroBeneficiario = null;
               if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                   console.log(c.amarillo('  ⚠️ Saltando al siguiente nino del Excel...'));
@@ -1155,8 +1155,8 @@ async function main() {
                   if (ninoTarget) {
                       ninosProcesados.push({
                           ...ninoTarget,
-                          estado: '❌ NO ENCONTRADO EN CUÉNTAME',
-                          observacion: 'El beneficiario no aparece en ninguna de las páginas de esta UDS en Cuéntame.'
+                          estado: '❌ NO ENCONTRADO EN CUENTAME',
+                          observacion: 'El beneficiario no aparece en ninguna de las paginas de esta UDS en Cuentame.'
                       });
                   }
                   idxNinoExcelActual++;
@@ -1211,7 +1211,7 @@ async function main() {
                       }
                   }
 
-                  // ── VERIFICACIÓN DE TOMA DUPLICADA ─────────────────────────
+                  // ── VERIFICACION DE TOMA DUPLICADA ─────────────────────────
                   if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                       const ninoInfo = ninosExcel[idxNinoExcelActual];
                       const targetFecha = parsearFecha(String(ninoInfo.fecha)).trim();
@@ -1224,7 +1224,7 @@ async function main() {
                           const tFechaValNorm = normalizarFecha(t.fechaValoracion || t.fechaToma);
                           const tFechaTomaNorm = normalizarFecha(t.fechaToma);
 
-                          // Cuéntame NO permite 2 tomas para la misma fecha de valoración antropométrica
+                          // Cuentame NO permite 2 tomas para la misma fecha de valoracion antropometrica
                           const matchFecha = (tFechaValNorm === targetFechaNorm || tFechaTomaNorm === targetFechaNorm);
 
                           if (matchFecha) {
@@ -1242,19 +1242,19 @@ async function main() {
 
                           if (consecutivosDuplicados >= 3) {
                               console.log(c.rojo('\n  ========================================================================================'));
-                              console.log(c.rojo('  ⛔ SE VALIDÓ EN 3 REGISTROS CONSECUTIVOS FECHA, PESO Y TALLA IGUAL (O TOMA DUPLICADA).'));
+                              console.log(c.rojo('  ⛔ SE VALIDO EN 3 REGISTROS CONSECUTIVOS FECHA, PESO Y TALLA IGUAL (O TOMA DUPLICADA).'));
                               console.log(c.rojo('  ⚠️  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
                               console.log(c.rojo('  ========================================================================================\n'));
 
                               console.log(c.cyan('  ╔════════════════════════════════════════════════════════════════════╗'));
-                              console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
+                              console.log(c.cyan('  ║                Que deseas hacer a continuacion?                   ║'));
                               console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
                               if (ascSeleccionada) {
                                   console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociacion (${ascSeleccionada.nombreCorto.padEnd(20)}) ║`));
                               } else {
                                   console.log(c.cyan('  ║  1. Cargar otro Excel de esta misma asociacion                     ║'));
                               }
-                              console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
+                              console.log(c.cyan('  ║  2. Cambiar de Jardin (UDS)                                        ║'));
                               console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
                               console.log(c.cyan('  ║  0. Volver al menu principal                                       ║'));
                               console.log(c.cyan('  ╚════════════════════════════════════════════════════════════════════╝'));
@@ -1271,7 +1271,7 @@ async function main() {
                                       const parseResult = parsearExcel(fileP);
                                       ninosExcel = parseResult.ninos;
                                       if (!ninosExcel || ninosExcel.length === 0) {
-                                          console.log(c.rojo('  ❌ No se encontraron ninos válidos en el nuevo Excel.'));
+                                          console.log(c.rojo('  ❌ No se encontraron ninos validos en el nuevo Excel.'));
                                           modoExcel = null;
                                       } else {
                                           console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} ninos).`));
@@ -1286,7 +1286,7 @@ async function main() {
                                               const nuevoJardin = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
                                               if (nuevoJardin) {
                                                   jardinSeleccionado = nuevoJardin;
-                                                  console.log(c.verde(`  ✅ Jardín (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
+                                                  console.log(c.verde(`  ✅ Jardin (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
                                               } else {
                                                   jardinSeleccionado = null;
                                               }
@@ -1364,7 +1364,7 @@ async function main() {
                           accionRapida = null; // Quitar atajo para no hacer bucle si regresamos
                           preFiltroBeneficiario = null;
                       } else {
-                          console.log(c.amarillo('\n  ¿Que accion deseas realizar?'));
+                          console.log(c.amarillo('\n  Que accion deseas realizar?'));
                           console.log(`  [1] Agregar una NUEVA toma (+)`);
                           console.log(`  [2] EDITAR una toma existente`);
                           console.log(`  [0] Atras (Volver a consulta de ninos)`);
@@ -1393,7 +1393,7 @@ async function main() {
                               console.log(c.verde('  ✅ Nueva ventana (Nuevo) cargada.'));
                                const btnAceptarPop = content.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
                                if (await btnAceptarPop.isVisible().catch(() => false)) {
-                                   console.log(c.amarillo('  ⚠️  Mensaje Informativo Cuéntame detectado (SGSSS / Alerta) → haciendo clic en Aceptar...'));
+                                   console.log(c.amarillo('  ⚠️  Mensaje Informativo Cuentame detectado (SGSSS / Alerta) → haciendo clic en Aceptar...'));
                                    await btnAceptarPop.click().catch(() => btnAceptarPop.evaluate(n => n.click()));
                                    await page.waitForTimeout(600);
                                }
@@ -1483,8 +1483,8 @@ async function main() {
                           let perimetroInput = readline.question(c.negrita('  > Perimetro Braquial (cm) [Opcional]: '));
                           
                           if (!hasHistory) {
-                              console.log(c.amarillo('\n  ⚠️ Al ser una toma NUEVA, el sistema de Cuéntame exige Régimen y EPS.'));
-                              const tieneEps = readline.question(c.negrita('  > ¿Tienes el nombre del regimen y EPS? (1 = Si, 2 = No / Aleatorio): '));
+                              console.log(c.amarillo('\n  ⚠️ Al ser una toma NUEVA, el sistema de Cuentame exige Regimen y EPS.'));
+                              const tieneEps = readline.question(c.negrita('  > Tienes el nombre del regimen y EPS? (1 = Si, 2 = No / Aleatorio): '));
                               if (tieneEps.trim() === '1') {
                                   regimenInput = readline.question(c.negrita('  > Regimen (ej. contributivo, subsidiado): '));
                                   epsInput = readline.question(c.negrita('  > EPS (ej. suramericana, capital salud): '));
@@ -1494,7 +1494,7 @@ async function main() {
                           const resumen = `\n  Has ingresado:\n  - Fecha: ${fechaEntrada || '(vacia)'}\n  - Peso: ${pesoInput || '(vacio)'}\n  - Talla: ${tallaInput || '(vacia)'}\n  - Perimetro: ${perimetroInput || '(vacio)'}` + 
                                           (!hasHistory && regimenInput ? `\n  - Regimen: ${regimenInput}\n  - EPS: ${epsInput}` : (!hasHistory ? `\n  - EPS: Aleatoria` : ''));
 
-                          const resp = readline.question(c.amarillo(`${resumen}\n  > ¿Deseas proceder con estos datos o editarlos nuevamente? (p = proceder / e = editar): `));
+                          const resp = readline.question(c.amarillo(`${resumen}\n  > Deseas proceder con estos datos o editarlos nuevamente? (p = proceder / e = editar): `));
                           
                           if (resp.trim().toLowerCase() === 'p') {
                               datosLlenado = {
@@ -1517,12 +1517,12 @@ async function main() {
                   await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
 
                   console.log(c.amarillo('\n  ✨ Llenado automatico finalizado.'));
-                  // ── GUARDADO AUTOMÁTICO ─────────────────────────────────
-                  console.log(c.amarillo('  ⏳ Guardando automaticamente en Cuéntame (clic en disco de guardar)...'));
+                  // ── GUARDADO AUTOMATICO ─────────────────────────────────
+                  console.log(c.amarillo('  ⏳ Guardando automaticamente en Cuentame (clic en disco de guardar)...'));
                   
-                  // Escuchar diálogos/alertas nativos del navegador por si Cuéntame lanza un alert() nativo
+                  // Escuchar dialogos/alertas nativos del navegador por si Cuentame lanza un alert() nativo
                   const dialogHandler = async dialog => {
-                      console.log(c.amarillo(`  ⚠️  Diálogo nativo de la página: "${dialog.message().slice(0, 80)}" → Aceptando...`));
+                      console.log(c.amarillo(`  ⚠️  Dialogo nativo de la pagina: "${dialog.message().slice(0, 80)}" → Aceptando...`));
                       await dialog.accept().catch(() => {});
                   };
                   page.on('dialog', dialogHandler);
@@ -1531,18 +1531,18 @@ async function main() {
                       const btnGuardar = content.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
                       if (await btnGuardar.count() > 0) {
                           await btnGuardar.click({ timeout: 3000 }).catch(() => btnGuardar.evaluate(node => node.click()));
-                          console.log(c.verde('  ✅ Clic en botón Guardar enviado.'));
+                          console.log(c.verde('  ✅ Clic en boton Guardar enviado.'));
                       } else {
-                          console.log(c.rojo('  ❌ No se encontró el botón de Guardar. Por favor guárdalo manualmente.'));
+                          console.log(c.rojo('  ❌ No se encontro el boton de Guardar. Por favor guardalo manualmente.'));
                       }
                   } catch (e) {
                       console.log(c.rojo(`  ❌ Error al presionar Guardar: ${e.message}`));
                   }
 
-                  // Esperar a que aparezca la ventana emergente o el cuadro de diálogo
+                  // Esperar a que aparezca la ventana emergente o el cuadro de dialogo
                   await page.waitForTimeout(800);
 
-                  // ── ESPERAR CONFIRMACIÓN "La Informacion ha sido guardada." O ERROR DUPLICADO ──
+                  // ── ESPERAR CONFIRMACION "La Informacion ha sido guardada." O ERROR DUPLICADO ──
                   console.log(c.amarillo('  ⏳ Esperando respuesta del servidor ("La Informacion ha sido guardada.")...'));
                   let guardadoConfirmado = false;
                   let errorTomaExistente = false;
@@ -1552,25 +1552,25 @@ async function main() {
                   while (Date.now() - tInicioSave < 15000) { // Esperar hasta 15 segundos la respuesta
                       let currentFrame = page.frame({ name: 'frameContent' }) || page;
                       
-                      // 1. Re-verificar solo una vez si aparece alguna ventana emergente de confirmación
+                      // 1. Re-verificar solo una vez si aparece alguna ventana emergente de confirmacion
                       if (!clickAceptarRealizado) {
                           const btnAceptarPage = page.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
                           const btnAceptarFrame = currentFrame.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
 
                           if (await btnAceptarPage.isVisible().catch(() => false)) {
-                              console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada → haciendo clic en Aceptar...'));
+                              console.log(c.amarillo('  ⚠️  Ventana emergente de confirmacion detectada → haciendo clic en Aceptar...'));
                               clickAceptarRealizado = true;
                               await btnAceptarPage.click().catch(() => btnAceptarPage.evaluate(n => n.click()));
                               await page.waitForTimeout(1500);
                           } else if (await btnAceptarFrame.isVisible().catch(() => false)) {
-                              console.log(c.amarillo('  ⚠️  Ventana emergente de confirmación detectada en formulario → haciendo clic en Aceptar...'));
+                              console.log(c.amarillo('  ⚠️  Ventana emergente de confirmacion detectada en formulario → haciendo clic en Aceptar...'));
                               clickAceptarRealizado = true;
                               await btnAceptarFrame.click().catch(() => btnAceptarFrame.evaluate(n => n.click()));
                               await page.waitForTimeout(1500);
                           }
                       }
 
-                      // 2. Verificar si apareció la confirmación de guardado
+                      // 2. Verificar si aparecio la confirmacion de guardado
                       currentFrame = page.frame({ name: 'frameContent' }) || page;
                       const txtBody = await currentFrame.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
                       const txtMain = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
@@ -1604,7 +1604,7 @@ async function main() {
 
                   if (errorTomaExistente) {
                       consecutivosDuplicados++;
-                      console.log(c.amarillo(`\n  ⚠️ ALERTA DE CUÉNTAME: "El beneficiario ya tiene una toma para la fecha de antropométrica relacionada".`));
+                      console.log(c.amarillo(`\n  ⚠️ ALERTA DE CUENTAME: "El beneficiario ya tiene una toma para la fecha de antropometrica relacionada".`));
                       console.log(c.amarillo(`     ➡️ Registro omitido por duplicidad de fecha (${consecutivosDuplicados} consecutivo(s)).`));
 
                       if (modoExcel && modoExcel.startsWith('MASIVO_')) {
@@ -1613,14 +1613,14 @@ async function main() {
                               ninosProcesados.push({
                                   ...ninoTarget,
                                   estado: '⚠️ OMITIDO (TOMA DUPLICADA)',
-                                  observacion: 'Cuéntame indicó que el beneficiario ya tiene una toma para esa fecha.'
+                                  observacion: 'Cuentame indico que el beneficiario ya tiene una toma para esa fecha.'
                               });
                           }
                       }
 
                       if (consecutivosDuplicados >= 3) {
                           console.log(c.rojo('\n  ========================================================================================'));
-                          console.log(c.rojo('  ⛔ SE VALIDÓ EN 3 REGISTROS CONSECUTIVOS QUE LA TOMA YA EXISTE EN CUÉNTAME.'));
+                          console.log(c.rojo('  ⛔ SE VALIDO EN 3 REGISTROS CONSECUTIVOS QUE LA TOMA YA EXISTE EN CUENTAME.'));
                           console.log(c.rojo('  ⚠️  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
                           console.log(c.rojo('  ========================================================================================\n'));
 
@@ -1629,14 +1629,14 @@ async function main() {
                       }
                   } else if (guardadoConfirmado) {
                       consecutivosDuplicados = 0;
-                      console.log(c.verde('  🎉 ¡Confirmado! Banner "La Informacion ha sido guardada." recibido de Cuéntame.'));
+                      console.log(c.verde('  🎉 Confirmado! Banner "La Informacion ha sido guardada." recibido de Cuentame.'));
                       if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                           const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
                           if (ninoTarget) {
                               ninosProcesados.push({
                                   ...ninoTarget,
                                   estado: '✅ CARGADO EXITOSAMENTE',
-                                  observacion: 'La informacion de la toma se guardó en Cuéntame.'
+                                  observacion: 'La informacion de la toma se guardo en Cuentame.'
                               });
                           }
                           console.log(c.verde(`  🎉 Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
@@ -1654,10 +1654,10 @@ async function main() {
                       let autoHealed = false;
                       const ninoTarget = (modoExcel && modoExcel.startsWith('MASIVO_')) ? (ninosExcel[idxNinoExcelActual] || ninoSeleccionado) : ninoSeleccionado;
 
-                      // Auto-recuperación si Cuéntame reclama por Fecha de medicion de perímetro braquial > Fecha de valoración
+                      // Auto-recuperacion si Cuentame reclama por Fecha de medicion de perimetro braquial > Fecha de valoracion
                       if (txtError && (txtError.toLowerCase().includes('perimetro braquial') || txtError.toLowerCase().includes('menor o igual')) && ninoTarget && ninoTarget.fecha) {
-                          console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perímetro braquial en Cuéntame.`));
-                          console.log(c.amarillo(`  🛠️ Autocorrigiendo: Sincronizando Fecha de medicion de perímetro braquial con Fecha de valoración (${ninoTarget.fecha})...`));
+                          console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perimetro braquial en Cuentame.`));
+                          console.log(c.amarillo(`  🛠️ Autocorrigiendo: Sincronizando Fecha de medicion de perimetro braquial con Fecha de valoracion (${ninoTarget.fecha})...`));
                           
                           await currentFrameErr.evaluate((fDate) => {
                               const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
@@ -1682,12 +1682,12 @@ async function main() {
                               if (txtBodyRetry.includes('La Informacion ha sido guardada') || txtMainRetry.includes('La Informacion ha sido guardada') || txtBodyRetry.includes('ha sido guardada')) {
                                   autoHealed = true;
                                   consecutivosDuplicados = 0;
-                                  console.log(c.verde('  🎉 ¡Corregido y guardado exitosamente! Banner "La Informacion ha sido guardada." recibido.'));
+                                  console.log(c.verde('  🎉 Corregido y guardado exitosamente! Banner "La Informacion ha sido guardada." recibido.'));
                                   if (modoExcel && modoExcel.startsWith('MASIVO_') && ninoTarget) {
                                       ninosProcesados.push({
                                           ...ninoTarget,
                                           estado: '✅ CARGADO EXITOSAMENTE (AUTOCORREGIDO FECHA PERIMETRO)',
-                                          observacion: 'La informacion de la toma se guardó tras autocorregir fecha de perímetro braquial.'
+                                          observacion: 'La informacion de la toma se guardo tras autocorregir fecha de perimetro braquial.'
                                       });
                                       console.log(c.verde(`  🎉 Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                                   }
@@ -1697,9 +1697,9 @@ async function main() {
 
                       if (!autoHealed) {
                           if (txtError) {
-                              console.log(c.rojo(`  ❌ Error reportado por Cuéntame en la pantalla: "${txtError}"`));
+                              console.log(c.rojo(`  ❌ Error reportado por Cuentame en la pantalla: "${txtError}"`));
                           } else {
-                              console.log(c.rojo('  ❌ NO se confirmó el guardado ("La Informacion ha sido guardada.") por parte del servidor.'));
+                              console.log(c.rojo('  ❌ NO se confirmo el guardado ("La Informacion ha sido guardada.") por parte del servidor.'));
                           }
 
                           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
@@ -1707,7 +1707,7 @@ async function main() {
                                   ninosProcesados.push({
                                       ...ninoTarget,
                                       estado: '❌ ERROR EN GUARDADO',
-                                      observacion: txtError ? `Cuéntame reportó: ${txtError}` : 'El servidor de Cuéntame no retornó la confirmación de guardado.'
+                                      observacion: txtError ? `Cuentame reporto: ${txtError}` : 'El servidor de Cuentame no retorno la confirmacion de guardado.'
                                   });
                               }
                           }
@@ -1749,12 +1749,12 @@ async function main() {
                   }
 
 
-                  // ── MENÚ POST-GUARDADO ───────────────────────────────────
+                  // ── MENU POST-GUARDADO ───────────────────────────────────
                   console.log(c.cyan('\n  ╔════════════════════════════════════════════════════════════════════╗'));
-                  console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
+                  console.log(c.cyan('  ║                Que deseas hacer a continuacion?                   ║'));
                   console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
-                  console.log(c.cyan('  ║  1. Otro nino del mismo jardín                                     ║'));
-                  console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
+                  console.log(c.cyan('  ║  1. Otro nino del mismo jardin                                     ║'));
+                  console.log(c.cyan('  ║  2. Cambiar de Jardin (UDS)                                        ║'));
                   console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
                   console.log(c.cyan('  ║  4. Volver al menu de opciones de Peso y Talla                     ║'));
                   console.log(c.cyan('  ║  0. Volver al panel principal (AutoTrabajo / Start)               ║'));
@@ -1773,8 +1773,8 @@ async function main() {
                       jardinSeleccionado = null;
                       break;
                   } else if (respNavPost === '1') {
-                      // Mismo jardín → Volver a llenar la lupa de UDS porque a veces Cuéntame la borra tras guardar
-                      console.log(c.amarillo('  ⏳ Recargando la UDS para asegurar que la lista de ninos esté visible...'));
+                      // Mismo jardin → Volver a llenar la lupa de UDS porque a veces Cuentame la borra tras guardar
+                      console.log(c.amarillo('  ⏳ Recargando la UDS para asegurar que la lista de ninos este visible...'));
                       try {
                           let currentContentFrame = page.frame({ name: 'frameContent' });
                           if (!currentContentFrame) {
@@ -1821,8 +1821,8 @@ async function main() {
                       break; // Sale de Fase 3 y regresa a Fase 2 (seleccion de nino)
                   } else if (respNavPost === '2') {
                       jardinSeleccionado = null;
-                      // Mismo jardín / misma asociacion → volver a Seguimiento Nutricion (filtros limpios)
-                      console.log(c.amarillo('  ⏳ Volviendo a Seguimiento Nutricion para seleccionar otro jardín...'));
+                      // Mismo jardin / misma asociacion → volver a Seguimiento Nutricion (filtros limpios)
+                      console.log(c.amarillo('  ⏳ Volviendo a Seguimiento Nutricion para seleccionar otro jardin...'));
                       try {
                           const rootMenu2 = page.frame({ name: 'frameMenu' }) || page;
                           const childMenu2 = rootMenu2.locator('a:has-text("Seguimiento nutricional")').first();
@@ -1833,7 +1833,7 @@ async function main() {
                               await page.goto('https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx', { waitUntil: 'networkidle', timeout: 20000 });
                               await page.waitForTimeout(1500);
                           }
-                          console.log(c.verde('  ✅ Listo. Selecciona el nuevo jardín desde los filtros.'));
+                          console.log(c.verde('  ✅ Listo. Selecciona el nuevo jardin desde los filtros.'));
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error navegando: ${e.message}`));
                       }
@@ -1846,11 +1846,11 @@ async function main() {
                       try {
                           await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
                           if (page.url().includes('DefaultF.aspx')) {
-                              console.log(c.amarillo('  ⚠️ Sesión expirada. Reautenticando...'));
+                              console.log(c.amarillo('  ⚠️ Sesion expirada. Reautenticando...'));
                               await loginYLlegarARoles(page, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
                           }
                           loggedIn = true;
-                          console.log(c.verde('  ✅ Listo. El script seleccionará la nueva asociacion.'));
+                          console.log(c.verde('  ✅ Listo. El script seleccionara la nueva asociacion.'));
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error navegando a roles: ${e.message}`));
                       }

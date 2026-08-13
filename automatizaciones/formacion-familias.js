@@ -1,7 +1,7 @@
 /**
  * formacion-familias.js
  * Bot principal para automatizar el registro de Formacion a Familias
- * en el sistema Cuéntame - ICBF.
+ * en el sistema Cuentame - ICBF.
  *
  * Uso: npm run formacion
  */
@@ -31,17 +31,17 @@ const c = {
 // Constantes del formulario
 // ─────────────────────────────────────────────────────────────
 const TEMAS_FORMACION = [
-  'SENTIDO DE LA EDUCACIÓN INICIAL.',
-  'CONCEPCIÓN DE FAMILIA, DESARROLLO, NIÑA Y NIÑO',
-  'CUIDADO SENSIBLE Y HUMANIZADO DESDE LA GESTACIÓN, PARTO Y EL POSPARTO',
+  'SENTIDO DE LA EDUCACION INICIAL.',
+  'CONCEPCION DE FAMILIA, DESARROLLO, NINA Y NINO',
+  'CUIDADO SENSIBLE Y HUMANIZADO DESDE LA GESTACION, PARTO Y EL POSPARTO',
   'CRIANZAS CORRESPONSABLES.',
-  'PREVENCIÓN DE VIOLENCIAS',
-  'PREVENCIÓN DE VIOLENCIAS BASADAS EN GÉNERO DESDE LA GESTACIÓN',
-  'GESTIÓN DE RIESGO DE ACCIDENTES Y DESASTRES',
-  'PREVENCIÓN DE ENFERMEDADES PREVALENTES EN PRIMERA INFANCIA.',
-  'PRÁCTICAS DE CUIDADO Y CONSUMO DE ALIMENTACIÓN SALUDABLE, NATURAL, MÍNIMAMENTE PROCESADA, VARIADA Y CULTURALMENTE ADECUADA',
-  'PROMOCIÓN DE LACTANCIA HUMANA COMO PRIMER ACTO DE SOBERANÍA ALIMENTARIA.',
-  'IDENTIFICACIÓN DE SIGNOS ALARMA EN LA SALUD DE MUJERES Y PERSONAS EN GESTACIÓN NIÑAS Y NIÑOS',
+  'PREVENCION DE VIOLENCIAS',
+  'PREVENCION DE VIOLENCIAS BASADAS EN GENERO DESDE LA GESTACION',
+  'GESTION DE RIESGO DE ACCIDENTES Y DESASTRES',
+  'PREVENCION DE ENFERMEDADES PREVALENTES EN PRIMERA INFANCIA.',
+  'PRACTICAS DE CUIDADO Y CONSUMO DE ALIMENTACION SALUDABLE, NATURAL, MINIMAMENTE PROCESADA, VARIADA Y CULTURALMENTE ADECUADA',
+  'PROMOCION DE LACTANCIA HUMANA COMO PRIMER ACTO DE SOBERANIA ALIMENTARIA.',
+  'IDENTIFICACION DE SIGNOS ALARMA EN LA SALUD DE MUJERES Y PERSONAS EN GESTACION NINAS Y NINOS',
 ];
 
 const TIPO_ENCUENTRO  = 'Encuentro educativo en el hogar';
@@ -97,7 +97,7 @@ function configurarObservaciones() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Registro de UN jardín
+// Registro de UN jardin
 // ─────────────────────────────────────────────────────────────
 async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   const { hoy, observaciones } = config;
@@ -342,13 +342,13 @@ async function main() {
       const context = navData.context;
       page = navData.page;
 
-      // Verificar si ya hay sesión activa; si no, hacer login
+      // Verificar si ya hay sesion activa; si no, hacer login
       const pageText = await page.evaluate(() => document.body.innerText);
       const urlActual = page.url();
       const sessionActiva = urlActual.includes('MasterPrincipal') || urlActual.includes('Roles.aspx') || pageText.includes('Seleccione la entidad') || pageText.includes('Rub online');
 
       if (!sessionActiva) {
-        console.log(c.amarillo('  🔐 Sin sesión activa. Iniciando login automatico...'));
+        console.log(c.amarillo('  🔐 Sin sesion activa. Iniciando login automatico...'));
         await loginYLlegarARoles(page, {
           usuario: USUARIO,
           password: PASSWORD,
@@ -356,14 +356,14 @@ async function main() {
           gmailAppPassword: GMAIL_APP_PASSWORD
         });
       } else {
-        console.log(c.verde('  ✅ Sesión activa detectada. Reutilizando sesión existente.'));
+        console.log(c.verde('  ✅ Sesion activa detectada. Reutilizando sesion existente.'));
       }
 
       // Si estamos en seleccion de entidad (Roles.aspx), elegir cualquier asociacion al azar
       const urlDespues = page.url();
       const textoDespues = await page.evaluate(() => document.body.innerText);
       if (urlDespues.includes('Roles.aspx') || textoDespues.includes('Seleccione la entidad')) {
-        console.log(c.amarillo('  🎲 Seleccionando una entidad automaticamente para acceder al módulo...'));
+        console.log(c.amarillo('  🎲 Seleccionando una entidad automaticamente para acceder al modulo...'));
         const opciones = await page.locator('select option').all();
         const validas = [];
         for (const op of opciones) {
@@ -444,7 +444,7 @@ async function main() {
   const archivoLog = guardarLog(log);
   console.log(c.gris(`  📄 Log guardado en: ${archivoLog}\n`));
 
-  console.log(c.verde('  👋 Módulo finalizado. Navegador mantenido activo.\n'));
+  console.log(c.verde('  👋 Modulo finalizado. Navegador mantenido activo.\n'));
 }
 
 main().catch((err) => {

@@ -1,7 +1,7 @@
 /**
  * consulta-activos.js
  * Script interactivo para consultar si un beneficiario se encuentra vinculado o desvinculado,
- * y en qué Unidad de Servicio esta.
+ * y en que Unidad de Servicio esta.
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
@@ -44,7 +44,7 @@ async function main() {
   console.log(c.cyan('\n======================================================'));
   console.log(c.cyan('   🔍 CONSULTA DE BENEFICIARIOS (ACTIVOS/INACTIVOS)'));
   console.log(c.cyan('======================================================\n'));
-  console.log(c.gris('Selecciona una asociacion cualquiera para poder ingresar al sistema de Cuéntame.'));
+  console.log(c.gris('Selecciona una asociacion cualquiera para poder ingresar al sistema de Cuentame.'));
   console.log(c.gris('Nota: La busqueda de beneficiarios es global en el sistema.'));
 
   let browser = null;
@@ -84,7 +84,7 @@ async function main() {
       try {
         const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
         if (!mismaAsociacion) {
-            console.log(c.amarillo('  🔐 Verificando inicio de sesión en Cuéntame...'));
+            console.log(c.amarillo('  🔐 Verificando inicio de sesion en Cuentame...'));
             await loginYLlegarARoles(page, {
               usuario: USUARIO,
               password: PASSWORD,
@@ -95,12 +95,12 @@ async function main() {
             console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
             await seleccionarRolYEntrar(page, ascSeleccionada);
         } else {
-            console.log(c.verde(`  ✅ Preservando sesión y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
+            console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
             loggedIn = true;
         }
 
         // Navegar a Informacion del Beneficiario
-    console.log(c.cyan('  🚀 Navegando al módulo de Informacion del Beneficiario...'));
+    console.log(c.cyan('  🚀 Navegando al modulo de Informacion del Beneficiario...'));
     
     let menuFrame = page.frame({ name: 'frameMenu' });
     if (!menuFrame) {
@@ -117,16 +117,16 @@ async function main() {
         const childMenu = rootMenu.locator('a:has-text("Informacion beneficiario")').first();
         if (await childMenu.count() > 0) {
             // En vez de lidiar con menus colapsados, disparamos el clic directamente por JS
-            // Esto ignorará si el padre esta cerrado o si esta oculto visualmente.
+            // Esto ignorara si el padre esta cerrado o si esta oculto visualmente.
             await childMenu.evaluate(node => node.click());
             await page.waitForTimeout(4000);
         } else {
-            console.log(c.amarillo('  ⚠️ No se encontró el enlace de Informacion beneficiario en el menu.'));
+            console.log(c.amarillo('  ⚠️ No se encontro el enlace de Informacion beneficiario en el menu.'));
         }
     } catch(e) {
         console.log(c.rojo(`  ❌ Error al intentar acceder a Informacion beneficiario: ${e.message}`));
     }
-    // (La obtención del frame se hará dentro del bucle para asegurar que esté listo)
+    // (La obtencion del frame se hara dentro del bucle para asegurar que este listo)
     
     // Bucle interactivo de busqueda
     while (true) {
@@ -171,7 +171,7 @@ async function main() {
         console.log(c.gris(`  Buscando beneficiario con documento: ${tipoDocId} - ${documento}...`));
         
         try {
-            // Re-evaluar el frame justo antes de interactuar, asegurando que esté listo
+            // Re-evaluar el frame justo antes de interactuar, asegurando que este listo
             let frame = page.frame({ name: 'frameContent' });
             if (!frame) {
                 for (const f of page.frames()) {
@@ -195,7 +195,7 @@ async function main() {
             await inputDoc.pressSequentially(documento, { delay: 100 });
             await page.waitForTimeout(500);
 
-            // Hacer clic en el botón buscar (que según la imagen es <a id="btnBuscar">...</a>)
+            // Hacer clic en el boton buscar (que segun la imagen es <a id="btnBuscar">...</a>)
             const btnBuscar = frame.locator('#btnBuscar, a:has(img[alt="Consultar"])').first();
             if (await btnBuscar.count() > 0) {
                 await btnBuscar.evaluate(node => node.click());
@@ -208,7 +208,7 @@ async function main() {
             // En ASP.NET a menudo hay un UpdatePanel.
             await page.waitForTimeout(5000);
 
-            // Re-obtener el frame (por si la navegacion cambió el contexto)
+            // Re-obtener el frame (por si la navegacion cambio el contexto)
             frame = page.frame({ name: 'frameContent' });
             if (!frame) {
                 for (const f of page.frames()) {
@@ -220,7 +220,7 @@ async function main() {
             }
             if (!frame) frame = page;
 
-            // Vamos a buscar todas las tablas de la página y procesar la tabla de resultados (suele tener > 15 columnas)
+            // Vamos a buscar todas las tablas de la pagina y procesar la tabla de resultados (suele tener > 15 columnas)
             const tablas = await frame.locator('table').all();
             let registros = [];
             
@@ -255,13 +255,13 @@ async function main() {
                 if (await sinDatos.count() > 0 && await sinDatos.isVisible()) {
                     console.log(c.rojo(`  ❌ El sistema reporta: No se encontraron datos para el documento ${documento}.`));
                 } else {
-                    console.log(c.rojo('  ❌ No se encontró ninguna tabla de resultados. Revisa si la página mostró un error.'));
+                    console.log(c.rojo('  ❌ No se encontro ninguna tabla de resultados. Revisa si la pagina mostro un error.'));
                 }
                 // No hace nada especial, simplemente vuelve al top del loop
                 continue;
             }
 
-            // Parsear fechas y ordenar para tener la más reciente primero (DD/MM/YYYY)
+            // Parsear fechas y ordenar para tener la mas reciente primero (DD/MM/YYYY)
             registros.sort((a, b) => {
                 const parseD = (str) => {
                     const parts = str.split('/');
@@ -278,14 +278,14 @@ async function main() {
             console.log(`    Asociacion (Entidad): ${masReciente.entidad}`);
             console.log(`    UDS: ${masReciente.nombreUds}\n`);
 
-            // Lógica de validacion
+            // Logica de validacion
             const estadoMayus = masReciente.estado.toUpperCase();
             const esMismaAsociacion = masReciente.entidad.toUpperCase().includes(ascSeleccionada.nombreCorto.toUpperCase());
 
             if (estadoMayus === 'VINCULADO') {
                 if (!esMismaAsociacion) {
                     console.log(c.rojo(`  ⚠️ El nino se encuentra VINCULADO pero en OTRA asociacion (${masReciente.entidad}).`));
-                    const resp = readline.question('  ¿Deseas guardar esta novedad en el Excel oficial de ICBF? (s/n) o [M] para menu principal: ').toLowerCase();
+                    const resp = readline.question('  Deseas guardar esta novedad en el Excel oficial de ICBF? (s/n) o [M] para menu principal: ').toLowerCase();
                     if (resp === 'm') {
                         salirModulo = true;
                         break;
@@ -299,7 +299,7 @@ async function main() {
                         
                         const ws = workbook.worksheets.find(w => w.name.toUpperCase() === 'FORMATO');
                         if (ws) {
-                            // Buscar la primera fila vacía a partir de la 6
+                            // Buscar la primera fila vacia a partir de la 6
                             let filaVacia = 6;
                             while (filaVacia <= 500) {
                                 const row = ws.getRow(filaVacia);
@@ -310,11 +310,11 @@ async function main() {
                                 filaVacia++;
                             }
                             
-                            // Calcular fecha "primer día del mes actual del año actual"
+                            // Calcular fecha "primer dia del mes actual del ano actual"
                             const hoy = new Date();
                             const dia1MesActual = `01/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
                             
-                            // Normalizar la regional para que coincida con el filtro de Excel (mayúsculas, sin tildes, sin D.C.)
+                            // Normalizar la regional para que coincida con el filtro de Excel (mayusculas, sin tildes, sin D.C.)
                             const normalizarRegional = (str) => {
                                 let res = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
                                 if (res.includes('BOGOTA')) return 'BOGOTA';
@@ -338,7 +338,7 @@ async function main() {
                             rowToFill.getCell(10).value = masReciente.tipoDoc;
                             rowToFill.getCell(11).value = documento;
                             rowToFill.getCell(12).value = masReciente.nombre;
-                            rowToFill.getCell(13).value = dia1MesActual; // Fecha mágica
+                            rowToFill.getCell(13).value = dia1MesActual; // Fecha magica
                             
                             rowToFill.commit();
                             
@@ -353,7 +353,7 @@ async function main() {
                             
                             console.log(c.verde(`  ✅ Novedad guardada exitosamente en el Excel (solo para este nino).`));
                             
-                            const armarCorreo = readline.question('  ¿Desea armar el correo para envio a la regional? (s/n) o [M] para menu principal: ').toLowerCase();
+                            const armarCorreo = readline.question('  Desea armar el correo para envio a la regional? (s/n) o [M] para menu principal: ').toLowerCase();
                             if (armarCorreo === 'm') {
                                 salirModulo = true;
                                 break;
@@ -368,10 +368,10 @@ async function main() {
 <b>Nombre del EAS que requiere el ajuste:</b> ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}<br>
 <b>Numero de Contrato:</b> ${ascSeleccionada.numeroContrato || ''}<br>
 <b>Nombre de la persona que pone el caso:</b> SAAD PAEZ<br>
-<b>Numero de Identificación:</b> 1020722462<br>
+<b>Numero de Identificacion:</b> 1020722462<br>
 <b>Numero de contacto:</b> 3202002073<br>
-<b>Área Misional si aplica:</b> Primera Infancia<br>
-<b>Regional y Centro Zonal:</b> BOGOTÁ, CZ USAQUEN
+<b>Area Misional si aplica:</b> Primera Infancia<br>
+<b>Regional y Centro Zonal:</b> BOGOTA, CZ USAQUEN
 </p>
 <p>
 <i>Atte</i><br><br>
@@ -402,7 +402,7 @@ async function main() {
                                     attachments.push({ filename: 'RC.pdf', path: path.join(docsDir, 'RC.pdf') });
                                     attachments.push({ filename: 'CARTA.pdf', path: path.join(docsDir, 'CARTA.pdf') });
                                 } else {
-                                    console.log(c.amarillo(`  ⚠️ El borrador del correo se creará SOLO con el Excel, ya que los documentos de soporte estan incompletos.`));
+                                    console.log(c.amarillo(`  ⚠️ El borrador del correo se creara SOLO con el Excel, ya que los documentos de soporte estan incompletos.`));
                                 }
 
                                 const mail = new MailComposer({
@@ -425,11 +425,11 @@ async function main() {
                                     const messageBuffer = await mail.compile().build();
                                     await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
                                     console.log(c.verde(`  ✅ Borrador de correo subido exitosamente a la carpeta Borradores de tu Gmail.`));
-                                    console.log(c.verde(`     (Revisa la carpeta "Borradores" en tu correo, allí estará listo con el Excel adjunto).`));
+                                    console.log(c.verde(`     (Revisa la carpeta "Borradores" en tu correo, alli estara listo con el Excel adjunto).`));
                                 }
                             }
                         } else {
-                            console.log(c.rojo('  ❌ No se encontró la hoja "FORMATO" en el archivo de Excel.'));
+                            console.log(c.rojo('  ❌ No se encontro la hoja "FORMATO" en el archivo de Excel.'));
                         }
                     }
                 } else {
@@ -458,7 +458,7 @@ async function main() {
   
   } // End of outer while(true) (asociacion loop)
 
-  console.log(c.verde('\n  👋 Módulo finalizado.\n'));
+  console.log(c.verde('\n  👋 Modulo finalizado.\n'));
   if (browser) await browser.disconnect().catch(() => {});
   process.exit(0);
 }

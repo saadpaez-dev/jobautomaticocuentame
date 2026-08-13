@@ -45,7 +45,7 @@ function detectarColumnas(data) {
             const cell = String(row[c] || '').trim().toUpperCase();
             if (!cell) continue;
 
-            if (cell.includes('NUMERO DOCUMENTO') || cell.includes('NÚMERO DOCUMENTO') || cell.includes('NO. DOCUMENTO') || cell.includes('DOCUMENTO') || cell.includes('IDENTIFICACION') || cell.includes('NUM_DOC') || cell === 'DOC') {
+            if (cell.includes('NUMERO DOCUMENTO') || cell.includes('NUMERO DOCUMENTO') || cell.includes('NO. DOCUMENTO') || cell.includes('DOCUMENTO') || cell.includes('IDENTIFICACION') || cell.includes('NUM_DOC') || cell === 'DOC') {
                 if (cDoc === -1) { cDoc = c; score += 5; }
             }
             if (cell.includes('TIPO DOCUMENTO') || cell.includes('TIPO DOC') || cell.includes('TIPO_DOC')) {
@@ -257,10 +257,10 @@ async function generarReporteExcelFaltantes(faltantes, totalActivos, totalNutric
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Faltantes Nutricion');
 
-    // Título y Resumen
+    // Titulo y Resumen
     worksheet.mergeCells('A1:H1');
     const titleCell = worksheet.getCell('A1');
-    titleCell.value = 'REPORTE DE NIÑOS FALTANTES POR VALORACIÓN NUTRICIONAL';
+    titleCell.value = 'REPORTE DE NINOS FALTANTES POR VALORACION NUTRICIONAL';
     titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFF' } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1F4E78' } };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -277,13 +277,13 @@ async function generarReporteExcelFaltantes(faltantes, totalActivos, totalNutric
     // Encabezados de Tabla (Fila 7)
     const headers = [
         '#',
-        'Código UDS',
-        'Unidad de Servicio (Jardín)',
+        'Codigo UDS',
+        'Unidad de Servicio (Jardin)',
         'Tipo Doc.',
         'Numero de Documento',
         'Nombre Completo del Beneficiario',
         'Estado',
-        'Observación'
+        'Observacion'
     ];
 
     const headerRow = worksheet.getRow(7);
@@ -306,7 +306,7 @@ async function generarReporteExcelFaltantes(faltantes, totalActivos, totalNutric
         row.getCell(5).value = nino.documentoRaw;
         row.getCell(6).value = nino.nombreCompleto;
         row.getCell(7).value = nino.estado;
-        row.getCell(8).value = 'Falta registro de valoración nutricional en Cuéntame';
+        row.getCell(8).value = 'Falta registro de valoracion nutricional en Cuentame';
 
         row.getCell(1).alignment = { horizontal: 'center' };
         row.getCell(2).alignment = { horizontal: 'center' };
@@ -377,13 +377,13 @@ async function main() {
   ║     📊 COMPARADOR: BENEFICIARIOS ACTIVOS VS SEGUIMIENTO NUTRICIONAL║
   ╚════════════════════════════════════════════════════════════════════╝
     `));
-    console.log(c.gris('  Este script compara los reportes originales de Cuéntame para identificar qué ninos faltan por Nutricion.\n'));
+    console.log(c.gris('  Este script compara los reportes originales de Cuentame para identificar que ninos faltan por Nutricion.\n'));
 
     try {
         while (true) {
-            console.log(c.amarillo('  Pasos para la comparación:'));
-            console.log(c.gris('  1. Arrastra el Reporte de BENEFICIARIOS ACTIVOS descargado de Cuéntame.'));
-            console.log(c.gris('  2. Arrastra el Reporte de SEGUIMIENTO NUTRICIONAL descargado de Cuéntame.\n'));
+            console.log(c.amarillo('  Pasos para la comparacion:'));
+            console.log(c.gris('  1. Arrastra el Reporte de BENEFICIARIOS ACTIVOS descargado de Cuentame.'));
+            console.log(c.gris('  2. Arrastra el Reporte de SEGUIMIENTO NUTRICIONAL descargado de Cuentame.\n'));
 
             // 1. Reporte de Beneficiarios Activos
             const rutaActivos = pedirRutaReporte('Paso 1: Arrastra el Reporte de BENEFICIARIOS ACTIVOS');
@@ -393,7 +393,7 @@ async function main() {
             }
 
             if (!fs.existsSync(rutaActivos)) {
-                console.log(c.rojo(`  ❌ No se encontró el archivo: ${rutaActivos}\n`));
+                console.log(c.rojo(`  ❌ No se encontro el archivo: ${rutaActivos}\n`));
                 continue;
             }
 
@@ -405,7 +405,7 @@ async function main() {
             }
 
             if (!fs.existsSync(rutaNutricion)) {
-                console.log(c.rojo(`  ❌ No se encontró el archivo: ${rutaNutricion}\n`));
+                console.log(c.rojo(`  ❌ No se encontro el archivo: ${rutaNutricion}\n`));
                 continue;
             }
 
@@ -415,7 +415,7 @@ async function main() {
             const docsNutricion = extraerDocumentosNutricion(rutaNutricion);
 
             if (ninosActivos.length === 0) {
-                console.log(c.rojo('  ❌ No se encontraron beneficiarios activos válidos en el primer reporte. Revisa el archivo.'));
+                console.log(c.rojo('  ❌ No se encontraron beneficiarios activos validos en el primer reporte. Revisa el archivo.'));
                 continue;
             }
 
@@ -437,13 +437,13 @@ async function main() {
 
             // Mostrar resumen en consola
             console.log(c.verde('\n========================================================================================'));
-            console.log(c.verde('  🎉 ¡COMPARACIÓN COMPLETADA CON ÉXITO!'));
+            console.log(c.verde('  🎉 COMPARACION COMPLETADA CON EXITO!'));
             console.log(c.verde('========================================================================================'));
             console.log(`  • Total Beneficiarios Activos en Reporte: ${c.bold(ninosActivos.length)}`);
             console.log(`  • Total Con Registro Nutricional:         ${c.bold(docsNutricion.size)}`);
             console.log(`  • Total Ninos Faltantes por Nutricion:     ${c.rojo(c.bold(faltantes.length))}\n`);
 
-            // Agrupar faltantes por Jardín (UDS)
+            // Agrupar faltantes por Jardin (UDS)
             const porJardin = new Map();
             faltantes.forEach(f => {
                 const key = `${f.codigoUds} - ${f.jardin}`;
@@ -451,7 +451,7 @@ async function main() {
                 porJardin.get(key).push(f);
             });
 
-            console.log(c.cyan('  📋 DETALLE DE NIÑOS FALTANTES POR JARDÍN (UDS):\n'));
+            console.log(c.cyan('  📋 DETALLE DE NINOS FALTANTES POR JARDIN (UDS):\n'));
             let numJardin = 1;
             porJardin.forEach((ninos, udsNombre) => {
                 console.log(c.amarillo(`  🏡 [UDS ${numJardin++}]: ${udsNombre} (${ninos.length} ninos faltantes)`));

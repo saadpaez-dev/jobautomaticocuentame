@@ -2,7 +2,7 @@
  * estimar-peso-talla.js
  *
  * Lee exclusivamente el Formato pre-llenado de Peso y Talla (Formato Captura),
- * calcula la proyección de peso y talla a la FECHA DE HOY (OMS / Proyección de Crecimiento)
+ * calcula la proyeccion de peso y talla a la FECHA DE HOY (OMS / Proyeccion de Crecimiento)
  * y escribe el resultado directamente en el mismo formato en las columnas:
  * - Col U (21): FECHA DE LA TOMA ESTIMADA (Fecha de hoy)
  * - Col V (22): PESO ESTIMADO (Kg)
@@ -65,8 +65,8 @@ function normalizarFecha(val) {
 function limpiarNombreArchivo(nombre) {
     if (!nombre) return 'JARDIN';
     return String(nombre)
-        .replace(/Ñ/g, "N")
-        .replace(/ñ/g, "N")
+        .replace(/N/g, "N")
+        .replace(/n/g, "N")
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_")
@@ -83,7 +83,7 @@ function parsearFormatoPesoYTalla(rutaArchivo) {
     const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
     if (!rows || rows.length === 0) {
-        throw new Error('El archivo Excel esta vacío.');
+        throw new Error('El archivo Excel esta vacio.');
     }
 
     // Validar si es un Formato de Peso y Talla (Formato Captura)
@@ -141,7 +141,7 @@ function parsearFormatoPesoYTalla(rutaArchivo) {
 
         const pesoRaw = row[8]; // Col I (Peso kg)
         const tallaRaw = row[9]; // Col J (Talla cm)
-        const perimetroRaw = row[10]; // Col K (Perímetro cm)
+        const perimetroRaw = row[10]; // Col K (Perimetro cm)
 
         agrupadoPorUds[udsGlobal].ninos.push({
             documento: docNorm,
@@ -167,7 +167,7 @@ async function generarFormatoEstimadoUds(datosUds, plantillaPath, fechaHoyFormat
 
     // Encabezado de la planilla
     // E9 (Col 5): Nombre de la Entidad Administradora de Servicio (EAS / Asociacion)
-    // X9 (Col 24): Nombre de la Unidad de Servicio (UDS / Jardín)
+    // X9 (Col 24): Nombre de la Unidad de Servicio (UDS / Jardin)
     worksheet.getRow(9).getCell(5).value = datosUds.nombreEas;
     worksheet.getRow(9).getCell(24).value = datosUds.nombreUds;
 
@@ -201,7 +201,7 @@ async function generarFormatoEstimadoUds(datosUds, plantillaPath, fechaHoyFormat
         row.getCell(8).value = nino.fechaToma || '';  // H: FECHA DE LA TOMA ANTERIOR
         row.getCell(9).value = nino.peso || '';       // I: PESO ANTERIOR (Kg)
         row.getCell(10).value = nino.talla || '';     // J: TALLA ANTERIOR (cm)
-        row.getCell(11).value = nino.perimetro || ''; // K: PERÍMETRO ANTERIOR (cm)
+        row.getCell(11).value = nino.perimetro || ''; // K: PERIMETRO ANTERIOR (cm)
 
         // Cols L a S en blanco (12 a 19)
         for (let cCol = 12; cCol <= 19; cCol++) {
@@ -212,7 +212,7 @@ async function generarFormatoEstimadoUds(datosUds, plantillaPath, fechaHoyFormat
         row.getCell(20).value = fechaHoyFormateada;                             // T (20): FECHA DE LA TOMA ESTIMADA (HOY)
         row.getCell(21).value = nino.pesoEstimado ? nino.pesoEstimado : null;   // U (21): PESO ESTIMADO (Kg)
         row.getCell(22).value = nino.tallaEstimado ? nino.tallaEstimado : null; // V (22): TALLA ESTIMADA (cm)
-        row.getCell(23).value = null;                                           // W (23): PERÍMETRO BRAQUIAL (cm)
+        row.getCell(23).value = null;                                           // W (23): PERIMETRO BRAQUIAL (cm)
 
         // Cols X a AE en blanco (24 a 31)
         for (let cCol = 24; cCol <= 31; cCol++) {
@@ -228,12 +228,12 @@ async function generarFormatoEstimadoUds(datosUds, plantillaPath, fechaHoyFormat
 async function main() {
     console.log(c.cyan('\n========================================================================'));
     console.log(c.negrita(' 📈 ESTIMADOR DE PESO Y TALLA A FECHA DE HOY (COLUMNAS U, V, W)'));
-    console.log(c.amarillo(' (Proyección de Crecimiento a Hoy sobre el Formato de Peso y Talla)'));
+    console.log(c.amarillo(' (Proyeccion de Crecimiento a Hoy sobre el Formato de Peso y Talla)'));
     console.log(c.cyan('========================================================================\n'));
 
     const plantillaPath = path.join(__dirname, '..', 'docs', 'formato peso y talla.xlsx');
     if (!fs.existsSync(plantillaPath)) {
-        console.log(c.rojo(`❌ No se encontró la plantilla virgen en: ${plantillaPath}`));
+        console.log(c.rojo(`❌ No se encontro la plantilla virgen en: ${plantillaPath}`));
         return;
     }
 
@@ -249,11 +249,11 @@ async function main() {
         }
 
         if (!inputPath || !fs.existsSync(inputPath)) {
-            console.log(c.rojo('\n  ❌ El archivo especificado no existe. Inténtalo de nuevo.\n'));
+            console.log(c.rojo('\n  ❌ El archivo especificado no existe. Intentalo de nuevo.\n'));
             continue;
         }
 
-        console.log(c.cyan('\n  ⏳ Analizando el Formato de Peso y Talla y calculando proyección a la fecha de hoy...'));
+        console.log(c.cyan('\n  ⏳ Analizando el Formato de Peso y Talla y calculando proyeccion a la fecha de hoy...'));
 
         try {
             const agrupado = parsearFormatoPesoYTalla(inputPath);
@@ -264,7 +264,7 @@ async function main() {
             const listaUds = Object.keys(agrupado).sort();
 
             if (listaUds.length === 0) {
-                console.log(c.rojo('  ❌ No se encontraron beneficiarios válidos en el archivo.'));
+                console.log(c.rojo('  ❌ No se encontraron beneficiarios validos en el archivo.'));
             } else {
                 const easDetectada = agrupado[listaUds[0]]?.nombreEas || 'DESCONOCIDA';
                 console.log(c.amarillo(`\n  📌 Asociacion en el archivo: ${c.negrita(easDetectada)}`));
@@ -316,7 +316,7 @@ async function main() {
                     }
 
                     const totalPartes = partesNinos.length;
-                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de máx 13 ninos` : '';
+                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de max 13 ninos` : '';
                     console.log(`  ${i + 1}/${listaUds.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' ninos')}${descPartes})`);
 
                     for (let p = 0; p < totalPartes; p++) {
@@ -341,18 +341,18 @@ async function main() {
                         await wbPrellenado.xlsx.writeFile(pathDocs);
                         await wbPrellenado.xlsx.writeFile(pathReportes);
 
-                        console.log(c.gris(`     -> Guardado (Estimación a hoy en Cols U, V, W): docs/peso y talla/${fileBaseName}`));
+                        console.log(c.gris(`     -> Guardado (Estimacion a hoy en Cols U, V, W): docs/peso y talla/${fileBaseName}`));
                     }
                 }
 
-                console.log(c.verde('\n  🎉 ¡Formato con Estimación de Peso y Talla (a hoy) generado exitosamente!'));
+                console.log(c.verde('\n  🎉 Formato con Estimacion de Peso y Talla (a hoy) generado exitosamente!'));
             }
         } catch (err) {
             console.log(c.rojo(`\n  ❌ Error: ${err.message}`));
         }
 
         console.log(c.cyan('\n======================================================'));
-        const respFinal = readline.question(c.negrita('  > ¿Deseas procesar otro archivo de Formato de Peso y Talla? (s = Si, n = Volver al panel principal) [por defecto n]: '));
+        const respFinal = readline.question(c.negrita('  > Deseas procesar otro archivo de Formato de Peso y Talla? (s = Si, n = Volver al panel principal) [por defecto n]: '));
         if (respFinal.toLowerCase().trim() !== 's') {
             console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
             break;

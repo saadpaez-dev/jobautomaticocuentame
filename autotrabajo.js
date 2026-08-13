@@ -21,13 +21,13 @@ function banner() {
   ██║  ██║╚██████╔╝   ██║   ███████╗   ██║   ██║  ██║██║  ██║██████╔╝██║  ██║╚█████╔╝╚██████╔╝
   ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝ ╚════╝  ╚═════╝ 
     `));
-    console.log(c.verde(c.negrita('                      🚀 SUITE DE AUTOMATIZACIÓN CENTRALIZADA 🚀')));
+    console.log(c.verde(c.negrita('                      🚀 SUITE DE AUTOMATIZACION CENTRALIZADA 🚀')));
     console.log(c.gris('   =====================================================================================\n'));
 }
 
 function runScript(scriptName) {
     const scriptPath = path.join(__dirname, 'automatizaciones', scriptName);
-    console.log(c.amarillo(`\n>>> Iniciando módulo: ${scriptName} ...\n`));
+    console.log(c.amarillo(`\n>>> Iniciando modulo: ${scriptName} ...\n`));
     
     // stdio: 'inherit' permite que los logs y prompts se conecten a esta misma terminal
     const result = spawnSync(process.execPath, [scriptPath], { stdio: 'inherit' });
@@ -36,7 +36,7 @@ function runScript(scriptName) {
         console.error(c.rojo(`\n❌ Error al intentar ejecutar el script: ${result.error.message}`));
         readline.question(c.negrita('\nPresiona ENTER para volver al menu principal...'));
     } else if (result.status !== 0 && result.status !== null) {
-        console.error(c.rojo(`\n⚠️ El módulo finalizó con código de salida: ${result.status}`));
+        console.error(c.rojo(`\n⚠️ El modulo finalizo con codigo de salida: ${result.status}`));
         readline.question(c.negrita('\nPresiona ENTER para volver al menu principal...'));
     }
 }
@@ -76,7 +76,7 @@ async function main() {
 
     if (!navegadorAbierto) {
         console.log(c.cyan('  🚀 Abriendo Brave automaticamente en Modo Humano...'));
-        // Añadimos banderas para evitar que restaure pestañas viejas o muestre el globo de "restaurar sesión"
+        // Anadimos banderas para evitar que restaure pestanas viejas o muestre el globo de "restaurar sesion"
         const comandoBrave = `start brave.exe --remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --user-data-dir="%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data Bot" https://rubonline.icbf.gov.co`;
         exec(comandoBrave);
         // Esperar a que el navegador abra completamente
@@ -84,20 +84,20 @@ async function main() {
         await new Promise(r => setTimeout(r, 5000));
     }
 
-    // Conectar al navegador vía CDP y hacer login automatico
+    // Conectar al navegador via CDP y hacer login automatico
     try {
-        console.log(c.cyan('  🔗 Conectando al navegador y verificando sesión en Cuéntame...'));
+        console.log(c.cyan('  🔗 Conectando al navegador y verificando sesion en Cuentame...'));
         const browser = await chromium.connectOverCDP('http://localhost:9222');
         const context = browser.contexts()[0];
         
-        // Buscar pestaña de Cuéntame o crear una nueva
+        // Buscar pestana de Cuentame o crear una nueva
         let page = context.pages().find(p => p.url().includes('rubonline.icbf.gov.co'));
         if (!page) {
             page = context.pages()[0] || await context.newPage();
             await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
         }
         
-        // Cerrar cualquier otra pestaña que se haya quedado guardada en caché (para no estorbar)
+        // Cerrar cualquier otra pestana que se haya quedado guardada en cache (para no estorbar)
         const allPages = context.pages();
         for (const p of allPages) {
             if (p !== page) {
@@ -105,14 +105,14 @@ async function main() {
             }
         }
 
-        // Verificar si ya hay sesión activa
+        // Verificar si ya hay sesion activa
         const urlActual = page.url();
         const textoActual = await page.evaluate(() => document.body.innerText).catch(() => '');
         
-        const esLoginO2FA = textoActual.includes('Iniciar Sesión') || 
-                            textoActual.includes('Ingrese su código') || 
-                            textoActual.includes('Se ha enviado un código') || 
-                            textoActual.includes('¿Olvidaste tu Contraseña?');
+        const esLoginO2FA = textoActual.includes('Iniciar Sesion') || 
+                            textoActual.includes('Ingrese su codigo') || 
+                            textoActual.includes('Se ha enviado un codigo') || 
+                            textoActual.includes('Olvidaste tu Contrasena?');
 
         const sesionActiva = !esLoginO2FA && (
             urlActual.includes('MasterPrincipal') || 
@@ -121,22 +121,22 @@ async function main() {
         );
 
         if (sesionActiva) {
-            console.log(c.verde('  ✅ Sesión activa detectada en Cuéntame. ¡Listo para trabajar!\n'));
+            console.log(c.verde('  ✅ Sesion activa detectada en Cuentame. Listo para trabajar!\n'));
         } else {
-            console.log(c.amarillo('  🔐 Autenticando en Cuéntame (procesando 2FA)...'));
+            console.log(c.amarillo('  🔐 Autenticando en Cuentame (procesando 2FA)...'));
             await loginYLlegarARoles(page, {
                 usuario: USUARIO,
                 password: PASSWORD,
                 gmailUser: GMAIL_USER,
                 gmailAppPassword: GMAIL_APP_PASSWORD
             });
-            console.log(c.verde('  ✅ Autenticación completada. ¡Cuéntame listo para operar!\n'));
+            console.log(c.verde('  ✅ Autenticacion completada. Cuentame listo para operar!\n'));
         }
         
         await browser.disconnect().catch(() => {});
     } catch (err) {
-        console.log(c.amarillo(`  ⚠️ No se pudo verificar sesión automaticamente: ${err.message.slice(0, 60)}`));
-        console.log(c.gris('  (Continúa de todas formas, cada módulo manejará su propia sesión)\n'));
+        console.log(c.amarillo(`  ⚠️ No se pudo verificar sesion automaticamente: ${err.message.slice(0, 60)}`));
+        console.log(c.gris('  (Continua de todas formas, cada modulo manejara su propia sesion)\n'));
     }
 
     while (true) {
@@ -156,7 +156,7 @@ async function main() {
             { nombre: 'Generar Cuentas de Cobro', archivo: 'generar-cuentas-cobro.js' },
             { nombre: 'Vinculacion Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },
             { nombre: 'Desvinculacion Beneficiarios', archivo: 'desvinculacion-beneficiarios.js' },
-            { nombre: 'Generar Ticket de Errores de Digitación', archivo: 'generar-ticket-errores.js' }
+            { nombre: 'Generar Ticket de Errores de Digitacion', archivo: 'generar-ticket-errores.js' }
         ];
         
         opciones.forEach((opc, index) => {
@@ -169,22 +169,22 @@ async function main() {
         const respuesta = respuestaRaw ? respuestaRaw.trim() : '';
 
         if (respuesta === '0') {
-            console.log(c.verde('\n  👋 ¡Hasta luego! Cerrando AutoTrabajo.\n'));
+            console.log(c.verde('\n  👋 Hasta luego! Cerrando AutoTrabajo.\n'));
             break;
         } else if (respuesta.toUpperCase() === 'X') {
-            console.log(c.rojo('\n  🔴 Cerrando Brave y finalizando sesión de trabajo...'));
+            console.log(c.rojo('\n  🔴 Cerrando Brave y finalizando sesion de trabajo...'));
             try {
                 const { exec } = require('child_process');
                 // Cerrar Brave
                 exec('taskkill /IM brave.exe /F', (err) => {
-                    if (err) console.log(c.amarillo('  ⚠️ No se pudo cerrar Brave (puede que ya esté cerrado).'));
+                    if (err) console.log(c.amarillo('  ⚠️ No se pudo cerrar Brave (puede que ya este cerrado).'));
                     else console.log(c.verde('  ✅ Brave cerrado.'));
                 });
                 await new Promise(r => setTimeout(r, 1500));
             } catch(e) {
                 console.log(c.amarillo(`  ⚠️ Error cerrando navegador: ${e.message}`));
             }
-            console.log(c.verde('  👋 ¡Trabajo finalizado! Cerrando terminal...\n'));
+            console.log(c.verde('  👋 Trabajo finalizado! Cerrando terminal...\n'));
             setTimeout(() => process.exit(0), 1000);
             break;
         } else if (/^\d+$/.test(respuesta)) {
@@ -193,11 +193,11 @@ async function main() {
                 const opcSeleccionada = opciones[opcionInt - 1];
                 runScript(opcSeleccionada.archivo);
             } else {
-                console.log(c.rojo(`\n  ❌ Opcion "${respuesta}" fuera de rango (1-${opciones.length}). Inténtalo de nuevo.`));
+                console.log(c.rojo(`\n  ❌ Opcion "${respuesta}" fuera de rango (1-${opciones.length}). Intentalo de nuevo.`));
                 readline.question(c.gris('  Presiona ENTER para continuar...'));
             }
         } else {
-            console.log(c.rojo('\n  ❌ Opcion inválida. Inténtalo de nuevo.'));
+            console.log(c.rojo('\n  ❌ Opcion invalida. Intentalo de nuevo.'));
             readline.question(c.gris('  Presiona ENTER para continuar...'));
         }
     }

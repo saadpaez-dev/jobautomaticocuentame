@@ -1,13 +1,13 @@
 /**
  * automatizaciones/prellenar-formatos.js
  * 
- * Lee el Reporte de Nutricion / Activos descargado de Cuéntame
+ * Lee el Reporte de Nutricion / Activos descargado de Cuentame
  * y genera un Formato de Peso y Talla independiente pre-llenado (basado en docs/formato peso y talla.xlsx)
- * para cada Jardín / UDS.
+ * para cada Jardin / UDS.
  * 
  * Mapeo exacto de columnas del Reporte Nutricional:
  *  - Col E (index 4 / E3): Nombre Entidad Contratista (EAS) -> Celda E9 del formato.
- *  - Col G (index 6): Nombre de la UDS / Jardín -> Celda X9 del formato (agrupa los ninos por Jardín).
+ *  - Col G (index 6): Nombre de la UDS / Jardin -> Celda X9 del formato (agrupa los ninos por Jardin).
  *  - Col K (index 10): Numero Documento Beneficiario -> Col B del formato (B16 en adelante).
  *  - Col N + O (index 13 + 14): Primer y Segundo Nombre -> Col C del formato (C16 en adelante).
  *  - Col L + M (index 11 + 12): Primer y Segundo Apellido -> Col D del formato (D16 en adelante).
@@ -43,8 +43,8 @@ function removeAccents(str) {
 function limpiarNombreArchivo(nombre) {
     if (!nombre) return 'JARDIN';
     return String(nombre)
-        .replace(/Ñ/g, "N")
-        .replace(/ñ/g, "N")
+        .replace(/N/g, "N")
+        .replace(/n/g, "N")
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_")
@@ -123,7 +123,7 @@ function detectarMapaColumnas(headers) {
         sexo: 15,            // Col P (index 15)
         fechaNacimiento: 17, // Col R (index 17)
         fechaIngreso: 18,    // Col S (index 18)
-        fechaToma: 19,       // Col T (index 19 - Fecha Valoración Nutricional)
+        fechaToma: 19,       // Col T (index 19 - Fecha Valoracion Nutricional)
         perimetro: 37,       // Col AL (index 37 - Perimetro Braquial)
         peso: 43,            // Col AR (index 43 - Peso kg)
         talla: 44,           // Col AS (index 44 - Talla cm)
@@ -176,7 +176,7 @@ function parsearReporteNutricional(rutaArchivo) {
     const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
     if (!rows || rows.length === 0) {
-        throw new Error('El archivo Excel esta vacío.');
+        throw new Error('El archivo Excel esta vacio.');
     }
 
     // DETECTAR TIPO DE FORMATO:
@@ -233,7 +233,7 @@ function parsearReporteNutricional(rutaArchivo) {
 
             const pesoRaw = row[8]; // Col I (Peso kg)
             const tallaRaw = row[9]; // Col J (Talla cm)
-            const perimetroRaw = row[10]; // Col K (Perímetro cm)
+            const perimetroRaw = row[10]; // Col K (Perimetro cm)
 
             agrupadoPorUds[udsGlobal].ninos.push({
                 documento: docNorm,
@@ -253,7 +253,7 @@ function parsearReporteNutricional(rutaArchivo) {
         return agrupadoPorUds;
     }
 
-    // Extraer el Nombre de la Asociacion (EAS) dinámicamente de las celdas superiores del reporte (filas 1 a 15)
+    // Extraer el Nombre de la Asociacion (EAS) dinamicamente de las celdas superiores del reporte (filas 1 a 15)
     let easGlobal = '';
 
     // 1. Probar celdas habituales de cabecera (E2, E3, C2, C3, D2, D3, B2, B3, A2, A3)
@@ -288,7 +288,7 @@ function parsearReporteNutricional(rutaArchivo) {
         }
     }
 
-    // 2. Si no se encontró en las celdas directas, escanear todas las celdas de las primeras 15 filas
+    // 2. Si no se encontro en las celdas directas, escanear todas las celdas de las primeras 15 filas
     if (!easGlobal) {
         for (let r = 0; r < Math.min(15, rows.length); r++) {
             if (!rows[r]) continue;
@@ -433,7 +433,7 @@ function parsearReporteNutricional(rutaArchivo) {
                 perimetro: perimetroRaw !== '' ? String(perimetroRaw).trim() : ''
             });
         } else {
-            // Si el nino ya existe, comparar si la nueva toma es MÁS RECIENTE
+            // Si el nino ya existe, comparar si la nueva toma es MAS RECIENTE
             if (fechaTomaTs > (ninoExistente.fechaTomaTs || 0)) {
                 ninoExistente.fechaToma = fechaTomaFormatted;
                 ninoExistente.fechaTomaTs = fechaTomaTs;
@@ -457,7 +457,7 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutri
 
     // 1. Encabezado de la planilla
     // E9 (Col 5): Nombre de la Entidad Administradora de Servicio (EAS / Asociacion)
-    // X9 (Col 24): Nombre de la Unidad de Servicio (UDS / Jardín)
+    // X9 (Col 24): Nombre de la Unidad de Servicio (UDS / Jardin)
     worksheet.getRow(9).getCell(5).value = datosUds.nombreEas;
     worksheet.getRow(9).getCell(24).value = datosUds.nombreUds;
 
@@ -480,7 +480,7 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutri
         }
 
         row.getCell(1).value = i + 1;                  // A: No. DE ORDEN
-        row.getCell(2).value = String(nino.documento); // B: NUIP (Sólo numero de documento)
+        row.getCell(2).value = String(nino.documento); // B: NUIP (Solo numero de documento)
         row.getCell(3).value = String(nino.nombres);   // C: NOMBRES (Primer + Segundo Nombre)
         row.getCell(4).value = String(nino.apellidos); // D: APELLIDOS (Primer + Segundo Apellido)
         row.getCell(5).value = nino.sexo;              // E: Sexo (H / M)
@@ -488,7 +488,7 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutri
         row.getCell(7).value = nino.fechaIngreso;      // G: FECHA DE INGRESO AL SERVICIO (dd/mm/aaaa)
 
         if (incluirNutricion) {
-            row.getCell(8).value = nino.fechaToma || '';  // H: FECHA DE LA TOMA (La más reciente)
+            row.getCell(8).value = nino.fechaToma || '';  // H: FECHA DE LA TOMA (La mas reciente)
             row.getCell(9).value = nino.peso || '';       // I: PESO (Kg)
             row.getCell(10).value = nino.talla || '';     // J: TALLA (cm)
             row.getCell(11).value = nino.perimetro || ''; // K: PERIMETRO BRAQUIAL (cm)
@@ -512,17 +512,17 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutri
 
 async function main() {
     console.log(c.cyan('\n========================================================================'));
-    console.log(c.negrita(' 📝 PRE-LLENAR FORMATOS INDEPENDIENTES DE PESO Y TALLA (POR JARDÍN)'));
+    console.log(c.negrita(' 📝 PRE-LLENAR FORMATOS INDEPENDIENTES DE PESO Y TALLA (POR JARDIN)'));
     console.log(c.cyan('========================================================================\n'));
 
     const plantillaPath = path.join(__dirname, '..', 'docs', 'formato peso y talla.xlsx');
     if (!fs.existsSync(plantillaPath)) {
-        console.log(c.rojo(`❌ No se encontró la plantilla virgen en: ${plantillaPath}`));
+        console.log(c.rojo(`❌ No se encontro la plantilla virgen en: ${plantillaPath}`));
         return;
     }
 
     while (true) {
-        console.log(c.gris('Arrastra y suelta el Reporte Nutricional o de Activos descargado de Cuéntame.\n'));
+        console.log(c.gris('Arrastra y suelta el Reporte Nutricional o de Activos descargado de Cuentame.\n'));
 
         const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel del Reporte Nutricional aqui (o 0 para salir): '));
         const inputPath = inputPathRaw.trim().replace(/^["']|["']$/g, '');
@@ -533,18 +533,18 @@ async function main() {
         }
 
         if (!inputPath || !fs.existsSync(inputPath)) {
-            console.log(c.rojo('\n  ❌ El archivo especificado no existe. Inténtalo de nuevo.\n'));
+            console.log(c.rojo('\n  ❌ El archivo especificado no existe. Intentalo de nuevo.\n'));
             continue;
         }
 
-        console.log(c.cyan('\n  ⏳ Analizando reporte y organizando beneficiarios por Jardín (UDS)...'));
+        console.log(c.cyan('\n  ⏳ Analizando reporte y organizando beneficiarios por Jardin (UDS)...'));
 
         try {
             const agrupado = parsearReporteNutricional(inputPath);
             const listaUds = Object.keys(agrupado).sort();
 
             if (listaUds.length === 0) {
-                console.log(c.rojo('  ❌ No se encontraron beneficiarios válidos en el archivo.'));
+                console.log(c.rojo('  ❌ No se encontraron beneficiarios validos en el archivo.'));
             } else {
                 const easDetectada = agrupado[listaUds[0]]?.nombreEas || 'DESCONOCIDA';
                 console.log(c.amarillo(`\n  📌 Asociacion en el archivo: ${c.negrita(easDetectada)}`));
@@ -556,19 +556,19 @@ async function main() {
                 });
 
                 console.log(c.cyan('\n  📋 Selecciona el modo de diligenciamiento del formato:'));
-                console.log(c.amarillo('    1. Pre-llenar SOLO datos básicos (dejar casillas de peso/talla totalmente en blanco)'));
-                console.log(c.amarillo('    2. Pre-llenar datos básicos + ÚLTIMA toma nutricional anterior (Fecha, Peso, Talla, Perímetro)\n'));
+                console.log(c.amarillo('    1. Pre-llenar SOLO datos basicos (dejar casillas de peso/talla totalmente en blanco)'));
+                console.log(c.amarillo('    2. Pre-llenar datos basicos + ULTIMA toma nutricional anterior (Fecha, Peso, Talla, Perimetro)\n'));
 
                 const modoNutricionRaw = readline.question(c.negrita('  > Elige el modo (1 o 2) [1]: ')).trim();
                 const incluirNutricion = modoNutricionRaw === '2';
 
                 if (incluirNutricion) {
-                    console.log(c.verde('  ✅ Modo Seleccionado: Se pre-llenarán los datos de la ÚLTIMA toma nutricional anterior (H15, I15, J15, K15).'));
+                    console.log(c.verde('  ✅ Modo Seleccionado: Se pre-llenaran los datos de la ULTIMA toma nutricional anterior (H15, I15, J15, K15).'));
                 } else {
-                    console.log(c.verde('  ✅ Modo Seleccionado: Las casillas nutricionales se dejarán totalmente en blanco.'));
+                    console.log(c.verde('  ✅ Modo Seleccionado: Las casillas nutricionales se dejaran totalmente en blanco.'));
                 }
 
-                console.log(c.cyan('\n  📋 Selecciona qué jardines deseas procesar:'));
+                console.log(c.cyan('\n  📋 Selecciona que jardines deseas procesar:'));
                 console.log(c.gris('  - Presiona ENTER (o 0) para procesar TODOS los jardines.'));
                 console.log(c.gris('  - O escribe el numero o lista de numeros (ej: 4,7,6 o solo 2).\n'));
 
@@ -586,12 +586,12 @@ async function main() {
                         const setIndices = Array.from(new Set(indicesValidos));
                         udsAProcesar = setIndices.map(idx => listaUds[idx - 1]);
                     } else {
-                        console.log(c.amarillo('  ⚠️ No se ingresaron numeros válidos. Se procesarán todos los jardines.'));
+                        console.log(c.amarillo('  ⚠️ No se ingresaron numeros validos. Se procesaran todos los jardines.'));
                         udsAProcesar = listaUds;
                     }
                 }
 
-                console.log(c.verde(`\n  🚀 Generando formatos pre-llenados (máximo 13 ninos por archivo)...\n`));
+                console.log(c.verde(`\n  🚀 Generando formatos pre-llenados (maximo 13 ninos por archivo)...\n`));
 
                 const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla');
                 const dirReportes = path.join(__dirname, '..', 'reportes');
@@ -607,14 +607,14 @@ async function main() {
                     const datosUds = agrupado[nombreUds];
                     const todosNinos = datosUds.ninos;
 
-                    // Dividir en bloques de máximo 13 ninos para evitar que el Excel se meche o me trunque las planillas
+                    // Dividir en bloques de maximo 13 ninos para evitar que el Excel se meche o me trunque las planillas
                     const partesNinos = [];
                     for (let k = 0; k < todosNinos.length; k += TAMANO_PARTE) {
                         partesNinos.push(todosNinos.slice(k, k + TAMANO_PARTE));
                     }
 
                     const totalPartes = partesNinos.length;
-                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de máx 13 ninos` : '';
+                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de max 13 ninos` : '';
                     console.log(`  ${i + 1}/${udsAProcesar.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' ninos')}${descPartes})`);
 
                     for (let p = 0; p < totalPartes; p++) {
@@ -644,7 +644,7 @@ async function main() {
                     }
                 }
 
-                console.log(c.verde('\n  🎉 ¡Formatos de Peso y Talla generados exitosamente!'));
+                console.log(c.verde('\n  🎉 Formatos de Peso y Talla generados exitosamente!'));
             }
 
         } catch (err) {
@@ -652,7 +652,7 @@ async function main() {
         }
 
         console.log(c.cyan('\n======================================================'));
-        const respFinal = readline.question(c.negrita('  > ¿Deseas procesar otro archivo Excel? (s = Si, n = Volver al panel principal) [por defecto n]: '));
+        const respFinal = readline.question(c.negrita('  > Deseas procesar otro archivo Excel? (s = Si, n = Volver al panel principal) [por defecto n]: '));
         if (respFinal.toLowerCase().trim() !== 's') {
             console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
             break;

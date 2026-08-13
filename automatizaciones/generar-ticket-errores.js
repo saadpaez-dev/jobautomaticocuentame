@@ -128,7 +128,7 @@ async function main() {
     }
 
     console.log(c.cyan('\n======================================================'));
-    console.log(c.cyan('   🎫 TICKET PARA ERRORES DE DIGITACIÓN'));
+    console.log(c.cyan('   🎫 TICKET PARA ERRORES DE DIGITACION'));
     console.log(c.cyan('======================================================\n'));
 
     console.log(c.gris('Selecciona una asociacion para iniciar el proceso.'));
@@ -159,10 +159,10 @@ async function main() {
     const context = browser.contexts()[0];
     const page = context.pages().find(p => p.url().includes('rubonline.icbf.gov.co')) || context.pages()[0];
     
-    // Verificación inicial de sesión
+    // Verificacion inicial de sesion
     if (await verificarConexionOCaida(page)) {
-        console.log(c.amarillo('  ⚠️ La sesión inicial expiró o se perdió.'));
-        console.log(c.amarillo('  ⏳ Iniciando sesión automaticamente (2FA)...'));
+        console.log(c.amarillo('  ⚠️ La sesion inicial expiro o se perdio.'));
+        console.log(c.amarillo('  ⏳ Iniciando sesion automaticamente (2FA)...'));
         await loginYLlegarARoles(page, {
             usuario: USUARIO,
             password: PASSWORD,
@@ -188,10 +188,10 @@ async function main() {
             continue;
         }
 
-        // Verificar si la sesión se cayó antes de continuar
+        // Verificar si la sesion se cayo antes de continuar
         if (await verificarConexionOCaida(page)) {
-            console.log(c.amarillo('  ⚠️ La sesión de Cuéntame expiró o se perdió.'));
-            console.log(c.amarillo('  ⏳ Intentando iniciar sesión automaticamente (2FA)...'));
+            console.log(c.amarillo('  ⚠️ La sesion de Cuentame expiro o se perdio.'));
+            console.log(c.amarillo('  ⏳ Intentando iniciar sesion automaticamente (2FA)...'));
             await loginYLlegarARoles(page, {
                 usuario: USUARIO,
                 password: PASSWORD,
@@ -227,7 +227,7 @@ async function main() {
                     await nuevosLinks[1].evaluate(n => n.click());
                 }
             } else {
-                console.log(c.rojo('  ⚠️ No se encontró el menu Beneficiario.'));
+                console.log(c.rojo('  ⚠️ No se encontro el menu Beneficiario.'));
             }
             await page.waitForTimeout(3000);
         } catch(e) {
@@ -258,7 +258,7 @@ async function main() {
     }
     const docsMap = {
         '1': 'REGISTRO CIVIL',
-        '2': 'PERMISO POR PROTECCIÓN TEMPORAL',
+        '2': 'PERMISO POR PROTECCION TEMPORAL',
         '3': 'PARTIDA O ACTA DE NACIMIENTO',
         '4': 'SIN DOCUMENTO'
     };
@@ -278,7 +278,7 @@ async function main() {
     }
 
     // Llenar datos de busqueda
-    console.log(c.amarillo('  ⏳ Buscando beneficiario en Cuéntame...'));
+    console.log(c.amarillo('  ⏳ Buscando beneficiario en Cuentame...'));
     const selTipoDoc = currentFrame.locator('select:visible[id*="TipoDocumento"], select:visible[id*="ddlTipoDocumento"]').first();
     await waitForAndSelect(selTipoDoc, valTipoDoc, page);
     
@@ -347,13 +347,13 @@ async function main() {
     }
 
     if (!filaEncontrada) {
-        console.log(c.rojo('  ⚠️ No se encontró ningún registro "Activo" en la tabla.'));
+        console.log(c.rojo('  ⚠️ No se encontro ningun registro "Activo" en la tabla.'));
         continue;
     }
 
-    // Preguntar por el error DESPUÉS de entrar al detalle del nino
-    console.log(c.cyan('\n  > ¿De quién es el error de digitación?'));
-    console.log(c.cyan('    1. Beneficiario (Nino/Niña)'));
+    // Preguntar por el error DESPUES de entrar al detalle del nino
+    console.log(c.cyan('\n  > De quien es el error de digitacion?'));
+    console.log(c.cyan('    1. Beneficiario (Nino/Nina)'));
     console.log(c.cyan('    2. Acudiente / Jefe de Grupo Familiar'));
     let tipoError = '';
     while(tipoError !== '1' && tipoError !== '2') {
@@ -361,8 +361,8 @@ async function main() {
     }
 
         if (tipoError === '1') {
-            // Error del Beneficiario (Nino/Niña)
-            console.log(c.amarillo('\n  ⏳ Extrayendo datos del Beneficiario de Cuéntame...'));
+            // Error del Beneficiario (Nino/Nina)
+            console.log(c.amarillo('\n  ⏳ Extrayendo datos del Beneficiario de Cuentame...'));
             
             // Re-evaluar currentFrame porque pudo cambiar al cargar el detalle
             await page.waitForTimeout(1000);
@@ -406,14 +406,14 @@ async function main() {
 
             datosCuentame.tipoDocCod = mapTipoDoc(datosCuentame.tipoDoc);
             
-            console.log(c.verde('  ✅ Datos extraídos de Cuéntame:'));
+            console.log(c.verde('  ✅ Datos extraidos de Cuentame:'));
             console.log(c.gris(`     - Nombre: ${datosCuentame.primerNombre} ${datosCuentame.segundoNombre} ${datosCuentame.primerApellido} ${datosCuentame.segundoApellido}`));
             console.log(c.gris(`     - Documento: ${datosCuentame.tipoDocCod} ${datosCuentame.numDoc}`));
             console.log(c.gris(`     - Nacimiento: ${datosCuentame.fechaNacimiento}, Sexo: ${datosCuentame.sexo}`));
             console.log(c.gris(`     - Lugar: ${datosCuentame.pais}, ${datosCuentame.departamento}, ${datosCuentame.municipio}`));
 
             // Pedir datos reales
-            console.log(c.cyan('\n  > Ingresa los DATOS REALES (según documento físico)'));
+            console.log(c.cyan('\n  > Ingresa los DATOS REALES (segun documento fisico)'));
             const mapTiposInversos = { '1': 'RC', '2': 'TI', '3': 'CC', '4': 'CE', '5': 'PPT', '6': 'PA' };
             console.log(c.cyan('    1. Registro Civil\n    2. Tarjeta de Identidad\n    3. Cedula de Ciudadania\n    4. Cedula de Extranjeria\n    5. PPT\n    6. Pasaporte'));
             
@@ -433,7 +433,7 @@ async function main() {
             const fechaNacReal = ask('Fecha de Nacimiento (DD/MM/AAAA)', datosCuentame.fechaNacimiento);
             const sexoReal = ask('Sexo (HOMBRE/MUJER)', datosCuentame.sexo.toUpperCase());
             
-            // Generar observación automatica
+            // Generar observacion automatica
             const obs = [];
             const nombresMal = (pNombreReal !== datosCuentame.primerNombre) || (sNombreReal !== datosCuentame.segundoNombre);
             const apellidosMal = (pApellidoReal !== datosCuentame.primerApellido) || (sApellidoReal !== datosCuentame.segundoApellido);
@@ -460,7 +460,7 @@ async function main() {
             // Nota: Pais, depto y mpio los asumimos correctos para la prueba a menos que se solicite.
 
             const observacion = obs.join(" - ") || "DATOS ACTUALIZADOS";
-            console.log(c.amarillo(`\n  📝 Observación generada: ${observacion}`));
+            console.log(c.amarillo(`\n  📝 Observacion generada: ${observacion}`));
 
             // Escribir en Excel
             console.log(c.amarillo('\n  ⏳ Guardando en el archivo de Excel...'));
@@ -472,7 +472,7 @@ async function main() {
                 await workbook.xlsx.readFile(excelPath);
                 const sheet = workbook.worksheets[0];
                 
-                // Encontrar la primera fila vacía después de la 5
+                // Encontrar la primera fila vacia despues de la 5
                 let nextRow = 6;
                 while (sheet.getRow(nextRow).getCell('N').value != null && sheet.getRow(nextRow).getCell('N').value !== '') {
                     nextRow++;
@@ -493,7 +493,7 @@ async function main() {
                 row.getCell(12).value = datosCuentame.departamento; // L
                 row.getCell(13).value = datosCuentame.municipio; // M
 
-                // Datos Cuéntame (Columnas N a X, indices 14 a 24)
+                // Datos Cuentame (Columnas N a X, indices 14 a 24)
                 row.getCell(14).value = datosCuentame.tipoDocCod; // N
                 row.getCell(15).value = datosCuentame.numDoc; // O
                 row.getCell(16).value = datosCuentame.primerNombre; // P
@@ -507,7 +507,7 @@ async function main() {
                 row.getCell(24).value = datosCuentame.municipio.toUpperCase(); // X
 
                 // Novedad
-                row.getCell(25).value = 'Error en Diligenciamiento de Datos Básicos'; // Y
+                row.getCell(25).value = 'Error en Diligenciamiento de Datos Basicos'; // Y
                 row.getCell(28).value = observacion; // AB
 
                 row.commit();
@@ -519,7 +519,7 @@ async function main() {
             }
         } else {
             // Error del Acudiente
-            console.log(c.amarillo('\n  ⏳ Habilitando edicion (clic en Lápiz superior)...'));
+            console.log(c.amarillo('\n  ⏳ Habilitando edicion (clic en Lapiz superior)...'));
             
             await page.waitForTimeout(1000);
             let frame = page.frame({ name: 'frameContent' });
@@ -533,7 +533,7 @@ async function main() {
                 await page.waitForTimeout(2000);
             }
 
-            console.log(c.amarillo('  ⏳ Accediendo a la pestaña "Grupo Familiar"...'));
+            console.log(c.amarillo('  ⏳ Accediendo a la pestana "Grupo Familiar"...'));
             const btnGrupoFamiliar = frame.locator('a[id*="grupofamiliar_tab"], span:has-text("Grupo Familiar")').first();
             if (await btnGrupoFamiliar.count() > 0) {
                 await btnGrupoFamiliar.click();
@@ -549,7 +549,7 @@ async function main() {
 
             for (let i = 0; i < rowsFamiliarCount; i++) {
                 const row = rowsFamiliar.nth(i);
-                // El campo responsable es usualmente la columna 7 (índice 6)
+                // El campo responsable es usualmente la columna 7 (indice 6)
                 const tds = row.locator('td');
                 if (await tds.count() > 6) {
                     const textoResponsable = await tds.nth(6).innerText().catch(() => '');
@@ -570,11 +570,11 @@ async function main() {
             }
 
             if (!familiarEncontrado) {
-                console.log(c.rojo(`  ⚠️ No se encontró ningún familiar marcado como Responsable ('S') en el grupo familiar.`));
+                console.log(c.rojo(`  ⚠️ No se encontro ningun familiar marcado como Responsable ('S') en el grupo familiar.`));
                 continue;
             }
 
-            console.log(c.amarillo('  ⏳ Extrayendo datos del Acudiente de Cuéntame...'));
+            console.log(c.amarillo('  ⏳ Extrayendo datos del Acudiente de Cuentame...'));
             
             const mapTipoDoc = (tipoFull) => {
                 const t = (tipoFull || '').toUpperCase();
@@ -605,14 +605,14 @@ async function main() {
 
             datosCuentame.tipoDocCod = mapTipoDoc(datosCuentame.tipoDoc);
             
-            console.log(c.verde('  ✅ Datos extraídos del Acudiente en Cuéntame:'));
+            console.log(c.verde('  ✅ Datos extraidos del Acudiente en Cuentame:'));
             console.log(c.gris(`     - Nombre: ${datosCuentame.primerNombre} ${datosCuentame.segundoNombre} ${datosCuentame.primerApellido} ${datosCuentame.segundoApellido}`));
             console.log(c.gris(`     - Documento: ${datosCuentame.tipoDocCod} ${datosCuentame.numDoc}`));
             console.log(c.gris(`     - Nacimiento: ${datosCuentame.fechaNacimiento}, Sexo: ${datosCuentame.sexo}`));
             console.log(c.gris(`     - Lugar: ${datosCuentame.pais}, ${datosCuentame.departamento}, ${datosCuentame.municipio}`));
 
             // Pedir datos reales
-            console.log(c.cyan('\n  > Ingresa los DATOS REALES (según documento físico)'));
+            console.log(c.cyan('\n  > Ingresa los DATOS REALES (segun documento fisico)'));
             const mapTiposInversos = { '1': 'TI', '2': 'CC', '3': 'CE', '4': 'PPT', '5': 'PA' };
             console.log(c.cyan('    1. Tarjeta de Identidad\n    2. Cedula de Ciudadania\n    3. Cedula de Extranjeria\n    4. PPT\n    5. Pasaporte'));
             
@@ -632,7 +632,7 @@ async function main() {
             const fechaNacReal = ask('Fecha de Nacimiento (DD/MM/AAAA)', datosCuentame.fechaNacimiento);
             const sexoReal = ask('Sexo (HOMBRE/MUJER)', datosCuentame.sexo.toUpperCase());
             
-            // Generar observación automatica
+            // Generar observacion automatica
             const obs = [];
             const nombresMal = (pNombreReal !== datosCuentame.primerNombre) || (sNombreReal !== datosCuentame.segundoNombre);
             const apellidosMal = (pApellidoReal !== datosCuentame.primerApellido) || (sApellidoReal !== datosCuentame.segundoApellido);
@@ -658,7 +658,7 @@ async function main() {
             if (sexoReal !== datosCuentame.sexo.toUpperCase()) obs.push("SEXO MAL DIGITADO");
 
             const observacion = obs.join(" - ") || "DATOS ACTUALIZADOS";
-            console.log(c.amarillo(`\n  📝 Observación generada: ${observacion}`));
+            console.log(c.amarillo(`\n  📝 Observacion generada: ${observacion}`));
 
             // Escribir en Excel
             console.log(c.amarillo('\n  ⏳ Guardando en el archivo de Excel...'));
@@ -670,7 +670,7 @@ async function main() {
                 await workbook.xlsx.readFile(excelPath);
                 const sheet = workbook.worksheets[0];
                 
-                // Encontrar la primera fila vacía después de la 5
+                // Encontrar la primera fila vacia despues de la 5
                 let nextRow = 6;
                 while (sheet.getRow(nextRow).getCell('N').value != null && sheet.getRow(nextRow).getCell('N').value !== '') {
                     nextRow++;
@@ -691,7 +691,7 @@ async function main() {
                 row.getCell(12).value = datosCuentame.departamento;
                 row.getCell(13).value = datosCuentame.municipio;
 
-                // Datos Cuéntame (Columnas N a X)
+                // Datos Cuentame (Columnas N a X)
                 row.getCell(14).value = datosCuentame.tipoDocCod;
                 row.getCell(15).value = datosCuentame.numDoc;
                 row.getCell(16).value = datosCuentame.primerNombre;
@@ -705,7 +705,7 @@ async function main() {
                 row.getCell(24).value = datosCuentame.municipio.toUpperCase();
 
                 // Novedad
-                row.getCell(25).value = 'Error en Diligenciamiento de Datos Básicos'; // Y
+                row.getCell(25).value = 'Error en Diligenciamiento de Datos Basicos'; // Y
                 row.getCell(28).value = observacion; // AB
 
                 row.commit();
@@ -713,15 +713,15 @@ async function main() {
                 console.log(c.verde(`  ✅ Ticket de Edicion de Datos guardado exitosamente en la fila ${nextRow} del Excel.`));
 
                 // ---------------------------------------------------------------------
-                // ENVÍO DE CORREO ELECTRONICO PARA TICKET DE EDICIÓN DE DATOS
+                // ENVIO DE CORREO ELECTRONICO PARA TICKET DE EDICION DE DATOS
                 // ---------------------------------------------------------------------
-                console.log(c.cyan('\n  📧 GENERACIÓN DE CORREO Y ADJUNTOS'));
-                const armarCorreoResp = readline.question(c.negrita('  > ¿Deseas armar/enviar el correo de ticket a la Regional? (s/n) [por defecto s]: ')).trim().toLowerCase();
+                console.log(c.cyan('\n  📧 GENERACION DE CORREO Y ADJUNTOS'));
+                const armarCorreoResp = readline.question(c.negrita('  > Deseas armar/enviar el correo de ticket a la Regional? (s/n) [por defecto s]: ')).trim().toLowerCase();
 
                 if (armarCorreoResp === 's' || armarCorreoResp === 'si' || armarCorreoResp === '') {
-                    console.log(c.cyan('\n  📄 Documento de Soporte Físico (Registro Civil, TI o Cedula):'));
+                    console.log(c.cyan('\n  📄 Documento de Soporte Fisico (Registro Civil, TI o Cedula):'));
                     console.log(c.gris('     • Puedes arrastrar un PDF o una Imagen (.jpg, .jpeg, .png).'));
-                    console.log(c.gris('     • Si es una imagen, se convertirá AUTOMÁTICAMENTE a PDF.\n'));
+                    console.log(c.gris('     • Si es una imagen, se convertira AUTOMATICAMENTE a PDF.\n'));
 
                     const docInputRaw = readline.question(c.negrita('  > Arrastra el documento de soporte (o 0 para omitir adjunto): ')).trim();
                     const docInput = docInputRaw.replace(/^["']|["']$/g, '');
@@ -740,7 +740,7 @@ async function main() {
                                 console.log(c.rojo(`  ❌ Error procesando el archivo de soporte: ${e.message}`));
                             }
                         } else {
-                            console.log(c.amarillo(`  ⚠️ No se encontró el archivo: ${docInput}`));
+                            console.log(c.amarillo(`  ⚠️ No se encontro el archivo: ${docInput}`));
                         }
                     }
 
@@ -749,10 +749,10 @@ async function main() {
 <b>Nombre del EAS que requiere el ajuste:</b> ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}<br>
 <b>Numero de Contrato:</b> ${ascSeleccionada.numeroContrato || ''}<br>
 <b>Nombre de la persona que pone el caso:</b> SAAD PAEZ<br>
-<b>Numero de Identificación:</b> 1020722462<br>
+<b>Numero de Identificacion:</b> 1020722462<br>
 <b>Numero de contacto:</b> 3202002073<br>
-<b>Área Misional si aplica:</b> Primera Infancia<br>
-<b>Regional y Centro Zonal:</b> BOGOTÁ, CZ USAQUEN
+<b>Area Misional si aplica:</b> Primera Infancia<br>
+<b>Regional y Centro Zonal:</b> BOGOTA, CZ USAQUEN
 </p>
 <p>
 <i>Atte</i><br><br>
@@ -777,8 +777,8 @@ async function main() {
                     const asuntoCorreo = 'Edicion de Datos Primera Infancia';
                     const destinatario = 'Mis.Aplicaciones@icbf.gov.co';
 
-                    console.log(c.cyan('\n  ✉️  Opciones de envío:'));
-                    console.log('  1. Enviar correo DIRECTAMENTE vía SMTP');
+                    console.log(c.cyan('\n  ✉️  Opciones de envio:'));
+                    console.log('  1. Enviar correo DIRECTAMENTE via SMTP');
                     console.log('  2. Guardar BORRADOR en Gmail (para revisar antes de enviar)');
                     const modoEnvio = readline.question(c.negrita('  > Selecciona (1 o 2) [por defecto 2]: ')).trim();
 
@@ -796,7 +796,7 @@ async function main() {
                             html: cuerpoCorreoHtml,
                             attachments: attachments
                         });
-                        console.log(c.verde(`  🎉 ¡Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
+                        console.log(c.verde(`  🎉 Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
                     } else {
                         console.log(c.amarillo('  ⏳ Guardando borrador en Gmail...'));
                         const MailComposer = require('nodemailer/lib/mail-composer');
@@ -812,7 +812,7 @@ async function main() {
 
                         const messageBuffer = await mail.compile().build();
                         await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
-                        console.log(c.verde(`  🎉 ¡Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
+                        console.log(c.verde(`  🎉 Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
                     }
                 }
                 
@@ -827,5 +827,5 @@ async function main() {
 }
 
 main().catch(err => {
-    console.error(c.rojo(`\n  ❌ Error crítico: ${err.message}`));
+    console.error(c.rojo(`\n  ❌ Error critico: ${err.message}`));
 });

@@ -1,18 +1,18 @@
 /**
  * estimador-crecimiento.js
  *
- * Proyecta el peso y la talla de cada niño A LA FECHA DE HOY, a partir de sus
+ * Proyecta el peso y la talla de cada nino A LA FECHA DE HOY, a partir de sus
  * tomas reales registradas en el "Formato captura" oficial.
  *
  * ⚠️ Esto NO es una toma real. Es un estimado interno de seguimiento:
- * - Si el niño tiene 2 o más tomas: se calcula su propia velocidad de
- *   crecimiento (kg/día y cm/día) entre la primera y la última toma, y se
+ * - Si el nino tiene 2 o mas tomas: se calcula su propia velocidad de
+ *   crecimiento (kg/dia y cm/dia) entre la primera y la ultima toma, y se
  *   proyecta esa tendencia hasta hoy.
- * - Si el niño solo tiene 1 toma: no hay tendencia propia que calcular, así
- *   que se le aplica el promedio de velocidad de crecimiento (kg/día, cm/día)
- *   de todos los niños que sí tienen 2+ tomas en el mismo archivo.
+ * - Si el nino solo tiene 1 toma: no hay tendencia propia que calcular, asi
+ *   que se le aplica el promedio de velocidad de crecimiento (kg/dia, cm/dia)
+ *   de todos los ninos que si tienen 2+ tomas en el mismo archivo.
  *
- * El resultado se marca explícitamente como "ESTIMADO" y nunca debe cargarse
+ * El resultado se marca explicitamente como "ESTIMADO" y nunca debe cargarse
  * como si fuera una toma real en el reporte oficial al ICBF.
  */
 
@@ -64,7 +64,7 @@ function encontrarFilaEncabezadoOficial(data) {
     return -1;
 }
 
-/** Extrae TODAS las tomas válidas de una fila (no solo la última), en orden cronológico */
+/** Extrae TODAS las tomas validas de una fila (no solo la ultima), en orden cronologico */
 function extraerTomas(row) {
     const iniciosToma = [7, 19, 31, 43];
     const tomas = [];
@@ -88,7 +88,7 @@ function extraerTomas(row) {
 }
 
 /**
- * Lee el "Formato captura" y devuelve, por niño, todas sus tomas reales.
+ * Lee el "Formato captura" y devuelve, por nino, todas sus tomas reales.
  */
 function leerTomasPorNino(rutaEntrada) {
     if (!fs.existsSync(rutaEntrada)) throw new Error(`El archivo no existe: ${rutaEntrada}`);
@@ -106,7 +106,7 @@ function leerTomasPorNino(rutaEntrada) {
             if (!row || !row[1] || !row[2]) continue;
 
             const tomas = extraerTomas(row);
-            if (tomas.length === 0) continue; // retirado o sin ninguna toma válida
+            if (tomas.length === 0) continue; // retirado o sin ninguna toma valida
 
             ninos.push({
                 documento: String(row[1]).trim(),
@@ -121,12 +121,12 @@ function leerTomasPorNino(rutaEntrada) {
 }
 
 /**
- * Calcula, para cada niño, el peso/talla estimado a la fecha indicada (por defecto hoy).
+ * Calcula, para cada nino, el peso/talla estimado a la fecha indicada (por defecto hoy).
  */
 function estimarCrecimiento(rutaEntrada, fechaReferencia = new Date()) {
     const ninos = leerTomasPorNino(rutaEntrada);
 
-    // 1. Tasa de crecimiento propia para los niños con 2+ tomas (primera vs última)
+    // 1. Tasa de crecimiento propia para los ninos con 2+ tomas (primera vs ultima)
     const tasasIndividuales = [];
     for (const n of ninos) {
         if (n.tomas.length < 2) continue;
@@ -141,14 +141,14 @@ function estimarCrecimiento(rutaEntrada, fechaReferencia = new Date()) {
         tasasIndividuales.push(n.tasaPropia);
     }
 
-    // 2. Promedio general del grupo (para niños con una sola toma)
+    // 2. Promedio general del grupo (para ninos con una sola toma)
     const promedio = { pesoPorDia: 0, tallaPorDia: 0 };
     if (tasasIndividuales.length > 0) {
         promedio.pesoPorDia = tasasIndividuales.reduce((s, t) => s + t.pesoPorDia, 0) / tasasIndividuales.length;
         promedio.tallaPorDia = tasasIndividuales.reduce((s, t) => s + t.tallaPorDia, 0) / tasasIndividuales.length;
     }
 
-    // 3. Proyección por niño
+    // 3. Proyeccion por nino
     const resultados = ninos.map(n => {
         const ultima = n.tomas[n.tomas.length - 1];
         const dias = diasEntre(ultima.fecha, fechaReferencia);
@@ -186,15 +186,15 @@ function estimarCrecimiento(rutaEntrada, fechaReferencia = new Date()) {
 /** Genera el Excel de salida, dejando muy claro que es un estimado y no una toma real */
 function generarReporte({ resultados, fechaReferencia = new Date() }) {
     const encabezados = [
-        'No.', 'Documento', 'Nombre completo', '# Tomas reales', 'Fecha última toma real',
-        'Peso real (kg)', 'Talla real (cm)', 'Método de estimación',
+        'No.', 'Documento', 'Nombre completo', '# Tomas reales', 'Fecha ultima toma real',
+        'Peso real (kg)', 'Talla real (cm)', 'Metodo de estimacion',
         `Peso ESTIMADO a ${formatearFecha(fechaReferencia)} (kg)`,
         `Talla ESTIMADA a ${formatearFecha(fechaReferencia)} (cm)`,
     ];
 
     const filas = [
-        ['⚠️ ESTIMADO INTERNO DE SEGUIMIENTO — NO ES UNA TOMA REAL, NO CARGAR EN ICBF COMO MEDICIÓN'],
-        [`Generado el ${formatearFecha(new Date())}. Peso/talla proyectados según tendencia de crecimiento de cada niño (o promedio del grupo si solo hay 1 toma).`],
+        ['⚠️ ESTIMADO INTERNO DE SEGUIMIENTO — NO ES UNA TOMA REAL, NO CARGAR EN ICBF COMO MEDICION'],
+        [`Generado el ${formatearFecha(new Date())}. Peso/talla proyectados segun tendencia de crecimiento de cada nino (o promedio del grupo si solo hay 1 toma).`],
         [],
         encabezados,
     ];

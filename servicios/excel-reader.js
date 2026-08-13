@@ -1,7 +1,7 @@
 /**
  * excel-reader.js
- * Lee el archivo GENERAL.xlsx y retorna los jardines únicos
- * con su código Cuéntame y asociacion.
+ * Lee el archivo GENERAL.xlsx y retorna los jardines unicos
+ * con su codigo Cuentame y asociacion.
  */
 
 const xlsx = require('xlsx');

@@ -1,6 +1,6 @@
 /**
  * vinculacion-beneficiarios.js
- * Script para registrar nuevos beneficiarios en Cuéntame.
+ * Script para registrar nuevos beneficiarios en Cuentame.
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
@@ -40,7 +40,7 @@ async function main() {
   }
 
   console.log(c.cyan('\n======================================================'));
-  console.log(c.cyan('   ➕ VINCULACIÓN DE BENEFICIARIOS (NUEVO REGISTRO)'));
+  console.log(c.cyan('   ➕ VINCULACION DE BENEFICIARIOS (NUEVO REGISTRO)'));
   console.log(c.cyan('======================================================\n'));
   
   let browser = null;
@@ -75,7 +75,7 @@ async function main() {
           ascSeleccionada = asociaciones[idxAsociacion - 1];
       }
 
-      // --- 2. Seleccion de Jardín (UDS) ---
+      // --- 2. Seleccion de Jardin (UDS) ---
       let jardinesAsociacion = listaJardines.filter(j => 
         j.asociacion && j.asociacion.toUpperCase() === ascSeleccionada.nombreCorto.toUpperCase()
       );
@@ -103,7 +103,7 @@ async function main() {
 
       const jardinSeleccionado = jardinesAsociacion[idxJardin - 1];
 
-      // --- Conexión al navegador ---
+      // --- Conexion al navegador ---
       if (!browser) {
           console.log(c.cyan('\n  🌐 Conectando al navegador existente (CDP)...\n'));
           const navData = await obtenerNavegador();
@@ -121,7 +121,7 @@ async function main() {
             
             const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
             if (!mismaAsociacion) {
-                console.log(c.amarillo('  🔐 Verificando inicio de sesión en Cuéntame...'));
+                console.log(c.amarillo('  🔐 Verificando inicio de sesion en Cuentame...'));
                 await loginYLlegarARoles(page, {
                   usuario: USUARIO,
                   password: PASSWORD,
@@ -132,16 +132,16 @@ async function main() {
                 console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
                 await seleccionarRolYEntrar(page, ascSeleccionada);
             } else {
-                console.log(c.verde(`  ✅ Preservando sesión y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
+                console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
                 loggedIn = true;
             }
         } else {
             await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
             
-            // Verificar si al forzar la redireccion nos mandó al login por timeout
+            // Verificar si al forzar la redireccion nos mando al login por timeout
             await page.waitForTimeout(1000);
             if (await verificarConexionOCaida(page)) {
-                console.log(c.amarillo('  ⚠️ La sesión expiró. Reiniciando login (2FA)...'));
+                console.log(c.amarillo('  ⚠️ La sesion expiro. Reiniciando login (2FA)...'));
                 await loginYLlegarARoles(page, {
                   usuario: USUARIO,
                   password: PASSWORD,
@@ -156,7 +156,7 @@ async function main() {
         await seleccionarRolYEntrar(page, ascSeleccionada);
         
         // Navegar a Beneficiario > Beneficiario
-        console.log(c.cyan('  🚀 Navegando al módulo de Beneficiarios...'));
+        console.log(c.cyan('  🚀 Navegando al modulo de Beneficiarios...'));
         
         let menuFrame = page.frame({ name: 'frameMenu' });
         if (!menuFrame) {
@@ -170,7 +170,7 @@ async function main() {
         const rootMenu = menuFrame || page;
 
         const recargarPaginaBeneficiario = async () => {
-            console.log(c.cyan('  🚀 Navegando al módulo de Beneficiarios...'));
+            console.log(c.cyan('  🚀 Navegando al modulo de Beneficiarios...'));
             try {
                 const links = await rootMenu.locator('a:text-is("Beneficiario")').all();
                 if (links.length >= 2) {
@@ -183,7 +183,7 @@ async function main() {
                         await nuevosLinks[1].evaluate(n => n.click());
                     }
                 } else {
-                    console.log(c.rojo('  ⚠️ No se encontró el menu Beneficiario.'));
+                    console.log(c.rojo('  ⚠️ No se encontro el menu Beneficiario.'));
                 }
                 await page.waitForTimeout(3000);
             } catch(e) {
@@ -208,13 +208,13 @@ async function main() {
         let forceMenuClick = false;
         let docRecuperacion = null;
 
-        // Bucle interactivo para ingresar ninos en el mismo jardín
+        // Bucle interactivo para ingresar ninos en el mismo jardin
         while (true) {
-            // Verificar si la sesión se cerró por inactividad
+            // Verificar si la sesion se cerro por inactividad
             if (await verificarConexionOCaida(page)) {
-                console.log(c.rojo('  ⚠️ Se ha detectado que la sesión expiró (Timeout).'));
+                console.log(c.rojo('  ⚠️ Se ha detectado que la sesion expiro (Timeout).'));
                 loggedIn = false;
-                break; // Romper bucle interno para que el bucle externo vuelva a iniciar sesión
+                break; // Romper bucle interno para que el bucle externo vuelva a iniciar sesion
             }
 
             if (forceMenuClick) {
@@ -223,10 +223,10 @@ async function main() {
             }
 
             console.log(c.cyan('\n------------------------------------------------------'));
-            console.log(c.amarillo(`  Jardín actual: ${jardinSeleccionado.nombre}`));
+            console.log(c.amarillo(`  Jardin actual: ${jardinSeleccionado.nombre}`));
             console.log(c.amarillo('  [1] Ingresar nuevo beneficiario'));
-            console.log(c.amarillo('  [R] Recargar página (si hubo error de conexión)'));
-            console.log(c.amarillo('  [0] Volver a seleccion de Jardín'));
+            console.log(c.amarillo('  [R] Recargar pagina (si hubo error de conexion)'));
+            console.log(c.amarillo('  [0] Volver a seleccion de Jardin'));
             console.log(c.rojo('  [M] Volver al menu principal (npm start)'));
             
             const accion = readline.question(c.negrita('\n  > Tu opcion: ')).trim().toUpperCase();
@@ -236,7 +236,7 @@ async function main() {
                 break;
             }
             if (accion === '0') {
-                break; // Vuelve al loop de seleccion de jardín/asociacion
+                break; // Vuelve al loop de seleccion de jardin/asociacion
             }
             if (accion === 'R') {
                 forceMenuClick = true;
@@ -266,19 +266,19 @@ async function main() {
                 let btnNuevo = currentFrame.locator('#btnNuevo, a[id*="btnNuevo"], img[alt*="Nuevo"], input[src*="Nuevo"]').first();
                 
                 if (await btnNuevo.count() > 0) {
-                    if (attempt > 0) console.log(c.amarillo(`  ⏳ Reintentando presionar botón (+) Nuevo (Intento ${attempt + 1})...`));
+                    if (attempt > 0) console.log(c.amarillo(`  ⏳ Reintentando presionar boton (+) Nuevo (Intento ${attempt + 1})...`));
                     
                     // Asegurar que el elemento es interactuable
                     await btnNuevo.scrollIntoViewIfNeeded().catch(()=>{});
-                    await page.waitForTimeout(500); // Pequeña pausa para asegurar eventos ASP.NET
+                    await page.waitForTimeout(500); // Pequena pausa para asegurar eventos ASP.NET
                     
                     await btnNuevo.click({ force: true });
                     
-                    // Esperar a que la página cambie a modo de creación
+                    // Esperar a que la pagina cambie a modo de creacion
                     for (let i = 0; i < 15; i++) {
                         await page.waitForTimeout(300);
                         currentFrame = page.frame({ name: 'frameContent' }) || page;
-                        // En modo creación hay más de 5 inputs de texto (nombres, apellidos, etc.)
+                        // En modo creacion hay mas de 5 inputs de texto (nombres, apellidos, etc.)
                         const txtCount = await currentFrame.locator('input[type="text"]').count();
                         if (txtCount > 5) {
                             isSearchMode = false;
@@ -287,21 +287,21 @@ async function main() {
                     }
                     if (!isSearchMode) break;
                 } else {
-                    console.log(c.rojo('  ❌ No se encontró el botón Nuevo (+). ¿Estas seguro que la página cargó?'));
+                    console.log(c.rojo('  ❌ No se encontro el boton Nuevo (+). Estas seguro que la pagina cargo?'));
                     break;
                 }
             }
 
             if (isSearchMode) {
-                console.log(c.rojo('  ⚠️ El formulario no cambió a modo Creación tras varios intentos. Abortando ingreso para evitar sobreescribir la busqueda.'));
+                console.log(c.rojo('  ⚠️ El formulario no cambio a modo Creacion tras varios intentos. Abortando ingreso para evitar sobreescribir la busqueda.'));
                 continue;
             }
 
-            // === SECCIÓN BENEFICIARIO ===
+            // === SECCION BENEFICIARIO ===
             console.log(c.cyan('\n  --- Datos del Beneficiario ---'));
             
             // Tipo de beneficiario (Auto-select)
-            const selectTipoBenef = currentFrame.locator('select[id*="Beneficiario"], select').filter({ hasText: 'NIÑO O NIÑA' }).first();
+            const selectTipoBenef = currentFrame.locator('select[id*="Beneficiario"], select').filter({ hasText: 'NINO O NINA' }).first();
             const waitForAndSelect = async (selectLocator, textToMatch = null) => {
                 if (await selectLocator.count() === 0) return null;
                 let opts = [];
@@ -325,7 +325,7 @@ async function main() {
                                 match = opts.find(o => removeAccents(o.t.toUpperCase()).includes(cleanTarget) || o.v.includes(cleanTarget));
                             }
                             
-                            // 3. Fallback inteligente si no hay coincidencia parcial pero hay opciones válidas en el select
+                            // 3. Fallback inteligente si no hay coincidencia parcial pero hay opciones validas en el select
                             if (!match && opts.length > 0) {
                                 console.log(c.amarillo(`  ℹ️ Contrato/Opcion "${textToMatch}" no tiene coincidencia exacta. Seleccionando la opcion disponible: "${opts[0].t}"`));
                                 match = opts[0];
@@ -341,7 +341,7 @@ async function main() {
                 }
                 
                 if (textToMatch && !match) {
-                    console.log(`  ⚠️ No se encontró la opcion "${textToMatch}" tras esperar.`);
+                    console.log(`  ⚠️ No se encontro la opcion "${textToMatch}" tras esperar.`);
                     console.log(`     Opciones disponibles: ${opts.map(o => o.t).join(' | ')}`);
                     return opts;
                 }
@@ -387,7 +387,7 @@ async function main() {
                 }
                 return opts;
             };
-            // Área misional: Direccion de Primera Infancia
+            // Area misional: Direccion de Primera Infancia
             const selectArea = currentFrame.locator('select').filter({ hasText: 'Primera Infancia' }).first();
             if (await selectArea.count() > 0) {
                 await selectArea.selectOption({ label: 'Direccion de Primera Infancia' }).catch(()=>{});
@@ -420,7 +420,7 @@ async function main() {
                 
                 if (nomAsc.includes("DELICIAS DEL CARMEN")) {
                     esAgrupado = true;
-                } else if (nomAsc.includes("VERBENAL Y REFUGIO") && (nomJardin.includes("OSITO CARIÑOSITO") || nomJardin.includes("MUNDO DE FANTASIA"))) {
+                } else if (nomAsc.includes("VERBENAL Y REFUGIO") && (nomJardin.includes("OSITO CARINOSITO") || nomJardin.includes("MUNDO DE FANTASIA"))) {
                     esAgrupado = true;
                 } else if (nomAsc.includes("BUENAVISTA") && nomJardin.includes("EL SOLECITO")) {
                     esAgrupado = true;
@@ -430,10 +430,10 @@ async function main() {
                 
                 let matchInd = null;
                 if (esAgrupado) {
-                    matchInd = servOpts.find(o => o.t.toUpperCase().includes("JARDÍN COMUNITARIO") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                    matchInd = servOpts.find(o => o.t.toUpperCase().includes("JARDIN COMUNITARIO") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
                 } else {
                     matchInd = servOpts.find(o => o.t.toUpperCase().includes("HCB FAMI") || o.t.toUpperCase().includes("BIENVENIR"));
-                    if (!matchInd) matchInd = servOpts.find(o => !o.t.toUpperCase().includes("JARDÍN COMUNITARIO") && !o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                    if (!matchInd) matchInd = servOpts.find(o => !o.t.toUpperCase().includes("JARDIN COMUNITARIO") && !o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
                 }
                 
                 if (!matchInd) matchInd = servOpts.find(o => o.t.includes(jardinSeleccionado.codigo));
@@ -447,18 +447,18 @@ async function main() {
             const selectUDS = currentFrame.locator('select[id*="ddlUDS"], select[id*="Uds"]').first();
             await waitForAndSelect(selectUDS, jardinSeleccionado.codigo);
 
-            await waitForAndSelect(selectTipoBenef, 'NIÑO O NIÑA ENTRE 6 MESES Y 5 AÑOS Y 11 MESES');
+            await waitForAndSelect(selectTipoBenef, 'NINO O NINA ENTRE 6 MESES Y 5 ANOS Y 11 MESES');
 
             // Tipo de Documento (Interactive)
             const opcionesDoc = [
                 "SIN DOCUMENTO",
                 "REGISTRO CIVIL",
-                "PERMISO POR PROTECCIÓN TEMPORAL",
+                "PERMISO POR PROTECCION TEMPORAL",
                 "PERMISO ESPECIAL DE PERMANENCIA",
                 "PASAPORTE",
                 "PARTIDA O ACTA DE NACIMIENTO"
             ];
-            // --- CUESTIONARIO INTERACTIVO CON NAVEGACIÓN HACIA ATRÁS ---
+            // --- CUESTIONARIO INTERACTIVO CON NAVEGACION HACIA ATRAS ---
             console.log(c.cyan('\n  📝 INGRESO DE DATOS DEL BENEFICIARIO'));
             console.log(c.gris('  💡 Tip: Presiona ENTER/TAB para avanzar o escribe "<" / "b" (retroceso) para corregir el dato anterior.\n'));
 
@@ -583,7 +583,7 @@ async function main() {
                         };
 
                         if (!esValida(valProbada)) {
-                            console.log(c.rojo('  ❌ Formato de fecha no válido. Debe tener el formato DD/MM/YYYY (ej: 19/04/2021 o 19042021).'));
+                            console.log(c.rojo('  ❌ Formato de fecha no valido. Debe tener el formato DD/MM/YYYY (ej: 19/04/2021 o 19042021).'));
                         } else {
                             if (/^\d{8}$/.test(valProbada)) {
                                 datosNino.fechaNac = `${valProbada.substring(0,2)}/${valProbada.substring(2,4)}/${valProbada.substring(4,8)}`;
@@ -677,7 +677,7 @@ async function main() {
                     const sN = await inputSNombre.inputValue();
                     const pA = await inputPApellido.inputValue();
                     const sA = await inputSApellido.inputValue();
-                    console.log(c.verde(`  ✅ ¡El nino ya esta creado en el sistema!`));
+                    console.log(c.verde(`  ✅ El nino ya esta creado en el sistema!`));
                     console.log(c.cyan(`     Datos recuperados: ${pN} ${sN} ${pA} ${sA}`.replace(/\s+/g, ' ')));
                 }
             }
@@ -701,7 +701,7 @@ async function main() {
                         await page.waitForTimeout(500);
 
                     } else {
-                        console.log(c.rojo('  ⚠️ No se encontraron los inputs de texto (No se encontró el Documento como ancla). Verifica la pantalla.'));
+                        console.log(c.rojo('  ⚠️ No se encontraron los inputs de texto (No se encontro el Documento como ancla). Verifica la pantalla.'));
                     }
 
                     // Sexo
@@ -711,7 +711,7 @@ async function main() {
                         await page.waitForTimeout(500);
                     }
                 } else {
-                    // Si ya existe, tratamos de leer el sexo del dropdown para saber qué foto subir
+                    // Si ya existe, tratamos de leer el sexo del dropdown para saber que foto subir
                     const selectSexo = currentFrame.locator('select').filter({ hasText: 'Hombre' }).last();
                     if (await selectSexo.count() > 0) {
                         const textoSexo = await selectSexo.evaluate(s => s.options[s.selectedIndex]?.text || '');
@@ -724,7 +724,7 @@ async function main() {
                 // Foto (SE HACE SIEMPRE, exista o no)
                 console.log(c.amarillo(`  ⏳ Validando/Cargando foto de perfil (${sexo})...`));
                 const inputFile = currentFrame.locator('input[type="file"]').first();
-                const photoName = sexo === 'Mujer' ? 'niña.jpg' : 'nino.jpg';
+                const photoName = sexo === 'Mujer' ? 'nina.jpg' : 'nino.jpg';
                 const photoPath = path.join('C:\\Dev\\jobautomatico\\docs', photoName);
                 
                 if (await inputFile.count() > 0) {
@@ -744,7 +744,7 @@ async function main() {
                                 el.click();
                             });
                             
-                            // Esperar dinámicamente hasta que responda
+                            // Esperar dinamicamente hasta que responda
                             for (let i = 0; i < 50; i++) {
                                 const isDone = await page.evaluate(() => {
                                     if (typeof Sys === 'undefined' || !Sys.WebForms || !Sys.WebForms.PageRequestManager) return true;
@@ -760,7 +760,7 @@ async function main() {
                         console.log(c.rojo(`  ❌ Error al cargar la foto: ${e.message}`));
                     }
                 } else {
-                    console.log(c.rojo('  ❌ No se encontró el campo para subir archivo.'));
+                    console.log(c.rojo('  ❌ No se encontro el campo para subir archivo.'));
                 }
 
                 // Campos adicionales
@@ -792,7 +792,7 @@ async function main() {
                         if (await selPais.count() > 0) {
                             await waitForAndSelect(selPais, paisNac);
                         } else {
-                            console.log(c.rojo('  ⚠️ No se encontró el desplegable de País Nacimiento (revisar locator).'));
+                            console.log(c.rojo('  ⚠️ No se encontro el desplegable de Pais Nacimiento (revisar locator).'));
                         }
 
                         const selDepto = currentFrame.locator('select[id*="Departamento"], select[id*="Depto"]').first();
@@ -807,7 +807,7 @@ async function main() {
                     console.log(c.amarillo('  ⏳ Buscando campo Fecha de Atencion...'));
                     const txtFechaAtencion = currentFrame.locator('input[type="text"][id*="txtFechaAtencion"], input[id*="FechaAtencion"]').first();
                     
-                    // Esperar activamente a que el campo aparezca (hasta 5 segundos) por si el DOM de Cuéntame sigue renderizando
+                    // Esperar activamente a que el campo aparezca (hasta 5 segundos) por si el DOM de Cuentame sigue renderizando
                     await txtFechaAtencion.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
                     
                     const countAtencion = await txtFechaAtencion.count();
@@ -833,7 +833,7 @@ async function main() {
                         await txtFechaAtencion.focus().catch(e => console.log('  ❌ Error focus:', e.message));
                         await txtFechaAtencion.pressSequentially(fechaAtencionLimpia, { delay: 150 }).catch(e => console.log('  ❌ Error press:', e.message));
                         
-                        // Al salir de la casilla (blur), Cuéntame hace una validacion por POST
+                        // Al salir de la casilla (blur), Cuentame hace una validacion por POST
                         console.log('  ⏳ Esperando validacion POST...');
                         const datePostPromise = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 6000 }).catch(() => console.log('  ⚠️ No hubo POST.'));
                         await txtFechaAtencion.press('Tab').catch(e => console.log('  ❌ Error tab:', e.message));
@@ -841,12 +841,12 @@ async function main() {
                         console.log('  ✅ Validacion completada.');
                         await page.waitForTimeout(500);
                     } else {
-                        console.log(c.rojo('  ⚠️ No se encontró la casilla de Fecha de Atencion.'));
+                        console.log(c.rojo('  ⚠️ No se encontro la casilla de Fecha de Atencion.'));
                         // DUMP de todos los inputs en pantalla para diagnosticar:
                         const allInputs = await currentFrame.evaluate(() => {
                             return Array.from(document.querySelectorAll('input[type="text"]')).map(el => ({ id: el.id, val: el.value }));
                         }).catch(()=>[]);
-                        console.log(c.gris('  🔎 [DIAGNÓSTICO] Inputs de texto disponibles en pantalla:'));
+                        console.log(c.gris('  🔎 [DIAGNOSTICO] Inputs de texto disponibles en pantalla:'));
                         allInputs.forEach(inp => console.log(c.gris(`     - ID: ${inp.id} | Valor actual: ${inp.val}`)));
                     }
 
@@ -878,32 +878,32 @@ async function main() {
                         await btnGuardar.click();
                         await page.waitForTimeout(4000); // Esperar respuesta del servidor
                         
-                        // Refrescar frame después del PostBack
+                        // Refrescar frame despues del PostBack
                         currentFrame = page.frame({ name: 'frameContent' }) || page;
                         
-                        let guardadoExitoso = true; // Asumir éxito a menos que veamos un error
+                        let guardadoExitoso = true; // Asumir exito a menos que veamos un error
                         const pageText = await currentFrame.evaluate(() => document.body.innerText).catch(()=>'');
                         
-                        if (pageText.toLowerCase().includes('temporalmente') || pageText.toLowerCase().includes('éxito') || pageText.toLowerCase().includes('exito')) {
+                        if (pageText.toLowerCase().includes('temporalmente') || pageText.toLowerCase().includes('exito') || pageText.toLowerCase().includes('exito')) {
                             console.log(c.cyan(`  📌 Resultado: Guardado exitoso detectado.`));
                             guardadoExitoso = true;
-                        } else if (pageText.toLowerCase().includes('error') || pageText.toLowerCase().includes('excepción')) {
+                        } else if (pageText.toLowerCase().includes('error') || pageText.toLowerCase().includes('excepcion')) {
                             console.log(c.rojo(`  ⚠️ Resultado: Posible error detectado en pantalla.`));
                             guardadoExitoso = false;
                         } else {
-                            console.log(c.cyan(`  📌 Resultado: Guardado ejecutado (sin mensaje explícito).`));
+                            console.log(c.cyan(`  📌 Resultado: Guardado ejecutado (sin mensaje explicito).`));
                         }
 
                         if (guardadoExitoso) {
-                            console.log(c.verde(`  ✅ Se ha completado el guardado de Datos Básicos.`));
-                            console.log(c.amarillo('\n  ⏳ Procediendo a llenar Datos de Ubicación...'));
+                            console.log(c.verde(`  ✅ Se ha completado el guardado de Datos Basicos.`));
+                            console.log(c.amarillo('\n  ⏳ Procediendo a llenar Datos de Ubicacion...'));
                             
-                            const tabDatosGeo = currentFrame.locator('a[id*="tbnDatosGeo_tab"], span:has-text("Datos de Ubicación")').first();
+                            const tabDatosGeo = currentFrame.locator('a[id*="tbnDatosGeo_tab"], span:has-text("Datos de Ubicacion")').first();
                             if (await tabDatosGeo.count() > 0) {
                                 await tabDatosGeo.click();
-                                await page.waitForTimeout(2500); // Esperar que renderice la pestaña
+                                await page.waitForTimeout(2500); // Esperar que renderice la pestana
                                 
-                                console.log(c.gris('     - Llenando valores fijos predeterminados (modo humano para evitar colisión de UpdatePanel)...'));
+                                console.log(c.gris('     - Llenando valores fijos predeterminados (modo humano para evitar colision de UpdatePanel)...'));
 
                                 await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Pais"]').first(), "COLOMBIA");
                                 await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Departamento"], select[id*="tbnDatosGeo"][id*="Depto"]').first(), "BOGOTA D.C.");
@@ -927,7 +927,7 @@ async function main() {
                                     console.log(c.gris(`     - Seleccionando Barrio para ${ascSeleccionada.nombreCorto}: ${barrioDefecto}`));
                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Barrio"]').first(), barrioDefecto);
                                 } else {
-                                    console.log(c.amarillo(`  ⚠️ No se determinó Barrio automatico para la asociacion ${ascSeleccionada.nombreCorto}.`));
+                                    console.log(c.amarillo(`  ⚠️ No se determino Barrio automatico para la asociacion ${ascSeleccionada.nombreCorto}.`));
                                 }
 
                                 console.log(c.amarillo('\n  🏠 Por favor, ingresa los Datos de Direccion de Residencia:'));
@@ -971,7 +971,7 @@ async function main() {
                                 
                                 const telefono = readline.question('  > Numero de Telefono: ').trim();
 
-                                console.log(c.gris('     - Ingresando Direccion de Residencia y Teléfono...'));
+                                console.log(c.gris('     - Ingresando Direccion de Residencia y Telefono...'));
                                 
                                 const fillText = async (locator, value) => {
                                     if (value && await locator.count() > 0) {
@@ -997,11 +997,11 @@ async function main() {
                                 
                                 await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtTelefono"], input[id*="tbnDatosGeo"][id*="Telefono"]').first(), telefono);
 
-                                console.log(c.verde(`  ✅ Pestaña "Datos de Ubicación" llenada automaticamente.`));
+                                console.log(c.verde(`  ✅ Pestana "Datos de Ubicacion" llenada automaticamente.`));
                                 
-                                // --- PESTAÑA PERTENENCIA ÉTNICA ---
-                                console.log(c.amarillo('\n  ⏳ Procediendo a pestaña Pertenencia Étnica...'));
-                                const tabEtnica = currentFrame.locator('.ajax__tab_tab:has-text("Etnica"), .ajax__tab_tab:has-text("Étnica"), .ajax__tab_tab:has-text("Pertenencia")').first();
+                                // --- PESTANA PERTENENCIA ETNICA ---
+                                console.log(c.amarillo('\n  ⏳ Procediendo a pestana Pertenencia Etnica...'));
+                                const tabEtnica = currentFrame.locator('.ajax__tab_tab:has-text("Etnica"), .ajax__tab_tab:has-text("Etnica"), .ajax__tab_tab:has-text("Pertenencia")').first();
                                 if (await tabEtnica.count() > 0) {
                                     await tabEtnica.click().catch(() => {});
                                     await page.waitForTimeout(300);
@@ -1012,19 +1012,19 @@ async function main() {
                                     if (await selEtnia.count() > 0) {
                                         await waitForAndSelect(selEtnia, "NO SE AUTORRECONOCE EN NINGUNO DE LOS ANTERIORES");
                                     } else {
-                                        console.log(c.rojo('  ⚠️ No se encontró la lista de Grupo Étnico.'));
+                                        console.log(c.rojo('  ⚠️ No se encontro la lista de Grupo Etnico.'));
                                     }
                                 }
 
-                                // --- PESTAÑA GRUPO FAMILIAR ---
-                                console.log(c.amarillo('\n  ⏳ Procediendo a pestaña Grupo Familiar...'));
+                                // --- PESTANA GRUPO FAMILIAR ---
+                                console.log(c.amarillo('\n  ⏳ Procediendo a pestana Grupo Familiar...'));
                                 const tabFam = currentFrame.locator('.ajax__tab_tab:has-text("Familiar")').first();
                                 if (await tabFam.count() > 0) {
                                     await tabFam.click().catch(() => {});
                                     await page.waitForTimeout(300);
                                     currentFrame = page.frame({ name: 'frameContent' }) || page;
                                     
-                                    // 1. Preguntar quién es el Jefe del Grupo Familiar
+                                    // 1. Preguntar quien es el Jefe del Grupo Familiar
                                     let tipoJefe = '';
                                     while(tipoJefe !== '1' && tipoJefe !== '2') {
                                         tipoJefe = readline.question(c.cyan('\n  > Quien es el Jefe del Grupo Familiar? (1 = MADRE, 2 = PADRE): ')).trim();
@@ -1073,7 +1073,7 @@ async function main() {
                                     const docsMap = {
                                         '1': 'CEDULA DE CIUDADANIA',
                                         '2': 'CEDULA DE EXTRANJERIA',
-                                        '3': 'PERMISO POR PROTECCIÓN TEMPORAL',
+                                        '3': 'PERMISO POR PROTECCION TEMPORAL',
                                         '4': 'PASAPORTE'
                                     };
                                     const valTipoDocJefe = docsMap[tipoDocSel];
@@ -1131,7 +1131,7 @@ async function main() {
                                             await datePost;
                                         }
                                     } else {
-                                        console.log(c.verde(`  ✅ ${labelJefe.toUpperCase()} ya existe en Cuéntame: ${valNombre || 'REGISTRADA'}`));
+                                        console.log(c.verde(`  ✅ ${labelJefe.toUpperCase()} ya existe en Cuentame: ${valNombre || 'REGISTRADA'}`));
                                     }
 
                                     // --- PREGUNTAR / CONFIRMAR LUGAR DE NACIMIENTO DEL ACUDIENTE ---
@@ -1158,8 +1158,8 @@ async function main() {
                                         await page.waitForTimeout(1000);
                                     };
 
-                                    // --- AUTOCOMPLETAR CAMPOS REQUERIDOS EN CUÉNTAME ---
-                                    console.log(c.amarillo(`  ℹ️ Completando campos en el formulario de ${labelJefe} (Sexo, País, Depto, Municipio)...`));
+                                    // --- AUTOCOMPLETAR CAMPOS REQUERIDOS EN CUENTAME ---
+                                    console.log(c.amarillo(`  ℹ️ Completando campos en el formulario de ${labelJefe} (Sexo, Pais, Depto, Municipio)...`));
                                     
                                     const selSexoMadre = currentFrame.locator('select:visible[id*="ddlSexo"], select:visible[id*="Sexo"]').first();
                                     await selSexoMadre.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
@@ -1170,18 +1170,18 @@ async function main() {
                                         }
                                     }
 
-                                    // 1. País
+                                    // 1. Pais
                                     const selPaisM = currentFrame.locator('select:visible[id*="PaisNacimiento"], select:visible[id*="Pais"]').first();
                                     await selPaisM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
                                     if (await selPaisM.count() > 0) {
                                         const vPais = await selPaisM.inputValue().catch(() => '');
                                         if (!vPais || vPais === '0' || vPais.includes('Seleccione')) {
-                                            console.log(c.verde(`    👉 Seleccionando País de Nacimiento (${valPaisM})...`));
+                                            console.log(c.verde(`    👉 Seleccionando Pais de Nacimiento (${valPaisM})...`));
                                             await selectCascadingDropdown(selPaisM, valPaisM);
                                         }
                                     }
                                     
-                                    // 2. Departamento (Cargado tras postback del País)
+                                    // 2. Departamento (Cargado tras postback del Pais)
                                     const selDeptoM = currentFrame.locator('select:visible[id*="DepartamentoNacimiento"], select:visible[id*="DeptoNacimiento"], select:visible[id*="Departamento"], select:visible[id*="Depto"]').first();
                                     await selDeptoM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
                                     if (await selDeptoM.count() > 0) {
@@ -1212,7 +1212,7 @@ async function main() {
                                         await postAgregar;
                                         await page.waitForTimeout(2000); // Dar tiempo a que la grilla se actualice
                                     } else {
-                                        console.log(c.rojo('  ⚠️ No se encontró el botón Agregar Persona.'));
+                                        console.log(c.rojo('  ⚠️ No se encontro el boton Agregar Persona.'));
                                     }
 
                                     // 2. Actualizar Nino (REGISTRO CIVIL)
@@ -1257,7 +1257,7 @@ async function main() {
                                             await postGuardarFam;
                                             console.log(c.verde('  ✅ Guardado exitoso.'));
                                         } else {
-                                            console.log(c.rojo('  ⚠️ No se encontró el botón Guardar general. Guarda manualmente.'));
+                                            console.log(c.rojo('  ⚠️ No se encontro el boton Guardar general. Guarda manualmente.'));
                                         }
 
 
@@ -1269,18 +1269,18 @@ async function main() {
                                         }
 
                                     } else {
-                                        console.log(c.rojo(`  ⚠️ No se encontró la fila del nino en la tabla (buscando por doc ${docNum} o REGISTRO CIVIL).`));
+                                        console.log(c.rojo(`  ⚠️ No se encontro la fila del nino en la tabla (buscando por doc ${docNum} o REGISTRO CIVIL).`));
                                         readline.question(c.negrita('  > Por favor finaliza el proceso manualmente y presiona ENTER para continuar con el siguiente nino...'));
                                     }
                                 }
 
                             } else {
-                                console.log(c.rojo('  ❌ No se encontró la pestaña de Datos de Ubicación.'));
+                                console.log(c.rojo('  ❌ No se encontro la pestana de Datos de Ubicacion.'));
                             }
                         }
 
                     } else {
-                        console.log(c.rojo(`  ❌ No se encontró el botón de Guardar (disco). Guardar manualmente por favor.`));
+                        console.log(c.rojo(`  ❌ No se encontro el boton de Guardar (disco). Guardar manualmente por favor.`));
                     }
                     
                     page.off('dialog', dialogHandler);
@@ -1295,13 +1295,13 @@ async function main() {
     } catch (e) {
         console.log(c.rojo(`  ❌ Error durante el llenado: ${e.message}`));
         if (await verificarConexionOCaida(page)) {
-            console.log(c.rojo(`  ⚠️ Conexión perdida o error de servidor crítico detectado.`));
-            console.log(c.amarillo(`  🔄 Iniciando recuperación automatica de sesión...`));
+            console.log(c.rojo(`  ⚠️ Conexion perdida o error de servidor critico detectado.`));
+            console.log(c.amarillo(`  🔄 Iniciando recuperacion automatica de sesion...`));
             loggedIn = false;
-            break; // Romper el loop interno para volver a iniciar sesión (docRecuperacion se mantiene)
+            break; // Romper el loop interno para volver a iniciar sesion (docRecuperacion se mantiene)
         } else {
-            // Error local de Playwright (timeout, elemento no encontrado), NO fue caída de sesión
-            // Limpiamos la recuperación para no crear un loop infinito de un documento problemático
+            // Error local de Playwright (timeout, elemento no encontrado), NO fue caida de sesion
+            // Limpiamos la recuperacion para no crear un loop infinito de un documento problematico
             docRecuperacion = null; 
         }
     }
@@ -1310,7 +1310,7 @@ async function main() {
 
   }
   
-  console.log(c.verde('\n  👋 Módulo finalizado.\n'));
+  console.log(c.verde('\n  👋 Modulo finalizado.\n'));
   if (browser) await browser.disconnect().catch(() => {});
   process.exit(0);
 }
