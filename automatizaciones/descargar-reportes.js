@@ -698,7 +698,7 @@ async function main() {
   } // fin while (true)
 
   console.log(c.verde('\n  👋 Modulo finalizado.\n'));
-  if (browser) await browser.disconnect().catch(() => {});
+  if (browser) await browser.close().catch(() => {});
   process.exit(0);
 }
 

@@ -459,7 +459,7 @@ async function main() {
   } // End of outer while(true) (asociacion loop)
 
   console.log(c.verde('\n  👋 Modulo finalizado.\n'));
-  if (browser) await browser.disconnect().catch(() => {});
+  if (browser) await browser.close().catch(() => {});
   process.exit(0);
 }
 

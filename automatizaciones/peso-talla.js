@@ -909,11 +909,6 @@ async function main() {
               });
           }
 
-
-    await page.waitForTimeout(3000);
-    return true;
-}
-
           console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS.`));
           
           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
@@ -1864,7 +1859,7 @@ async function main() {
   } catch (err) {
     console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
   } finally {
-    if (browser) await browser.disconnect().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
     process.exit(0);
   }
 }
