@@ -56,9 +56,9 @@ async function main() {
       if (salirModulo) break;
       
       if (!ascSeleccionada) {
-          console.log(c.gris('Selecciona una asociación para iniciar el proceso.'));
+          console.log(c.gris('Selecciona una asociacion para iniciar el proceso.'));
           asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
-          console.log(`  ${c.rojo('0')}. Volver al menú principal`);
+          console.log(`  ${c.rojo('0')}. Volver al menu principal`);
 
           let idxAsociacion = -1;
           while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
@@ -68,14 +68,14 @@ async function main() {
           }
 
           if (idxAsociacion === 0) {
-            console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
             break;
           }
 
           ascSeleccionada = asociaciones[idxAsociacion - 1];
       }
 
-      // --- 2. Selección de Jardín (UDS) ---
+      // --- 2. Seleccion de Jardín (UDS) ---
       let jardinesAsociacion = listaJardines.filter(j => 
         j.asociacion && j.asociacion.toUpperCase() === ascSeleccionada.nombreCorto.toUpperCase()
       );
@@ -85,9 +85,9 @@ async function main() {
           jardinesAsociacion = [{ nombre: "Ingresar manualmente", codigo: "" }];
       }
 
-      console.log(c.cyan('\n  Jardines de la asociación:'));
+      console.log(c.cyan('\n  Jardines de la asociacion:'));
       jardinesAsociacion.forEach((j, i) => console.log(`  ${i + 1}. ${j.nombre} ${j.codigo ? '('+j.codigo+')' : ''}`));
-      console.log(`  ${c.rojo('0')}. Volver a asociación`);
+      console.log(`  ${c.rojo('0')}. Volver a asociacion`);
 
       let idxJardin = -1;
       while (idxJardin < 0 || idxJardin > jardinesAsociacion.length) {
@@ -98,7 +98,7 @@ async function main() {
 
       if (idxJardin === 0) {
           ascSeleccionada = null;
-          continue; // volver a seleccionar asociación
+          continue; // volver a seleccionar asociacion
       }
 
       const jardinSeleccionado = jardinesAsociacion[idxJardin - 1];
@@ -129,16 +129,16 @@ async function main() {
                   gmailAppPassword: GMAIL_APP_PASSWORD
                 });
                 loggedIn = true;
-                console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
+                console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
                 await seleccionarRolYEntrar(page, ascSeleccionada);
             } else {
-                console.log(c.verde(`  ✅ Preservando sesión y asociación activa: "${ascSeleccionada.nombreCorto}".`));
+                console.log(c.verde(`  ✅ Preservando sesión y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
                 loggedIn = true;
             }
         } else {
             await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
             
-            // Verificar si al forzar la redirección nos mandó al login por timeout
+            // Verificar si al forzar la redireccion nos mandó al login por timeout
             await page.waitForTimeout(1000);
             if (await verificarConexionOCaida(page)) {
                 console.log(c.amarillo('  ⚠️ La sesión expiró. Reiniciando login (2FA)...'));
@@ -152,7 +152,7 @@ async function main() {
             }
         }
 
-        console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
+        console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
         await seleccionarRolYEntrar(page, ascSeleccionada);
         
         // Navegar a Beneficiario > Beneficiario
@@ -183,7 +183,7 @@ async function main() {
                         await nuevosLinks[1].evaluate(n => n.click());
                     }
                 } else {
-                    console.log(c.rojo('  ⚠️ No se encontró el menú Beneficiario.'));
+                    console.log(c.rojo('  ⚠️ No se encontró el menu Beneficiario.'));
                 }
                 await page.waitForTimeout(3000);
             } catch(e) {
@@ -191,7 +191,7 @@ async function main() {
             }
         };
 
-        // Navegación inicial
+        // Navegacion inicial
         await recargarPaginaBeneficiario();
 
         let frame = page.frame({ name: 'frameContent' });
@@ -208,7 +208,7 @@ async function main() {
         let forceMenuClick = false;
         let docRecuperacion = null;
 
-        // Bucle interactivo para ingresar niños en el mismo jardín
+        // Bucle interactivo para ingresar ninos en el mismo jardín
         while (true) {
             // Verificar si la sesión se cerró por inactividad
             if (await verificarConexionOCaida(page)) {
@@ -226,8 +226,8 @@ async function main() {
             console.log(c.amarillo(`  Jardín actual: ${jardinSeleccionado.nombre}`));
             console.log(c.amarillo('  [1] Ingresar nuevo beneficiario'));
             console.log(c.amarillo('  [R] Recargar página (si hubo error de conexión)'));
-            console.log(c.amarillo('  [0] Volver a selección de Jardín'));
-            console.log(c.rojo('  [M] Volver al menú principal (npm start)'));
+            console.log(c.amarillo('  [0] Volver a seleccion de Jardín'));
+            console.log(c.rojo('  [M] Volver al menu principal (npm start)'));
             
             const accion = readline.question(c.negrita('\n  > Tu opcion: ')).trim().toUpperCase();
 
@@ -236,7 +236,7 @@ async function main() {
                 break;
             }
             if (accion === '0') {
-                break; // Vuelve al loop de selección de jardín/asociación
+                break; // Vuelve al loop de seleccion de jardín/asociacion
             }
             if (accion === 'R') {
                 forceMenuClick = true;
@@ -287,13 +287,13 @@ async function main() {
                     }
                     if (!isSearchMode) break;
                 } else {
-                    console.log(c.rojo('  ❌ No se encontró el botón Nuevo (+). ¿Estás seguro que la página cargó?'));
+                    console.log(c.rojo('  ❌ No se encontró el botón Nuevo (+). ¿Estas seguro que la página cargó?'));
                     break;
                 }
             }
 
             if (isSearchMode) {
-                console.log(c.rojo('  ⚠️ El formulario no cambió a modo Creación tras varios intentos. Abortando ingreso para evitar sobreescribir la búsqueda.'));
+                console.log(c.rojo('  ⚠️ El formulario no cambió a modo Creación tras varios intentos. Abortando ingreso para evitar sobreescribir la busqueda.'));
                 continue;
             }
 
@@ -327,7 +327,7 @@ async function main() {
                             
                             // 3. Fallback inteligente si no hay coincidencia parcial pero hay opciones válidas en el select
                             if (!match && opts.length > 0) {
-                                console.log(c.amarillo(`  ℹ️ Contrato/Opción "${textToMatch}" no tiene coincidencia exacta. Seleccionando la opción disponible: "${opts[0].t}"`));
+                                console.log(c.amarillo(`  ℹ️ Contrato/Opcion "${textToMatch}" no tiene coincidencia exacta. Seleccionando la opcion disponible: "${opts[0].t}"`));
                                 match = opts[0];
                             }
                             
@@ -341,7 +341,7 @@ async function main() {
                 }
                 
                 if (textToMatch && !match) {
-                    console.log(`  ⚠️ No se encontró la opción "${textToMatch}" tras esperar.`);
+                    console.log(`  ⚠️ No se encontró la opcion "${textToMatch}" tras esperar.`);
                     console.log(`     Opciones disponibles: ${opts.map(o => o.t).join(' | ')}`);
                     return opts;
                 }
@@ -387,10 +387,10 @@ async function main() {
                 }
                 return opts;
             };
-            // Área misional: Dirección de Primera Infancia
+            // Área misional: Direccion de Primera Infancia
             const selectArea = currentFrame.locator('select').filter({ hasText: 'Primera Infancia' }).first();
             if (await selectArea.count() > 0) {
-                await selectArea.selectOption({ label: 'Dirección de Primera Infancia' }).catch(()=>{});
+                await selectArea.selectOption({ label: 'Direccion de Primera Infancia' }).catch(()=>{});
                 await page.waitForTimeout(500);
             }
 
@@ -443,7 +443,7 @@ async function main() {
                 }
             }
 
-            // Seleccionar UDS Automáticamente
+            // Seleccionar UDS Automaticamente
             const selectUDS = currentFrame.locator('select[id*="ddlUDS"], select[id*="Uds"]').first();
             await waitForAndSelect(selectUDS, jardinSeleccionado.codigo);
 
@@ -506,7 +506,7 @@ async function main() {
                     } else {
                         if (res !== '') datosNino.docNum = res;
                         if (!datosNino.docNum) {
-                            console.log(c.rojo('  ❌ El número de documento es obligatorio.'));
+                            console.log(c.rojo('  ❌ El numero de documento es obligatorio.'));
                         } else {
                             docRecuperacion = { idxDoc: datosNino.idxDoc, docNum: datosNino.docNum };
                             paso++;
@@ -624,7 +624,7 @@ async function main() {
                 await page.waitForTimeout(500);
             }
 
-            // Número de documento
+            // Numero de documento
             const inputDoc = currentFrame.locator('input[type="text"]').first(); 
             const btnLupa = currentFrame.locator('input[type="image"][src*="icoPagBuscar"], input[id*="btnBuscar"]').first();
             
@@ -677,7 +677,7 @@ async function main() {
                     const sN = await inputSNombre.inputValue();
                     const pA = await inputPApellido.inputValue();
                     const sA = await inputSApellido.inputValue();
-                    console.log(c.verde(`  ✅ ¡El niño ya está creado en el sistema!`));
+                    console.log(c.verde(`  ✅ ¡El nino ya esta creado en el sistema!`));
                     console.log(c.cyan(`     Datos recuperados: ${pN} ${sN} ${pA} ${sA}`.replace(/\s+/g, ' ')));
                 }
             }
@@ -724,7 +724,7 @@ async function main() {
                 // Foto (SE HACE SIEMPRE, exista o no)
                 console.log(c.amarillo(`  ⏳ Validando/Cargando foto de perfil (${sexo})...`));
                 const inputFile = currentFrame.locator('input[type="file"]').first();
-                const photoName = sexo === 'Mujer' ? 'niña.jpg' : 'niño.jpg';
+                const photoName = sexo === 'Mujer' ? 'niña.jpg' : 'nino.jpg';
                 const photoPath = path.join('C:\\Dev\\jobautomatico\\docs', photoName);
                 
                 if (await inputFile.count() > 0) {
@@ -754,7 +754,7 @@ async function main() {
                                 if (isDone) break;
                                 await page.waitForTimeout(100);
                             }
-                            console.log(c.verde(`  ✅ Foto cargada automáticamente (${photoName}).`));
+                            console.log(c.verde(`  ✅ Foto cargada automaticamente (${photoName}).`));
                         }
                     } catch (e) {
                         console.log(c.rojo(`  ❌ Error al cargar la foto: ${e.message}`));
@@ -804,7 +804,7 @@ async function main() {
                         if (await selMuni.count() > 0) await waitForAndSelect(selMuni, muniNac);
                     }
 
-                    console.log(c.amarillo('  ⏳ Buscando campo Fecha de Atención...'));
+                    console.log(c.amarillo('  ⏳ Buscando campo Fecha de Atencion...'));
                     const txtFechaAtencion = currentFrame.locator('input[type="text"][id*="txtFechaAtencion"], input[id*="FechaAtencion"]').first();
                     
                     // Esperar activamente a que el campo aparezca (hasta 5 segundos) por si el DOM de Cuéntame sigue renderizando
@@ -833,15 +833,15 @@ async function main() {
                         await txtFechaAtencion.focus().catch(e => console.log('  ❌ Error focus:', e.message));
                         await txtFechaAtencion.pressSequentially(fechaAtencionLimpia, { delay: 150 }).catch(e => console.log('  ❌ Error press:', e.message));
                         
-                        // Al salir de la casilla (blur), Cuéntame hace una validación por POST
-                        console.log('  ⏳ Esperando validación POST...');
+                        // Al salir de la casilla (blur), Cuéntame hace una validacion por POST
+                        console.log('  ⏳ Esperando validacion POST...');
                         const datePostPromise = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 6000 }).catch(() => console.log('  ⚠️ No hubo POST.'));
                         await txtFechaAtencion.press('Tab').catch(e => console.log('  ❌ Error tab:', e.message));
                         await datePostPromise;
-                        console.log('  ✅ Validación completada.');
+                        console.log('  ✅ Validacion completada.');
                         await page.waitForTimeout(500);
                     } else {
-                        console.log(c.rojo('  ⚠️ No se encontró la casilla de Fecha de Atención.'));
+                        console.log(c.rojo('  ⚠️ No se encontró la casilla de Fecha de Atencion.'));
                         // DUMP de todos los inputs en pantalla para diagnosticar:
                         const allInputs = await currentFrame.evaluate(() => {
                             return Array.from(document.querySelectorAll('input[type="text"]')).map(el => ({ id: el.id, val: el.value }));
@@ -865,7 +865,7 @@ async function main() {
                     await page.waitForTimeout(2000); // 2 segundos para el postback inicial
                 }
 
-                console.log(c.amarillo('\n  ⏳ Ejecutando Guardar automáticamente...'));
+                console.log(c.amarillo('\n  ⏳ Ejecutando Guardar automaticamente...'));
                     
                     const dialogHandler = async dialog => {
                         console.log(c.magenta(`  💬 Mensaje de plataforma: ${dialog.message()}`));
@@ -927,7 +927,7 @@ async function main() {
                                     console.log(c.gris(`     - Seleccionando Barrio para ${ascSeleccionada.nombreCorto}: ${barrioDefecto}`));
                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Barrio"]').first(), barrioDefecto);
                                 } else {
-                                    console.log(c.amarillo(`  ⚠️ No se determinó Barrio automático para la asociación ${ascSeleccionada.nombreCorto}.`));
+                                    console.log(c.amarillo(`  ⚠️ No se determinó Barrio automatico para la asociacion ${ascSeleccionada.nombreCorto}.`));
                                 }
 
                                 console.log(c.amarillo('\n  🏠 Por favor, ingresa los Datos de Direccion de Residencia:'));
@@ -971,7 +971,7 @@ async function main() {
                                 
                                 const telefono = readline.question('  > Numero de Telefono: ').trim();
 
-                                console.log(c.gris('     - Ingresando Dirección de Residencia y Teléfono...'));
+                                console.log(c.gris('     - Ingresando Direccion de Residencia y Teléfono...'));
                                 
                                 const fillText = async (locator, value) => {
                                     if (value && await locator.count() > 0) {
@@ -997,7 +997,7 @@ async function main() {
                                 
                                 await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtTelefono"], input[id*="tbnDatosGeo"][id*="Telefono"]').first(), telefono);
 
-                                console.log(c.verde(`  ✅ Pestaña "Datos de Ubicación" llenada automáticamente.`));
+                                console.log(c.verde(`  ✅ Pestaña "Datos de Ubicación" llenada automaticamente.`));
                                 
                                 // --- PESTAÑA PERTENENCIA ÉTNICA ---
                                 console.log(c.amarillo('\n  ⏳ Procediendo a pestaña Pertenencia Étnica...'));
@@ -1215,10 +1215,10 @@ async function main() {
                                         console.log(c.rojo('  ⚠️ No se encontró el botón Agregar Persona.'));
                                     }
 
-                                    // 2. Actualizar Niño (REGISTRO CIVIL)
-                                    console.log(c.amarillo('\n  ⏳ Buscando al niño en la tabla de Familia/Responsables...'));
+                                    // 2. Actualizar Nino (REGISTRO CIVIL)
+                                    console.log(c.amarillo('\n  ⏳ Buscando al nino en la tabla de Familia/Responsables...'));
                                     
-                                    // Buscar la fila por número de documento o tipo de documento
+                                    // Buscar la fila por numero de documento o tipo de documento
                                     let btnDetalleNino = currentFrame.locator(`tr:visible:has-text("${docNum}") input[type="image"][title*="Detalle"]`).first();
                                     await btnDetalleNino.waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
                                     
@@ -1230,9 +1230,9 @@ async function main() {
                                     if (await btnDetalleNino.count() > 0) {
                                         const postDetalle = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                                         await btnDetalleNino.click();
-                                        console.log(c.amarillo('  ⏳ Cargando detalle del niño...'));
+                                        console.log(c.amarillo('  ⏳ Cargando detalle del nino...'));
                                         await postDetalle;
-                                        await page.waitForTimeout(2000); // Esperar que el form superior se llene con los datos del niño
+                                        await page.waitForTimeout(2000); // Esperar que el form superior se llene con los datos del nino
 
                                         const selParentescoJefeNino = currentFrame.locator('select:visible[id*="ddlParentescoJefe"], select:visible[id*="Parentesco"]').first();
                                         await selParentescoJefeNino.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
@@ -1240,7 +1240,7 @@ async function main() {
 
                                         const btnActualizarNino = currentFrame.locator('a:visible:has-text("Actualizar Persona"), a:visible[id*="LblAgregarPersona"]').first();
                                         if (await btnActualizarNino.count() > 0) {
-                                            console.log(c.amarillo('  ⏳ Actualizando datos del niño en la tabla...'));
+                                            console.log(c.amarillo('  ⏳ Actualizando datos del nino en la tabla...'));
                                             const postActualizar = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                                             await btnActualizarNino.click();
                                             await postActualizar;
@@ -1269,8 +1269,8 @@ async function main() {
                                         }
 
                                     } else {
-                                        console.log(c.rojo(`  ⚠️ No se encontró la fila del niño en la tabla (buscando por doc ${docNum} o REGISTRO CIVIL).`));
-                                        readline.question(c.negrita('  > Por favor finaliza el proceso manualmente y presiona ENTER para continuar con el siguiente niño...'));
+                                        console.log(c.rojo(`  ⚠️ No se encontró la fila del nino en la tabla (buscando por doc ${docNum} o REGISTRO CIVIL).`));
+                                        readline.question(c.negrita('  > Por favor finaliza el proceso manualmente y presiona ENTER para continuar con el siguiente nino...'));
                                     }
                                 }
 
@@ -1285,18 +1285,18 @@ async function main() {
                     
                     page.off('dialog', dialogHandler);
                     
-                    // Si llegamos hasta aquí sin errores, el ciclo de este niño fue exitoso. Limpiamos la memoria.
+                    // Si llegamos hasta aqui sin errores, el ciclo de este nino fue exitoso. Limpiamos la memoria.
                     docRecuperacion = null;
 
             } // Fin de if (txtNumDoc.count() > 0)
 
-        } // fin loop de niños
+        } // fin loop de ninos
 
     } catch (e) {
         console.log(c.rojo(`  ❌ Error durante el llenado: ${e.message}`));
         if (await verificarConexionOCaida(page)) {
             console.log(c.rojo(`  ⚠️ Conexión perdida o error de servidor crítico detectado.`));
-            console.log(c.amarillo(`  🔄 Iniciando recuperación automática de sesión...`));
+            console.log(c.amarillo(`  🔄 Iniciando recuperación automatica de sesión...`));
             loggedIn = false;
             break; // Romper el loop interno para volver a iniciar sesión (docRecuperacion se mantiene)
         } else {

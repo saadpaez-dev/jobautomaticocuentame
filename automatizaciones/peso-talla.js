@@ -1,7 +1,7 @@
 /**
  * peso-talla.js
  * Script interactivo para el registro de toma de peso y talla.
- * Fase 1: Selección de Asociación y Jardín (UDS), e ingreso al módulo correspondiente.
+ * Fase 1: Seleccion de Asociacion y Jardín (UDS), e ingreso al módulo correspondiente.
  */
 
 const path = require('path');
@@ -73,7 +73,7 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
     xlsx.writeFile(wb, rootFilePath);
     xlsx.writeFile(wb, docsFilePath);
 
-    // Abrir automáticamente el Explorador de Windows destacando el archivo del reporte
+    // Abrir automaticamente el Explorador de Windows destacando el archivo del reporte
     try {
         require('child_process').exec(`explorer.exe /select,"${rootFilePath}"`);
     } catch (e) {}
@@ -155,7 +155,7 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
         }
 
         paginasProbadas.add(numSiguiente);
-        console.log(c.amarillo(`  🔍 El beneficiario no está en la página 1. Buscando en la página ${numSiguiente} de la grilla de Cuéntame...`));
+        console.log(c.amarillo(`  🔍 El beneficiario no esta en la página 1. Buscando en la página ${numSiguiente} de la grilla de Cuéntame...`));
 
         try {
             await Promise.all([
@@ -498,7 +498,7 @@ async function main() {
       console.log(c.cyan('\n======================================================'));
       console.log(c.cyan('   ⚖️  REGISTRO DE PESO Y TALLA'));
       console.log(c.cyan('======================================================\n'));
-      console.log('  1. Cargar excel jardin (Procesamiento masivo / Automático)');
+      console.log('  1. Cargar excel jardin (Procesamiento masivo / Automatico)');
       console.log('  2. Cargar beneficiario con excel (Individual)');
       console.log('  3. Cargar beneficiario sin excel (Manual)');
       console.log('  4. Corregir/Editar masivo con Excel');
@@ -527,10 +527,10 @@ async function main() {
 
           console.log(c.cyan('\n  📥 SELECCIÓN Y MULTI-CARGA DE ARCHIVOS EXCEL:'));
           console.log(c.gris('     • Presiona ENTER (o escribe 0) para procesar TODOS los archivos de "Docs/peso y talla".'));
-          console.log(c.gris('     • O escribe el número o lista de números (ej: 1, 3 o solo 2).'));
+          console.log(c.gris('     • O escribe el numero o lista de numeros (ej: 1, 3 o solo 2).'));
           console.log(c.gris('     • O arrastra UNO o VARIOS archivos / CARPETA directamente a esta consola.\n'));
 
-          const inputRaw = readline.question(c.negrita('  > Ingresa tu opción o arrastra los archivos aqui [0 = Todos]: ')).trim();
+          const inputRaw = readline.question(c.negrita('  > Ingresa tu opcion o arrastra los archivos aqui [0 = Todos]: ')).trim();
           
           if (archivosDocs.length > 0) {
               if (!inputRaw || inputRaw === '0' || inputRaw.toUpperCase() === 'TODOS') {
@@ -613,23 +613,23 @@ async function main() {
               const parseResult = parsearExcel(fileP);
               ninosExcel = parseResult.ninos;
               if (ninosExcel.length === 0) {
-                  console.log(c.rojo(`  ❌ No se encontraron niños válidos en el primer Excel (${path.basename(fileP)}).`));
+                  console.log(c.rojo(`  ❌ No se encontraron ninos válidos en el primer Excel (${path.basename(fileP)}).`));
                   continue;
               }
               console.log(c.verde(`\n  📄 [1/${listaArchivosPendientes.length}] Leyendo Excel: ${path.basename(fileP)}`));
-              console.log(c.verde(`  ✅ Excel cargado exitosamente. Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+              console.log(c.verde(`  ✅ Excel cargado exitosamente. Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
               
               const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
               ascSeleccionada = match.ascSeleccionada;
               jardinSeleccionado = match.jardinSeleccionado;
 
               if (!ascSeleccionada) {
-                  console.log(c.amarillo(`  ⚠️ No se encontró la Asociación automáticamente. Se pedirá selección manual.`));
+                  console.log(c.amarillo(`  ⚠️ No se encontró la Asociacion automaticamente. Se pedirá seleccion manual.`));
               } else if (!jardinSeleccionado) {
-                  console.log(c.amarillo(`  ⚠️ No se encontró la UDS automáticamente. Se pedirá selección manual.`));
+                  console.log(c.amarillo(`  ⚠️ No se encontró la UDS automaticamente. Se pedirá seleccion manual.`));
               }
 
-              console.log(c.verde(`  ✅ Se encontraron ${ninosExcel.length} niños listos para procesar.`));
+              console.log(c.verde(`  ✅ Se encontraron ${ninosExcel.length} ninos listos para procesar.`));
               modoExcel = respBenef.trim() === '1' ? 'MASIVO_NUEVO' : 'MASIVO_EDITAR';
           } catch(e) {
               console.log(c.rojo(`  ❌ Error leyendo Excel: ${e.message}`));
@@ -698,7 +698,7 @@ async function main() {
           }
           ascSeleccionada = asociaciones[idxAsociacion - 1];
       } else {
-          console.log(c.verde(`  ✅ Asociación seleccionada: ${ascSeleccionada.nombreCorto}`));
+          console.log(c.verde(`  ✅ Asociacion seleccionada: ${ascSeleccionada.nombreCorto}`));
       }
 
       if (!jardinSeleccionado) {
@@ -738,7 +738,7 @@ async function main() {
               const respAccion = readline.question(c.negrita('  > Selecciona (1 o 2): '));
               if (respAccion.trim() === '1' || respAccion.trim() === '2') {
                   accionRapida = respAccion.trim();
-                  console.log(c.verde('  ✅ Perfecto, seleccionare automaticamente al niño en la grilla.'));
+                  console.log(c.verde('  ✅ Perfecto, seleccionare automaticamente al nino en la grilla.'));
               } else {
                   preFiltroBeneficiario = null;
               }
@@ -754,7 +754,7 @@ async function main() {
           page = navData.page;
       }
 
-      // Validar si la sesión activa pertenece a la asociación elegida
+      // Validar si la sesión activa pertenece a la asociacion elegida
       const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
       
       if (!mismaAsociacion) {
@@ -768,10 +768,10 @@ async function main() {
           loggedIn = true;
           console.log(c.amarillo(`  🏢 Entrando con la asociacion ${ascSeleccionada.nombreCorto}...`));
           await seleccionarRolYEntrar(page, ascSeleccionada);
-          console.log(c.amarillo('  ⏳ Esperando a que cargue el menú de Cuéntame...'));
+          console.log(c.amarillo('  ⏳ Esperando a que cargue el menu de Cuéntame...'));
           await page.waitForTimeout(3000); 
       } else {
-          console.log(c.verde(`  ✅ Preservando sesión y asociación activa: "${ascSeleccionada.nombreCorto}".`));
+          console.log(c.verde(`  ✅ Preservando sesión y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
           loggedIn = true;
       } 
       
@@ -788,11 +788,11 @@ async function main() {
       
       console.log(c.cyan('\n  🚀 Navegando al modulo de Seguimiento nutricional...'));
       try {
-          // 1. Ejecutar evaluador DOM dentro del marco de menú (frameMenu) para buscar enlaces <a>
+          // 1. Ejecutar evaluador DOM dentro del marco de menu (frameMenu) para buscar enlaces <a>
           let result = await rootMenu.evaluate(() => {
               const links = Array.from(document.querySelectorAll('a'));
               
-              // Si "Seguimiento nutricional" ya está visible en el menú, hacerle clic directamente
+              // Si "Seguimiento nutricional" ya esta visible en el menu, hacerle clic directamente
               const target = links.find(a => a.innerText && a.innerText.toLowerCase().includes('seguimiento nutricional'));
               if (target) {
                   target.click();
@@ -808,10 +808,10 @@ async function main() {
               return 'NOT_FOUND';
           }).catch(() => 'ERROR');
 
-          console.log(c.gris(`  ℹ️ Estado del menú: ${result}`));
+          console.log(c.gris(`  ℹ️ Estado del menu: ${result}`));
 
           if (result === 'RUB_EXPANDED') {
-              await page.waitForTimeout(1500); // Esperar a que el sub-menú se expanda
+              await page.waitForTimeout(1500); // Esperar a que el sub-menu se expanda
               // Ahora hacer clic en "Seguimiento nutricional"
               await rootMenu.evaluate(() => {
                   const links = Array.from(document.querySelectorAll('a'));
@@ -886,7 +886,7 @@ async function main() {
               const celdas = fila.locator(':scope > td');
               const numCeldas = await celdas.count();
               
-              // Una fila normal de niños tiene unas 8-10 columnas. Ignoramos filas contenedoras.
+              // Una fila normal de ninos tiene unas 8-10 columnas. Ignoramos filas contenedoras.
               if (numCeldas < 5 || numCeldas > 15) {
                   continue;
               }
@@ -920,7 +920,7 @@ async function main() {
               if (idxNinoExcelActual >= ninosExcel.length) {
                   generarReporteExcel(ninosProcesados, jardinSeleccionado ? jardinSeleccionado.nombre : '', ascSeleccionada ? ascSeleccionada.nombreCorto : '');
 
-                  // Si hay más archivos en la lista pendiente de multi-carga, avanzar automáticamente al siguiente jardín
+                  // Si hay más archivos en la lista pendiente de multi-carga, avanzar automaticamente al siguiente jardín
                   if (listaArchivosPendientes && idxArchivoActual < listaArchivosPendientes.length - 1) {
                       idxArchivoActual++;
                       const proximoFile = listaArchivosPendientes[idxArchivoActual];
@@ -932,13 +932,13 @@ async function main() {
                       try {
                           const parseResult = parsearExcel(proximoFile);
                           ninosExcel = parseResult.ninos;
-                          console.log(c.verde(`  ✅ Excel cargado exitosamente (${ninosExcel.length} niños). Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+                          console.log(c.verde(`  ✅ Excel cargado exitosamente (${ninosExcel.length} ninos). Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
 
                           const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
 
                           if (match.ascSeleccionada && ascSeleccionada && match.ascSeleccionada.nombreCorto !== ascSeleccionada.nombreCorto) {
                               ascSeleccionada = match.ascSeleccionada;
-                              console.log(c.amarillo(`  🏢 Cambiando de Asociación a: ${ascSeleccionada.nombreCorto}...`));
+                              console.log(c.amarillo(`  🏢 Cambiando de Asociacion a: ${ascSeleccionada.nombreCorto}...`));
                               await seleccionarRolYEntrar(page, ascSeleccionada);
                               await page.waitForTimeout(3000);
                               const rootMenu = page.frame({ name: 'frameMenu' }) || page;
@@ -960,10 +960,10 @@ async function main() {
                               console.log(c.cyan(`  🔄 Cambiando la UDS en Cuéntame al nuevo Jardín: ${jardinSeleccionado.nombre} (Código: ${jardinSeleccionado.codigo})...`));
                               await cargarUdsEnCuentame(page, jardinSeleccionado);
                           } else {
-                              console.log(c.amarillo(`  ⚠️ No se pudo emparejar la UDS automáticamente. Se mantendrá la actual.`));
+                              console.log(c.amarillo(`  ⚠️ No se pudo emparejar la UDS automaticamente. Se mantendrá la actual.`));
                           }
 
-                          continue; // Continúa la ejecución del loop procesando los niños del NUEVO Jardín
+                          continue; // Continúa la ejecución del loop procesando los ninos del NUEVO Jardín
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error leyendo el siguiente Excel (${path.basename(proximoFile)}): ${e.message}`));
                       }
@@ -979,14 +979,14 @@ async function main() {
                   console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
                   console.log(c.cyan('  ║  1. Cargar más archivos Excel / carpetas                           ║'));
                   console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
-                  console.log(c.cyan('  ║  3. Cambiar de Asociación                                          ║'));
-                  console.log(c.cyan('  ║  4. Volver al menú de opciones de Peso y Talla                     ║'));
+                  console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
+                  console.log(c.cyan('  ║  4. Volver al menu de opciones de Peso y Talla                     ║'));
                   console.log(c.cyan('  ║  0. Volver al panel principal (AutoTrabajo / Start)               ║'));
                   console.log(c.cyan('  ╚════════════════════════════════════════════════════════════════════╝'));
 
                   let opt = '';
                   while (!['0', '1', '2', '3', '4'].includes(opt.trim())) {
-                      opt = readline.question(c.negrita('  > Selecciona una opción (0-4): ')).trim();
+                      opt = readline.question(c.negrita('  > Selecciona una opcion (0-4): ')).trim();
                   }
 
                   if (opt === '0') {
@@ -1005,12 +1005,12 @@ async function main() {
                               const parseResult = parsearExcel(fileP);
                               ninosExcel = parseResult.ninos;
                               if (!ninosExcel || ninosExcel.length === 0) {
-                                  console.log(c.rojo('  ❌ No se encontraron niños válidos en el nuevo Excel.'));
+                                  console.log(c.rojo('  ❌ No se encontraron ninos válidos en el nuevo Excel.'));
                                   modoExcel = null;
                                   break;
                               }
-                              console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} niños).`));
-                              console.log(c.verde(`  Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+                              console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} ninos).`));
+                              console.log(c.verde(`  Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
 
                               modoExcel = 'MASIVO_NUEVO';
                               idxNinoExcelActual = 0;
@@ -1097,7 +1097,7 @@ async function main() {
               const busquedaNorm = normalizarDoc(input);
               const busquedaTexto = removeAccents(input).toUpperCase();
 
-              // Si venimos de Excel, aplicar validación jerárquica estricta:
+              // Si venimos de Excel, aplicar validacion jerárquica estricta:
               // 1. Documento exacto -> 2. Apellidos -> 3. Nombre
               let coincidenciaModoExcel = null;
               if (modoExcel && modoExcel.startsWith('MASIVO_') && ninosExcel[idxNinoExcelActual]) {
@@ -1106,7 +1106,7 @@ async function main() {
 
               if (coincidenciaModoExcel) {
                   ninoSeleccionado = coincidenciaModoExcel.nino;
-                  console.log(c.verde(`  ✅ Niño identificado en Cuéntame (por ${coincidenciaModoExcel.metodo}): ${c.cyan(ninoSeleccionado.documento)} - ${ninoSeleccionado.nombreCompleto}`));
+                  console.log(c.verde(`  ✅ Nino identificado en Cuéntame (por ${coincidenciaModoExcel.metodo}): ${c.cyan(ninoSeleccionado.documento)} - ${ninoSeleccionado.nombreCompleto}`));
               } else {
                   const resultados = listaNinos.filter(n => 
                       (busquedaNorm.length >= 3 && normalizarDoc(n.documento).includes(busquedaNorm)) || 
@@ -1117,7 +1117,7 @@ async function main() {
                       ninoSeleccionado = resultados[0];
                   } else if (resultados.length > 1) {
                       if (preFiltroBeneficiario) {
-                          console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para la búsqueda automática "${input}".`));
+                          console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para la busqueda automatica "${input}".`));
                           preFiltroBeneficiario = null;
                       } else {
                           console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para "${input}":`));
@@ -1147,10 +1147,10 @@ async function main() {
           }
 
           if (!ninoSeleccionado) {
-              console.log(c.rojo(`  ❌ No se encontró ningún niño que coincida con "${input}" en ninguna de las páginas de la UDS.`));
+              console.log(c.rojo(`  ❌ No se encontró ningún nino que coincida con "${input}" en ninguna de las páginas de la UDS.`));
               preFiltroBeneficiario = null;
               if (modoExcel && modoExcel.startsWith('MASIVO_')) {
-                  console.log(c.amarillo('  ⚠️ Saltando al siguiente niño del Excel...'));
+                  console.log(c.amarillo('  ⚠️ Saltando al siguiente nino del Excel...'));
                   const ninoTarget = ninosExcel[idxNinoExcelActual];
                   if (ninoTarget) {
                       ninosProcesados.push({
@@ -1173,17 +1173,17 @@ async function main() {
                   ninoSeleccionado.locator.evaluate(node => node.click())
               ]);
 
-              console.log(c.verde(`  ✅ Formulario del niño abierto exitosamente.`));
+              console.log(c.verde(`  ✅ Formulario del nino abierto exitosamente.`));
               
               // =========================================================================
-              // FASE 3 (Prueba de Navegación): AGREGAR O EDITAR TOMA
+              // FASE 3 (Prueba de Navegacion): AGREGAR O EDITAR TOMA
               // =========================================================================
               
               while (true) {
-                  console.log(c.amarillo('\n  ⏳ Extrayendo historial de tomas del niño...'));
-                  await page.waitForTimeout(2500); // Esperar a que cargue la tabla del niño
+                  console.log(c.amarillo('\n  ⏳ Extrayendo historial de tomas del nino...'));
+                  await page.waitForTimeout(2500); // Esperar a que cargue la tabla del nino
                   
-                  // Localizar la tabla de tomas (Seguimiento nutrición Unidad de servicio Actual)
+                  // Localizar la tabla de tomas (Seguimiento nutricion Unidad de servicio Actual)
                   const tablaTomas = content.locator('table:has(tr:has-text("Fecha Toma"))').last();
                   const filasTomas = tablaTomas.locator('tr').filter({ has: content.locator('td') });
                   const numTomas = await filasTomas.count();
@@ -1238,7 +1238,7 @@ async function main() {
                           consecutivosDuplicados++;
                           console.log(c.amarillo(`\n  ⚠️ TOMA DUPLICADA DETECTADA para ${ninoSeleccionado.nombreCompleto}:`));
                           console.log(c.amarillo(`     - Fecha: ${targetFechaNorm} (Ya tiene una toma registrada para esta fecha).`));
-                          console.log(c.amarillo(`     ➡️ Omitiendo niño (${consecutivosDuplicados} consecutivo(s)).`));
+                          console.log(c.amarillo(`     ➡️ Omitiendo nino (${consecutivosDuplicados} consecutivo(s)).`));
 
                           if (consecutivosDuplicados >= 3) {
                               console.log(c.rojo('\n  ========================================================================================'));
@@ -1250,32 +1250,32 @@ async function main() {
                               console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
                               console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
                               if (ascSeleccionada) {
-                                  console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociación (${ascSeleccionada.nombreCorto.padEnd(20)}) ║`));
+                                  console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociacion (${ascSeleccionada.nombreCorto.padEnd(20)}) ║`));
                               } else {
-                                  console.log(c.cyan('  ║  1. Cargar otro Excel de esta misma asociación                     ║'));
+                                  console.log(c.cyan('  ║  1. Cargar otro Excel de esta misma asociacion                     ║'));
                               }
                               console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
-                              console.log(c.cyan('  ║  3. Cambiar de Asociación                                          ║'));
-                              console.log(c.cyan('  ║  0. Volver al menú principal                                       ║'));
+                              console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
+                              console.log(c.cyan('  ║  0. Volver al menu principal                                       ║'));
                               console.log(c.cyan('  ╚════════════════════════════════════════════════════════════════════╝'));
 
                               let opt = '';
                               while (!['0', '1', '2', '3'].includes(opt.trim())) {
-                                  opt = readline.question(c.negrita('  > Selecciona una opción (0-3): ')).trim();
+                                  opt = readline.question(c.negrita('  > Selecciona una opcion (0-3): ')).trim();
                               }
 
                               if (opt === '1') {
-                                  console.log(c.cyan('\n  📂 Carga de nuevo Excel para ' + (ascSeleccionada ? ascSeleccionada.nombreCorto : 'la asociación activa')));
+                                  console.log(c.cyan('\n  📂 Carga de nuevo Excel para ' + (ascSeleccionada ? ascSeleccionada.nombreCorto : 'la asociacion activa')));
                                   const fileP = obtenerRutaExcel();
                                   try {
                                       const parseResult = parsearExcel(fileP);
                                       ninosExcel = parseResult.ninos;
                                       if (!ninosExcel || ninosExcel.length === 0) {
-                                          console.log(c.rojo('  ❌ No se encontraron niños válidos en el nuevo Excel.'));
+                                          console.log(c.rojo('  ❌ No se encontraron ninos válidos en el nuevo Excel.'));
                                           modoExcel = null;
                                       } else {
-                                          console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} niños).`));
-                                          console.log(c.verde(`  Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+                                          console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} ninos).`));
+                                          console.log(c.verde(`  Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
 
                                           modoExcel = 'MASIVO_NUEVO';
                                           idxNinoExcelActual = 0;
@@ -1313,7 +1313,7 @@ async function main() {
                               break;
                           } else {
                               idxNinoExcelActual++;
-                              console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños para el siguiente en el Excel...'));
+                              console.log(c.amarillo('  ⏳ Volviendo a la consulta de ninos para el siguiente en el Excel...'));
                               await page.waitForTimeout(800);
                               try {
                                   const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"], img[src*="lupa"]').first();
@@ -1325,7 +1325,7 @@ async function main() {
                                       await page.waitForTimeout(1500);
                                   }
                               } catch(e) {}
-                              break; // Salir de la Fase 3 del niño actual y pasar al siguiente
+                              break; // Salir de la Fase 3 del nino actual y pasar al siguiente
                           }
                       } else {
                           // Registro nuevo (no duplicado): reiniciar contador de consecutivos
@@ -1380,7 +1380,7 @@ async function main() {
                                   btnBuscar.evaluate(node => node.click())
                               ]);
                           }
-                          break; // Rompe el bucle de Fase 3 y vuelve al menú de selección de niños
+                          break; // Rompe el bucle de Fase 3 y vuelve al menu de seleccion de ninos
                       }
                       
                       if (accion.trim() === '1') {
@@ -1406,10 +1406,10 @@ async function main() {
                               numAccion = 1;
                               console.log(c.amarillo(`  ⏳ Editando la unica toma existente (${listaTomas[0].fechaToma})...`));
                           } else {
-                              console.log(c.gris(`  [0] Volver a la consulta de niños (lupa)`));
+                              console.log(c.gris(`  [0] Volver a la consulta de ninos (lupa)`));
                               const res = readline.question(c.negrita(`  > Selecciona cual toma editar (1 - ${listaTomas.length}) o [0] para volver: `));
                               if (res.trim() === '0') {
-                                  console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños...'));
+                                  console.log(c.amarillo('  ⏳ Volviendo a la consulta de ninos...'));
                                   try {
                                       const btnBuscarBack = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"], input[src*="lupa"]').first();
                                       if (await btnBuscarBack.count() > 0) {
@@ -1421,7 +1421,7 @@ async function main() {
                                   } catch(e) {
                                       console.log(c.rojo(`  ❌ Error: ${e.message}`));
                                   }
-                                  break; // Vuelve al bucle de selección de niño
+                                  break; // Vuelve al bucle de seleccion de nino
                               }
                               numAccion = parseInt(res.trim(), 10);
                           }
@@ -1476,7 +1476,7 @@ async function main() {
                       let epsInput = null;
 
                       while (true) {
-                          console.log(c.cyan('\n  📋 DATOS DE LA TOMA (Ingresa los datos para este niño)'));
+                          console.log(c.cyan('\n  📋 DATOS DE LA TOMA (Ingresa los datos para este nino)'));
                           let fechaEntrada = readline.question(c.negrita('  > Fecha de valoracion (ej. "hoy", "22", "30/07/2026") [Opcional]: '));
                           let pesoInput = readline.question(c.negrita('  > Peso en Kilogramos (ej. 12.5) [Opcional]: '));
                           let tallaInput = readline.question(c.negrita('  > Talla en Centimetros (ej. 85) [Opcional]: '));
@@ -1513,12 +1513,12 @@ async function main() {
                       }
                   }
                   
-                  // Ejecutar la magia del llenado automático y consulta ADRES
+                  // Ejecutar la magia del llenado automatico y consulta ADRES
                   await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
 
-                  console.log(c.amarillo('\n  ✨ Llenado automático finalizado.'));
+                  console.log(c.amarillo('\n  ✨ Llenado automatico finalizado.'));
                   // ── GUARDADO AUTOMÁTICO ─────────────────────────────────
-                  console.log(c.amarillo('  ⏳ Guardando automáticamente en Cuéntame (clic en disco de guardar)...'));
+                  console.log(c.amarillo('  ⏳ Guardando automaticamente en Cuéntame (clic en disco de guardar)...'));
                   
                   // Escuchar diálogos/alertas nativos del navegador por si Cuéntame lanza un alert() nativo
                   const dialogHandler = async dialog => {
@@ -1542,8 +1542,8 @@ async function main() {
                   // Esperar a que aparezca la ventana emergente o el cuadro de diálogo
                   await page.waitForTimeout(800);
 
-                  // ── ESPERAR CONFIRMACIÓN "La Información ha sido guardada." O ERROR DUPLICADO ──
-                  console.log(c.amarillo('  ⏳ Esperando respuesta del servidor ("La Información ha sido guardada.")...'));
+                  // ── ESPERAR CONFIRMACIÓN "La Informacion ha sido guardada." O ERROR DUPLICADO ──
+                  console.log(c.amarillo('  ⏳ Esperando respuesta del servidor ("La Informacion ha sido guardada.")...'));
                   let guardadoConfirmado = false;
                   let errorTomaExistente = false;
                   let clickAceptarRealizado = false;
@@ -1575,7 +1575,7 @@ async function main() {
                       const txtBody = await currentFrame.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
                       const txtMain = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
                       
-                      if (txtBody.includes('La Información ha sido guardada') || txtMain.includes('La Información ha sido guardada') || txtBody.includes('ha sido guardada')) {
+                      if (txtBody.includes('La Informacion ha sido guardada') || txtMain.includes('La Informacion ha sido guardada') || txtBody.includes('ha sido guardada')) {
                           guardadoConfirmado = true;
                           break;
                       }
@@ -1629,17 +1629,17 @@ async function main() {
                       }
                   } else if (guardadoConfirmado) {
                       consecutivosDuplicados = 0;
-                      console.log(c.verde('  🎉 ¡Confirmado! Banner "La Información ha sido guardada." recibido de Cuéntame.'));
+                      console.log(c.verde('  🎉 ¡Confirmado! Banner "La Informacion ha sido guardada." recibido de Cuéntame.'));
                       if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                           const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
                           if (ninoTarget) {
                               ninosProcesados.push({
                                   ...ninoTarget,
                                   estado: '✅ CARGADO EXITOSAMENTE',
-                                  observacion: 'La información de la toma se guardó en Cuéntame.'
+                                  observacion: 'La informacion de la toma se guardó en Cuéntame.'
                               });
                           }
-                          console.log(c.verde(`  🎉 Niño ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
+                          console.log(c.verde(`  🎉 Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                       }
                   } else {
                       let currentFrameErr = page.frame({ name: 'frameContent' }) || page;
@@ -1654,10 +1654,10 @@ async function main() {
                       let autoHealed = false;
                       const ninoTarget = (modoExcel && modoExcel.startsWith('MASIVO_')) ? (ninosExcel[idxNinoExcelActual] || ninoSeleccionado) : ninoSeleccionado;
 
-                      // Auto-recuperación si Cuéntame reclama por Fecha de medición de perímetro braquial > Fecha de valoración
+                      // Auto-recuperación si Cuéntame reclama por Fecha de medicion de perímetro braquial > Fecha de valoración
                       if (txtError && (txtError.toLowerCase().includes('perimetro braquial') || txtError.toLowerCase().includes('menor o igual')) && ninoTarget && ninoTarget.fecha) {
                           console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perímetro braquial en Cuéntame.`));
-                          console.log(c.amarillo(`  🛠️ Autocorrigiendo: Sincronizando Fecha de medición de perímetro braquial con Fecha de valoración (${ninoTarget.fecha})...`));
+                          console.log(c.amarillo(`  🛠️ Autocorrigiendo: Sincronizando Fecha de medicion de perímetro braquial con Fecha de valoración (${ninoTarget.fecha})...`));
                           
                           await currentFrameErr.evaluate((fDate) => {
                               const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
@@ -1679,17 +1679,17 @@ async function main() {
                               const txtBodyRetry = await currentFrameRetry.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
                               const txtMainRetry = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
 
-                              if (txtBodyRetry.includes('La Información ha sido guardada') || txtMainRetry.includes('La Información ha sido guardada') || txtBodyRetry.includes('ha sido guardada')) {
+                              if (txtBodyRetry.includes('La Informacion ha sido guardada') || txtMainRetry.includes('La Informacion ha sido guardada') || txtBodyRetry.includes('ha sido guardada')) {
                                   autoHealed = true;
                                   consecutivosDuplicados = 0;
-                                  console.log(c.verde('  🎉 ¡Corregido y guardado exitosamente! Banner "La Información ha sido guardada." recibido.'));
+                                  console.log(c.verde('  🎉 ¡Corregido y guardado exitosamente! Banner "La Informacion ha sido guardada." recibido.'));
                                   if (modoExcel && modoExcel.startsWith('MASIVO_') && ninoTarget) {
                                       ninosProcesados.push({
                                           ...ninoTarget,
                                           estado: '✅ CARGADO EXITOSAMENTE (AUTOCORREGIDO FECHA PERIMETRO)',
-                                          observacion: 'La información de la toma se guardó tras autocorregir fecha de perímetro braquial.'
+                                          observacion: 'La informacion de la toma se guardó tras autocorregir fecha de perímetro braquial.'
                                       });
-                                      console.log(c.verde(`  🎉 Niño ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
+                                      console.log(c.verde(`  🎉 Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                                   }
                               }
                           }
@@ -1699,7 +1699,7 @@ async function main() {
                           if (txtError) {
                               console.log(c.rojo(`  ❌ Error reportado por Cuéntame en la pantalla: "${txtError}"`));
                           } else {
-                              console.log(c.rojo('  ❌ NO se confirmó el guardado ("La Información ha sido guardada.") por parte del servidor.'));
+                              console.log(c.rojo('  ❌ NO se confirmó el guardado ("La Informacion ha sido guardada.") por parte del servidor.'));
                           }
 
                           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
@@ -1716,7 +1716,7 @@ async function main() {
 
                   if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                       idxNinoExcelActual++;
-                      console.log(c.amarillo('  ⏳ Volviendo a la consulta de niños de la UDS para el siguiente...'));
+                      console.log(c.amarillo('  ⏳ Volviendo a la consulta de ninos de la UDS para el siguiente...'));
                       
                       await page.waitForTimeout(800);
                       
@@ -1727,7 +1727,7 @@ async function main() {
                                   activeContent.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                   btnBuscar.evaluate(node => node.click())
                               ]);
-                              await page.waitForTimeout(1500); // Esperar a que cargue la grilla de niños de la UDS
+                              await page.waitForTimeout(1500); // Esperar a que cargue la grilla de ninos de la UDS
                           } else {
                               const rootMenu = page.frame({ name: 'frameMenu' }) || page;
                               const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
@@ -1745,7 +1745,7 @@ async function main() {
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error volviendo a la consulta (lupa): ${e.message}`));
                       }
-                      break; // Salir de la Fase 3 del niño actual y pasar al siguiente en la lista masiva
+                      break; // Salir de la Fase 3 del nino actual y pasar al siguiente en la lista masiva
                   }
 
 
@@ -1753,10 +1753,10 @@ async function main() {
                   console.log(c.cyan('\n  ╔════════════════════════════════════════════════════════════════════╗'));
                   console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
                   console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
-                  console.log(c.cyan('  ║  1. Otro niño del mismo jardín                                     ║'));
+                  console.log(c.cyan('  ║  1. Otro nino del mismo jardín                                     ║'));
                   console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
-                  console.log(c.cyan('  ║  3. Cambiar de Asociación                                          ║'));
-                  console.log(c.cyan('  ║  4. Volver al menú de opciones de Peso y Talla                     ║'));
+                  console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
+                  console.log(c.cyan('  ║  4. Volver al menu de opciones de Peso y Talla                     ║'));
                   console.log(c.cyan('  ║  0. Volver al panel principal (AutoTrabajo / Start)               ║'));
                   console.log(c.cyan('  ╚════════════════════════════════════════════════════════════════════╝'));
 
@@ -1774,7 +1774,7 @@ async function main() {
                       break;
                   } else if (respNavPost === '1') {
                       // Mismo jardín → Volver a llenar la lupa de UDS porque a veces Cuéntame la borra tras guardar
-                      console.log(c.amarillo('  ⏳ Recargando la UDS para asegurar que la lista de niños esté visible...'));
+                      console.log(c.amarillo('  ⏳ Recargando la UDS para asegurar que la lista de ninos esté visible...'));
                       try {
                           let currentContentFrame = page.frame({ name: 'frameContent' });
                           if (!currentContentFrame) {
@@ -1818,11 +1818,11 @@ async function main() {
                       }
                       
                       await page.waitForTimeout(1500);
-                      break; // Sale de Fase 3 y regresa a Fase 2 (selección de niño)
+                      break; // Sale de Fase 3 y regresa a Fase 2 (seleccion de nino)
                   } else if (respNavPost === '2') {
                       jardinSeleccionado = null;
-                      // Mismo jardín / misma asociación → volver a Seguimiento Nutrición (filtros limpios)
-                      console.log(c.amarillo('  ⏳ Volviendo a Seguimiento Nutrición para seleccionar otro jardín...'));
+                      // Mismo jardín / misma asociacion → volver a Seguimiento Nutricion (filtros limpios)
+                      console.log(c.amarillo('  ⏳ Volviendo a Seguimiento Nutricion para seleccionar otro jardín...'));
                       try {
                           const rootMenu2 = page.frame({ name: 'frameMenu' }) || page;
                           const childMenu2 = rootMenu2.locator('a:has-text("Seguimiento nutricional")').first();
@@ -1841,8 +1841,8 @@ async function main() {
                   } else if (respNavPost === '3') {
                       ascSeleccionada = null;
                       jardinSeleccionado = null;
-                      // Cambiar de asociación → ir a selección de roles
-                      console.log(c.amarillo('  ⏳ Navegando a la pantalla de selección de asociación...'));
+                      // Cambiar de asociacion → ir a seleccion de roles
+                      console.log(c.amarillo('  ⏳ Navegando a la pantalla de seleccion de asociacion...'));
                       try {
                           await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
                           if (page.url().includes('DefaultF.aspx')) {
@@ -1850,7 +1850,7 @@ async function main() {
                               await loginYLlegarARoles(page, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
                           }
                           loggedIn = true;
-                          console.log(c.verde('  ✅ Listo. El script seleccionará la nueva asociación.'));
+                          console.log(c.verde('  ✅ Listo. El script seleccionará la nueva asociacion.'));
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error navegando a roles: ${e.message}`));
                       }

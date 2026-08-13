@@ -3,8 +3,8 @@
  *
  * Convierte un Excel de peso/talla con formato variable (el que te envían las
  * asociaciones) al formato posicional que ya sabe leer `servicios/excel-parser.js`,
- * para poder cargarlo directo en `automatizaciones/peso-talla.js` (opción 1 o 2
- * del menú) sin que el script original falle por formato distinto.
+ * para poder cargarlo directo en `automatizaciones/peso-talla.js` (opcion 1 o 2
+ * del menu) sin que el script original falle por formato distinto.
  *
  * Solo se conservan: documento, nombres, apellidos, fecha de la toma, peso,
  * talla y perímetro braquial. El resto del formato oficial (sexo, fecha de
@@ -92,7 +92,7 @@ function main() {
     const sinDocumento = resultado.beneficiarios.filter(b => b.documento === 'SIN DOCUMENTO');
     console.log(c.verde(`\n  ✅ Total beneficiarios detectados: ${resultado.beneficiarios.length}`));
     if (sinDocumento.length > 0) {
-        console.log(c.amarillo(`  ⚠️ ${sinDocumento.length} sin número de documento (se buscarán por nombre en Cuéntame):`));
+        console.log(c.amarillo(`  ⚠️ ${sinDocumento.length} sin numero de documento (se buscarán por nombre en Cuéntame):`));
         sinDocumento.forEach(b => console.log(c.gris(`     - ${b.nombres} ${b.apellidos}`.trim())));
     }
 
@@ -115,7 +115,7 @@ function main() {
 
     console.log(c.verde(`\n  ✅ Archivo convertido guardado en:`));
     console.log(c.negrita(`     ${rutaSalida}`));
-    console.log(c.cyan('\n  Ya puedes cargarlo desde "peso-talla.js" (opción 1 o 2 del menú).\n'));
+    console.log(c.cyan('\n  Ya puedes cargarlo desde "peso-talla.js" (opcion 1 o 2 del menu).\n'));
 }
 
 main();

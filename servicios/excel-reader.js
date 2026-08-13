@@ -1,14 +1,14 @@
 /**
  * excel-reader.js
  * Lee el archivo GENERAL.xlsx y retorna los jardines únicos
- * con su código Cuéntame y asociación.
+ * con su código Cuéntame y asociacion.
  */
 
 const xlsx = require('xlsx');
 const path = require('path');
 
 /**
- * Lee los jardines del Excel y los retorna agrupados por asociación.
+ * Lee los jardines del Excel y los retorna agrupados por asociacion.
  * @param {string} rutaExcel - Ruta absoluta al archivo GENERAL.xlsx
  * @returns {{ jardines: Array, porAsociacion: Object }}
  */
@@ -54,7 +54,7 @@ function leerJardines(rutaExcel) {
         jardines.push(jardinObj);
       }
       
-      // Asignar al grupo correspondiente si existe la asociación
+      // Asignar al grupo correspondiente si existe la asociacion
       if (porAsociacion[asociacion]) {
         porAsociacion[asociacion].jardines.push(jardinObj);
       }

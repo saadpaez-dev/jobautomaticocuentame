@@ -1,6 +1,6 @@
 /**
  * formacion-familias.js
- * Bot principal para automatizar el registro de Formación a Familias
+ * Bot principal para automatizar el registro de Formacion a Familias
  * en el sistema Cuéntame - ICBF.
  *
  * Uso: npm run formacion
@@ -72,7 +72,7 @@ function guardarLog(resultado) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Configuración inicial de Observaciones
+// Configuracion inicial de Observaciones
 // ─────────────────────────────────────────────────────────────
 function configurarObservaciones() {
   console.clear();
@@ -103,7 +103,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   const { hoy, observaciones } = config;
   const { tema, procesarTodosNinos } = opcionesProcesamiento;
 
-  const menuDestino = page.locator('text="Seguimiento formación a padres/cuidadores"').first();
+  const menuDestino = page.locator('text="Seguimiento formacion a padres/cuidadores"').first();
   const submenuVisible = await menuDestino.isVisible();
   
   if (!submenuVisible) {
@@ -348,7 +348,7 @@ async function main() {
       const sessionActiva = urlActual.includes('MasterPrincipal') || urlActual.includes('Roles.aspx') || pageText.includes('Seleccione la entidad') || pageText.includes('Rub online');
 
       if (!sessionActiva) {
-        console.log(c.amarillo('  🔐 Sin sesión activa. Iniciando login automático...'));
+        console.log(c.amarillo('  🔐 Sin sesión activa. Iniciando login automatico...'));
         await loginYLlegarARoles(page, {
           usuario: USUARIO,
           password: PASSWORD,
@@ -359,11 +359,11 @@ async function main() {
         console.log(c.verde('  ✅ Sesión activa detectada. Reutilizando sesión existente.'));
       }
 
-      // Si estamos en selección de entidad (Roles.aspx), elegir cualquier asociación al azar
+      // Si estamos en seleccion de entidad (Roles.aspx), elegir cualquier asociacion al azar
       const urlDespues = page.url();
       const textoDespues = await page.evaluate(() => document.body.innerText);
       if (urlDespues.includes('Roles.aspx') || textoDespues.includes('Seleccione la entidad')) {
-        console.log(c.amarillo('  🎲 Seleccionando una entidad automáticamente para acceder al módulo...'));
+        console.log(c.amarillo('  🎲 Seleccionando una entidad automaticamente para acceder al módulo...'));
         const opciones = await page.locator('select option').all();
         const validas = [];
         for (const op of opciones) {

@@ -18,7 +18,7 @@ const URL_LOGIN = 'https://rubonline.icbf.gov.co/DefaultF.aspx';
 
 /**
  * Realiza el login completo en el sistema Cuéntame.
- * Maneja usuario, contraseña, código 2FA y selección de asociación.
+ * Maneja usuario, contraseña, código 2FA y seleccion de asociacion.
  *
  * @param {import('playwright').Page} page
  * @param {object} credenciales
@@ -46,7 +46,7 @@ async function loginYLlegarARoles(page, credenciales) {
 
   const fechaInicio = new Date();
   
-  // Verificar si la página YA está en la pantalla de 2FA
+  // Verificar si la página YA esta en la pantalla de 2FA
   let tiene2FA = await detectar2FA(page);
 
   if (!tiene2FA) {
@@ -83,7 +83,7 @@ async function loginYLlegarARoles(page, credenciales) {
             captchaActivo = await page.locator('img[src*="Captcha"]').count() > 0;
           }
         }
-        console.log('  ✅ Captcha resuelto exitosamente, continuando con el proceso automático...');
+        console.log('  ✅ Captcha resuelto exitosamente, continuando con el proceso automatico...');
       } else {
         await Promise.all([
           page.waitForLoadState('networkidle'),
@@ -93,7 +93,7 @@ async function loginYLlegarARoles(page, credenciales) {
 
       // ─── Verificar si la cuenta fue bloqueada ───────────────────────────────
       const contenidoTras = await page.content();
-      if (contenidoTras.includes('bloqueado') || contenidoTras.includes('número de intentos')) {
+      if (contenidoTras.includes('bloqueado') || contenidoTras.includes('numero de intentos')) {
         throw new Error(
           '🔒 CUENTA BLOQUEADA: el sistema bloqueó el usuario por demasiados intentos fallidos.\n' +
           '   ➡️  Solución: ve a rubonline.icbf.gov.co y usa "¿Olvidaste tu Contraseña?" para desbloquearte.\n' +
@@ -120,7 +120,7 @@ async function loginYLlegarARoles(page, credenciales) {
         continue; // Reintentar
       }
 
-      // ─── Si llegó aquí, las credenciales fueron aceptadas ────────────────
+      // ─── Si llegó aqui, las credenciales fueron aceptadas ────────────────
       break;
     }
 
@@ -147,7 +147,7 @@ async function loginYLlegarARoles(page, credenciales) {
     await page.waitForTimeout(3000);
   }
 
-  // Verificar si pide selección de asociación/entidad
+  // Verificar si pide seleccion de asociacion/entidad
   const contenidoFinal = await page.content();
   if (contenidoFinal.includes('Seleccione la entidad')) {
     const rolesUrl = page.url();
@@ -170,7 +170,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
 
   while (intentos < MAX_INTENTOS) {
       if (contenidoFinal.includes('Seleccione la entidad')) {
-        if (intentos === 0) console.log('  🏢 Seleccionando entidad (asociación)...');
+        if (intentos === 0) console.log('  🏢 Seleccionando entidad (asociacion)...');
         
         // Esperar a que el select esté visible y habilitado
         let selectLocator = page.locator('select:visible').first();
@@ -178,7 +178,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
         
         if (nombreCorto) {
           const nameToSearch = nombreCorto.toUpperCase();
-          if (intentos === 0) console.log(`  Buscando asociación que coincida con: ${nameToSearch}`);
+          if (intentos === 0) console.log(`  Buscando asociacion que coincida con: ${nameToSearch}`);
           const opciones = await selectLocator.locator('option').allInnerTexts();
           
           let indexToSelect = 1; // Default
@@ -208,10 +208,10 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
               }
           }
           
-          if (intentos === 0) console.log(`  ✅ Encontrada mejor coincidencia en el menú: ${opciones[indexToSelect]}`);
+          if (intentos === 0) console.log(`  ✅ Encontrada mejor coincidencia en el menu: ${opciones[indexToSelect]}`);
           await selectLocator.selectOption({ index: indexToSelect });
         } else {
-          // Seleccionar la primera opción válida si no se especifica
+          // Seleccionar la primera opcion válida si no se especifica
           await selectLocator.selectOption({ index: 1 });
         }
         
@@ -282,7 +282,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
 }
 
 async function verificarLoginExitoso(page) {
-  // Verificar que entramos correctamente al menú principal
+  // Verificar que entramos correctamente al menu principal
   const urlActual = page.url();
   const pageText = await page.evaluate(() => document.body.innerText.substring(0, 1000));
   
@@ -369,7 +369,7 @@ async function verificarConexionOCaida(page) {
 
 /**
  * Intenta conectarse a un navegador existente en modo depuración (puerto 9222).
- * Si no lo encuentra, lanza un navegador nuevo en modo Bot Automático.
+ * Si no lo encuentra, lanza un navegador nuevo en modo Bot Automatico.
  */
 function removeAccents(str) {
     if (!str) return '';
@@ -377,13 +377,13 @@ function removeAccents(str) {
 }
 
 /**
- * Valida si la sesión activa en Cuéntame corresponde a la asociación seleccionada.
- * Si la asociación activa es diferente, cierra sesión (clic en botón Logout)
+ * Valida si la sesión activa en Cuéntame corresponde a la asociacion seleccionada.
+ * Si la asociacion activa es diferente, cierra sesión (clic en botón Logout)
  * y hace clic en la casita (Home) para volver a la pantalla de login/roles.
  *
  * @param {import('playwright').Page} page
  * @param {object|string} asociacionObj
- * @returns {Promise<boolean>} true si la asociación activa es la misma (no requiere cambio), false si cerró sesión.
+ * @returns {Promise<boolean>} true si la asociacion activa es la misma (no requiere cambio), false si cerró sesión.
  */
 async function validarYCambiarAsociacion(page, asociacionObj) {
     const targetNombre = typeof asociacionObj === 'string' ? asociacionObj : (asociacionObj.nombreCorto || asociacionObj.nombre);
@@ -402,7 +402,7 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
         return false; // No hay sesión activa de todos modos
     }
 
-    // Extraer texto de la cabecera donde Cuéntame muestra la asociación activa
+    // Extraer texto de la cabecera donde Cuéntame muestra la asociacion activa
     const headerText = await page.evaluate(() => {
         const cab = document.querySelector('#CabeceraPrincipal, div.ui-layout-north, table#CabeceraPrincipal');
         return cab ? cab.innerText : document.body.innerText;
@@ -410,14 +410,14 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
 
     const headerClean = removeAccents(headerText);
 
-    // Si la cabecera contiene la asociación deseada, ¡la sesión es perfecta!
+    // Si la cabecera contiene la asociacion deseada, ¡la sesión es perfecta!
     if (headerClean.includes(targetClean)) {
-        console.log(c.verde(`  ✅ Sesión activa confirmada para la asociación "${targetNombre}". Preservando sesión.`));
+        console.log(c.verde(`  ✅ Sesión activa confirmada para la asociacion "${targetNombre}". Preservando sesión.`));
         return true;
     }
 
-    // Si la sesión activa pertenece a OTRA asociación, cerrar sesión según el flujo de las capturas
-    console.log(c.amarillo(`  🔄 La sesión activa pertenece a otra asociación (${headerClean.slice(0, 45)}...).`));
+    // Si la sesión activa pertenece a OTRA asociacion, cerrar sesión según el flujo de las capturas
+    console.log(c.amarillo(`  🔄 La sesión activa pertenece a otra asociacion (${headerClean.slice(0, 45)}...).`));
     console.log(c.amarillo('  ⏳ Cerrando sesión (clic en icono de Cerrar Sesión)...'));
 
     try {
@@ -491,7 +491,7 @@ async function obtenerNavegador() {
         
         return { browser, context, page: cuentamePage, isCDP: true };
     } catch (e) {
-        console.log(c.gris('  ℹ️ No se detectó navegador en Modo Humano. Abriendo Bot Automático...'));
+        console.log(c.gris('  ℹ️ No se detectó navegador en Modo Humano. Abriendo Bot Automatico...'));
         const browser = await chromium.launch({
             headless: false,
             slowMo: 100,

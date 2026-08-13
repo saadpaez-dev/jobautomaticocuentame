@@ -57,9 +57,9 @@ async function main() {
       if (salirModulo) break;
       
       if (!ascSeleccionada) {
-          console.log(c.gris('Selecciona una asociación para iniciar el proceso.'));
+          console.log(c.gris('Selecciona una asociacion para iniciar el proceso.'));
           asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
-          console.log(`  ${c.rojo('0')}. Volver al menú principal`);
+          console.log(`  ${c.rojo('0')}. Volver al menu principal`);
 
           let idxAsociacion = -1;
           while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
@@ -69,7 +69,7 @@ async function main() {
           }
 
           if (idxAsociacion === 0) {
-            console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
             break;
           }
           ascSeleccionada = asociaciones[idxAsociacion - 1];
@@ -96,10 +96,10 @@ async function main() {
               gmailAppPassword: GMAIL_APP_PASSWORD
             });
             loggedIn = true;
-            console.log(c.amarillo(`  🏢 Seleccionando la asociación ${ascSeleccionada.nombreCorto}...`));
+            console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
             await seleccionarRolYEntrar(page, ascSeleccionada);
         } else {
-            console.log(c.verde(`  ✅ Preservando sesión y asociación activa: "${ascSeleccionada.nombreCorto}".`));
+            console.log(c.verde(`  ✅ Preservando sesión y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
             loggedIn = true;
         }
         
@@ -119,20 +119,20 @@ async function main() {
         const rootMenu = menuFrame || page;
         
         try {
-            // Expande "Beneficiario" padre si está colapsado
+            // Expande "Beneficiario" padre si esta colapsado
             const links = await rootMenu.locator('a:text-is("Beneficiario")').all();
             if (links.length >= 2) {
                 await links[1].evaluate(n => n.click());
             } else if (links.length === 1) {
                 await links[0].evaluate(n => n.click());
                 await page.waitForTimeout(500);
-                // Si abrió submenú y aparecieron más, clic al hijo
+                // Si abrió submenu y aparecieron más, clic al hijo
                 const nuevosLinks = await rootMenu.locator('a:text-is("Beneficiario")').all();
                 if (nuevosLinks.length >= 2) {
                     await nuevosLinks[1].evaluate(n => n.click());
                 }
             } else {
-                console.log(c.rojo('  ⚠️ No se encontró el menú Beneficiario.'));
+                console.log(c.rojo('  ⚠️ No se encontró el menu Beneficiario.'));
             }
             await page.waitForTimeout(3000);
         } catch(e) {
@@ -153,7 +153,7 @@ async function main() {
             throw new Error("No se pudo encontrar el frame de contenido.");
         }
 
-        // Bucle de desvinculación
+        // Bucle de desvinculacion
         let bucleRetiro = true;
         while (bucleRetiro) {
             
@@ -167,9 +167,9 @@ async function main() {
                     jardinesAsociacion = [{ nombre: "Ingresar manualmente", codigo: "" }];
                 }
 
-                console.log(c.cyan('\n  Jardines de la asociación:'));
+                console.log(c.cyan('\n  Jardines de la asociacion:'));
                 jardinesAsociacion.forEach((j, i) => console.log(`  ${i + 1}. ${j.nombre} ${j.codigo ? '('+j.codigo+')' : ''}`));
-                console.log(`  ${c.rojo('0')}. Volver a asociación`);
+                console.log(`  ${c.rojo('0')}. Volver a asociacion`);
 
                 let idxJardin = -1;
                 while (idxJardin < 0 || idxJardin > jardinesAsociacion.length) {
@@ -190,20 +190,20 @@ async function main() {
             console.log(c.cyan(`Jardín actual: ${jardinSeleccionado.nombre}`));
 
             // Click en el botón de Desvincular (-) si existe
-            console.log(c.amarillo('  ⏳ Entrando al modo de Desvinculación...'));
+            console.log(c.amarillo('  ⏳ Entrando al modo de Desvinculacion...'));
             const btnDesvincular = contentFrame.locator('img[src*="delete.gif"], a[id*="btnDesvincular"]').first();
             if (await btnDesvincular.count() > 0) {
                 await btnDesvincular.click();
-                await page.waitForTimeout(2500); // Esperar a que cargue la interfaz de desvinculación
+                await page.waitForTimeout(2500); // Esperar a que cargue la interfaz de desvinculacion
             }
 
             // --- LLENAR FILTROS (Misma lógica robusta) ---
             console.log(c.amarillo(`  ⏳ Llenando filtros de Contrato para ${ascSeleccionada.nombreCorto}...`));
             
-            // Área misional: Dirección de Primera Infancia
+            // Área misional: Direccion de Primera Infancia
             const selectArea = contentFrame.locator('select').filter({ hasText: 'Primera Infancia' }).first();
             if (await selectArea.count() > 0) {
-                await selectArea.selectOption({ label: 'Dirección de Primera Infancia' }).catch(()=>{});
+                await selectArea.selectOption({ label: 'Direccion de Primera Infancia' }).catch(()=>{});
                 await page.waitForTimeout(1000);
             }
 
@@ -237,7 +237,7 @@ async function main() {
                     const cleanTarget = removeAccents(textToMatch.toUpperCase());
                     let match = opts.find(o => removeAccents(o.t.toUpperCase()).includes(cleanTarget) || o.v.includes(cleanTarget));
                     if (!match && opts.length > 0) {
-                        console.log(c.amarillo(`  ℹ️ Opción/Contrato "${textToMatch}" no tiene coincidencia exacta. Seleccionando la opción disponible: "${opts[0].t}"`));
+                        console.log(c.amarillo(`  ℹ️ Opcion/Contrato "${textToMatch}" no tiene coincidencia exacta. Seleccionando la opcion disponible: "${opts[0].t}"`));
                         match = opts[0];
                     }
                     if (match) {
@@ -286,7 +286,7 @@ async function main() {
             const selectServicio = contentFrame.locator('select[id*="ddlServicio"], select[id*="Servicio"]').first();
             const servOpts = await waitForAndSelect(selectServicio);
             if (servOpts && servOpts.length > 1) {
-                // --- INICIO Lógica Automática Agrupado vs Individual ---
+                // --- INICIO Lógica Automatica Agrupado vs Individual ---
                 let esAgrupado = false;
                 const nomAsc = ascSeleccionada.nombreCorto.toUpperCase();
                 const nomJardin = (jardinSeleccionado.nombre || "").toUpperCase();
@@ -312,16 +312,16 @@ async function main() {
                 
                 // Fallback a lógica original si no encuentra
                 if (!matchInd) matchInd = servOpts.find(o => o.t.includes(jardinSeleccionado.codigo));
-                // --- FIN Lógica Automática ---
+                // --- FIN Lógica Automatica ---
 
                 if (matchInd) {
                     await selectServicio.selectOption(matchInd.v).catch(()=>{});
                     await page.waitForTimeout(1500);
-                    console.log(c.verde(`  ✅ Servicio seleccionado automáticamente (${esAgrupado ? 'Agrupado' : 'Individual'}): ${matchInd.t}`));
+                    console.log(c.verde(`  ✅ Servicio seleccionado automaticamente (${esAgrupado ? 'Agrupado' : 'Individual'}): ${matchInd.t}`));
                 } else if (jardinSeleccionado.manualServicioV && servOpts.some(s => s.v === jardinSeleccionado.manualServicioV)) {
                     await selectServicio.selectOption(jardinSeleccionado.manualServicioV).catch(()=>{});
                     await page.waitForTimeout(1500);
-                    console.log(c.verde(`  ✅ Servicio seleccionado automáticamente (recordado): ${jardinSeleccionado.manualServicioT}`));
+                    console.log(c.verde(`  ✅ Servicio seleccionado automaticamente (recordado): ${jardinSeleccionado.manualServicioT}`));
                 } else {
                     console.log(c.cyan('\n  --- SELECCIONA EL SERVICIO ---'));
                     servOpts.forEach((s, i) => console.log(`  ${i + 1}. ${s.t}`));
@@ -352,7 +352,7 @@ async function main() {
 
             console.log(c.rojo(c.negrita('\n  ⚠️ IMPORTANTE: Validar el RAM antes de Desvincular')));
             
-            // Helper de validación estricta de fecha (DD/MM/YYYY o DDMMYYYY)
+            // Helper de validacion estricta de fecha (DD/MM/YYYY o DDMMYYYY)
             const esFechaValida = (str) => {
                 if (!str) return false;
                 const s = str.trim();
@@ -372,7 +372,7 @@ async function main() {
                 return false;
             };
 
-            // --- Preguntar Fecha y Motivo con Validación ---
+            // --- Preguntar Fecha y Motivo con Validacion ---
             while (true) {
                 const msgFecha = globalFechaRetiro 
                     ? `\n  > Fecha de retiro (vacio para mantener ${globalFechaRetiro}): `
@@ -423,7 +423,7 @@ async function main() {
                 console.log(c.cyan(msgMot));
                 const resMot = readline.question(c.negrita(`  > Opcion (vacio para mantener, 'c' para cambiar): `)).trim().toLowerCase();
                 if (resMot === 'c') {
-                    globalMotivoId = null; // forzar selección nueva
+                    globalMotivoId = null; // forzar seleccion nueva
                 }
             }
 
@@ -476,12 +476,12 @@ async function main() {
                 }
             }
             
-            // --- Cargar tabla de niños ---
+            // --- Cargar tabla de ninos ---
             console.log(c.amarillo('\n  ⏳ Consultando lista de beneficiarios en esta UDS...'));
             const btnConsultarBeneficiario = contentFrame.locator('input[type="submit"][value*="Consultar beneficiario"], input[id*="btnBuscar"]').first();
             if (await btnConsultarBeneficiario.count() > 0) {
                 await btnConsultarBeneficiario.click();
-                await page.waitForTimeout(3000); // Esperar a que la tabla de niños se llene
+                await page.waitForTimeout(3000); // Esperar a que la tabla de ninos se llene
             }
 
             // --- Buscar beneficiario en la tabla y marcar su checkbox ---
@@ -546,7 +546,7 @@ async function main() {
                     }
                 }
                 
-                console.log(c.verde(`  ✅ Se ha completado la desvinculación de ${beneficiarioBuscado}.`));
+                console.log(c.verde(`  ✅ Se ha completado la desvinculacion de ${beneficiarioBuscado}.`));
             } else {
                 console.log(c.rojo('  ❌ No se encontró el botón de Guardar.'));
             }
@@ -556,8 +556,8 @@ async function main() {
             console.log(c.cyan('\n  ¿Qué deseas hacer ahora?'));
             console.log(`  ${c.cyan('1')}. Hacer otro retiro (mismos filtros)`);
             console.log(`  ${c.cyan('2')}. Cambiar de jardín (mantiene Fecha y Motivo)`);
-            console.log(`  ${c.cyan('3')}. Cambiar de asociación`);
-            console.log(`  ${c.rojo('0')}. Volver al menú principal`);
+            console.log(`  ${c.cyan('3')}. Cambiar de asociacion`);
+            console.log(`  ${c.rojo('0')}. Volver al menu principal`);
             
             const reqSalir = readline.question(c.negrita('  > Opcion: ')).trim();
             if (reqSalir === '0') {
@@ -575,7 +575,7 @@ async function main() {
       } catch (err) {
           console.error(c.rojo(`\n❌ Error en el proceso: ${err.message}`));
           console.error(err.stack);
-          const recargar = readline.question(c.amarillo('\n¿Deseas volver a seleccionar asociación? (s/n): ')).toLowerCase();
+          const recargar = readline.question(c.amarillo('\n¿Deseas volver a seleccionar asociacion? (s/n): ')).toLowerCase();
           if (recargar !== 's') {
               salirModulo = true;
           }

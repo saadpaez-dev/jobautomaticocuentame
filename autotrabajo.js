@@ -34,10 +34,10 @@ function runScript(scriptName) {
     
     if (result.error) {
         console.error(c.rojo(`\n❌ Error al intentar ejecutar el script: ${result.error.message}`));
-        readline.question(c.negrita('\nPresiona ENTER para volver al menú principal...'));
+        readline.question(c.negrita('\nPresiona ENTER para volver al menu principal...'));
     } else if (result.status !== 0 && result.status !== null) {
         console.error(c.rojo(`\n⚠️ El módulo finalizó con código de salida: ${result.status}`));
-        readline.question(c.negrita('\nPresiona ENTER para volver al menú principal...'));
+        readline.question(c.negrita('\nPresiona ENTER para volver al menu principal...'));
     }
 }
 
@@ -46,12 +46,12 @@ async function iniciarBraveAutomatico() {
         const http = require('http');
         const req = http.get('http://localhost:9222/json/version', (res) => {
             if (res.statusCode === 200) {
-                resolve(true); // Ya está corriendo
+                resolve(true); // Ya esta corriendo
             } else {
                 resolve(false);
             }
         }).on('error', () => {
-            resolve(false); // No está corriendo
+            resolve(false); // No esta corriendo
         });
         req.setTimeout(1000, () => {
             req.abort();
@@ -71,11 +71,11 @@ async function main() {
     const GMAIL_USER = process.env.GMAIL_USER;
     const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
-    console.log(c.amarillo('\n  🔍 Verificando si el navegador está abierto...'));
+    console.log(c.amarillo('\n  🔍 Verificando si el navegador esta abierto...'));
     const navegadorAbierto = await iniciarBraveAutomatico();
 
     if (!navegadorAbierto) {
-        console.log(c.cyan('  🚀 Abriendo Brave automáticamente en Modo Humano...'));
+        console.log(c.cyan('  🚀 Abriendo Brave automaticamente en Modo Humano...'));
         // Añadimos banderas para evitar que restaure pestañas viejas o muestre el globo de "restaurar sesión"
         const comandoBrave = `start brave.exe --remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --user-data-dir="%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data Bot" https://rubonline.icbf.gov.co`;
         exec(comandoBrave);
@@ -84,7 +84,7 @@ async function main() {
         await new Promise(r => setTimeout(r, 5000));
     }
 
-    // Conectar al navegador vía CDP y hacer login automático
+    // Conectar al navegador vía CDP y hacer login automatico
     try {
         console.log(c.cyan('  🔗 Conectando al navegador y verificando sesión en Cuéntame...'));
         const browser = await chromium.connectOverCDP('http://localhost:9222');
@@ -135,7 +135,7 @@ async function main() {
         
         await browser.disconnect().catch(() => {});
     } catch (err) {
-        console.log(c.amarillo(`  ⚠️ No se pudo verificar sesión automáticamente: ${err.message.slice(0, 60)}`));
+        console.log(c.amarillo(`  ⚠️ No se pudo verificar sesión automaticamente: ${err.message.slice(0, 60)}`));
         console.log(c.gris('  (Continúa de todas formas, cada módulo manejará su propia sesión)\n'));
     }
 
@@ -149,13 +149,13 @@ async function main() {
             { nombre: 'Descargar Reportes', archivo: 'descargar-reportes.js' },
             { nombre: 'Llenar Asistencia Mensual', archivo: 'llenar-asistencia.js' },
             { nombre: 'Seguimiento Nutricional (Peso y Talla)', archivo: 'peso-talla.js' },
-            { nombre: 'Comparar Activos vs Nutrición (Faltantes)', archivo: 'comparar-nutricion.js' },
+            { nombre: 'Comparar Activos vs Nutricion (Faltantes)', archivo: 'comparar-nutricion.js' },
             { nombre: 'Pre-llenar Formatos para Madres (Peso y Talla)', archivo: 'prellenar-formatos.js' },
             { nombre: 'Estimar Peso y Talla Ideal a Fecha de Hoy (Cols U, V, W)', archivo: 'estimar-peso-talla.js' },
-            { nombre: 'Formación a Familias', archivo: 'formacion-familias.js' },
+            { nombre: 'Formacion a Familias', archivo: 'formacion-familias.js' },
             { nombre: 'Generar Cuentas de Cobro', archivo: 'generar-cuentas-cobro.js' },
-            { nombre: 'Vinculación Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },
-            { nombre: 'Desvinculación Beneficiarios', archivo: 'desvinculacion-beneficiarios.js' },
+            { nombre: 'Vinculacion Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },
+            { nombre: 'Desvinculacion Beneficiarios', archivo: 'desvinculacion-beneficiarios.js' },
             { nombre: 'Generar Ticket de Errores de Digitación', archivo: 'generar-ticket-errores.js' }
         ];
         
@@ -193,11 +193,11 @@ async function main() {
                 const opcSeleccionada = opciones[opcionInt - 1];
                 runScript(opcSeleccionada.archivo);
             } else {
-                console.log(c.rojo(`\n  ❌ Opción "${respuesta}" fuera de rango (1-${opciones.length}). Inténtalo de nuevo.`));
+                console.log(c.rojo(`\n  ❌ Opcion "${respuesta}" fuera de rango (1-${opciones.length}). Inténtalo de nuevo.`));
                 readline.question(c.gris('  Presiona ENTER para continuar...'));
             }
         } else {
-            console.log(c.rojo('\n  ❌ Opción inválida. Inténtalo de nuevo.'));
+            console.log(c.rojo('\n  ❌ Opcion inválida. Inténtalo de nuevo.'));
             readline.question(c.gris('  Presiona ENTER para continuar...'));
         }
     }

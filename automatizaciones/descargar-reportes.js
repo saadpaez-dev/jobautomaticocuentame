@@ -52,7 +52,7 @@ async function main() {
   
   console.log(c.cyan('\n  📋 Selecciona el Reporte a generar:'));
   console.log(c.amarillo(`  1. Beneficiarios vinculados`));
-  console.log(c.amarillo(`  2. Seguimiento nutricional de niños y niñas por toma`));
+  console.log(c.amarillo(`  2. Seguimiento nutricional de ninos y niñas por toma`));
   console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
   console.log(c.amarillo(`  4. Unidades de servicio`));
   console.log(c.rojo(`  0. Volver al panel principal (AutoTrabajo / Start)`));
@@ -77,7 +77,7 @@ async function main() {
     console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
     console.log(c.gris('   9. Septiembre 10. Octubre   11. Noviembre 12. Diciembre'));
     console.log(c.gris('   0. Todos los meses (Select All)\n'));
-    console.log(c.gris('  (Puedes ingresar números como "5,6,7" o el nombre de los meses)'));
+    console.log(c.gris('  (Puedes ingresar numeros como "5,6,7" o el nombre de los meses)'));
 
     const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto 0 (Todos)]: ')).trim();
     
@@ -101,7 +101,7 @@ async function main() {
 
     console.log(c.verde(`  ✅ Toma seleccionada: ${seleccionToma}`));
   } else if (opcionReporte === 3) {
-    console.log(c.cyan('\n  📋 Selecciona el Mes de Atención:'));
+    console.log(c.cyan('\n  📋 Selecciona el Mes de Atencion:'));
     const meses = [
       'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
@@ -117,7 +117,7 @@ async function main() {
     mesAtencion = meses[opcionMes - 1];
   }
   
-  console.log(c.cyan('\n  📋 Selecciona la Asociación para procesar:'));
+  console.log(c.cyan('\n  📋 Selecciona la Asociacion para procesar:'));
   console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
   asociaciones.forEach((asc, idx) => {
     console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
@@ -125,7 +125,7 @@ async function main() {
   
   let asociacionesSeleccionadas = [];
   while (asociacionesSeleccionadas.length === 0) {
-    console.log(c.gris('  (Puedes ingresar varios números separados por coma, ej: 1,3,4)'));
+    console.log(c.gris('  (Puedes ingresar varios numeros separados por coma, ej: 1,3,4)'));
     const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es): '));
     
     const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
@@ -137,7 +137,7 @@ async function main() {
         if (validas.length > 0) {
             asociacionesSeleccionadas = validas.map(n => asociaciones[n - 1]);
         } else {
-            console.log(c.rojo('  ❌ Opción no válida. Intenta nuevamente.'));
+            console.log(c.rojo('  ❌ Opcion no válida. Intenta nuevamente.'));
         }
     }
   }
@@ -184,7 +184,7 @@ async function main() {
   }
 
   console.log(c.amarillo(`\n======================================================`));
-  console.log(c.amarillo(`▶ Iniciando sesión y navegación...`));
+  console.log(c.amarillo(`▶ Iniciando sesión y navegacion...`));
   console.log(c.amarillo(`======================================================`));
 
   let rolesUrl;
@@ -202,7 +202,7 @@ async function main() {
     return;
   }
 
-  // Iterar por cada asociación
+  // Iterar por cada asociacion
   for (let i = 0; i < ascValidas.length; i++) {
       const asc = ascValidas[i];
 
@@ -211,12 +211,12 @@ async function main() {
           asc.numeroContrato = '11027492024';
       }
 
-      // La página principal se queda en la selección de roles.
+      // La página principal se queda en la seleccion de roles.
       // Le pedimos a seleccionarRolYEntrar que abra Cuéntame en una pestaña nueva
       let reportPage;
       try {
           console.log(c.amarillo(`\n======================================================`));
-          console.log(c.amarillo(`▶ Procesando Asociación [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
+          console.log(c.amarillo(`▶ Procesando Asociacion [${i+1}/${ascValidas.length}]: ${asc.nombreCorto}`));
           console.log(c.amarillo(`======================================================`));
           console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
           
@@ -242,11 +242,11 @@ async function main() {
               });
           }
 
-          console.log(`  🏢 Seleccionando entidad/asociación: "${asc.nombreCorto}"...`);
+          console.log(`  🏢 Seleccionando entidad/asociacion: "${asc.nombreCorto}"...`);
           reportPage = await seleccionarRolYEntrar(mainPage, asc, false);
-          console.log(c.verde(`  ✅ Asociación "${asc.nombreCorto}" cargada e ingresada limpia en la plataforma.`));
+          console.log(c.verde(`  ✅ Asociacion "${asc.nombreCorto}" cargada e ingresada limpia en la plataforma.`));
       } catch (e) {
-          console.log(c.rojo(`  ❌ Error al cambiar a la asociación ${asc.nombreCorto}: ${e.message}`));
+          console.log(c.rojo(`  ❌ Error al cambiar a la asociacion ${asc.nombreCorto}: ${e.message}`));
           continue;
       }
 
@@ -299,7 +299,7 @@ async function main() {
                     try {
                         await selectElement.selectOption({ label: valueOrText }, { timeout: 2000 });
                     } catch (err) {
-                        console.log(c.gris(`      (Buscando opción que contenga "${valueOrText}")...`));
+                        console.log(c.gris(`      (Buscando opcion que contenga "${valueOrText}")...`));
                         const options = await selectElement.locator('option').all();
                         let foundValue = null;
                         const availableTexts = [];
@@ -319,7 +319,7 @@ async function main() {
                         if (foundValue !== null) {
                             await selectElement.selectOption({ value: foundValue });
                         } else {
-                            throw new Error(`No se encontró ninguna opción que contenga "${valueOrText}". Opciones disponibles: [${availableTexts.join(', ')}]`);
+                            throw new Error(`No se encontró ninguna opcion que contenga "${valueOrText}". Opciones disponibles: [${availableTexts.join(', ')}]`);
                         }
                     }
                 }
@@ -369,7 +369,7 @@ async function main() {
                     await divDropdown.evaluate((div, vals) => {
                         const labels = Array.from(div.querySelectorAll('label'));
                         
-                        // Si no es (Select All), desmarcar (Select All) si está marcado
+                        // Si no es (Select All), desmarcar (Select All) si esta marcado
                         if (!vals.includes('(Select All)')) {
                             const selectAllLabel = labels.find(l => l.innerText.includes('(Select All)'));
                             if (selectAllLabel) {
@@ -418,7 +418,7 @@ async function main() {
             } catch(e) {}
 
             try {
-                const primerControl = frame.locator('select[id*="ddValue"], div[id*="ddDropDownButton"], td:has-text("Dirección"), select').first();
+                const primerControl = frame.locator('select[id*="ddValue"], div[id*="ddDropDownButton"], td:has-text("Direccion"), select').first();
                 await primerControl.waitFor({ state: 'visible', timeout: 35000 }).catch(() => {});
             } catch(e) {}
 
@@ -435,13 +435,13 @@ async function main() {
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
 
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Unidad de Servicio');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Dirección de Primera Infancia');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Direccion de Primera Infancia');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota D.C.');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', 'CZ USAQUEN');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13_ddValue', 'Bogota, D.C.');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', asc.vigenciaContrato);
             
-            const okContrato = await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
+            const okContrato = await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
             if (!okContrato) {
                 await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato);
             }
@@ -458,7 +458,7 @@ async function main() {
                 }
             } catch(e) {}
         } else if (opcionReporte === 2) {
-            console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de niños y niñas...\n');
+            console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de ninos y niñas...\n');
             await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
               waitUntil: 'domcontentloaded',
               timeout: 120000
@@ -466,7 +466,7 @@ async function main() {
             reportFrame = await obtenerReportFrame(reportPage);
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
 
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Direccion de Primera Infancia');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
@@ -484,8 +484,8 @@ async function main() {
             const reportName = opcionReporte === 3 ? "Informe de registro asistencia mensual" : "Unidades de servicio";
             console.log(`  🚀 Navegando a ${reportName}...\n`);
             
-            // Si es la opción 4 (Unidades de servicio), tomamos el ÚLTIMO que coincida
-            // para evitar darle clic al que está bajo "Calidad de datos"
+            // Si es la opcion 4 (Unidades de servicio), tomamos el ÚLTIMO que coincida
+            // para evitar darle clic al que esta bajo "Calidad de datos"
             let reportLink = opcionReporte === 4 
                 ? reportPage.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).last()
                 : reportPage.locator(`a:text-is("${reportName}"), span:text-is("${reportName}")`).first();
@@ -502,10 +502,10 @@ async function main() {
             if (await reportLink.count() === 0) {
                 const text = await reportPage.locator('body').innerText();
                 console.log(c.amarillo('  ⚠️ Texto de la página principal (primeros 500 chars):\n' + text.substring(0, 500)));
-                throw new Error(`No se encontró el enlace al reporte "${reportName}" en el menú.`);
+                throw new Error(`No se encontró el enlace al reporte "${reportName}" en el menu.`);
             }
             
-            console.log('  👉 Haciendo clic en el menú del reporte...');
+            console.log('  👉 Haciendo clic en el menu del reporte...');
             const href = await reportLink.getAttribute('href').catch(() => null);
             if (href && href !== '#' && !href.startsWith('javascript')) {
                 const absoluteUrl = new URL(href, reportPage.url()).href;
@@ -524,7 +524,7 @@ async function main() {
             
             try {
                 if (opcionReporte === 3) {
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Direccion de Primera Infancia');
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', '2024'); 
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', asc.numeroContrato);
@@ -547,12 +547,12 @@ async function main() {
                         console.log(c.amarillo('    Por favor envíaselo a la IA (o avísale) para que lea los IDs exactos.'));
                     }
 
-                    await seleccionarSSRSByLabel('Dirección ICBF *', 'Dirección de Primera Infancia');
+                    await seleccionarSSRSByLabel('Direccion ICBF *', 'Direccion de Primera Infancia');
                     await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato);
                     await seleccionarSSRSByLabel('Regional UDS', 'Bogota D.C.');
                     await seleccionarSSRSByLabel('Centro Zonal de la UDS', 'CZ USAQUEN');
                     await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
-                    await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
+                    await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
                     
                     await seleccionarSSRSByLabel('Estado UDS', 'Activo');
                     await seleccionarSSRSByLabel('Estado UDS Contrato*', 'Activo');
@@ -576,7 +576,7 @@ async function main() {
         
         console.log('    👉 Iniciando descarga en Excel...');
         
-        // 1. Intentar desplegar el menú de exportación
+        // 1. Intentar desplegar el menu de exportación
         let exportBtn = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl05_ctl04_ctl00_ButtonImg, input[id*="ButtonImg"], a[title*="Export" i], img[alt*="Export" i], a[id*="ButtonLink"]').first();
         if (await exportBtn.count() === 0) {
             exportBtn = exportButton;
@@ -648,7 +648,7 @@ async function main() {
                 files.sort((a, b) => fs.statSync(path.join(downloadsFolder, b)).mtimeMs - fs.statSync(path.join(downloadsFolder, a)).mtimeMs);
                 const latestFile = path.join(downloadsFolder, files[0]);
                 const mtimeMs = fs.statSync(latestFile).mtimeMs;
-                if (Date.now() - mtimeMs < 300000) { // Creado en los últimos 5 minutos
+                if (Date.now() - mtimeMs < 300000) { // Creado en los ultimos 5 minutos
                     fs.copyFileSync(latestFile, savePath);
                     console.log(c.verde(`    ✅ Reporte recuperado y guardado exitosamente: ${fileName}`));
                 } else {
@@ -679,7 +679,7 @@ async function main() {
         if (reportPage && reportPage !== mainPage) {
             await reportPage.close().catch(() => {});
         } else if (reportPage === mainPage && i < ascValidas.length - 1 && rolesUrl) {
-            console.log('  🔄 Volviendo a la selección de roles para la siguiente asociación...');
+            console.log('  🔄 Volviendo a la seleccion de roles para la siguiente asociacion...');
             await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
             await mainPage.waitForTimeout(1500);
         }

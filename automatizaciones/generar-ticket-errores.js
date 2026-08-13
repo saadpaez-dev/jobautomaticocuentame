@@ -131,9 +131,9 @@ async function main() {
     console.log(c.cyan('   🎫 TICKET PARA ERRORES DE DIGITACIÓN'));
     console.log(c.cyan('======================================================\n'));
 
-    console.log(c.gris('Selecciona una asociación para iniciar el proceso.'));
+    console.log(c.gris('Selecciona una asociacion para iniciar el proceso.'));
     asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
-    console.log(`  ${c.rojo('0')}. Volver al menú principal`);
+    console.log(`  ${c.rojo('0')}. Volver al menu principal`);
 
     let idxAsociacion = -1;
     while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
@@ -143,7 +143,7 @@ async function main() {
     }
 
     if (idxAsociacion === 0) {
-        console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+        console.log(c.verde('\n  👋 Volviendo al menu principal...'));
         return;
     }
     const ascSeleccionada = asociaciones[idxAsociacion - 1];
@@ -162,7 +162,7 @@ async function main() {
     // Verificación inicial de sesión
     if (await verificarConexionOCaida(page)) {
         console.log(c.amarillo('  ⚠️ La sesión inicial expiró o se perdió.'));
-        console.log(c.amarillo('  ⏳ Iniciando sesión automáticamente (2FA)...'));
+        console.log(c.amarillo('  ⏳ Iniciando sesión automaticamente (2FA)...'));
         await loginYLlegarARoles(page, {
             usuario: USUARIO,
             password: PASSWORD,
@@ -172,14 +172,14 @@ async function main() {
         console.log(c.verde('  ✅ Login inicial restaurado exitosamente.'));
     }
 
-    console.log(c.amarillo('  ⏳ Seleccionando el rol / asociación...'));
+    console.log(c.amarillo('  ⏳ Seleccionando el rol / asociacion...'));
     await seleccionarRolYEntrar(page, ascSeleccionada);
     
     // Bucle interactivo para ingresar varios tickets
     while (true) {
         console.log(c.cyan('\n------------------------------------------------------'));
         console.log(c.amarillo('  [1] Consultar otro beneficiario'));
-        console.log(c.rojo('  [0] Volver al menú principal'));
+        console.log(c.rojo('  [0] Volver al menu principal'));
         
         let accion = readline.question(c.negrita('\n  > Tu opcion (1 o 0): ')).trim();
         if (accion === '0') {
@@ -191,19 +191,19 @@ async function main() {
         // Verificar si la sesión se cayó antes de continuar
         if (await verificarConexionOCaida(page)) {
             console.log(c.amarillo('  ⚠️ La sesión de Cuéntame expiró o se perdió.'));
-            console.log(c.amarillo('  ⏳ Intentando iniciar sesión automáticamente (2FA)...'));
+            console.log(c.amarillo('  ⏳ Intentando iniciar sesión automaticamente (2FA)...'));
             await loginYLlegarARoles(page, {
                 usuario: USUARIO,
                 password: PASSWORD,
                 gmailUser: GMAIL_USER,
                 gmailAppPassword: GMAIL_APP_PASSWORD
             });
-            console.log(c.verde('  ✅ Login restaurado exitosamente. Seleccionando asociación nuevamente...'));
+            console.log(c.verde('  ✅ Login restaurado exitosamente. Seleccionando asociacion nuevamente...'));
             await seleccionarRolYEntrar(page, ascSeleccionada);
         }
 
-        // Navegar al menú de Beneficiario
-        console.log(c.amarillo('  ⏳ Entrando al menú "Beneficiario" > "Beneficiario"...'));
+        // Navegar al menu de Beneficiario
+        console.log(c.amarillo('  ⏳ Entrando al menu "Beneficiario" > "Beneficiario"...'));
         let menuFrame = page.frame({ name: 'frameMenu' });
         if (!menuFrame) {
             for (const f of page.frames()) {
@@ -227,7 +227,7 @@ async function main() {
                     await nuevosLinks[1].evaluate(n => n.click());
                 }
             } else {
-                console.log(c.rojo('  ⚠️ No se encontró el menú Beneficiario.'));
+                console.log(c.rojo('  ⚠️ No se encontró el menu Beneficiario.'));
             }
             await page.waitForTimeout(3000);
         } catch(e) {
@@ -277,7 +277,7 @@ async function main() {
         numDoc = readline.question(c.negrita('\n  > Numero de Documento: ')).trim();
     }
 
-    // Llenar datos de búsqueda
+    // Llenar datos de busqueda
     console.log(c.amarillo('  ⏳ Buscando beneficiario en Cuéntame...'));
     const selTipoDoc = currentFrame.locator('select:visible[id*="TipoDocumento"], select:visible[id*="ddlTipoDocumento"]').first();
     await waitForAndSelect(selTipoDoc, valTipoDoc, page);
@@ -305,7 +305,7 @@ async function main() {
         }
     }
     
-    // Seleccionar Estado Atención: Todos
+    // Seleccionar Estado Atencion: Todos
     const radioTodos = currentFrame.locator('input[type="radio"][id*="rdbEstadoAtencion_2"]').first(); // 0: Activo, 1: Inactivo, 2: Todos
     if (await radioTodos.count() > 0) {
         await radioTodos.click().catch(()=>{});
@@ -351,9 +351,9 @@ async function main() {
         continue;
     }
 
-    // Preguntar por el error DESPUÉS de entrar al detalle del niño
+    // Preguntar por el error DESPUÉS de entrar al detalle del nino
     console.log(c.cyan('\n  > ¿De quién es el error de digitación?'));
-    console.log(c.cyan('    1. Beneficiario (Niño/Niña)'));
+    console.log(c.cyan('    1. Beneficiario (Nino/Niña)'));
     console.log(c.cyan('    2. Acudiente / Jefe de Grupo Familiar'));
     let tipoError = '';
     while(tipoError !== '1' && tipoError !== '2') {
@@ -361,7 +361,7 @@ async function main() {
     }
 
         if (tipoError === '1') {
-            // Error del Beneficiario (Niño/Niña)
+            // Error del Beneficiario (Nino/Niña)
             console.log(c.amarillo('\n  ⏳ Extrayendo datos del Beneficiario de Cuéntame...'));
             
             // Re-evaluar currentFrame porque pudo cambiar al cargar el detalle
@@ -433,7 +433,7 @@ async function main() {
             const fechaNacReal = ask('Fecha de Nacimiento (DD/MM/AAAA)', datosCuentame.fechaNacimiento);
             const sexoReal = ask('Sexo (HOMBRE/MUJER)', datosCuentame.sexo.toUpperCase());
             
-            // Generar observación automática
+            // Generar observación automatica
             const obs = [];
             const nombresMal = (pNombreReal !== datosCuentame.primerNombre) || (sNombreReal !== datosCuentame.segundoNombre);
             const apellidosMal = (pApellidoReal !== datosCuentame.primerApellido) || (sApellidoReal !== datosCuentame.segundoApellido);
@@ -519,7 +519,7 @@ async function main() {
             }
         } else {
             // Error del Acudiente
-            console.log(c.amarillo('\n  ⏳ Habilitando edición (clic en Lápiz superior)...'));
+            console.log(c.amarillo('\n  ⏳ Habilitando edicion (clic en Lápiz superior)...'));
             
             await page.waitForTimeout(1000);
             let frame = page.frame({ name: 'frameContent' });
@@ -632,7 +632,7 @@ async function main() {
             const fechaNacReal = ask('Fecha de Nacimiento (DD/MM/AAAA)', datosCuentame.fechaNacimiento);
             const sexoReal = ask('Sexo (HOMBRE/MUJER)', datosCuentame.sexo.toUpperCase());
             
-            // Generar observación automática
+            // Generar observación automatica
             const obs = [];
             const nombresMal = (pNombreReal !== datosCuentame.primerNombre) || (sNombreReal !== datosCuentame.segundoNombre);
             const apellidosMal = (pApellidoReal !== datosCuentame.primerApellido) || (sApellidoReal !== datosCuentame.segundoApellido);
@@ -710,7 +710,7 @@ async function main() {
 
                 row.commit();
                 await workbook.xlsx.writeFile(excelPath);
-                console.log(c.verde(`  ✅ Ticket de Edición de Datos guardado exitosamente en la fila ${nextRow} del Excel.`));
+                console.log(c.verde(`  ✅ Ticket de Edicion de Datos guardado exitosamente en la fila ${nextRow} del Excel.`));
 
                 // ---------------------------------------------------------------------
                 // ENVÍO DE CORREO ELECTRONICO PARA TICKET DE EDICIÓN DE DATOS
@@ -719,7 +719,7 @@ async function main() {
                 const armarCorreoResp = readline.question(c.negrita('  > ¿Deseas armar/enviar el correo de ticket a la Regional? (s/n) [por defecto s]: ')).trim().toLowerCase();
 
                 if (armarCorreoResp === 's' || armarCorreoResp === 'si' || armarCorreoResp === '') {
-                    console.log(c.cyan('\n  📄 Documento de Soporte Físico (Registro Civil, TI o Cédula):'));
+                    console.log(c.cyan('\n  📄 Documento de Soporte Físico (Registro Civil, TI o Cedula):'));
                     console.log(c.gris('     • Puedes arrastrar un PDF o una Imagen (.jpg, .jpeg, .png).'));
                     console.log(c.gris('     • Si es una imagen, se convertirá AUTOMÁTICAMENTE a PDF.\n'));
 
@@ -747,10 +747,10 @@ async function main() {
                     const cuerpoCorreoHtml = `<p>
 <b>Nit:</b> ${ascSeleccionada.nit || ''}<br>
 <b>Nombre del EAS que requiere el ajuste:</b> ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}<br>
-<b>Número de Contrato:</b> ${ascSeleccionada.numeroContrato || ''}<br>
+<b>Numero de Contrato:</b> ${ascSeleccionada.numeroContrato || ''}<br>
 <b>Nombre de la persona que pone el caso:</b> SAAD PAEZ<br>
-<b>Número de Identificación:</b> 1020722462<br>
-<b>Número de contacto:</b> 3202002073<br>
+<b>Numero de Identificación:</b> 1020722462<br>
+<b>Numero de contacto:</b> 3202002073<br>
 <b>Área Misional si aplica:</b> Primera Infancia<br>
 <b>Regional y Centro Zonal:</b> BOGOTÁ, CZ USAQUEN
 </p>

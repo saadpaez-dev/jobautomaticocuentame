@@ -83,7 +83,7 @@ function parsearFormatoPesoYTalla(rutaArchivo) {
     const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
     if (!rows || rows.length === 0) {
-        throw new Error('El archivo Excel está vacío.');
+        throw new Error('El archivo Excel esta vacío.');
     }
 
     // Validar si es un Formato de Peso y Talla (Formato Captura)
@@ -166,7 +166,7 @@ async function generarFormatoEstimadoUds(datosUds, plantillaPath, fechaHoyFormat
     const worksheet = workbook.getWorksheet(1);
 
     // Encabezado de la planilla
-    // E9 (Col 5): Nombre de la Entidad Administradora de Servicio (EAS / Asociación)
+    // E9 (Col 5): Nombre de la Entidad Administradora de Servicio (EAS / Asociacion)
     // X9 (Col 24): Nombre de la Unidad de Servicio (UDS / Jardín)
     worksheet.getRow(9).getCell(5).value = datosUds.nombreEas;
     worksheet.getRow(9).getCell(24).value = datosUds.nombreUds;
@@ -267,12 +267,12 @@ async function main() {
                 console.log(c.rojo('  ❌ No se encontraron beneficiarios válidos en el archivo.'));
             } else {
                 const easDetectada = agrupado[listaUds[0]]?.nombreEas || 'DESCONOCIDA';
-                console.log(c.amarillo(`\n  📌 Asociación en el archivo: ${c.negrita(easDetectada)}`));
+                console.log(c.amarillo(`\n  📌 Asociacion en el archivo: ${c.negrita(easDetectada)}`));
                 console.log(c.verde(`  ✅ Se identificaron ${listaUds.length} Jardines/UDS en el formato:\n`));
 
                 listaUds.forEach((nombreUds, idx) => {
                     const count = agrupado[nombreUds].ninos.length;
-                    console.log(`  ${c.cyan(idx + 1)}. ${nombreUds} (${c.verde(count + ' niños activos')})`);
+                    console.log(`  ${c.cyan(idx + 1)}. ${nombreUds} (${c.verde(count + ' ninos activos')})`);
                 });
 
                 console.log(c.verde(`\n  🚀 Generando formato con Estimado de Peso y Talla a Fecha de Hoy (Cols U, V, W)...`));
@@ -291,7 +291,7 @@ async function main() {
                     const datosUds = agrupado[nombreUds];
                     const todosNinos = datosUds.ninos;
 
-                    // Enriquecer cada niño con pesoEstimado y tallaEstimado proyectados a la fecha de hoy
+                    // Enriquecer cada nino con pesoEstimado y tallaEstimado proyectados a la fecha de hoy
                     todosNinos.forEach(n => {
                         const pesoNum = parseFloat(n.peso);
                         const tallaNum = parseFloat(n.talla);
@@ -316,8 +316,8 @@ async function main() {
                     }
 
                     const totalPartes = partesNinos.length;
-                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de máx 13 niños` : '';
-                    console.log(`  ${i + 1}/${listaUds.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' niños')}${descPartes})`);
+                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de máx 13 ninos` : '';
+                    console.log(`  ${i + 1}/${listaUds.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' ninos')}${descPartes})`);
 
                     for (let p = 0; p < totalPartes; p++) {
                         const ninosChunk = partesNinos[p];

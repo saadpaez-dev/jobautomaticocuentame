@@ -21,7 +21,7 @@ const c = {
   negrita:  (t) => `\x1b[1m${t}\x1b[0m`,
 };
 
-// Mapa de servicios para optimizar la búsqueda. 
+// Mapa de servicios para optimizar la busqueda. 
 // Solo buscamos servicios de 2026.
 const SERVICIOS_2026 = ["2026"];
 
@@ -86,9 +86,9 @@ async function main() {
         '(FASE 1) - Subida de asistencia General (Masiva)', 
         '(FASE 2) - INASISTENCIA Y DIAS DE ASISTENCIA PENDIENTES POR LLENAR'
       ];
-      const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA FASE A EJECUTAR: '), { cancel: 'Volver al Menú Principal' });
+      const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA FASE A EJECUTAR: '), { cancel: 'Volver al Menu Principal' });
       
-      if (faseIndex === -1) break; // Volver al menú principal
+      if (faseIndex === -1) break; // Volver al menu principal
       
       const todosLosMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
       const fechaActual = new Date();
@@ -128,7 +128,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     
     let ascAProcesar = [];
     while (ascAProcesar.length === 0) {
-        console.log(c.gris('  (Puedes ingresar varios números separados por coma, ej: 1,3,4)'));
+        console.log(c.gris('  (Puedes ingresar varios numeros separados por coma, ej: 1,3,4)'));
         const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es) (o 0 para Atrás): '));
         
         const respTrim = respuesta.trim().toUpperCase();
@@ -170,7 +170,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     for (let i = 0; i < ascAProcesar.length; i++) {
         const asc = ascAProcesar[i];
         console.log(c.cyan(`\n======================================================`));
-        console.log(c.cyan(`▶ Procesando Asociación [${i+1}/${ascAProcesar.length}]: ${asc.nombreCorto}`));
+        console.log(c.cyan(`▶ Procesando Asociacion [${i+1}/${ascAProcesar.length}]: ${asc.nombreCorto}`));
         console.log(c.cyan(`======================================================`));
 
         if (i === 0) {
@@ -188,8 +188,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
         let workPage = rolesPage;
         try {
-            console.log('  🏢 Seleccionando entidad (asociación)...');
-            // Si NO es la última asociación, abrimos el trabajo en una PESTAÑA NUEVA,
+            console.log('  🏢 Seleccionando entidad (asociacion)...');
+            // Si NO es la ultima asociacion, abrimos el trabajo en una PESTAÑA NUEVA,
             // manteniendo rolesPage intacta en la página de roles para el siguiente ciclo.
             const mantenerRolesTab = (i < ascAProcesar.length - 1);
             workPage = await seleccionarRolYEntrar(rolesPage, asc, mantenerRolesTab);
@@ -221,7 +221,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
                 let valueToSelect = null;
 
-                // Intentar encontrar la opción esperada con reintentos (UpdatePanels son lentos)
+                // Intentar encontrar la opcion esperada con reintentos (UpdatePanels son lentos)
                 for (let retry = 0; retry < 40; retry++) {
                     if (typeof textOrIndex === 'string') {
                         valueToSelect = await sel.evaluate((s, t) => {
@@ -248,7 +248,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
                     await workPage.waitForTimeout(100);
                 } else {
-                    console.log(c.rojo(`    ⚠️ No se encontró la opción para ${keyword} (${textOrIndex}). Intentando fallback a la primera opción válida...`));
+                    console.log(c.rojo(`    ⚠️ No se encontró la opcion para ${keyword} (${textOrIndex}). Intentando fallback a la primera opcion válida...`));
                     const fallbackVal = await sel.evaluate(s => {
                         const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
                         return opt ? opt.value : null;
@@ -287,7 +287,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 });
             }
 
-            // Filtrar servicios de 2026 y por reglas de asociación
+            // Filtrar servicios de 2026 y por reglas de asociacion
             console.log(c.gris(`    [DEBUG] Servicios encontrados sin filtrar: ${serviciosOptions.map(s => s.text).join(' | ')}`));
         let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto, asc.tipoServicio);
             console.log(c.cyan(`  Encontrados ${serviciosFiltrados.length} servicios válidos (2026).`));
@@ -340,7 +340,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     }
                     await workPage.waitForTimeout(1500);
 
-                    console.log('    👉 Habilitando edición (clic en el lápiz)...');
+                    console.log('    👉 Habilitando edicion (clic en el lápiz)...');
                     const lapiz = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
                     if (await lapiz.count() > 0 && await lapiz.isVisible()) {
                         await lapiz.click();
@@ -381,7 +381,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                         }
                     }
 
-                    console.log(c.verde(`    ✔️ Se procesaron ${ninosActivos} niños activos y se marcaron ${checksMarcados} asistencias.`));
+                    console.log(c.verde(`    ✔️ Se procesaron ${ninosActivos} ninos activos y se marcaron ${checksMarcados} asistencias.`));
 
                     console.log('    💾 Guardando asistencia...');
                     const disco = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
@@ -398,7 +398,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     const isUltimaUds = (u === udsOptionsFiltradas.length - 1);
 
                     if (isUltimoServicio && isUltimaUds) {
-                        console.log(c.gris('    ⏭️  Última UDS procesada, saltando la recarga de filtros para cambiar de asociación...'));
+                        console.log(c.gris('    ⏭️  Ultima UDS procesada, saltando la recarga de filtros para cambiar de asociacion...'));
                         continue;
                     }
 
@@ -450,7 +450,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociacion: '), { cancel: 'Atras' });
         
         if (ascIdx === -1) {
-            console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
             break;
         }
 
@@ -461,7 +461,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             asc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
         }
 
-        console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociación: ${asc.nombreCorto}`));
+        console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociacion: ${asc.nombreCorto}`));
 
         if (!authDone) {
             const nav = await iniciarNavegador();
@@ -483,7 +483,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
         let workPage = rolesPage;
         try {
-            console.log('  🏢 Seleccionando entidad (asociación)...');
+            console.log('  🏢 Seleccionando entidad (asociacion)...');
             workPage = await seleccionarRolYEntrar(rolesPage, asc, true);
             await workPage.bringToFront();
             console.log(c.verde('  ✅ Login exitoso en Cuéntame.'));
@@ -512,7 +512,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
                 let valueToSelect = null;
 
-                // Intentar encontrar la opción esperada con reintentos (UpdatePanels son lentos)
+                // Intentar encontrar la opcion esperada con reintentos (UpdatePanels son lentos)
                 for (let retry = 0; retry < 40; retry++) {
                     if (typeof textOrIndex === 'string') {
                         valueToSelect = await sel.evaluate((s, t) => {
@@ -539,7 +539,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     await sel.selectOption(valueToSelect, { timeout: 5000 });
                     await workPage.waitForTimeout(100);
                 } else {
-                    console.log(c.rojo(`    ⚠️ No se encontró la opción para ${keyword} (${textOrIndex}). Intentando fallback a la primera opción válida...`));
+                    console.log(c.rojo(`    ⚠️ No se encontró la opcion para ${keyword} (${textOrIndex}). Intentando fallback a la primera opcion válida...`));
                     const fallbackVal = await sel.evaluate(s => {
                         const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
                         return opt ? opt.value : null;
@@ -628,11 +628,11 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             
             if (todasLasUdsMap.length === 1 && !jardinAutoProcesado) {
                 console.log(c.verde(`  ✅ Se encontró un solo jardín: ${todasLasUdsMap[0].uds.text}`));
-                console.log(c.verde(`  Seleccionándolo automáticamente...`));
+                console.log(c.verde(`  Seleccionándolo automaticamente...`));
                 udsIdx = 0;
                 jardinAutoProcesado = true;
             } else if (todasLasUdsMap.length === 1 && jardinAutoProcesado) {
-                console.log(c.verde(`  ✅ Jardín único procesado. Volviendo a selección de asociación...`));
+                console.log(c.verde(`  ✅ Jardín único procesado. Volviendo a seleccion de asociacion...`));
                 break;
             } else {
                 const udsOptsNombres = todasLasUdsMap.map(u => u.uds.text);
@@ -664,7 +664,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
             // Llamar a la función unificada
             await modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown);
-        } // Fin while true (Menú jardines)
+        } // Fin while true (Menu jardines)
             if (workPage !== rolesPage) {
                 await workPage.close();
             }
@@ -678,7 +678,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
 async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown) {
     while (true) {
-        console.log(c.cyan('\n    Leyendo lista de niños...'));
+        console.log(c.cyan('\n    Leyendo lista de ninos...'));
         contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
 
         const filasNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
@@ -693,11 +693,11 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         }
 
         if (listaNinos.length === 0) {
-            console.log(c.rojo('    ⚠️ No se encontraron niños activos en la tabla.'));
+            console.log(c.rojo('    ⚠️ No se encontraron ninos activos en la tabla.'));
             break; 
         }
 
-        console.log(c.cyan('\n    --- Lista de Niños Activos ---'));
+        console.log(c.cyan('\n    --- Lista de Ninos Activos ---'));
         listaNinos.forEach(n => console.log(`      - ${n.nombre}`));
 
         const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre, apellido o "TODOS"\n    > (Deje vacio para CAMBIAR DE JARDIN): ')).trim();
@@ -711,18 +711,18 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         } else {
             ninosAfectados = listaNinos.filter(n => n.nombre.toUpperCase().includes(nombreBuscado));
             if (ninosAfectados.length === 0) {
-                console.log(c.rojo(`    ⚠️ No se encontró ningún niño con "${seleccionNina}"`));
+                console.log(c.rojo(`    ⚠️ No se encontró ningún nino con "${seleccionNina}"`));
                 continue;
             }
             if (ninosAfectados.length > 1) {
-                console.log(c.amarillo(`    ⚠️ Se encontraron varios niños que coinciden:`));
+                console.log(c.amarillo(`    ⚠️ Se encontraron varios ninos que coinciden:`));
                 ninosAfectados.forEach(n => console.log(`      - ${n.nombre}`));
                 console.log(c.amarillo(`    Por favor sea más específico.`));
                 continue;
             }
         }
 
-        console.log(c.verde(`\n    Niños seleccionados: ${ninosAfectados.length}`));
+        console.log(c.verde(`\n    Ninos seleccionados: ${ninosAfectados.length}`));
 
         const acciones = [
             'Marcar ASISTENCIAS (poner checks [X])',
@@ -759,14 +759,14 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
             continue;
         }
 
-        console.log(`    👉 Habilitando edición (clic en el lápiz)...`);
+        console.log(`    👉 Habilitando edicion (clic en el lápiz)...`);
         const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
         if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
             await lapizNuevo.click();
             await workPage.waitForTimeout(1500);
             contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             
-            // Re-vincular los locators de las filas de los niños seleccionados porque el DOM cambió
+            // Re-vincular los locators de las filas de los ninos seleccionados porque el DOM cambió
             const rowsNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
             for (let n of ninosAfectados) {
                 if (n.idxOriginal < rowsNuevas.length) {
@@ -776,7 +776,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         }
 
         let modificados = 0;
-        console.log(c.cyan(`    Aplicando cambios a ${diasAfectados.length} días para ${ninosAfectados.length} niños...`));
+        console.log(c.cyan(`    Aplicando cambios a ${diasAfectados.length} días para ${ninosAfectados.length} ninos...`));
 
         for (const nino of ninosAfectados) {
             const celdas = await nino.row.locator(':scope > td').all();
@@ -805,12 +805,12 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         console.log(c.verde(`    ✔️ Se aplicaron ${modificados} cambios (${accionStr}).`));
 
         // PREGUNTAR AL USUARIO QUÉ HACER
-        const opcionesFin = ['Continuar con OTRO niño (Sin guardar aún)', 'Guardar todos los cambios', 'Cancelar cambios y salir'];
+        const opcionesFin = ['Continuar con OTRO nino (Sin guardar aún)', 'Guardar todos los cambios', 'Cancelar cambios y salir'];
         const finIdx = readline.keyInSelect(opcionesFin, c.negrita(`  > Que desea hacer ahora?`), { cancel: false });
 
         if (finIdx === 0) {
-            // Continuar con otro niño sin guardar
-            console.log(c.amarillo('    👉 Los cambios están en pantalla. Selecciona el siguiente niño...'));
+            // Continuar con otro nino sin guardar
+            console.log(c.amarillo('    👉 Los cambios estan en pantalla. Selecciona el siguiente nino...'));
             continue;
         } else if (finIdx === 1) {
             // Guardar

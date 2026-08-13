@@ -101,7 +101,7 @@ function resolverRutaConEspeciales(inputPath) {
             
             if (match) {
                 const rutaReal = path.join(dir, match);
-                console.log(`\n  ✅ Ruta corregida automáticamente (carácter Ñ/tilde detectado):`);
+                console.log(`\n  ✅ Ruta corregida automaticamente (carácter Ñ/tilde detectado):`);
                 console.log(`     Archivo encontrado: ${match}\n`);
                 return rutaReal;
             }
@@ -121,7 +121,7 @@ function parsearExcel(filePath) {
     
     let asociacion = '';
     let uds = '';
-    const ninosMap = new Map(); // Mapa para evitar duplicados por número de documento entre hojas
+    const ninosMap = new Map(); // Mapa para evitar duplicados por numero de documento entre hojas
 
     console.log(`\n  📄 Leyendo libro de Excel (${wb.SheetNames.length} hoja(s) detectada(s)): [ ${wb.SheetNames.join(', ')} ]`);
 
@@ -136,7 +136,7 @@ function parsearExcel(filePath) {
             continue; // Hoja vacía o sin estructura de toma, omitir
         }
 
-        // Extraer Asociación y UDS (usualmente en las filas 4 a 15)
+        // Extraer Asociacion y UDS (usualmente en las filas 4 a 15)
         if (!asociacion || !uds) {
             for (let i = 3; i < Math.min(15, data.length); i++) {
                 if (!data[i] || !Array.isArray(data[i])) continue;
@@ -145,7 +145,7 @@ function parsearExcel(filePath) {
                 for (let colIdx = 0; colIdx < rowData.length; colIdx++) {
                     const cellVal = String(rowData[colIdx] || '').trim().toUpperCase();
 
-                    // Buscar etiqueta de Asociación / Entidad Administradora
+                    // Buscar etiqueta de Asociacion / Entidad Administradora
                     if (!asociacion && (cellVal.includes('ASOCIACION') || cellVal.includes('ENTIDAD ADMINISTRADORA') || cellVal.includes('PRESTADOR') || cellVal.includes('EAS'))) {
                         const nextVal = rowData.slice(colIdx + 1).find(v => v !== undefined && v !== null && String(v).trim().length > 2 && !String(v).toUpperCase().includes('NOMBRE DE LA UNIDAD') && !String(v).toUpperCase().includes('MODALIDAD'));
                         if (nextVal) {
@@ -166,7 +166,7 @@ function parsearExcel(filePath) {
             }
         }
 
-        // Procesar niños desde la fila 16 (índice 15) en adelante
+        // Procesar ninos desde la fila 16 (índice 15) en adelante
         let ninosEnHoja = 0;
         for (let i = 15; i < data.length; i++) {
             const row = data[i];
@@ -177,7 +177,7 @@ function parsearExcel(filePath) {
             const apellidos = String(row[3] || '').trim();
             
             if (String(row[7]).toLowerCase().includes('retirad') || String(row[19]).toLowerCase().includes('retirad')) {
-                console.log(`\x1b[33m  ⚠️ [Hoja: "${sheetName}"] Se omite a ${nombres} ${apellidos} porque está RETIRADO(A).\x1b[0m`);
+                console.log(`\x1b[33m  ⚠️ [Hoja: "${sheetName}"] Se omite a ${nombres} ${apellidos} porque esta RETIRADO(A).\x1b[0m`);
                 continue;
             }
 
@@ -212,7 +212,7 @@ function parsearExcel(filePath) {
         }
 
         if (ninosEnHoja > 0) {
-            console.log(`  ✅ Hoja "${sheetName}": ${ninosEnHoja} niños encontrados.`);
+            console.log(`  ✅ Hoja "${sheetName}": ${ninosEnHoja} ninos encontrados.`);
         }
     }
 

@@ -1,13 +1,13 @@
 /**
  * automatizaciones/prellenar-formatos.js
  * 
- * Lee el Reporte de Nutrición / Activos descargado de Cuéntame
+ * Lee el Reporte de Nutricion / Activos descargado de Cuéntame
  * y genera un Formato de Peso y Talla independiente pre-llenado (basado en docs/formato peso y talla.xlsx)
  * para cada Jardín / UDS.
  * 
  * Mapeo exacto de columnas del Reporte Nutricional:
  *  - Col E (index 4 / E3): Nombre Entidad Contratista (EAS) -> Celda E9 del formato.
- *  - Col G (index 6): Nombre de la UDS / Jardín -> Celda X9 del formato (agrupa los niños por Jardín).
+ *  - Col G (index 6): Nombre de la UDS / Jardín -> Celda X9 del formato (agrupa los ninos por Jardín).
  *  - Col K (index 10): Numero Documento Beneficiario -> Col B del formato (B16 en adelante).
  *  - Col N + O (index 13 + 14): Primer y Segundo Nombre -> Col C del formato (C16 en adelante).
  *  - Col L + M (index 11 + 12): Primer y Segundo Apellido -> Col D del formato (D16 en adelante).
@@ -176,7 +176,7 @@ function parsearReporteNutricional(rutaArchivo) {
     const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
     if (!rows || rows.length === 0) {
-        throw new Error('El archivo Excel está vacío.');
+        throw new Error('El archivo Excel esta vacío.');
     }
 
     // DETECTAR TIPO DE FORMATO:
@@ -253,7 +253,7 @@ function parsearReporteNutricional(rutaArchivo) {
         return agrupadoPorUds;
     }
 
-    // Extraer el Nombre de la Asociación (EAS) dinámicamente de las celdas superiores del reporte (filas 1 a 15)
+    // Extraer el Nombre de la Asociacion (EAS) dinámicamente de las celdas superiores del reporte (filas 1 a 15)
     let easGlobal = '';
 
     // 1. Probar celdas habituales de cabecera (E2, E3, C2, C3, D2, D3, B2, B3, A2, A3)
@@ -353,7 +353,7 @@ function parsearReporteNutricional(rutaArchivo) {
         const row = rows[i];
         if (!row || row.length === 0) continue;
 
-        // FILTRO DE ESTADO: Omitir niños con estado DESVINCULADO / INACTIVO
+        // FILTRO DE ESTADO: Omitir ninos con estado DESVINCULADO / INACTIVO
         let estadoVal = '';
         if (mapa.estado !== -1 && row[mapa.estado] !== undefined && row[mapa.estado] !== null) {
             estadoVal = removeAccents(String(row[mapa.estado])).toUpperCase().trim();
@@ -433,7 +433,7 @@ function parsearReporteNutricional(rutaArchivo) {
                 perimetro: perimetroRaw !== '' ? String(perimetroRaw).trim() : ''
             });
         } else {
-            // Si el niño ya existe, comparar si la nueva toma es MÁS RECIENTE
+            // Si el nino ya existe, comparar si la nueva toma es MÁS RECIENTE
             if (fechaTomaTs > (ninoExistente.fechaTomaTs || 0)) {
                 ninoExistente.fechaToma = fechaTomaFormatted;
                 ninoExistente.fechaTomaTs = fechaTomaTs;
@@ -456,7 +456,7 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutri
     const worksheet = workbook.getWorksheet(1);
 
     // 1. Encabezado de la planilla
-    // E9 (Col 5): Nombre de la Entidad Administradora de Servicio (EAS / Asociación)
+    // E9 (Col 5): Nombre de la Entidad Administradora de Servicio (EAS / Asociacion)
     // X9 (Col 24): Nombre de la Unidad de Servicio (UDS / Jardín)
     worksheet.getRow(9).getCell(5).value = datosUds.nombreEas;
     worksheet.getRow(9).getCell(24).value = datosUds.nombreUds;
@@ -480,7 +480,7 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutri
         }
 
         row.getCell(1).value = i + 1;                  // A: No. DE ORDEN
-        row.getCell(2).value = String(nino.documento); // B: NUIP (Sólo número de documento)
+        row.getCell(2).value = String(nino.documento); // B: NUIP (Sólo numero de documento)
         row.getCell(3).value = String(nino.nombres);   // C: NOMBRES (Primer + Segundo Nombre)
         row.getCell(4).value = String(nino.apellidos); // D: APELLIDOS (Primer + Segundo Apellido)
         row.getCell(5).value = nino.sexo;              // E: Sexo (H / M)
@@ -547,12 +547,12 @@ async function main() {
                 console.log(c.rojo('  ❌ No se encontraron beneficiarios válidos en el archivo.'));
             } else {
                 const easDetectada = agrupado[listaUds[0]]?.nombreEas || 'DESCONOCIDA';
-                console.log(c.amarillo(`\n  📌 Asociación en el archivo: ${c.negrita(easDetectada)}`));
+                console.log(c.amarillo(`\n  📌 Asociacion en el archivo: ${c.negrita(easDetectada)}`));
                 console.log(c.verde(`  ✅ Se identificaron ${listaUds.length} Jardines/UDS en el reporte:\n`));
 
                 listaUds.forEach((nombreUds, idx) => {
                     const count = agrupado[nombreUds].ninos.length;
-                    console.log(`  ${c.cyan(idx + 1)}. ${nombreUds} (${c.verde(count + ' niños activos')})`);
+                    console.log(`  ${c.cyan(idx + 1)}. ${nombreUds} (${c.verde(count + ' ninos activos')})`);
                 });
 
                 console.log(c.cyan('\n  📋 Selecciona el modo de diligenciamiento del formato:'));
@@ -570,9 +570,9 @@ async function main() {
 
                 console.log(c.cyan('\n  📋 Selecciona qué jardines deseas procesar:'));
                 console.log(c.gris('  - Presiona ENTER (o 0) para procesar TODOS los jardines.'));
-                console.log(c.gris('  - O escribe el número o lista de números (ej: 4,7,6 o solo 2).\n'));
+                console.log(c.gris('  - O escribe el numero o lista de numeros (ej: 4,7,6 o solo 2).\n'));
 
-                const respuestaRaw = readline.question(c.negrita('  > Ingresa tu selección [0 = Todos]: ')).trim();
+                const respuestaRaw = readline.question(c.negrita('  > Ingresa tu seleccion [0 = Todos]: ')).trim();
 
                 let udsAProcesar = [];
 
@@ -586,12 +586,12 @@ async function main() {
                         const setIndices = Array.from(new Set(indicesValidos));
                         udsAProcesar = setIndices.map(idx => listaUds[idx - 1]);
                     } else {
-                        console.log(c.amarillo('  ⚠️ No se ingresaron números válidos. Se procesarán todos los jardines.'));
+                        console.log(c.amarillo('  ⚠️ No se ingresaron numeros válidos. Se procesarán todos los jardines.'));
                         udsAProcesar = listaUds;
                     }
                 }
 
-                console.log(c.verde(`\n  🚀 Generando formatos pre-llenados (máximo 13 niños por archivo)...\n`));
+                console.log(c.verde(`\n  🚀 Generando formatos pre-llenados (máximo 13 ninos por archivo)...\n`));
 
                 const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla');
                 const dirReportes = path.join(__dirname, '..', 'reportes');
@@ -607,15 +607,15 @@ async function main() {
                     const datosUds = agrupado[nombreUds];
                     const todosNinos = datosUds.ninos;
 
-                    // Dividir en bloques de máximo 13 niños para evitar que el Excel se meche o me trunque las planillas
+                    // Dividir en bloques de máximo 13 ninos para evitar que el Excel se meche o me trunque las planillas
                     const partesNinos = [];
                     for (let k = 0; k < todosNinos.length; k += TAMANO_PARTE) {
                         partesNinos.push(todosNinos.slice(k, k + TAMANO_PARTE));
                     }
 
                     const totalPartes = partesNinos.length;
-                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de máx 13 niños` : '';
-                    console.log(`  ${i + 1}/${udsAProcesar.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' niños')}${descPartes})`);
+                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de máx 13 ninos` : '';
+                    console.log(`  ${i + 1}/${udsAProcesar.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' ninos')}${descPartes})`);
 
                     for (let p = 0; p < totalPartes; p++) {
                         const ninosChunk = partesNinos[p];
@@ -640,7 +640,7 @@ async function main() {
                         await wbPrellenado.xlsx.writeFile(pathDocs);
                         await wbPrellenado.xlsx.writeFile(pathReportes);
 
-                        console.log(c.gris(`     -> Guardado (${ninosChunk.length} niños): docs/peso y talla/${fileBaseName}`));
+                        console.log(c.gris(`     -> Guardado (${ninosChunk.length} ninos): docs/peso y talla/${fileBaseName}`));
                     }
                 }
 
