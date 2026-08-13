@@ -72,12 +72,34 @@ async function main() {
   let seleccionToma = '(Select All)';
   let mesAtencion = '(Select All)';
   if (opcionReporte === 2) {
-    console.log(c.cyan('\n  📋 Selecciona el mes de Toma:'));
-    console.log(c.gris(`  Puedes escribir "(Select All)" o varios meses separados por coma como "Julio,Junio".`));
-    const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto (Select All)]: '));
-    if (respuestaToma.trim() !== '') {
-        seleccionToma = respuestaToma.trim();
+    console.log(c.cyan('\n  📋 Selecciona el mes de Toma (o varios meses):'));
+    console.log(c.gris('   1. Enero      2. Febrero    3. Marzo       4. Abril'));
+    console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
+    console.log(c.gris('   9. Septiembre 10. Octubre   11. Noviembre 12. Diciembre'));
+    console.log(c.gris('   0. Todos los meses (Select All)\n'));
+    console.log(c.gris('  (Puedes ingresar números como "5,6,7" o el nombre de los meses)'));
+
+    const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto 0 (Todos)]: ')).trim();
+    
+    if (respuestaToma !== '' && respuestaToma !== '0') {
+        const mapaMeses = {
+            '1': 'Enero', '2': 'Febrero', '3': 'Marzo', '4': 'Abril',
+            '5': 'Mayo', '6': 'Junio', '7': 'Julio', '8': 'Agosto',
+            '9': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+        };
+
+        const partes = respuestaToma.split(/[,;\s]+/);
+        const mesesConvertidos = partes.map(p => {
+            const cleanKey = p.trim();
+            return mapaMeses[cleanKey] || cleanKey;
+        });
+
+        seleccionToma = mesesConvertidos.join(',');
+    } else {
+        seleccionToma = '(Select All)';
     }
+
+    console.log(c.verde(`  ✅ Toma seleccionada: ${seleccionToma}`));
   } else if (opcionReporte === 3) {
     console.log(c.cyan('\n  📋 Selecciona el Mes de Atención:'));
     const meses = [
