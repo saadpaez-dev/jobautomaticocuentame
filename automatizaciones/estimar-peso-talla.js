@@ -1,9 +1,9 @@
 /**
  * estimar-peso-talla.js
  *
- * Lee el Reporte Nutricional (o Formato de Peso y Talla), calcula la proyección
- * de peso y talla a la FECHA DE HOY (OMS/Tendencia) y genera los archivos en el
- * formato oficial de Peso y Talla, ubicando la estimación en las columnas:
+ * Lee exclusivamente el Formato pre-llenado de Peso y Talla (Formato Captura),
+ * calcula la proyección de peso y talla a la FECHA DE HOY (OMS / Proyección de Crecimiento)
+ * y escribe el resultado directamente en el mismo formato en las columnas:
  * - Col U (21): FECHA DE LA TOMA ESTIMADA (Fecha de hoy)
  * - Col V (22): PESO ESTIMADO (Kg)
  * - Col W (23): TALLA ESTIMADA (cm)
@@ -12,9 +12,8 @@
 const path = require('path');
 const fs = require('fs');
 const readline = require('readline-sync');
+const xlsx = require('xlsx');
 const ExcelJS = require('exceljs');
-const { parsearReporteNutricional } = require('./prellenar-formatos');
-const { estimarCrecimiento } = require('../servicios/estimador-crecimiento');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -24,6 +23,43 @@ const c = {
   gris:     (t) => `\x1b[90m${t}\x1b[0m`,
   negrita:  (t) => `\x1b[1m${t}\x1b[0m`,
 };
+
+function removeAccents(str) {
+    if (!str) return '';
+    return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+}
+
+function normalizarDoc(val) {
+    if (val === undefined || val === null) return '';
+    return String(val).replace(/[^0-9Kk]/g, '').trim().toUpperCase();
+}
+
+function normalizarFecha(val) {
+    if (!val) return '';
+    if (typeof val === 'number') {
+        const dateObj = xlsx.SSF.parse_date_code(val);
+        if (dateObj) {
+            const d = String(dateObj.d).padStart(2, '0');
+            const m = String(dateObj.m).padStart(2, '0');
+            const y = dateObj.y;
+            return `${d}/${m}/${y}`;
+        }
+    }
+    const str = String(val).trim();
+    const parts = str.split(/[\/-]/);
+    if (parts.length === 3) {
+        let d = parts[0].padStart(2, '0');
+        let m = parts[1].padStart(2, '0');
+        let y = parts[2];
+        if (d.length === 4) { // YYYY-MM-DD
+            y = parts[0];
+            m = parts[1].padStart(2, '0');
+            d = parts[2].padStart(2, '0');
+        }
+        return `${d}/${m}/${y}`;
+    }
+    return str;
+}
 
 function limpiarNombreArchivo(nombre) {
     if (!nombre) return 'JARDIN';
@@ -36,6 +72,91 @@ function limpiarNombreArchivo(nombre) {
         .replace(/_+/g, "_")
         .replace(/^_+|_+$/g, "")
         .toUpperCase();
+}
+
+function parsearFormatoPesoYTalla(rutaArchivo) {
+    if (!fs.existsSync(rutaArchivo)) throw new Error(`El archivo no existe: ${rutaArchivo}`);
+    const wb = xlsx.readFile(rutaArchivo, { cellDates: true, cellText: false });
+    const sheetName = wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    if (!rows || rows.length === 0) {
+        throw new Error('El archivo Excel está vacío.');
+    }
+
+    // Validar si es un Formato de Peso y Talla (Formato Captura)
+    let esFormatoPesoYTalla = false;
+    for (let r = 0; r < Math.min(15, rows.length); r++) {
+        const rowStr = removeAccents(rows[r] ? rows[r].join(' ') : '').toUpperCase();
+        if (rowStr.includes('FORMATO CAPTURA') || rowStr.includes('CAPTURA DE DATOS') || rowStr.includes('NO. DE ORDEN') || rowStr.includes('ANTROPOMETRICOS')) {
+            esFormatoPesoYTalla = true;
+            break;
+        }
+    }
+
+    if (!esFormatoPesoYTalla) {
+        throw new Error('El archivo ingresado NO corresponde a un Formato de Peso y Talla (Formato Captura). Por favor arrastra un archivo de Formato de Peso y Talla pre-llenado (ej: Formato_Peso_Talla_*.xlsx).');
+    }
+
+    let easGlobal = String(rows[8]?.[4] || rows[7]?.[4] || 'ASOCIACION DE PADRES').trim().toUpperCase();
+    let udsGlobal = String(rows[8]?.[23] || rows[7]?.[23] || 'MI JARDIN').trim().toUpperCase();
+
+    if (easGlobal.includes('NOMBRE DE LA ENTIDAD') || easGlobal.length < 3) easGlobal = 'ASOCIACION DE PADRES';
+    if (udsGlobal.includes('NOMBRE DE LA UNIDAD') || udsGlobal.length < 3) udsGlobal = 'MI JARDIN';
+
+    const agrupadoPorUds = {};
+    agrupadoPorUds[udsGlobal] = {
+        nombreUds: udsGlobal,
+        nombreEas: easGlobal,
+        ninos: []
+    };
+
+    let filaInicio = 15;
+    for (let r = 10; r < Math.min(25, rows.length); r++) {
+        const valA = rows[r]?.[0];
+        if (valA === 1 || String(valA).trim() === '1') {
+            filaInicio = r;
+            break;
+        }
+    }
+
+    for (let r = filaInicio; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row) continue;
+
+        const docRaw = row[1]; // Col B (NUIP)
+        const docNorm = normalizarDoc(docRaw);
+        if (!docNorm || docNorm.length < 3 || isNaN(docNorm)) continue;
+
+        const nombres = String(row[2] || '').trim().toUpperCase(); // Col C
+        const apellidos = String(row[3] || '').trim().toUpperCase(); // Col D
+        const sexoCod = String(row[4] || 'H').trim().toUpperCase().startsWith('M') ? 'M' : 'H'; // Col E
+        const fechaNacimiento = normalizarFecha(row[5]); // Col F
+        const fechaIngreso = normalizarFecha(row[6]); // Col G
+
+        const fechaTomaRaw = row[7]; // Col H (Fecha Toma)
+        const fechaTomaFormatted = normalizarFecha(fechaTomaRaw);
+
+        const pesoRaw = row[8]; // Col I (Peso kg)
+        const tallaRaw = row[9]; // Col J (Talla cm)
+        const perimetroRaw = row[10]; // Col K (Perímetro cm)
+
+        agrupadoPorUds[udsGlobal].ninos.push({
+            documento: docNorm,
+            nombres: nombres || 'N/A',
+            apellidos: apellidos || 'N/A',
+            sexo: sexoCod,
+            fechaNacimiento,
+            fechaIngreso,
+            fechaToma: fechaTomaFormatted,
+            peso: pesoRaw !== '' && pesoRaw !== undefined ? String(pesoRaw).trim() : '',
+            talla: tallaRaw !== '' && tallaRaw !== undefined ? String(tallaRaw).trim() : '',
+            perimetro: perimetroRaw !== '' && perimetroRaw !== undefined ? String(perimetroRaw).trim() : ''
+        });
+    }
+
+    return agrupadoPorUds;
 }
 
 async function generarFormatoEstimadoUds(datosUds, plantillaPath, fechaHoyFormateada) {
@@ -105,7 +226,7 @@ async function generarFormatoEstimadoUds(datosUds, plantillaPath, fechaHoyFormat
 async function main() {
     console.log(c.cyan('\n========================================================================'));
     console.log(c.negrita(' 📈 ESTIMADOR DE PESO Y TALLA A FECHA DE HOY (COLUMNAS U, V, W)'));
-    console.log(c.amarillo(' (Guía de referencia para Madres Comunitarias - Proyección a Fecha Actual)'));
+    console.log(c.amarillo(' (Proyección de Crecimiento a Hoy sobre el Formato de Peso y Talla)'));
     console.log(c.cyan('========================================================================\n'));
 
     const plantillaPath = path.join(__dirname, '..', 'docs', 'formato peso y talla.xlsx');
@@ -115,9 +236,9 @@ async function main() {
     }
 
     while (true) {
-        console.log(c.gris('Arrastra y suelta el Reporte Nutricional descargado de Cuéntame.\n'));
+        console.log(c.gris('Arrastra y suelta el archivo Excel pre-llenado de Formato de Peso y Talla (ej: Formato_Peso_Talla_*.xlsx).\n'));
 
-        const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel aqui (o 0 para salir): '));
+        const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Formato de Peso y Talla aqui (o 0 para salir): '));
         const inputPath = inputPathRaw.trim().replace(/^["']|["']$/g, '');
 
         if (inputPath === '0') {
@@ -130,21 +251,10 @@ async function main() {
             continue;
         }
 
-        console.log(c.cyan('\n  ⏳ Analizando reporte y calculando proyección de crecimiento a la fecha de hoy...'));
+        console.log(c.cyan('\n  ⏳ Analizando el Formato de Peso y Talla y calculando proyección a la fecha de hoy...'));
 
         try {
-            const agrupado = parsearReporteNutricional(inputPath);
-            let estimacionGeneral = null;
-            try {
-                estimacionGeneral = estimarCrecimiento(inputPath, new Date());
-            } catch (e) {}
-
-            const mapaEstimacion = {};
-            if (estimacionGeneral && estimacionGeneral.resultados) {
-                estimacionGeneral.resultados.forEach(r => {
-                    if (r.documento) mapaEstimacion[r.documento] = r;
-                });
-            }
+            const agrupado = parsearFormatoPesoYTalla(inputPath);
 
             const fechaHoy = new Date();
             const fechaHoyFormateada = `${String(fechaHoy.getDate()).padStart(2, '0')}/${String(fechaHoy.getMonth() + 1).padStart(2, '0')}/${fechaHoy.getFullYear()}`;
@@ -156,36 +266,14 @@ async function main() {
             } else {
                 const easDetectada = agrupado[listaUds[0]]?.nombreEas || 'DESCONOCIDA';
                 console.log(c.amarillo(`\n  📌 Asociación en el archivo: ${c.negrita(easDetectada)}`));
-                console.log(c.verde(`  ✅ Se identificaron ${listaUds.length} Jardines/UDS en el reporte:\n`));
+                console.log(c.verde(`  ✅ Se identificaron ${listaUds.length} Jardines/UDS en el formato:\n`));
 
                 listaUds.forEach((nombreUds, idx) => {
                     const count = agrupado[nombreUds].ninos.length;
                     console.log(`  ${c.cyan(idx + 1)}. ${nombreUds} (${c.verde(count + ' niños activos')})`);
                 });
 
-                console.log(c.cyan('\n  📋 Selecciona qué jardines deseas procesar:'));
-                console.log(c.gris('  - Presiona ENTER (o 0) para procesar TODOS los jardines.'));
-                console.log(c.gris('  - O escribe el número o lista de números (ej: 4,7,6 o solo 2).\n'));
-
-                const respuestaRaw = readline.question(c.negrita('  > Ingresa tu selección [0 = Todos]: ')).trim();
-
-                let udsAProcesar = [];
-                if (!respuestaRaw || respuestaRaw === '0') {
-                    udsAProcesar = listaUds;
-                } else {
-                    const numerosIngresados = respuestaRaw.split(/[,;\s]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
-                    const indicesValidos = numerosIngresados.filter(n => n >= 1 && n <= listaUds.length);
-
-                    if (indicesValidos.length > 0) {
-                        const setIndices = Array.from(new Set(indicesValidos));
-                        udsAProcesar = setIndices.map(idx => listaUds[idx - 1]);
-                    } else {
-                        console.log(c.amarillo('  ⚠️ No se ingresaron números válidos. Se procesarán todos los jardines.'));
-                        udsAProcesar = listaUds;
-                    }
-                }
-
-                console.log(c.verde(`\n  🚀 Generando formatos con Estimado de Peso y Talla (Cols U, V, W)...`));
+                console.log(c.verde(`\n  🚀 Generando formato con Estimado de Peso y Talla a Fecha de Hoy (Cols U, V, W)...`));
 
                 const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla');
                 const dirReportes = path.join(__dirname, '..', 'reportes');
@@ -196,34 +284,28 @@ async function main() {
                 const fechaHoyIso = fechaHoy.toISOString().split('T')[0];
                 const TAMANO_PARTE = 13;
 
-                for (let i = 0; i < udsAProcesar.length; i++) {
-                    const nombreUds = udsAProcesar[i];
+                for (let i = 0; i < listaUds.length; i++) {
+                    const nombreUds = listaUds[i];
                     const datosUds = agrupado[nombreUds];
                     const todosNinos = datosUds.ninos;
 
-                    // Enriquecer cada niño con pesoEstimado y tallaEstimado a la fecha de hoy
+                    // Enriquecer cada niño con pesoEstimado y tallaEstimado proyectados a la fecha de hoy
                     todosNinos.forEach(n => {
-                        const est = mapaEstimacion[n.documento];
-                        if (est && est.pesoEstimado && est.tallaEstimado) {
-                            n.pesoEstimado = est.pesoEstimado;
-                            n.tallaEstimado = est.tallaEstimado;
-                        } else {
-                            const pesoNum = parseFloat(n.peso);
-                            const tallaNum = parseFloat(n.talla);
+                        const pesoNum = parseFloat(n.peso);
+                        const tallaNum = parseFloat(n.talla);
 
-                            if (!isNaN(pesoNum) && !isNaN(tallaNum) && n.fechaToma) {
-                                const parts = n.fechaToma.split('/');
-                                if (parts.length === 3) {
-                                    const fechaTomaDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-                                    const dias = Math.max(0, (fechaHoy.getTime() - fechaTomaDate.getTime()) / 86400000);
-                                    n.pesoEstimado = Math.round((pesoNum + (dias * 0.0065)) * 10) / 10;
-                                    n.tallaEstimado = Math.round((tallaNum + (dias * 0.022)) * 10) / 10;
-                                }
+                        if (!isNaN(pesoNum) && !isNaN(tallaNum) && n.fechaToma) {
+                            const parts = n.fechaToma.split('/');
+                            if (parts.length === 3) {
+                                const fechaTomaDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+                                const dias = Math.max(0, (fechaHoy.getTime() - fechaTomaDate.getTime()) / 86400000);
+                                n.pesoEstimado = Math.round((pesoNum + (dias * 0.0065)) * 10) / 10;
+                                n.tallaEstimado = Math.round((tallaNum + (dias * 0.022)) * 10) / 10;
                             }
-
-                            if (!n.pesoEstimado && !isNaN(pesoNum)) n.pesoEstimado = pesoNum;
-                            if (!n.tallaEstimado && !isNaN(tallaNum)) n.tallaEstimado = tallaNum;
                         }
+
+                        if (!n.pesoEstimado && !isNaN(pesoNum)) n.pesoEstimado = pesoNum;
+                        if (!n.tallaEstimado && !isNaN(tallaNum)) n.tallaEstimado = tallaNum;
                     });
 
                     const partesNinos = [];
@@ -233,7 +315,7 @@ async function main() {
 
                     const totalPartes = partesNinos.length;
                     const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de máx 13 niños` : '';
-                    console.log(`  ${i + 1}/${udsAProcesar.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' niños')}${descPartes})`);
+                    console.log(`  ${i + 1}/${listaUds.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' niños')}${descPartes})`);
 
                     for (let p = 0; p < totalPartes; p++) {
                         const ninosChunk = partesNinos[p];
@@ -257,18 +339,18 @@ async function main() {
                         await wbPrellenado.xlsx.writeFile(pathDocs);
                         await wbPrellenado.xlsx.writeFile(pathReportes);
 
-                        console.log(c.gris(`     -> Guardado (Estimación en Cols U, V, W): docs/peso y talla/${fileBaseName}`));
+                        console.log(c.gris(`     -> Guardado (Estimación a hoy en Cols U, V, W): docs/peso y talla/${fileBaseName}`));
                     }
                 }
 
-                console.log(c.verde('\n  🎉 ¡Formatos con Estimación de Peso y Talla (a hoy) generados exitosamente!'));
+                console.log(c.verde('\n  🎉 ¡Formato con Estimación de Peso y Talla (a hoy) generado exitosamente!'));
             }
         } catch (err) {
-            console.log(c.rojo(`\n  ❌ Error procesando el archivo: ${err.message}`));
+            console.log(c.rojo(`\n  ❌ Error: ${err.message}`));
         }
 
         console.log(c.cyan('\n======================================================'));
-        const respFinal = readline.question(c.negrita('  > ¿Deseas procesar otro archivo Excel? (s = Si, n = Volver al panel principal) [por defecto n]: '));
+        const respFinal = readline.question(c.negrita('  > ¿Deseas procesar otro archivo de Formato de Peso y Talla? (s = Si, n = Volver al panel principal) [por defecto n]: '));
         if (respFinal.toLowerCase().trim() !== 's') {
             console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
             break;
