@@ -148,6 +148,7 @@ async function main() {
             { nombre: 'Seguimiento Nutricional (Peso y Talla)', archivo: 'peso-talla.js' },
             { nombre: 'Comparar Activos vs Nutrición (Faltantes)', archivo: 'comparar-nutricion.js' },
             { nombre: 'Pre-llenar Formatos para Madres (Peso y Talla)', archivo: 'prellenar-formatos.js' },
+            { nombre: 'Estimar Peso y Talla Ideal a Fecha de Hoy (Cols U, V, W)', archivo: 'estimar-peso-talla.js' },
             { nombre: 'Formación a Familias', archivo: 'formacion-familias.js' },
             { nombre: 'Generar Cuentas de Cobro', archivo: 'generar-cuentas-cobro.js' },
             { nombre: 'Vinculación Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },
