@@ -84,9 +84,35 @@ function normalizarFecha(val) {
     return str;
 }
 
+function parseFechaTimestamp(val) {
+    if (!val) return 0;
+    if (typeof val === 'number') {
+        const dateObj = xlsx.SSF.parse_date_code(val);
+        if (dateObj) {
+            return new Date(dateObj.y, dateObj.m - 1, dateObj.d).getTime();
+        }
+    }
+    const str = String(val).trim();
+    const parts = str.split(/[\/-]/);
+    if (parts.length === 3) {
+        let d = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        let y = parseInt(parts[2], 10);
+        if (parts[0].length === 4) { // YYYY-MM-DD
+            y = parseInt(parts[0], 10);
+            m = parseInt(parts[1], 10);
+            d = parseInt(parts[2], 10);
+        }
+        if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+            return new Date(y, m - 1, d).getTime();
+        }
+    }
+    return 0;
+}
+
 function detectarMapaColumnas(headers) {
     const mapa = {
-        eas: -1,             // La EAS se extrae del encabezado global E2/E3, no de las filas de datos
+        eas: -1,             // La EAS se extrae del encabezado global E2/E3
         uds: 6,              // Col G
         documento: 10,       // Col K
         pApellido: 11,       // Col L
@@ -96,6 +122,10 @@ function detectarMapaColumnas(headers) {
         sexo: -1,
         fechaNacimiento: 17, // Col R
         fechaIngreso: 18,    // Col S
+        fechaToma: 19,       // Col T (H15 en formato salida)
+        perimetro: 37,       // Col AL (K15 en formato salida)
+        peso: 43,            // Col AR (I15 en formato salida)
+        talla: 44,           // Col AS (J15 en formato salida)
         estado: 65           // Col BN (Index 65)
     };
 
@@ -122,6 +152,14 @@ function detectarMapaColumnas(headers) {
             mapa.sexo = idx;
         } else if (clean.includes('ESTADO BENEFICIARIO') || clean.includes('ESTADO')) {
             mapa.estado = idx;
+        } else if (clean.includes('FECHA TOMA') || clean.includes('FECHA VALORACION') || clean.includes('FECHA DE LA TOMA') || clean.includes('FECHA EVALUACION')) {
+            mapa.fechaToma = idx;
+        } else if (clean.includes('PERIMETRO') || clean.includes('BRAQUIAL')) {
+            mapa.perimetro = idx;
+        } else if (clean.includes('PESO')) {
+            mapa.peso = idx;
+        } else if (clean.includes('TALLA') || clean.includes('ESTATURA')) {
+            mapa.talla = idx;
         }
     });
 
@@ -293,36 +331,49 @@ function parsearReporteNutricional(rutaArchivo) {
             };
         }
 
-        // CONTROL DE DUPLICADOS: Evitar repetir al mismo niño sin importar cuántos seguimientos/tomas tenga en el reporte
-        const yaExisteEnUds = agrupadoPorUds[nombreUds].ninos.some(n => {
-            if (docNorm && n.documento === docNorm) return true;
-            if (n.nombres === nombres && n.apellidos === apellidos) return true;
-            return false;
-        });
+        const fechaTomaRaw = mapa.fechaToma !== -1 && row[mapa.fechaToma] !== undefined ? row[mapa.fechaToma] : '';
+        const fechaTomaFormatted = normalizarFecha(fechaTomaRaw);
+        const fechaTomaTs = parseFechaTimestamp(fechaTomaRaw);
 
-        if (!yaExisteEnUds) {
+        const pesoRaw = mapa.peso !== -1 && row[mapa.peso] !== undefined ? row[mapa.peso] : '';
+        const tallaRaw = mapa.talla !== -1 && row[mapa.talla] !== undefined ? row[mapa.talla] : '';
+        const perimetroRaw = mapa.perimetro !== -1 && row[mapa.perimetro] !== undefined ? row[mapa.perimetro] : '';
+
+        const ninoExistente = agrupadoPorUds[nombreUds].ninos.find(n => (docNorm && n.documento === docNorm) || (n.nombres === nombres && n.apellidos === apellidos));
+
+        if (!ninoExistente) {
             agrupadoPorUds[nombreUds].ninos.push({
                 documento: docNorm,
                 nombres: nombres || 'N/A',
                 apellidos: apellidos || 'N/A',
                 sexo: sexoCod,
                 fechaNacimiento,
-                fechaIngreso
+                fechaIngreso,
+                fechaToma: fechaTomaFormatted,
+                fechaTomaTs: fechaTomaTs,
+                peso: pesoRaw !== '' ? String(pesoRaw).trim() : '',
+                talla: tallaRaw !== '' ? String(tallaRaw).trim() : '',
+                perimetro: perimetroRaw !== '' ? String(perimetroRaw).trim() : ''
             });
         } else {
-            // Si ya existe por una toma anterior, complementar fechas si estaban vacías
-            const ninoExistente = agrupadoPorUds[nombreUds].ninos.find(n => (docNorm && n.documento === docNorm) || (n.nombres === nombres && n.apellidos === apellidos));
-            if (ninoExistente) {
-                if (!ninoExistente.fechaNacimiento && fechaNacimiento) ninoExistente.fechaNacimiento = fechaNacimiento;
-                if (!ninoExistente.fechaIngreso && fechaIngreso) ninoExistente.fechaIngreso = fechaIngreso;
+            // Si el niño ya existe, comparar si la nueva toma es MÁS RECIENTE
+            if (fechaTomaTs > (ninoExistente.fechaTomaTs || 0)) {
+                ninoExistente.fechaToma = fechaTomaFormatted;
+                ninoExistente.fechaTomaTs = fechaTomaTs;
+                if (pesoRaw !== '') ninoExistente.peso = String(pesoRaw).trim();
+                if (tallaRaw !== '') ninoExistente.talla = String(tallaRaw).trim();
+                if (perimetroRaw !== '') ninoExistente.perimetro = String(perimetroRaw).trim();
             }
+
+            if (!ninoExistente.fechaNacimiento && fechaNacimiento) ninoExistente.fechaNacimiento = fechaNacimiento;
+            if (!ninoExistente.fechaIngreso && fechaIngreso) ninoExistente.fechaIngreso = fechaIngreso;
         }
     }
 
     return agrupadoPorUds;
 }
 
-async function generarFormatoPesoYTallaUds(datosUds, plantillaPath) {
+async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutricion = false) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(plantillaPath);
     const worksheet = workbook.getWorksheet(1);
@@ -359,9 +410,21 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath) {
         row.getCell(6).value = nino.fechaNacimiento;   // F: FECHA DE NACIMIENTO (dd/mm/aaaa)
         row.getCell(7).value = nino.fechaIngreso;      // G: FECHA DE INGRESO AL SERVICIO (dd/mm/aaaa)
 
-        // Cols H a AE (8 a 31) se dejan en blanco para el diligenciamiento de la Madre Comunitaria
-        for (let cCol = 8; cCol <= 31; cCol++) {
-            row.getCell(cCol).value = null;
+        if (incluirNutricion) {
+            row.getCell(8).value = nino.fechaToma || '';  // H: FECHA DE LA TOMA (La más reciente)
+            row.getCell(9).value = nino.peso || '';       // I: PESO (Kg)
+            row.getCell(10).value = nino.talla || '';     // J: TALLA (cm)
+            row.getCell(11).value = nino.perimetro || ''; // K: PERIMETRO BRAQUIAL (cm)
+
+            // Cols L a AE (12 a 31) se dejan en blanco para las Madres Comunitarias
+            for (let cCol = 12; cCol <= 31; cCol++) {
+                row.getCell(cCol).value = null;
+            }
+        } else {
+            // Cols H a AE (8 a 31) se dejan en blanco totalmente
+            for (let cCol = 8; cCol <= 31; cCol++) {
+                row.getCell(cCol).value = null;
+            }
         }
 
         row.commit();
@@ -414,6 +477,19 @@ async function main() {
                     const count = agrupado[nombreUds].ninos.length;
                     console.log(`  ${c.cyan(idx + 1)}. ${nombreUds} (${c.verde(count + ' niños activos')})`);
                 });
+
+                console.log(c.cyan('\n  📋 Selecciona el modo de diligenciamiento del formato:'));
+                console.log(c.amarillo('    1. Pre-llenar SOLO datos básicos (dejar casillas de peso/talla totalmente en blanco)'));
+                console.log(c.amarillo('    2. Pre-llenar datos básicos + ÚLTIMA toma nutricional anterior (Fecha, Peso, Talla, Perímetro)\n'));
+
+                const modoNutricionRaw = readline.question(c.negrita('  > Elige el modo (1 o 2) [1]: ')).trim();
+                const incluirNutricion = modoNutricionRaw === '2';
+
+                if (incluirNutricion) {
+                    console.log(c.verde('  ✅ Modo Seleccionado: Se pre-llenarán los datos de la ÚLTIMA toma nutricional anterior (H15, I15, J15, K15).'));
+                } else {
+                    console.log(c.verde('  ✅ Modo Seleccionado: Las casillas nutricionales se dejarán totalmente en blanco.'));
+                }
 
                 console.log(c.cyan('\n  📋 Selecciona qué jardines deseas procesar:'));
                 console.log(c.gris('  - Presiona ENTER (o 0) para procesar TODOS los jardines.'));
@@ -476,7 +552,7 @@ async function main() {
                             ninos: ninosChunk
                         };
 
-                        const wbPrellenado = await generarFormatoPesoYTallaUds(datosSubUds, plantillaPath);
+                        const wbPrellenado = await generarFormatoPesoYTallaUds(datosSubUds, plantillaPath, incluirNutricion);
                         const nombreClean = limpiarNombreArchivo(nombreUds);
                         const sufijoParte = totalPartes > 1 ? `_Parte${numParte}` : '';
                         const fileBaseName = `Formato_Peso_Talla_${nombreClean}${sufijoParte}_${fechaHoy}.xlsx`;
