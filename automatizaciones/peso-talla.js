@@ -260,49 +260,100 @@ function calcularSimilitudTexto(str1, str2) {
     return 1 - (dist / maxLen);
 }
 
-function buscarCoincidenciaPorNombre(ninoTarget, listaNinos) {
-    if (!ninoTarget || !ninoTarget.nombreCompleto) return null;
+function normalizarDoc(val) {
+    if (val === undefined || val === null) return '';
+    return String(val).replace(/[^a-zA-Z0-9]/g, '').trim().toUpperCase();
+}
+
+function extraerNombresYApellidos(nombreCompleto) {
+    if (!nombreCompleto) return { nombres: '', apellidos: '' };
+    const clean = removeAccents(nombreCompleto).trim().toUpperCase();
+    const parts = clean.split(/\s+/).filter(p => p.length > 0);
     
-    // 1. Coincidencia directa por Apellidos (si son únicos en la UDS)
-    if (ninoTarget.apellidos && ninoTarget.apellidos.trim().length >= 4) {
-        const cleanApellidos = removeAccents(ninoTarget.apellidos);
-        const porApellidos = listaNinos.filter(n => removeAccents(n.nombreCompleto).includes(cleanApellidos));
-        if (porApellidos.length === 1) {
-            console.log(c.verde(`  ✨ Coincidencia única por Apellidos ("${ninoTarget.apellidos}"): ${porApellidos[0].nombreCompleto}`));
-            return porApellidos[0];
+    if (parts.length <= 1) {
+        return { nombres: clean, apellidos: '' };
+    } else if (parts.length === 2) {
+        return { nombres: parts[0], apellidos: parts[1] };
+    } else if (parts.length === 3) {
+        return { nombres: parts[0], apellidos: `${parts[1]} ${parts[2]}` };
+    } else {
+        const mitad = Math.floor(parts.length / 2);
+        return {
+            nombres: parts.slice(0, mitad).join(' '),
+            apellidos: parts.slice(mitad).join(' ')
+        };
+    }
+}
+
+function buscarCoincidenciaSegura(ninoTarget, listaNinos) {
+    if (!ninoTarget) return null;
+
+    // 1. PASO 1: CONFIRMAR PRIMERO POR DOCUMENTO (Normalized Document Match)
+    const docTargetNorm = normalizarDoc(ninoTarget.documento);
+    if (docTargetNorm && docTargetNorm.length >= 3) {
+        const porDoc = listaNinos.find(n => {
+            const docCuentameNorm = normalizarDoc(n.documento);
+            return docCuentameNorm === docTargetNorm || (docCuentameNorm.length >= 6 && docTargetNorm.length >= 6 && (docCuentameNorm.includes(docTargetNorm) || docTargetNorm.includes(docCuentameNorm)));
+        });
+        if (porDoc) {
+            return { nino: porDoc, metodo: 'DOCUMENTO' };
         }
     }
 
-    // 2. Coincidencia Fuzzy / Tokens con tolerancia a errores ortográficos (JANSEHELL vs JANSHELL)
-    const cleanTarget = removeAccents(ninoTarget.nombreCompleto);
-    const tokensTarget = cleanTarget.split(/\s+/).filter(t => t.length > 2);
-    
-    if (tokensTarget.length === 0) return null;
+    // Extraer Nombres y Apellidos
+    const infoNombre = extraerNombresYApellidos(ninoTarget.nombreCompleto);
+    const nombresTarget = ninoTarget.nombres ? removeAccents(ninoTarget.nombres).toUpperCase() : infoNombre.nombres;
+    const apellidosTarget = ninoTarget.apellidos ? removeAccents(ninoTarget.apellidos).toUpperCase() : infoNombre.apellidos;
 
-    let mejorCoincidencia = null;
-    let maxPuntos = 0;
+    const tokensApellidos = apellidosTarget.split(/\s+/).filter(t => t.length > 1);
 
-    for (const nino of listaNinos) {
-        const cleanCuentame = removeAccents(nino.nombreCompleto);
-        const tokensCuentame = cleanCuentame.split(/\s+/).filter(t => t.length > 2);
-        
-        let coincidenciaCount = 0;
-        for (const token of tokensTarget) {
-            const tokenMatch = tokensCuentame.some(tC => {
-                if (tC.includes(token) || token.includes(tC)) return true;
-                return calcularSimilitudTexto(token, tC) >= 0.75;
+    // 2. PASO 2: CONFIRMAR DESPUÉS POR APELLIDOS (Match by Last Names)
+    if (tokensApellidos.length > 0) {
+        const candidatosPorApellido = listaNinos.filter(n => {
+            const nombreCuentame = removeAccents(n.nombreCompleto).toUpperCase();
+            return tokensApellidos.every(ape => nombreCuentame.includes(ape));
+        });
+
+        if (candidatosPorApellido.length === 1) {
+            return { nino: candidatosPorApellido[0], metodo: 'APELLIDOS' };
+        }
+
+        // 3. PASO 3: SI HAY VARIOS CON EL MISMO APELLIDO, DESAMBIGUAR FINALMENTE POR NOMBRE
+        if (candidatosPorApellido.length > 1) {
+            const tokensNombres = nombresTarget.split(/\s+/).filter(t => t.length > 1);
+            if (tokensNombres.length > 0) {
+                const candidatoPorNombre = candidatosPorApellido.find(n => {
+                    const nombreCuentame = removeAccents(n.nombreCompleto).toUpperCase();
+                    return tokensNombres.some(nom => nombreCuentame.includes(nom));
+                });
+                if (candidatoPorNombre) {
+                    return { nino: candidatoPorNombre, metodo: 'APELLIDOS_Y_NOMBRE' };
+                }
+            }
+            return { nino: candidatosPorApellido[0], metodo: 'APELLIDOS' };
+        }
+    }
+
+    // Fallback: Probar coincidencia por primer apellido
+    if (tokensApellidos.length > 0) {
+        const primerApellido = tokensApellidos[0];
+        const candidatosPrimerApe = listaNinos.filter(n => removeAccents(n.nombreCompleto).toUpperCase().includes(primerApellido));
+
+        if (candidatosPrimerApe.length === 1) {
+            return { nino: candidatosPrimerApe[0], metodo: 'PRIMER_APELLIDO' };
+        } else if (candidatosPrimerApe.length > 1) {
+            const tokensNombres = nombresTarget.split(/\s+/).filter(t => t.length > 1);
+            const candidatoPorNombre = candidatosPrimerApe.find(n => {
+                const nombreCuentame = removeAccents(n.nombreCompleto).toUpperCase();
+                return tokensNombres.some(nom => nombreCuentame.includes(nom));
             });
-            if (tokenMatch) coincidenciaCount++;
-        }
-
-        const minRequerido = Math.min(2, tokensTarget.length);
-        if (coincidenciaCount >= minRequerido && coincidenciaCount > maxPuntos) {
-            maxPuntos = coincidenciaCount;
-            mejorCoincidencia = nino;
+            if (candidatoPorNombre) {
+                return { nino: candidatoPorNombre, metodo: 'PRIMER_APELLIDO_Y_NOMBRE' };
+            }
         }
     }
 
-    return mejorCoincidencia;
+    return null;
 }
 
 async function main() {
@@ -984,41 +1035,45 @@ async function main() {
           if (isNum && !isNaN(numParsed) && numParsed > 0 && numParsed <= listaNinos.length) {
               ninoSeleccionado = listaNinos[numParsed - 1];
           } else {
-              const busqueda = input.trim().toLowerCase();
-              const resultados = listaNinos.filter(n => 
-                  n.documento.includes(busqueda) || 
-                  n.nombreCompleto.toLowerCase().includes(busqueda)
-              );
-              
-              if (resultados.length === 1) {
-                  ninoSeleccionado = resultados[0];
-              } else if (resultados.length > 1) {
-                  if (preFiltroBeneficiario) {
-                      console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para la busqueda automatica "${input}".`));
-                      preFiltroBeneficiario = null;
-                  } else {
-                      console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para "${input}":`));
-                  }
+              const busquedaNorm = normalizarDoc(input);
+              const busquedaTexto = removeAccents(input).toUpperCase();
+
+              // Si venimos de Excel, aplicar validación jerárquica estricta:
+              // 1. Documento exacto -> 2. Apellidos -> 3. Nombre
+              let coincidenciaModoExcel = null;
+              if (modoExcel && modoExcel.startsWith('MASIVO_') && ninosExcel[idxNinoExcelActual]) {
+                  coincidenciaModoExcel = buscarCoincidenciaSegura(ninosExcel[idxNinoExcelActual], listaNinos);
+              }
+
+              if (coincidenciaModoExcel) {
+                  ninoSeleccionado = coincidenciaModoExcel.nino;
+                  console.log(c.verde(`  ✅ Niño identificado en Cuéntame (por ${coincidenciaModoExcel.metodo}): ${c.cyan(ninoSeleccionado.documento)} - ${ninoSeleccionado.nombreCompleto}`));
+              } else {
+                  const resultados = listaNinos.filter(n => 
+                      (busquedaNorm.length >= 3 && normalizarDoc(n.documento).includes(busquedaNorm)) || 
+                      removeAccents(n.nombreCompleto).toUpperCase().includes(busquedaTexto)
+                  );
                   
-                  resultados.forEach(n => {
-                      console.log(`  ${n.index + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto}`);
-                  });
-                  const res = readline.question(c.negrita('  > Ingresa el numero de la lista para seleccionar uno: '));
-                  const nP = parseInt(res.trim(), 10);
-                  if (!isNaN(nP) && nP > 0 && nP <= listaNinos.length) {
-                      ninoSeleccionado = listaNinos[nP - 1];
-                  } else {
-                      continue;
-                  }
-              } else if (resultados.length === 0 && modoExcel && modoExcel.startsWith('MASIVO_')) {
-                  const ninoTarget = ninosExcel[idxNinoExcelActual];
-                  const ninoPorNombre = buscarCoincidenciaPorNombre(ninoTarget, listaNinos);
-                  if (ninoPorNombre) {
-                      console.log(c.amarillo(`  ⚠️ Documento "${input}" no se encontró en Cuéntame (posible error de digitación).`));
-                      console.log(c.verde(`  ✨ Coincidencia encontrada por Nombre/Apellido:`));
-                      console.log(c.verde(`     - Nombre Excel: ${ninoTarget.nombreCompleto}`));
-                      console.log(c.verde(`     - Niño en Cuéntame: ${c.cyan(ninoPorNombre.documento)} - ${ninoPorNombre.nombreCompleto}`));
-                      ninoSeleccionado = ninoPorNombre;
+                  if (resultados.length === 1) {
+                      ninoSeleccionado = resultados[0];
+                  } else if (resultados.length > 1) {
+                      if (preFiltroBeneficiario) {
+                          console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para la búsqueda automática "${input}".`));
+                          preFiltroBeneficiario = null;
+                      } else {
+                          console.log(c.amarillo(`  ⚠️ Hay ${resultados.length} coincidencias para "${input}":`));
+                      }
+                      
+                      resultados.forEach(n => {
+                          console.log(`  ${n.index + 1}. ${c.cyan(n.documento)} - ${n.nombreCompleto}`);
+                      });
+                      const res = readline.question(c.negrita('  > Ingresa el numero de la lista para seleccionar uno: '));
+                      const nP = parseInt(res.trim(), 10);
+                      if (!isNaN(nP) && nP > 0 && nP <= listaNinos.length) {
+                          ninoSeleccionado = listaNinos[nP - 1];
+                      } else {
+                          continue;
+                      }
                   }
               }
           }
