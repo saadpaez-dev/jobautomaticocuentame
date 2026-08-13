@@ -125,37 +125,68 @@ function parsearReporteNutricional(rutaArchivo) {
         throw new Error('El archivo Excel está vacío.');
     }
 
-    // Extraer el Nombre de la Asociación (EAS) de las celdas superiores del reporte (E2, E3, E1, E4)
+    // Extraer el Nombre de la Asociación (EAS) dinámicamente de las celdas superiores del reporte (filas 1 a 15)
     let easGlobal = '';
+
+    // 1. Probar celdas habituales de cabecera (E2, E3, C2, C3, D2, D3, B2, B3, A2, A3)
     const candidatosCeldasHeader = [
         rows[1]?.[4], // E2 (Row index 1, Col index 4)
         rows[2]?.[4], // E3 (Row index 2, Col index 4)
-        rows[0]?.[4], // E1
-        rows[3]?.[4], // E4
+        rows[1]?.[2], // C2
+        rows[2]?.[2], // C3
+        rows[1]?.[3], // D2
+        rows[2]?.[3], // D3
+        rows[1]?.[1], // B2
+        rows[2]?.[1], // B3
         rows[1]?.[0], // A2
         rows[2]?.[0]  // A3
     ];
 
     for (const valRaw of candidatosCeldasHeader) {
-        if (valRaw) {
-            const val = String(valRaw).trim();
-            if (val.length > 5 && !val.toUpperCase().includes('DESNUTRICION') && !val.toUpperCase().includes('DIAGNOSTICO') && !val.toUpperCase().includes('PESO')) {
-                easGlobal = val.toUpperCase();
-                break;
-            }
+        if (!valRaw) continue;
+        const val = String(valRaw).trim();
+        const uVal = removeAccents(val).toUpperCase();
+
+        if (val.length > 5 && 
+            !uVal.includes('DESNUTRICION') && 
+            !uVal.includes('DIAGNOSTICO') && 
+            !uVal.includes('PESO') && 
+            !uVal.includes('REPORTE') && 
+            !uVal.includes('FECHA') && 
+            !uVal.includes('DOCUMENTO') &&
+            !uVal.includes('ENTIDAD CONTRATISTA')) {
+            easGlobal = val.toUpperCase();
+            break;
         }
     }
 
-    // Si no se encontró en E2/E3, buscar en cualquier celda de las primeras 10 filas que contenga "ASOCIACION" o "HOGARES"
+    // 2. Si no se encontró en las celdas directas, escanear todas las celdas de las primeras 15 filas
     if (!easGlobal) {
-        for (let r = 0; r < Math.min(10, rows.length); r++) {
+        for (let r = 0; r < Math.min(15, rows.length); r++) {
             if (!rows[r]) continue;
-            for (let cCol = 0; cCol < Math.min(15, rows[r].length); cCol++) {
+            for (let cCol = 0; cCol < Math.min(20, rows[r].length); cCol++) {
                 const val = String(rows[r][cCol] || '').trim();
-                const uVal = val.toUpperCase();
-                if (uVal.includes('ASOCIACION') || uVal.includes('HOGARES') || uVal.includes('BARRIOS UNIDOS')) {
-                    easGlobal = uVal;
-                    break;
+                const uVal = removeAccents(val).toUpperCase();
+
+                if (uVal.includes('ASOCIACION') || 
+                    uVal.includes('FUNDACION') || 
+                    uVal.includes('CORPORACION') || 
+                    uVal.includes('HOGARES') || 
+                    uVal.includes('ENTIDAD') || 
+                    uVal.includes('CONTRATISTA') || 
+                    uVal.includes('AGRUPACION') || 
+                    uVal.startsWith('ASO')) {
+
+                    if (uVal.endsWith(':') || uVal.includes('NOMBRE ENTIDAD')) {
+                        const valDerecha = String(rows[r][cCol + 1] || rows[r + 1]?.[cCol] || '').trim();
+                        if (valDerecha && valDerecha.length > 4) {
+                            easGlobal = valDerecha.toUpperCase();
+                            break;
+                        }
+                    } else if (val.length > 5) {
+                        easGlobal = val.toUpperCase();
+                        break;
+                    }
                 }
             }
             if (easGlobal) break;
@@ -163,7 +194,7 @@ function parsearReporteNutricional(rutaArchivo) {
     }
 
     if (!easGlobal) {
-        easGlobal = 'ASOCIACION PADRES USUARIOS DE LOS HOGARES DEL BIENESTAR BARRIOS UNIDOS DEL NORTE DE SAN CRISTOBAL';
+        easGlobal = 'ASOCIACION DE PADRES DE FAMILIA';
     }
 
     // Buscar fila de encabezados
