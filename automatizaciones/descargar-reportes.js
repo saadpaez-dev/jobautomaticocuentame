@@ -501,39 +501,68 @@ async function main() {
             reportFrame = await obtenerReportFrame(reportPage);
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
 
-            // 1. Area Misional
-            const okArea = await seleccionarSSRSByLabel('Area Misional', 'PRIMERA INFANCIA');
-            if (!okArea) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Direccion de Primera Infancia');
-            
-            // 2. Regional
-            const okReg = await seleccionarSSRSByLabel('Regional', 'BOGOTA');
-            if (!okReg) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
+            // Helper para esperar el postback de ASP.NET nativo
+            const esperarPostbackYAccion = async (fnAccion) => {
+                const postPromise = reportPage.waitForResponse(
+                    resp => resp.request().method() === 'POST' && resp.status() === 200,
+                    { timeout: 15000 }
+                ).catch(() => {});
+                await fnAccion();
+                await postPromise;
+                await reportPage.waitForTimeout(2000);
+            };
 
-            // 3. Centro Zonal
-            const okCZ = await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
-            if (!okCZ) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
+            console.log(c.amarillo('  ⏳ Aplicando filtro 1: Area Misional -> "Dirección de Primera Infancia"...'));
+            await esperarPostbackYAccion(async () => {
+                const ok = await seleccionarSSRSByLabel('Area Misional', 'Dirección de Primera Infancia');
+                if (!ok) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
+            });
+            
+            console.log(c.amarillo('  ⏳ Aplicando filtro 2: Regional -> "Bogota D.C."...'));
+            await esperarPostbackYAccion(async () => {
+                const ok = await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
+                if (!ok) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
+            });
 
-            // 4. Municipio
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
-            
-            // 5. Ano de Toma
-            const okAnio = await seleccionarSSRSByLabel('Ano de Toma', '2026');
-            if (!okAnio) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
-            
-            // 6. Entidad Contratista
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', asc.nombreCorto);
-            await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
-            
-            // 7. Periodo Toma
-            const okPer = await seleccionarSSRSByLabel('Periodo Toma', 'Mensual');
-            if (!okPer) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 'Mensual');
+            console.log(c.amarillo('  ⏳ Aplicando filtro 3: Centro Zonal -> "CZ USAQUEN"...'));
+            await esperarPostbackYAccion(async () => {
+                const ok = await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
+                if (!ok) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
+            });
 
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Select All)');
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
+            console.log(c.amarillo('  ⏳ Aplicando filtro 4: Municipio -> "Bogota, D.C."...'));
+            await esperarPostbackYAccion(async () => {
+                await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
+            });
             
-            // 8. TODAS LAS TOMAS
-            const okTodas = await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO');
-            if (!okTodas) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
+            console.log(c.amarillo('  ⏳ Aplicando filtro 5: Ano de Toma -> "2026"...'));
+            await esperarPostbackYAccion(async () => {
+                const ok = await seleccionarSSRSByLabel('Año de Toma', '2026');
+                if (!ok) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
+            });
+            
+            console.log(c.amarillo(`  ⏳ Aplicando filtro 6: Entidad Contratista -> "${asc.nombreCorto}"...`));
+            await esperarPostbackYAccion(async () => {
+                await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', asc.nombreCorto);
+                await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
+            });
+            
+            console.log(c.amarillo('  ⏳ Aplicando filtro 7: Periodo Toma -> "Mensual"...'));
+            await esperarPostbackYAccion(async () => {
+                const ok = await seleccionarSSRSByLabel('Periodo Toma', 'Mensual');
+                if (!ok) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 'Mensual');
+            });
+
+            await esperarPostbackYAccion(async () => {
+                await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Select All)');
+                await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
+            });
+            
+            console.log(c.amarillo('  ⏳ Aplicando filtro 8: TODAS LAS TOMAS -> "NO"...'));
+            await esperarPostbackYAccion(async () => {
+                const ok = await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO');
+                if (!ok) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
+            });
         } else if (opcionReporte === 3 || opcionReporte === 4) {
             const reportName = opcionReporte === 3 ? "Informe de registro asistencia mensual" : "Unidades de servicio";
             console.log(`  🚀 Navegando a ${reportName}...\n`);
