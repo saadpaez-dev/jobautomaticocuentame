@@ -1859,7 +1859,6 @@ async function main() {
               console.log(c.rojo(`  ❌ Error al abrir formulario del nino: ${err.message}`));
           }
       }
-    }
   } catch (err) {
     console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
   } finally {
