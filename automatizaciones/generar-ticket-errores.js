@@ -53,6 +53,184 @@ async function convertirImagenOConplanarPdf(rutaInput, rutaSalidaPdf) {
     return rutaInput;
 }
 
+async function generarTicketExcelLimpio({
+    mapTiposInversos,
+    tipoDocReal,
+    numDocReal,
+    pNombreReal,
+    sNombreReal,
+    pApellidoReal,
+    sApellidoReal,
+    fechaNacReal,
+    sexoReal,
+    deptoNacReal,
+    muniNacReal,
+    datosCuentame,
+    observacion
+}) {
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const masterExcelPath = path.join(__dirname, '..', 'docs', 'f4.m3.pp_formato_cambio_datos_basicos_personas_v5.xlsx');
+    
+    await workbook.xlsx.readFile(masterExcelPath);
+    const sheet = workbook.worksheets[0];
+
+    // Limpiar todas las filas de datos anteriores (de la fila 6 a la 100)
+    for (let r = 6; r <= 100; r++) {
+        const rowClear = sheet.getRow(r);
+        for (let c = 1; c <= 30; c++) {
+            rowClear.getCell(c).value = null;
+        }
+        rowClear.commit();
+    }
+
+    // Escribir el ticket estrictamente en la Fila 6 (Limpio para esta persona)
+    const row = sheet.getRow(6);
+    row.getCell(3).value = mapTiposInversos[tipoDocReal]; // C
+    row.getCell(4).value = numDocReal; // D
+    row.getCell(5).value = pNombreReal; // E
+    row.getCell(6).value = sNombreReal; // F
+    row.getCell(7).value = pApellidoReal; // G
+    row.getCell(8).value = sApellidoReal; // H
+    row.getCell(9).value = fechaNacReal; // I
+    row.getCell(10).value = sexoReal; // J
+    row.getCell(11).value = 'COLOMBIA'; // K
+    row.getCell(12).value = deptoNacReal; // L (Departamento Nacimiento Real)
+    row.getCell(13).value = muniNacReal; // M (Municipio Nacimiento Real)
+
+    row.getCell(14).value = datosCuentame.tipoDocCod; // N
+    row.getCell(15).value = datosCuentame.numDoc; // O
+    row.getCell(16).value = datosCuentame.primerNombre; // P
+    row.getCell(17).value = datosCuentame.segundoNombre; // Q
+    row.getCell(18).value = datosCuentame.primerApellido; // R
+    row.getCell(19).value = datosCuentame.segundoApellido; // S
+    row.getCell(20).value = datosCuentame.fechaNacimiento; // T
+    row.getCell(21).value = (datosCuentame.sexo || '').toUpperCase(); // U
+    row.getCell(22).value = (datosCuentame.pais || 'COLOMBIA').toUpperCase(); // V
+    row.getCell(23).value = (datosCuentame.departamento || '').toUpperCase(); // W
+    row.getCell(24).value = (datosCuentame.municipio || '').toUpperCase(); // X
+
+    row.getCell(25).value = 'Error en Diligenciamiento de Datos Basicos'; // Y
+    row.getCell(28).value = observacion; // AB
+
+    row.commit();
+
+    const scratchDir = path.join(__dirname, '..', 'scratch');
+    if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
+    const singleExcelPath = path.join(scratchDir, `f4.m3.pp_formato_cambio_datos_basicos_personas_${numDocReal}.xlsx`);
+    await workbook.xlsx.writeFile(singleExcelPath);
+
+    // Intentar refrescar la plantilla limpia en docs/ si no esta bloqueada por Excel
+    try {
+        await workbook.xlsx.writeFile(masterExcelPath);
+    } catch(e) {}
+
+    return singleExcelPath;
+}
+
+async function procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPath }) {
+    console.log(c.cyan('\n  📧 GENERACION DE CORREO Y ADJUNTOS'));
+    const armarCorreoResp = readline.question(c.negrita('  > Deseas armar/enviar el correo de ticket a la Regional? (s/n) [por defecto s]: ')).trim().toLowerCase();
+
+    if (armarCorreoResp === 's' || armarCorreoResp === 'si' || armarCorreoResp === '') {
+        console.log(c.cyan('\n  📄 Documento de Soporte Fisico (Registro Civil, TI o Cedula):'));
+        console.log(c.gris('     • Puedes arrastrar un PDF o una Imagen (.jpg, .jpeg, .png).'));
+        console.log(c.gris('     • Si es una imagen, se convertira AUTOMATICAMENTE a PDF.\n'));
+
+        const docInputRaw = readline.question(c.negrita('  > Arrastra el documento de soporte (o 0 para omitir adjunto): ')).trim();
+        const docInput = docInputRaw.replace(/^["']|["']$/g, '');
+
+        let rutaPdfAdjunto = null;
+        if (docInput !== '0' && docInput !== '') {
+            const resolvedDoc = resolverRutaConEspeciales(docInput);
+            if (fs.existsSync(resolvedDoc)) {
+                const scratchDir = path.join(__dirname, '..', 'scratch');
+                if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
+                const tempPdfPath = path.join(scratchDir, `DOCUMENTO_${numDocReal}.pdf`);
+
+                try {
+                    rutaPdfAdjunto = await convertirImagenOConplanarPdf(resolvedDoc, tempPdfPath);
+                } catch (e) {
+                    console.log(c.rojo(`  ❌ Error procesando el archivo de soporte: ${e.message}`));
+                }
+            } else {
+                console.log(c.amarillo(`  ⚠️ No se encontro el archivo: ${docInput}`));
+            }
+        }
+
+        const cuerpoCorreoHtml = `<p>
+<b>Nit:</b> ${ascSeleccionada.nit || ''}<br>
+<b>Nombre del EAS que requiere el ajuste:</b> ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}<br>
+<b>Numero de Contrato:</b> ${ascSeleccionada.numeroContrato || ''}<br>
+<b>Nombre de la persona que pone el caso:</b> SAAD PAEZ<br>
+<b>Numero de Identificacion:</b> 1020722462<br>
+<b>Numero de contacto:</b> 3202002073<br>
+<b>Area Misional si aplica:</b> Primera Infancia<br>
+<b>Regional y Centro Zonal:</b> BOGOTA, CZ USAQUEN
+</p>
+<p>
+<i>Atte</i><br><br>
+<i>SAAD PAEZ</i><br>
+<i>Tel: 3202002073</i>
+</p>`;
+
+        const attachments = [
+            {
+                filename: 'f4.m3.pp_formato_cambio_datos_basicos_personas_v5.xlsx',
+                path: excelPath
+            }
+        ];
+
+        if (rutaPdfAdjunto) {
+            attachments.push({
+                filename: `DOCUMENTO_${numDocReal}.pdf`,
+                path: rutaPdfAdjunto
+            });
+        }
+
+        const asuntoCorreo = 'Edicion de Datos Primera Infancia';
+        const destinatario = 'Mis.Aplicaciones@icbf.gov.co';
+
+        console.log(c.cyan('\n  ✉️  Opciones de envio:'));
+        console.log('  1. Enviar correo DIRECTAMENTE via SMTP');
+        console.log('  2. Guardar BORRADOR en Gmail (para revisar antes de enviar)');
+        const modoEnvio = readline.question(c.negrita('  > Selecciona (1 o 2) [por defecto 2]: ')).trim();
+
+        const gmailUser = process.env.GMAIL_USER;
+        const gmailPass = process.env.GMAIL_APP_PASSWORD;
+
+        if (!gmailUser || !gmailPass) {
+            console.log(c.rojo('  ❌ Faltan GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
+        } else if (modoEnvio === '1') {
+            console.log(c.amarillo('  ⏳ Enviando correo directamente...'));
+            const { enviarCorreo } = require('../servicios/gmail-sender');
+            await enviarCorreo(gmailUser, gmailPass, {
+                to: destinatario,
+                subject: asuntoCorreo,
+                html: cuerpoCorreoHtml,
+                attachments: attachments
+            });
+            console.log(c.verde(`  🎉 ¡Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
+        } else {
+            console.log(c.amarillo('  ⏳ Guardando borrador en Gmail...'));
+            const MailComposer = require('nodemailer/lib/mail-composer');
+            const { guardarEnBorradores } = require('../servicios/gmail-draft');
+
+            const mail = new MailComposer({
+                from: gmailUser,
+                to: destinatario,
+                subject: asuntoCorreo,
+                html: cuerpoCorreoHtml,
+                attachments: attachments
+            });
+
+            const messageBuffer = await mail.compile().build();
+            await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
+            console.log(c.verde(`  🎉 ¡Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
+        }
+    }
+}
+
 // Helpers
 function removeAccents(str) {
     if (!str) return '';
@@ -432,6 +610,8 @@ async function main() {
             const sApellidoReal = ask('Segundo Apellido', datosCuentame.segundoApellido);
             const fechaNacReal = ask('Fecha de Nacimiento (DD/MM/AAAA)', datosCuentame.fechaNacimiento);
             const sexoReal = ask('Sexo (HOMBRE/MUJER)', datosCuentame.sexo.toUpperCase());
+            const deptoNacReal = ask('Departamento de Nacimiento', (datosCuentame.departamento || 'BOGOTA D.C.').trim());
+            const muniNacReal = ask('Municipio de Nacimiento', (datosCuentame.municipio || 'BOGOTA D.C.').trim());
             
             // Generar observacion automatica
             const obs = [];
@@ -457,66 +637,39 @@ async function main() {
             if (numDocReal !== datosCuentame.numDoc) obs.push("NUMERO DE DOCUMENTO MAL DIGITADO");
             if (fechaNacReal !== datosCuentame.fechaNacimiento) obs.push("FECHA DE NACIMIENTO MAL DIGITADA");
             if (sexoReal !== datosCuentame.sexo.toUpperCase()) obs.push("SEXO MAL DIGITADO");
-            // Nota: Pais, depto y mpio los asumimos correctos para la prueba a menos que se solicite.
+            if (deptoNacReal.toUpperCase() !== (datosCuentame.departamento || '').toUpperCase().trim() || muniNacReal.toUpperCase() !== (datosCuentame.municipio || '').toUpperCase().trim()) {
+                obs.push("MUNICIPIO DE NACIMIENTO MAL DIGITADO");
+            }
 
             const observacion = obs.join(" - ") || "DATOS ACTUALIZADOS";
             console.log(c.amarillo(`\n  📝 Observacion generada: ${observacion}`));
 
-            // Escribir en Excel
-            console.log(c.amarillo('\n  ⏳ Guardando en el archivo de Excel...'));
-            const ExcelJS = require('exceljs');
-            const workbook = new ExcelJS.Workbook();
-            const excelPath = path.join(__dirname, '..', 'docs', 'f4.m3.pp_formato_cambio_datos_basicos_personas_v5.xlsx');
-            
+            // Escribir en Excel Limpio
+            console.log(c.amarillo('\n  ⏳ Guardando ticket en formato Excel...'));
+            let singleExcelPath = null;
             try {
-                await workbook.xlsx.readFile(excelPath);
-                const sheet = workbook.worksheets[0];
-                
-                // Encontrar la primera fila vacia despues de la 5
-                let nextRow = 6;
-                while (sheet.getRow(nextRow).getCell('N').value != null && sheet.getRow(nextRow).getCell('N').value !== '') {
-                    nextRow++;
-                }
-
-                const row = sheet.getRow(nextRow);
-                
-                // Datos Reales (Columnas C a M, indices 3 a 13)
-                row.getCell(3).value = mapTiposInversos[tipoDocReal]; // C
-                row.getCell(4).value = numDocReal; // D
-                row.getCell(5).value = pNombreReal; // E
-                row.getCell(6).value = sNombreReal; // F
-                row.getCell(7).value = pApellidoReal; // G
-                row.getCell(8).value = sApellidoReal; // H
-                row.getCell(9).value = fechaNacReal; // I
-                row.getCell(10).value = sexoReal; // J
-                row.getCell(11).value = 'COLOMBIA'; // K
-                row.getCell(12).value = datosCuentame.departamento; // L
-                row.getCell(13).value = datosCuentame.municipio; // M
-
-                // Datos Cuentame (Columnas N a X, indices 14 a 24)
-                row.getCell(14).value = datosCuentame.tipoDocCod; // N
-                row.getCell(15).value = datosCuentame.numDoc; // O
-                row.getCell(16).value = datosCuentame.primerNombre; // P
-                row.getCell(17).value = datosCuentame.segundoNombre; // Q
-                row.getCell(18).value = datosCuentame.primerApellido; // R
-                row.getCell(19).value = datosCuentame.segundoApellido; // S
-                row.getCell(20).value = datosCuentame.fechaNacimiento; // T
-                row.getCell(21).value = datosCuentame.sexo.toUpperCase(); // U
-                row.getCell(22).value = datosCuentame.pais.toUpperCase(); // V
-                row.getCell(23).value = datosCuentame.departamento.toUpperCase(); // W
-                row.getCell(24).value = datosCuentame.municipio.toUpperCase(); // X
-
-                // Novedad
-                row.getCell(25).value = 'Error en Diligenciamiento de Datos Basicos'; // Y
-                row.getCell(28).value = observacion; // AB
-
-                row.commit();
-                await workbook.xlsx.writeFile(excelPath);
-                console.log(c.verde(`  ✅ Ticket guardado exitosamente en la fila ${nextRow} del Excel.`));
-                
+                singleExcelPath = await generarTicketExcelLimpio({
+                    mapTiposInversos,
+                    tipoDocReal,
+                    numDocReal,
+                    pNombreReal,
+                    sNombreReal,
+                    pApellidoReal,
+                    sApellidoReal,
+                    fechaNacReal,
+                    sexoReal,
+                    deptoNacReal,
+                    muniNacReal,
+                    datosCuentame,
+                    observacion
+                });
+                console.log(c.verde(`  ✅ Ticket de Beneficiario guardado exitosamente en el Excel.`));
             } catch (err) {
                 console.log(c.rojo(`  ❌ Error escribiendo el Excel: ${err.message}`));
             }
+
+            // Procesar envio/borrador de correo
+            await procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPath: singleExcelPath });
         } else {
             // Error del Acudiente
             console.log(c.amarillo('\n  ⏳ Habilitando edicion (clic en Lapiz superior)...'));
@@ -631,6 +784,8 @@ async function main() {
             const sApellidoReal = ask('Segundo Apellido', datosCuentame.segundoApellido);
             const fechaNacReal = ask('Fecha de Nacimiento (DD/MM/AAAA)', datosCuentame.fechaNacimiento);
             const sexoReal = ask('Sexo (HOMBRE/MUJER)', datosCuentame.sexo.toUpperCase());
+            const deptoNacReal = ask('Departamento de Nacimiento', (datosCuentame.departamento || 'BOGOTA D.C.').trim());
+            const muniNacReal = ask('Municipio de Nacimiento', (datosCuentame.municipio || 'BOGOTA D.C.').trim());
             
             // Generar observacion automatica
             const obs = [];
@@ -656,169 +811,39 @@ async function main() {
             if (numDocReal !== datosCuentame.numDoc) obs.push("NUMERO DE DOCUMENTO MAL DIGITADO");
             if (fechaNacReal !== datosCuentame.fechaNacimiento) obs.push("FECHA DE NACIMIENTO MAL DIGITADA");
             if (sexoReal !== datosCuentame.sexo.toUpperCase()) obs.push("SEXO MAL DIGITADO");
+            if (deptoNacReal.toUpperCase() !== (datosCuentame.departamento || '').toUpperCase().trim() || muniNacReal.toUpperCase() !== (datosCuentame.municipio || '').toUpperCase().trim()) {
+                obs.push("MUNICIPIO DE NACIMIENTO MAL DIGITADO");
+            }
 
             const observacion = obs.join(" - ") || "DATOS ACTUALIZADOS";
             console.log(c.amarillo(`\n  📝 Observacion generada: ${observacion}`));
 
-            // Escribir en Excel
-            console.log(c.amarillo('\n  ⏳ Guardando en el archivo de Excel...'));
-            const ExcelJS = require('exceljs');
-            const workbook = new ExcelJS.Workbook();
-            const excelPath = path.join(__dirname, '..', 'docs', 'f4.m3.pp_formato_cambio_datos_basicos_personas_v5.xlsx');
-            
+            // Escribir en Excel Limpio
+            console.log(c.amarillo('\n  ⏳ Guardando ticket en formato Excel...'));
+            let singleExcelPath = null;
             try {
-                await workbook.xlsx.readFile(excelPath);
-                const sheet = workbook.worksheets[0];
-                
-                // Encontrar la primera fila vacia despues de la 5
-                let nextRow = 6;
-                while (sheet.getRow(nextRow).getCell('N').value != null && sheet.getRow(nextRow).getCell('N').value !== '') {
-                    nextRow++;
-                }
-
-                const row = sheet.getRow(nextRow);
-                
-                // Datos Reales (Columnas C a M)
-                row.getCell(3).value = mapTiposInversos[tipoDocReal];
-                row.getCell(4).value = numDocReal;
-                row.getCell(5).value = pNombreReal;
-                row.getCell(6).value = sNombreReal;
-                row.getCell(7).value = pApellidoReal;
-                row.getCell(8).value = sApellidoReal;
-                row.getCell(9).value = fechaNacReal;
-                row.getCell(10).value = sexoReal;
-                row.getCell(11).value = 'COLOMBIA';
-                row.getCell(12).value = datosCuentame.departamento;
-                row.getCell(13).value = datosCuentame.municipio;
-
-                // Datos Cuentame (Columnas N a X)
-                row.getCell(14).value = datosCuentame.tipoDocCod;
-                row.getCell(15).value = datosCuentame.numDoc;
-                row.getCell(16).value = datosCuentame.primerNombre;
-                row.getCell(17).value = datosCuentame.segundoNombre;
-                row.getCell(18).value = datosCuentame.primerApellido;
-                row.getCell(19).value = datosCuentame.segundoApellido;
-                row.getCell(20).value = datosCuentame.fechaNacimiento;
-                row.getCell(21).value = datosCuentame.sexo.toUpperCase();
-                row.getCell(22).value = datosCuentame.pais.toUpperCase();
-                row.getCell(23).value = datosCuentame.departamento.toUpperCase();
-                row.getCell(24).value = datosCuentame.municipio.toUpperCase();
-
-                // Novedad
-                row.getCell(25).value = 'Error en Diligenciamiento de Datos Basicos'; // Y
-                row.getCell(28).value = observacion; // AB
-
-                row.commit();
-                await workbook.xlsx.writeFile(excelPath);
-                console.log(c.verde(`  ✅ Ticket de Edicion de Datos guardado exitosamente en la fila ${nextRow} del Excel.`));
-
-                // ---------------------------------------------------------------------
-                // ENVIO DE CORREO ELECTRONICO PARA TICKET DE EDICION DE DATOS
-                // ---------------------------------------------------------------------
-                console.log(c.cyan('\n  📧 GENERACION DE CORREO Y ADJUNTOS'));
-                const armarCorreoResp = readline.question(c.negrita('  > Deseas armar/enviar el correo de ticket a la Regional? (s/n) [por defecto s]: ')).trim().toLowerCase();
-
-                if (armarCorreoResp === 's' || armarCorreoResp === 'si' || armarCorreoResp === '') {
-                    console.log(c.cyan('\n  📄 Documento de Soporte Fisico (Registro Civil, TI o Cedula):'));
-                    console.log(c.gris('     • Puedes arrastrar un PDF o una Imagen (.jpg, .jpeg, .png).'));
-                    console.log(c.gris('     • Si es una imagen, se convertira AUTOMATICAMENTE a PDF.\n'));
-
-                    const docInputRaw = readline.question(c.negrita('  > Arrastra el documento de soporte (o 0 para omitir adjunto): ')).trim();
-                    const docInput = docInputRaw.replace(/^["']|["']$/g, '');
-
-                    let rutaPdfAdjunto = null;
-                    if (docInput !== '0' && docInput !== '') {
-                        const resolvedDoc = resolverRutaConEspeciales(docInput);
-                        if (fs.existsSync(resolvedDoc)) {
-                            const scratchDir = path.join(__dirname, '..', 'scratch');
-                            if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
-                            const tempPdfPath = path.join(scratchDir, `DOCUMENTO_${numDocReal}.pdf`);
-
-                            try {
-                                rutaPdfAdjunto = await convertirImagenOConplanarPdf(resolvedDoc, tempPdfPath);
-                            } catch (e) {
-                                console.log(c.rojo(`  ❌ Error procesando el archivo de soporte: ${e.message}`));
-                            }
-                        } else {
-                            console.log(c.amarillo(`  ⚠️ No se encontro el archivo: ${docInput}`));
-                        }
-                    }
-
-                    const cuerpoCorreoHtml = `<p>
-<b>Nit:</b> ${ascSeleccionada.nit || ''}<br>
-<b>Nombre del EAS que requiere el ajuste:</b> ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}<br>
-<b>Numero de Contrato:</b> ${ascSeleccionada.numeroContrato || ''}<br>
-<b>Nombre de la persona que pone el caso:</b> SAAD PAEZ<br>
-<b>Numero de Identificacion:</b> 1020722462<br>
-<b>Numero de contacto:</b> 3202002073<br>
-<b>Area Misional si aplica:</b> Primera Infancia<br>
-<b>Regional y Centro Zonal:</b> BOGOTA, CZ USAQUEN
-</p>
-<p>
-<i>Atte</i><br><br>
-<i>SAAD PAEZ</i><br>
-<i>Tel: 3202002073</i>
-</p>`;
-
-                    const attachments = [
-                        {
-                            filename: 'f4.m3.pp_formato_cambio_datos_basicos_personas_v5.xlsx',
-                            path: excelPath
-                        }
-                    ];
-
-                    if (rutaPdfAdjunto) {
-                        attachments.push({
-                            filename: `DOCUMENTO_${numDocReal}.pdf`,
-                            path: rutaPdfAdjunto
-                        });
-                    }
-
-                    const asuntoCorreo = 'Edicion de Datos Primera Infancia';
-                    const destinatario = 'Mis.Aplicaciones@icbf.gov.co';
-
-                    console.log(c.cyan('\n  ✉️  Opciones de envio:'));
-                    console.log('  1. Enviar correo DIRECTAMENTE via SMTP');
-                    console.log('  2. Guardar BORRADOR en Gmail (para revisar antes de enviar)');
-                    const modoEnvio = readline.question(c.negrita('  > Selecciona (1 o 2) [por defecto 2]: ')).trim();
-
-                    const gmailUser = process.env.GMAIL_USER;
-                    const gmailPass = process.env.GMAIL_APP_PASSWORD;
-
-                    if (!gmailUser || !gmailPass) {
-                        console.log(c.rojo('  ❌ Faltan GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
-                    } else if (modoEnvio === '1') {
-                        console.log(c.amarillo('  ⏳ Enviando correo directamente...'));
-                        const { enviarCorreo } = require('../servicios/gmail-sender');
-                        await enviarCorreo(gmailUser, gmailPass, {
-                            to: destinatario,
-                            subject: asuntoCorreo,
-                            html: cuerpoCorreoHtml,
-                            attachments: attachments
-                        });
-                        console.log(c.verde(`  🎉 Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
-                    } else {
-                        console.log(c.amarillo('  ⏳ Guardando borrador en Gmail...'));
-                        const MailComposer = require('nodemailer/lib/mail-composer');
-                        const { guardarEnBorradores } = require('../servicios/gmail-draft');
-
-                        const mail = new MailComposer({
-                            from: gmailUser,
-                            to: destinatario,
-                            subject: asuntoCorreo,
-                            html: cuerpoCorreoHtml,
-                            attachments: attachments
-                        });
-
-                        const messageBuffer = await mail.compile().build();
-                        await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
-                        console.log(c.verde(`  🎉 Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
-                    }
-                }
-                
+                singleExcelPath = await generarTicketExcelLimpio({
+                    mapTiposInversos,
+                    tipoDocReal,
+                    numDocReal,
+                    pNombreReal,
+                    sNombreReal,
+                    pApellidoReal,
+                    sApellidoReal,
+                    fechaNacReal,
+                    sexoReal,
+                    deptoNacReal,
+                    muniNacReal,
+                    datosCuentame,
+                    observacion
+                });
+                console.log(c.verde(`  ✅ Ticket de Acudiente guardado exitosamente en el Excel.`));
             } catch (err) {
                 console.log(c.rojo(`  ❌ Error escribiendo el Excel: ${err.message}`));
             }
+
+            // Procesar envio/borrador de correo
+            await procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPath: singleExcelPath });
         }
     } // Cierra el while(true)
     
