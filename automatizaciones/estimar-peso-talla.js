@@ -202,15 +202,16 @@ async function generarFormatoEstimadoUds(datosUds, plantillaPath, fechaHoyFormat
         row.getCell(10).value = nino.talla || '';     // J: TALLA ANTERIOR (cm)
         row.getCell(11).value = nino.perimetro || ''; // K: PERÍMETRO ANTERIOR (cm)
 
-        // Cols L a T en blanco (12 a 20)
-        for (let cCol = 12; cCol <= 20; cCol++) {
+        // Cols L a S en blanco (12 a 19)
+        for (let cCol = 12; cCol <= 19; cCol++) {
             row.getCell(cCol).value = null;
         }
 
-        // TOMA ESTIMADA A FECHA DE HOY (Cols U, V, W) -> Celdas U16, V16, W16...
-        row.getCell(21).value = fechaHoyFormateada;                       // U: FECHA ESTIMADA (HOY)
-        row.getCell(22).value = nino.pesoEstimado ? nino.pesoEstimado : null;  // V: PESO ESTIMADO (Kg)
-        row.getCell(23).value = nino.tallaEstimado ? nino.tallaEstimado : null; // W: TALLA ESTIMADA (cm)
+        // TOMA ESTIMADA A FECHA DE HOY (Toma 2: Cols T, U, V, W) -> T16, U16, V16...
+        row.getCell(20).value = fechaHoyFormateada;                             // T (20): FECHA DE LA TOMA ESTIMADA (HOY)
+        row.getCell(21).value = nino.pesoEstimado ? nino.pesoEstimado : null;   // U (21): PESO ESTIMADO (Kg)
+        row.getCell(22).value = nino.tallaEstimado ? nino.tallaEstimado : null; // V (22): TALLA ESTIMADA (cm)
+        row.getCell(23).value = null;                                           // W (23): PERÍMETRO BRAQUIAL (cm)
 
         // Cols X a AE en blanco (24 a 31)
         for (let cCol = 24; cCol <= 31; cCol++) {
