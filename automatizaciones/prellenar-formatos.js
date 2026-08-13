@@ -449,7 +449,7 @@ async function main() {
     while (true) {
         console.log(c.gris('Arrastra y suelta el Reporte Nutricional o de Activos descargado de Cuéntame.\n'));
 
-        const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel del Reporte Nutricional aquí (o 0 para salir): '));
+        const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel del Reporte Nutricional aqui (o 0 para salir): '));
         const inputPath = inputPathRaw.trim().replace(/^["']|["']$/g, '');
 
         if (inputPath === '0') {

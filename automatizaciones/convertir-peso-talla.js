@@ -44,7 +44,7 @@ function obtenerRutaExcel() {
         }
         if (idx > 0) return path.join(docsDir, archivos[idx - 1]);
     }
-    const rutaRaw = readline.question(c.negrita('\n  > Arrastra el archivo Excel aquí o pega la ruta: ')).replace(/['"]/g, '').trim();
+    const rutaRaw = readline.question(c.negrita('\n  > Arrastra el archivo Excel aqui o pega la ruta: ')).replace(/['"]/g, '').trim();
     return resolverRutaConEspeciales(rutaRaw);
 }
 

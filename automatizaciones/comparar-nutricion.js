@@ -353,7 +353,7 @@ function pedirRutaReporte(mensaje) {
     }
 
     console.log(c.cyan(`\n  📥 ${mensaje}`));
-    console.log(c.gris('     • Puedes arrastrar el archivo Excel descargado de Cuéntame aquí.'));
+    console.log(c.gris('     • Puedes arrastrar el archivo Excel descargado de Cuentame aqui.'));
     console.log(c.gris('     • O escribe un número (1-N) para elegir de "Docs".'));
 
     const inputRaw = readline.question(c.negrita('\n  > Ruta del archivo Excel: ')).trim();

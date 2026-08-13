@@ -437,7 +437,7 @@ async function main() {
           console.log(c.gris('     • Puedes arrastrar una CARPETA completa con todos los archivos Excel.'));
           console.log(c.gris('     • O escribe un número (1-N) para elegir de "Docs/peso y talla".'));
 
-          const inputRaw = readline.question(c.negrita('\n  > Arrastra los archivos/carpeta aquí o pega las rutas: ')).trim();
+          const inputRaw = readline.question(c.negrita('\n  > Arrastra los archivos/carpeta aqui o pega las rutas: ')).trim();
           if (!inputRaw) return [];
 
           if (/^\d+$/.test(inputRaw) && archivosDocs.length > 0) {
