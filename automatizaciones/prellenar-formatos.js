@@ -323,60 +323,114 @@ async function main() {
         return;
     }
 
-    console.log(c.gris('Arrastra y suelta el Reporte Nutricional o de Activos descargado de Cuéntame.\n'));
+    while (true) {
+        console.log(c.gris('Arrastra y suelta el Reporte Nutricional o de Activos descargado de Cuéntame.\n'));
 
-    const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel del Reporte Nutricional aquí: '));
-    const inputPath = inputPathRaw.trim().replace(/^["']|["']$/g, '');
+        const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel del Reporte Nutricional aquí (o 0 para salir): '));
+        const inputPath = inputPathRaw.trim().replace(/^["']|["']$/g, '');
 
-    if (!inputPath || !fs.existsSync(inputPath)) {
-        console.log(c.rojo('\n  ❌ El archivo especificado no existe.'));
-        return;
-    }
-
-    console.log(c.cyan('\n  ⏳ Analizando reporte y organizando beneficiarios por Jardín (UDS)...'));
-
-    try {
-        const agrupado = parsearReporteNutricional(inputPath);
-        const listaUds = Object.keys(agrupado).sort();
-
-        if (listaUds.length === 0) {
-            console.log(c.rojo('  ❌ No se encontraron beneficiarios válidos en el archivo.'));
-            return;
+        if (inputPath === '0') {
+            console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
+            break;
         }
 
-        console.log(c.verde(`\n  ✅ Se identificaron ${listaUds.length} Jardines/UDS independientes:\n`));
-
-        const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla');
-        const dirReportes = path.join(__dirname, '..', 'reportes');
-
-        if (!fs.existsSync(dirDocs)) fs.mkdirSync(dirDocs, { recursive: true });
-        if (!fs.existsSync(dirReportes)) fs.mkdirSync(dirReportes, { recursive: true });
-
-        const fechaHoy = new Date().toISOString().split('T')[0];
-
-        for (let i = 0; i < listaUds.length; i++) {
-            const nombreUds = listaUds[i];
-            const datosUds = agrupado[nombreUds];
-
-            console.log(`  ${i + 1}. ${c.cyan(nombreUds)}: ${c.verde(datosUds.ninos.length + ' niños')}`);
-
-            const wbPrellenado = await generarFormatoPesoYTallaUds(datosUds, plantillaPath);
-            const nombreClean = nombreUds.replace(/[^a-z0-9]/gi, '_');
-            const fileBaseName = `Formato_Peso_Talla_${nombreClean}_${fechaHoy}.xlsx`;
-
-            const pathDocs = path.join(dirDocs, fileBaseName);
-            const pathReportes = path.join(dirReportes, fileBaseName);
-
-            await wbPrellenado.xlsx.writeFile(pathDocs);
-            await wbPrellenado.xlsx.writeFile(pathReportes);
-
-            console.log(c.gris(`     -> Generado: docs/peso y talla/${fileBaseName}`));
+        if (!inputPath || !fs.existsSync(inputPath)) {
+            console.log(c.rojo('\n  ❌ El archivo especificado no existe. Inténtalo de nuevo.\n'));
+            continue;
         }
 
-        console.log(c.verde('\n  🎉 ¡Todos los formatos de Peso y Talla por Jardín han sido generados exitosamente!\n'));
+        console.log(c.cyan('\n  ⏳ Analizando reporte y organizando beneficiarios por Jardín (UDS)...'));
 
-    } catch (err) {
-        console.log(c.rojo(`\n  ❌ Error procesando el archivo: ${err.message}`));
+        try {
+            const agrupado = parsearReporteNutricional(inputPath);
+            const listaUds = Object.keys(agrupado).sort();
+
+            if (listaUds.length === 0) {
+                console.log(c.rojo('  ❌ No se encontraron beneficiarios válidos en el archivo.'));
+            } else {
+                console.log(c.verde(`\n  ✅ Se identificaron ${listaUds.length} Jardines/UDS en el reporte:\n`));
+
+                listaUds.forEach((nombreUds, idx) => {
+                    const count = agrupado[nombreUds].ninos.length;
+                    console.log(`  ${c.cyan(idx + 1)}. ${nombreUds} (${c.verde(count + ' niños activos')})`);
+                });
+
+                console.log(c.cyan('\n  📋 Selecciona qué jardines deseas procesar:'));
+                console.log('    1. Procesar TODOS los jardines (por defecto)');
+                console.log('    2. Seleccionar UN SOLO jardín');
+                console.log('    3. Seleccionar VARIOS jardines (ej. 1, 3, 5)\n');
+
+                const modoOptRaw = readline.question(c.negrita('  > Elige una opción (1, 2 o 3) [1]: ')).trim();
+                const modoOpt = modoOptRaw || '1';
+
+                let udsAProcesar = [];
+
+                if (modoOpt === '2') {
+                    const selOne = readline.question(c.negrita(`  > Ingresa el número del jardín a procesar (1-${listaUds.length}): `)).trim();
+                    const numOne = parseInt(selOne, 10);
+                    if (!isNaN(numOne) && numOne >= 1 && numOne <= listaUds.length) {
+                        udsAProcesar.push(listaUds[numOne - 1]);
+                    } else {
+                        console.log(c.amarillo('  ⚠️ Selección inválida. Se procesarán todos los jardines.'));
+                        udsAProcesar = listaUds;
+                    }
+                } else if (modoOpt === '3') {
+                    const selMulti = readline.question(c.negrita('  > Ingresa los números separados por coma (ej: 1, 3, 5): ')).trim();
+                    const indices = selMulti.split(/[,;\s]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= listaUds.length);
+                    if (indices.length > 0) {
+                        const setIndices = Array.from(new Set(indices));
+                        udsAProcesar = setIndices.map(idx => listaUds[idx - 1]);
+                    } else {
+                        console.log(c.amarillo('  ⚠️ No ingresaste números válidos. Se procesarán todos los jardines.'));
+                        udsAProcesar = listaUds;
+                    }
+                } else {
+                    udsAProcesar = listaUds;
+                }
+
+                console.log(c.verde(`\n  🚀 Generando formatos pre-llenados para ${udsAProcesar.length} jardín(es)...\n`));
+
+                const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla');
+                const dirReportes = path.join(__dirname, '..', 'reportes');
+
+                if (!fs.existsSync(dirDocs)) fs.mkdirSync(dirDocs, { recursive: true });
+                if (!fs.existsSync(dirReportes)) fs.mkdirSync(dirReportes, { recursive: true });
+
+                const fechaHoy = new Date().toISOString().split('T')[0];
+
+                for (let i = 0; i < udsAProcesar.length; i++) {
+                    const nombreUds = udsAProcesar[i];
+                    const datosUds = agrupado[nombreUds];
+
+                    console.log(`  ${i + 1}/${udsAProcesar.length}. ${c.cyan(nombreUds)} (${c.verde(datosUds.ninos.length + ' niños')})`);
+
+                    const wbPrellenado = await generarFormatoPesoYTallaUds(datosUds, plantillaPath);
+                    const nombreClean = nombreUds.replace(/[^a-z0-9]/gi, '_');
+                    const fileBaseName = `Formato_Peso_Talla_${nombreClean}_${fechaHoy}.xlsx`;
+
+                    const pathDocs = path.join(dirDocs, fileBaseName);
+                    const pathReportes = path.join(dirReportes, fileBaseName);
+
+                    await wbPrellenado.xlsx.writeFile(pathDocs);
+                    await wbPrellenado.xlsx.writeFile(pathReportes);
+
+                    console.log(c.gris(`     -> Guardado exitosamente: docs/peso y talla/${fileBaseName}`));
+                }
+
+                console.log(c.verde('\n  🎉 ¡Formatos de Peso y Talla generados exitosamente!'));
+            }
+
+        } catch (err) {
+            console.log(c.rojo(`\n  ❌ Error procesando el archivo: ${err.message}`));
+        }
+
+        console.log(c.cyan('\n======================================================'));
+        const respFinal = readline.question(c.negrita('  > ¿Deseas procesar otro archivo Excel? (s = Si, n = Volver al panel principal) [por defecto n]: '));
+        if (respFinal.toLowerCase().trim() !== 's') {
+            console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
+            break;
+        }
+        console.log('\n');
     }
 }
 
