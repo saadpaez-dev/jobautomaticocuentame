@@ -39,6 +39,19 @@ function removeAccents(str) {
     return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 }
 
+function limpiarNombreArchivo(nombre) {
+    if (!nombre) return 'JARDIN';
+    return String(nombre)
+        .replace(/Ñ/g, "N")
+        .replace(/ñ/g, "N")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .toUpperCase();
+}
+
 function normalizarDoc(val) {
     if (val === undefined || val === null) return '';
     return String(val).replace(/[^0-9Kk]/g, '').trim().toUpperCase();
@@ -464,7 +477,7 @@ async function main() {
                         };
 
                         const wbPrellenado = await generarFormatoPesoYTallaUds(datosSubUds, plantillaPath);
-                        const nombreClean = nombreUds.replace(/[^a-z0-9]/gi, '_');
+                        const nombreClean = limpiarNombreArchivo(nombreUds);
                         const sufijoParte = totalPartes > 1 ? `_Parte${numParte}` : '';
                         const fileBaseName = `Formato_Peso_Talla_${nombreClean}${sufijoParte}_${fechaHoy}.xlsx`;
 
