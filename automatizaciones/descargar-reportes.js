@@ -577,42 +577,39 @@ async function main() {
             })
         ]);
             
-            reportPage.setDefaultTimeout(30000); // restaurar
-            
-            const prefijo = opcionReporte === 1 ? 'Beneficiarios' : (opcionReporte === 2 ? 'Nutricion' : (opcionReporte === 4 ? 'Unidades' : 'Asistencia'));
-            const fileName = `${prefijo}_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
-            const savePath = path.join(reportesDir, fileName);
-            try {
-                await download.saveAs(savePath);
-                console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
-            } catch (saveError) {
-                console.log(c.amarillo(`    ⚠️ Recuperando reporte desde carpeta de Descargas (Modo Humano)...`));
-                const downloadsFolder = path.join(require('os').homedir(), 'Downloads');
-                const files = fs.readdirSync(downloadsFolder).filter(f => f.endsWith('.xlsx'));
-                if (files.length > 0) {
-                    files.sort((a, b) => fs.statSync(path.join(downloadsFolder, b)).mtimeMs - fs.statSync(path.join(downloadsFolder, a)).mtimeMs);
-                    const latestFile = path.join(downloadsFolder, files[0]);
-                    fs.copyFileSync(latestFile, savePath);
-                    console.log(c.verde(`    ✅ Reporte recuperado y guardado exitosamente: ${fileName}`));
-                } else {
-                    console.log(c.rojo(`    ❌ No se encontró el archivo descargado en la carpeta de Descargas.`));
-                }
+        reportPage.setDefaultTimeout(30000); // restaurar
+        
+        const prefijo = opcionReporte === 1 ? 'Beneficiarios' : (opcionReporte === 2 ? 'Nutricion' : (opcionReporte === 4 ? 'Unidades' : 'Asistencia'));
+        const fileName = `${prefijo}_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+        const savePath = path.join(reportesDir, fileName);
+        try {
+            await download.saveAs(savePath);
+            console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
+        } catch (saveError) {
+            console.log(c.amarillo(`    ⚠️ Recuperando reporte desde carpeta de Descargas (Modo Humano)...`));
+            const downloadsFolder = path.join(require('os').homedir(), 'Downloads');
+            const files = fs.readdirSync(downloadsFolder).filter(f => f.endsWith('.xlsx'));
+            if (files.length > 0) {
+                files.sort((a, b) => fs.statSync(path.join(downloadsFolder, b)).mtimeMs - fs.statSync(path.join(downloadsFolder, a)).mtimeMs);
+                const latestFile = path.join(downloadsFolder, files[0]);
+                fs.copyFileSync(latestFile, savePath);
+                console.log(c.verde(`    ✅ Reporte recuperado y guardado exitosamente: ${fileName}`));
+            } else {
+                console.log(c.rojo(`    ❌ No se encontró el archivo descargado en la carpeta de Descargas.`));
             }
+        }
 
-            if (prepararExcel) {
-                console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
-                // Darle tiempo al sistema a actualizar la UI tras el postback
-                await reportPage.waitForTimeout(2500); 
-                const { execSync } = require('child_process');
-                try {
-                    const psScript = path.join(__dirname, 'preparar_excel.ps1');
-                    execSync(`powershell -ExecutionPolicy Bypass -File "${psScript}" -FilePath "${savePath}"`, { stdio: 'inherit' });
-                } catch (psError) {
-                    console.log(c.rojo(`    ⚠️ Hubo un problema al preparar el excel: ${psError.message}`));
-                }
+        if (prepararExcel) {
+            console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
+            // Darle tiempo al sistema a actualizar la UI tras el postback
+            await reportPage.waitForTimeout(2500); 
+            const { execSync } = require('child_process');
+            try {
+                const psScript = path.join(__dirname, 'preparar_excel.ps1');
+                execSync(`powershell -ExecutionPolicy Bypass -File "${psScript}" -FilePath "${savePath}"`, { stdio: 'inherit' });
+            } catch (psError) {
+                console.log(c.rojo(`    ⚠️ Hubo un problema al preparar el excel: ${psError.message}`));
             }
-        } else {
-            console.log(c.rojo(`    ⚠️ No se encontró el botón de exportar. ¿Falló la generación del reporte?`));
         }
         
       } catch (error) {
