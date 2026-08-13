@@ -451,7 +451,7 @@ async function main() {
                         const ninosChunk = partesNinos[p];
                         const numParte = p + 1;
 
-                        const nombreUdsHeader = totalPartes > 1 ? `${nombreUds} (PARTE ${numParte}/${totalPartes})` : nombreUds;
+                        const nombreUdsHeader = nombreUds;
 
                         const datosSubUds = {
                             nombreEas: datosUds.nombreEas,
