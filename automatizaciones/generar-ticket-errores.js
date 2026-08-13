@@ -9,9 +9,49 @@ const c = {
     negrita: (t) => `\x1b[1m${t}\x1b[0m`,
 };
 const path = require('path');
+const fs = require('fs');
+const { PDFDocument } = require('pdf-lib');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { leerJardines } = require('../servicios/excel-reader');
+const { resolverRutaConEspeciales } = require('../servicios/excel-parser');
 const { seleccionarRolYEntrar, verificarConexionOCaida, loginYLlegarARoles } = require('../servicios/autenticacion');
+
+async function convertirImagenOConplanarPdf(rutaInput, rutaSalidaPdf) {
+    if (!fs.existsSync(rutaInput)) throw new Error(`El archivo no existe: ${rutaInput}`);
+    const lower = rutaInput.toLowerCase();
+
+    if (lower.endsWith('.pdf')) {
+        return rutaInput;
+    }
+
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.bmp') || lower.endsWith('.webp')) {
+        console.log(c.cyan(`  🖼️  Convirtiendo imagen (${path.basename(rutaInput)}) a documento PDF...`));
+        const pdfDoc = await PDFDocument.create();
+        const imageBytes = fs.readFileSync(rutaInput);
+        let image;
+
+        if (lower.endsWith('.png')) {
+            image = await pdfDoc.embedPng(imageBytes);
+        } else {
+            image = await pdfDoc.embedJpg(imageBytes);
+        }
+
+        const page = pdfDoc.addPage([image.width, image.height]);
+        page.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: image.width,
+            height: image.height,
+        });
+
+        const pdfBytes = await pdfDoc.save();
+        fs.writeFileSync(rutaSalidaPdf, pdfBytes);
+        console.log(c.verde(`  ✅ Documento de soporte convertido a PDF: ${path.basename(rutaSalidaPdf)}`));
+        return rutaSalidaPdf;
+    }
+
+    return rutaInput;
+}
 
 // Helpers
 function removeAccents(str) {
@@ -670,7 +710,111 @@ async function main() {
 
                 row.commit();
                 await workbook.xlsx.writeFile(excelPath);
-                console.log(c.verde(`  ✅ Ticket de Acudiente guardado exitosamente en la fila ${nextRow} del Excel.`));
+                console.log(c.verde(`  ✅ Ticket de Edición de Datos guardado exitosamente en la fila ${nextRow} del Excel.`));
+
+                // ---------------------------------------------------------------------
+                // ENVÍO DE CORREO ELECTRONICO PARA TICKET DE EDICIÓN DE DATOS
+                // ---------------------------------------------------------------------
+                console.log(c.cyan('\n  📧 GENERACIÓN DE CORREO Y ADJUNTOS'));
+                const armarCorreoResp = readline.question(c.negrita('  > ¿Deseas armar/enviar el correo de ticket a la Regional? (s/n) [por defecto s]: ')).trim().toLowerCase();
+
+                if (armarCorreoResp === 's' || armarCorreoResp === 'si' || armarCorreoResp === '') {
+                    console.log(c.cyan('\n  📄 Documento de Soporte Físico (Registro Civil, TI o Cédula):'));
+                    console.log(c.gris('     • Puedes arrastrar un PDF o una Imagen (.jpg, .jpeg, .png).'));
+                    console.log(c.gris('     • Si es una imagen, se convertirá AUTOMÁTICAMENTE a PDF.\n'));
+
+                    const docInputRaw = readline.question(c.negrita('  > Arrastra el documento de soporte (o 0 para omitir adjunto): ')).trim();
+                    const docInput = docInputRaw.replace(/^["']|["']$/g, '');
+
+                    let rutaPdfAdjunto = null;
+                    if (docInput !== '0' && docInput !== '') {
+                        const resolvedDoc = resolverRutaConEspeciales(docInput);
+                        if (fs.existsSync(resolvedDoc)) {
+                            const scratchDir = path.join(__dirname, '..', 'scratch');
+                            if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
+                            const tempPdfPath = path.join(scratchDir, `DOCUMENTO_${numDocReal}.pdf`);
+
+                            try {
+                                rutaPdfAdjunto = await convertirImagenOConplanarPdf(resolvedDoc, tempPdfPath);
+                            } catch (e) {
+                                console.log(c.rojo(`  ❌ Error procesando el archivo de soporte: ${e.message}`));
+                            }
+                        } else {
+                            console.log(c.amarillo(`  ⚠️ No se encontró el archivo: ${docInput}`));
+                        }
+                    }
+
+                    const cuerpoCorreoHtml = `<p>
+<b>Nit:</b> ${ascSeleccionada.nit || ''}<br>
+<b>Nombre del EAS que requiere el ajuste:</b> ${ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto}<br>
+<b>Número de Contrato:</b> ${ascSeleccionada.numeroContrato || ''}<br>
+<b>Nombre de la persona que pone el caso:</b> SAAD PAEZ<br>
+<b>Número de Identificación:</b> 1020722462<br>
+<b>Número de contacto:</b> 3202002073<br>
+<b>Área Misional si aplica:</b> Primera Infancia<br>
+<b>Regional y Centro Zonal:</b> BOGOTÁ, CZ USAQUEN
+</p>
+<p>
+<i>Atte</i><br><br>
+<i>SAAD PAEZ</i><br>
+<i>Tel: 3202002073</i>
+</p>`;
+
+                    const attachments = [
+                        {
+                            filename: 'f4.m3.pp_formato_cambio_datos_basicos_personas_v5.xlsx',
+                            path: excelPath
+                        }
+                    ];
+
+                    if (rutaPdfAdjunto) {
+                        attachments.push({
+                            filename: `DOCUMENTO_${numDocReal}.pdf`,
+                            path: rutaPdfAdjunto
+                        });
+                    }
+
+                    const asuntoCorreo = 'Edicion de Datos Primera Infancia';
+                    const destinatario = 'Mis.Aplicaciones@icbf.gov.co';
+
+                    console.log(c.cyan('\n  ✉️  Opciones de envío:'));
+                    console.log('  1. Enviar correo DIRECTAMENTE vía SMTP');
+                    console.log('  2. Guardar BORRADOR en Gmail (para revisar antes de enviar)');
+                    const modoEnvio = readline.question(c.negrita('  > Selecciona (1 o 2) [por defecto 2]: ')).trim();
+
+                    const gmailUser = process.env.GMAIL_USER;
+                    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+
+                    if (!gmailUser || !gmailPass) {
+                        console.log(c.rojo('  ❌ Faltan GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
+                    } else if (modoEnvio === '1') {
+                        console.log(c.amarillo('  ⏳ Enviando correo directamente...'));
+                        const { enviarCorreo } = require('../servicios/gmail-sender');
+                        await enviarCorreo(gmailUser, gmailPass, {
+                            to: destinatario,
+                            subject: asuntoCorreo,
+                            html: cuerpoCorreoHtml,
+                            attachments: attachments
+                        });
+                        console.log(c.verde(`  🎉 ¡Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
+                    } else {
+                        console.log(c.amarillo('  ⏳ Guardando borrador en Gmail...'));
+                        const MailComposer = require('nodemailer/lib/mail-composer');
+                        const { guardarEnBorradores } = require('../servicios/gmail-draft');
+
+                        const mail = new MailComposer({
+                            from: gmailUser,
+                            to: destinatario,
+                            subject: asuntoCorreo,
+                            html: cuerpoCorreoHtml,
+                            attachments: attachments
+                        });
+
+                        const messageBuffer = await mail.compile().build();
+                        await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
+                        console.log(c.verde(`  🎉 ¡Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
+                    }
+                }
                 
             } catch (err) {
                 console.log(c.rojo(`  ❌ Error escribiendo el Excel: ${err.message}`));
