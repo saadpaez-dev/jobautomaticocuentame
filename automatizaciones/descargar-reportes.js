@@ -376,16 +376,34 @@ async function main() {
             }
         };
 
+        const obtenerReportFrame = async (targetPage) => {
+            let frame = targetPage;
+            try {
+                await targetPage.waitForTimeout(2000);
+                const iframeLoc = targetPage.locator('iframe[name="frameContent"], frame[name="frameContent"]').first();
+                if (await iframeLoc.count() > 0) {
+                    await iframeLoc.waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+                    await targetPage.waitForTimeout(2000);
+                    frame = targetPage.frame({ name: 'frameContent' }) || targetPage;
+                }
+            } catch(e) {}
+
+            try {
+                const primerControl = frame.locator('select[id*="ddValue"], div[id*="ddDropDownButton"], td:has-text("Dirección"), select').first();
+                await primerControl.waitFor({ state: 'visible', timeout: 35000 }).catch(() => {});
+            } catch(e) {}
+
+            return frame;
+        };
+
         if (opcionReporte === 1) {
             console.log('  🚀 Navegando a Reportes -> Beneficiarios vinculados...\n');
             await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
               waitUntil: 'domcontentloaded',
               timeout: 120000
             });
+            reportFrame = await obtenerReportFrame(mainPage);
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await mainPage.waitForTimeout(2500);
-            
-            reportFrame = mainPage.frame({ name: 'frameContent' }) || mainPage;
 
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Unidad de Servicio');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Dirección de Primera Infancia');
@@ -416,10 +434,8 @@ async function main() {
               waitUntil: 'domcontentloaded',
               timeout: 120000
             });
+            reportFrame = await obtenerReportFrame(reportPage);
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await reportPage.waitForTimeout(2500);
-            
-            reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
 
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
