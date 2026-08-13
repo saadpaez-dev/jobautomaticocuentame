@@ -82,7 +82,8 @@ function detectarMapaColumnas(headers) {
         sNombre: 14,         // Col O
         sexo: -1,
         fechaNacimiento: 17, // Col R
-        fechaIngreso: 18     // Col S
+        fechaIngreso: 18,    // Col S
+        estado: 65           // Col BN (Index 65)
     };
 
     headers.forEach((h, idx) => {
@@ -106,6 +107,8 @@ function detectarMapaColumnas(headers) {
             mapa.fechaIngreso = idx;
         } else if (clean.includes('SEXO') || clean.includes('GENERO')) {
             mapa.sexo = idx;
+        } else if (clean.includes('ESTADO BENEFICIARIO') || clean.includes('ESTADO')) {
+            mapa.estado = idx;
         }
     });
 
@@ -190,6 +193,23 @@ function parsearReporteNutricional(rutaArchivo) {
     for (let i = headerRowIdx + 1; i < rows.length; i++) {
         const row = rows[i];
         if (!row || row.length === 0) continue;
+
+        // FILTRO DE ESTADO: Omitir niños con estado DESVINCULADO / INACTIVO
+        let estadoVal = '';
+        if (mapa.estado !== -1 && row[mapa.estado] !== undefined && row[mapa.estado] !== null) {
+            estadoVal = removeAccents(String(row[mapa.estado])).toUpperCase().trim();
+        }
+
+        if (estadoVal) {
+            if (estadoVal.includes('DESVINCULAD') || estadoVal.includes('RETIRO') || estadoVal.includes('INACTIV')) {
+                continue;
+            }
+        } else {
+            const rowStr = row.map(c => removeAccents(String(c))).join(' ').toUpperCase();
+            if (rowStr.includes('DESVINCULAD')) {
+                continue;
+            }
+        }
 
         const docRaw = row[mapa.documento];
         const docNorm = normalizarDoc(docRaw);
