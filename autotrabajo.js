@@ -147,6 +147,7 @@ async function main() {
             { nombre: 'Llenar Asistencia Mensual', archivo: 'llenar-asistencia.js' },
             { nombre: 'Seguimiento Nutricional (Peso y Talla)', archivo: 'peso-talla.js' },
             { nombre: 'Comparar Activos vs Nutrición (Faltantes)', archivo: 'comparar-nutricion.js' },
+            { nombre: 'Pre-llenar Formatos para Madres (Peso y Talla)', archivo: 'prellenar-formatos.js' },
             { nombre: 'Formación a Familias', archivo: 'formacion-familias.js' },
             { nombre: 'Generar Cuentas de Cobro', archivo: 'generar-cuentas-cobro.js' },
             { nombre: 'Vinculación Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },

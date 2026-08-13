@@ -17,7 +17,8 @@
     "cuentas": "node automatizaciones/generar-cuentas-cobro.js",
     "consulta": "node automatizaciones/consulta-activos.js",
     "peso": "node automatizaciones/peso-talla.js",
-    "comparar": "node automatizaciones/comparar-nutricion.js"
+    "comparar": "node automatizaciones/comparar-nutricion.js",
+    "prellenar": "node automatizaciones/prellenar-formatos.js"
   },
   "keywords": [],
   "author": "",
