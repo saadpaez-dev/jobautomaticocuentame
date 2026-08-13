@@ -178,6 +178,80 @@ function parsearReporteNutricional(rutaArchivo) {
         throw new Error('El archivo Excel está vacío.');
     }
 
+    // DETECTAR TIPO DE FORMATO:
+    // Si la planilla es un Formato Captura pre-llenado (ej: Formato_Peso_Talla_*.xlsx)
+    let esFormatoCaptura = false;
+    for (let r = 0; r < Math.min(15, rows.length); r++) {
+        const rowStr = removeAccents(rows[r] ? rows[r].join(' ') : '').toUpperCase();
+        if (rowStr.includes('FORMATO CAPTURA') || rowStr.includes('CAPTURA DE DATOS') || rowStr.includes('NO. DE ORDEN')) {
+            esFormatoCaptura = true;
+            break;
+        }
+    }
+
+    if (esFormatoCaptura) {
+        let easGlobal = String(rows[8]?.[4] || rows[7]?.[4] || 'ASOCIACION DE PADRES').trim().toUpperCase();
+        let udsGlobal = String(rows[8]?.[23] || rows[7]?.[23] || 'MI JARDIN').trim().toUpperCase();
+
+        if (easGlobal.includes('NOMBRE DE LA ENTIDAD') || easGlobal.length < 3) easGlobal = 'ASOCIACION DE PADRES';
+        if (udsGlobal.includes('NOMBRE DE LA UNIDAD') || udsGlobal.length < 3) udsGlobal = 'MI JARDIN';
+
+        const agrupadoPorUds = {};
+        agrupadoPorUds[udsGlobal] = {
+            nombreUds: udsGlobal,
+            nombreEas: easGlobal,
+            ninos: []
+        };
+
+        let filaInicio = 15;
+        for (let r = 10; r < Math.min(25, rows.length); r++) {
+            const valA = rows[r]?.[0];
+            if (valA === 1 || String(valA).trim() === '1') {
+                filaInicio = r;
+                break;
+            }
+        }
+
+        for (let r = filaInicio; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row) continue;
+
+            const docRaw = row[1]; // Col B (NUIP)
+            const docNorm = normalizarDoc(docRaw);
+            if (!docNorm || docNorm.length < 3 || isNaN(docNorm)) continue;
+
+            const nombres = String(row[2] || '').trim().toUpperCase(); // Col C
+            const apellidos = String(row[3] || '').trim().toUpperCase(); // Col D
+            const sexoCod = String(row[4] || 'H').trim().toUpperCase().startsWith('M') ? 'M' : 'H'; // Col E
+            const fechaNacimiento = normalizarFecha(row[5]); // Col F
+            const fechaIngreso = normalizarFecha(row[6]); // Col G
+
+            const fechaTomaRaw = row[7]; // Col H (Fecha Toma)
+            const fechaTomaFormatted = normalizarFecha(fechaTomaRaw);
+            const fechaTomaTs = parseFechaTimestamp(fechaTomaRaw);
+
+            const pesoRaw = row[8]; // Col I (Peso kg)
+            const tallaRaw = row[9]; // Col J (Talla cm)
+            const perimetroRaw = row[10]; // Col K (Perímetro cm)
+
+            agrupadoPorUds[udsGlobal].ninos.push({
+                documento: docNorm,
+                nombres: nombres || 'N/A',
+                apellidos: apellidos || 'N/A',
+                sexo: sexoCod,
+                fechaNacimiento,
+                fechaIngreso,
+                fechaToma: fechaTomaFormatted,
+                fechaTomaTs: fechaTomaTs,
+                peso: pesoRaw !== '' && pesoRaw !== undefined ? String(pesoRaw).trim() : '',
+                talla: tallaRaw !== '' && tallaRaw !== undefined ? String(tallaRaw).trim() : '',
+                perimetro: perimetroRaw !== '' && perimetroRaw !== undefined ? String(perimetroRaw).trim() : ''
+            });
+        }
+
+        return agrupadoPorUds;
+    }
+
     // Extraer el Nombre de la Asociación (EAS) dinámicamente de las celdas superiores del reporte (filas 1 a 15)
     let easGlobal = '';
 
