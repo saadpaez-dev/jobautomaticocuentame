@@ -30,14 +30,12 @@ function runScript(scriptName) {
     console.log(c.amarillo(`\n>>> Iniciando módulo: ${scriptName} ...\n`));
     
     // stdio: 'inherit' permite que los logs y prompts se conecten a esta misma terminal
-    const result = spawnSync('node', [scriptPath], { stdio: 'inherit' });
+    const result = spawnSync(process.execPath, [scriptPath], { stdio: 'inherit' });
     
     if (result.error) {
         console.error(c.rojo(`\n❌ Error al intentar ejecutar el script: ${result.error.message}`));
+        readline.question(c.negrita('\nPresiona ENTER para volver al menú principal...'));
     }
-    
-    console.log(c.gris(`\n<<< Módulo ${scriptName} finalizado.`));
-    readline.question(c.negrita('\nPresiona ENTER para volver al menú principal...'));
 }
 
 async function iniciarBraveAutomatico() {

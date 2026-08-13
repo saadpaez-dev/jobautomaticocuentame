@@ -1750,6 +1750,9 @@ async function main() {
     }
   } catch (err) {
     console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
+  } finally {
+    if (browser) await browser.disconnect().catch(() => {});
+    process.exit(0);
   }
 }
 

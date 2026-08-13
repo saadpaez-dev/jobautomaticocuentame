@@ -1313,6 +1313,8 @@ async function main() {
   }
   
   console.log(c.verde('\n  👋 Módulo finalizado.\n'));
+  if (browser) await browser.disconnect().catch(() => {});
+  process.exit(0);
 }
 
 if (require.main === module) {

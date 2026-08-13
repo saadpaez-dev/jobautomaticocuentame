@@ -622,7 +622,9 @@ async function main() {
       console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
       break;
   }
-  }
+  console.log(c.verde('\n  👋 Módulo finalizado.\n'));
+  if (browser) await browser.disconnect().catch(() => {});
+  process.exit(0);
 }
 
 main().catch((err) => {

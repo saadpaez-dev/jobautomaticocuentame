@@ -459,6 +459,8 @@ async function main() {
   } // End of outer while(true) (asociacion loop)
 
   console.log(c.verde('\n  👋 Módulo finalizado.\n'));
+  if (browser) await browser.disconnect().catch(() => {});
+  process.exit(0);
 }
 
 main().catch(console.error);
