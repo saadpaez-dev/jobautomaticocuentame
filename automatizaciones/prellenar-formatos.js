@@ -280,7 +280,14 @@ function parsearReporteNutricional(rutaArchivo) {
             };
         }
 
-        if (!agrupadoPorUds[nombreUds].ninos.some(n => n.documento === docNorm)) {
+        // CONTROL DE DUPLICADOS: Evitar repetir al mismo niño sin importar cuántos seguimientos/tomas tenga en el reporte
+        const yaExisteEnUds = agrupadoPorUds[nombreUds].ninos.some(n => {
+            if (docNorm && n.documento === docNorm) return true;
+            if (n.nombres === nombres && n.apellidos === apellidos) return true;
+            return false;
+        });
+
+        if (!yaExisteEnUds) {
             agrupadoPorUds[nombreUds].ninos.push({
                 documento: docNorm,
                 nombres: nombres || 'N/A',
@@ -289,6 +296,13 @@ function parsearReporteNutricional(rutaArchivo) {
                 fechaNacimiento,
                 fechaIngreso
             });
+        } else {
+            // Si ya existe por una toma anterior, complementar fechas si estaban vacías
+            const ninoExistente = agrupadoPorUds[nombreUds].ninos.find(n => (docNorm && n.documento === docNorm) || (n.nombres === nombres && n.apellidos === apellidos));
+            if (ninoExistente) {
+                if (!ninoExistente.fechaNacimiento && fechaNacimiento) ninoExistente.fechaNacimiento = fechaNacimiento;
+                if (!ninoExistente.fechaIngreso && fechaIngreso) ninoExistente.fechaIngreso = fechaIngreso;
+            }
         }
     }
 
