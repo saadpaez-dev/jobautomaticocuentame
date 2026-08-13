@@ -1065,18 +1065,16 @@ async function main() {
                                     console.log(c.cyan('    1. Cedula de Ciudadania'));
                                     console.log(c.cyan('    2. Cedula de Extranjeria'));
                                     console.log(c.cyan('    3. Permiso por Proteccion Temporal'));
-                                    console.log(c.cyan('    4. Permiso Especial de Permanencia'));
-                                    console.log(c.cyan('    5. Pasaporte'));
+                                    console.log(c.cyan('    4. Pasaporte'));
                                     let tipoDocSel = '';
-                                    while(!['1','2','3','4','5'].includes(tipoDocSel)) {
-                                        tipoDocSel = readline.question(c.cyan('  > Elige una opcion (1-5): ')).trim();
+                                    while(!['1','2','3','4'].includes(tipoDocSel)) {
+                                        tipoDocSel = readline.question(c.cyan('  > Elige una opcion (1-4): ')).trim();
                                     }
                                     const docsMap = {
                                         '1': 'CEDULA DE CIUDADANIA',
                                         '2': 'CEDULA DE EXTRANJERIA',
                                         '3': 'PERMISO POR PROTECCIÓN TEMPORAL',
-                                        '4': 'PERMISO ESPECIAL DE PERMANENCIA',
-                                        '5': 'PASAPORTE'
+                                        '4': 'PASAPORTE'
                                     };
                                     const valTipoDocJefe = docsMap[tipoDocSel];
 
