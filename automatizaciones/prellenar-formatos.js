@@ -24,6 +24,7 @@ const path = require('path');
 const fs = require('fs');
 const readline = require('readline-sync');
 const picocolors = require('picocolors');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const c = {
     verde: str => picocolors.green(str),

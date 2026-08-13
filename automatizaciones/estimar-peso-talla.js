@@ -10,6 +10,7 @@
  */
 
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const fs = require('fs');
 const readline = require('readline-sync');
 const xlsx = require('xlsx');

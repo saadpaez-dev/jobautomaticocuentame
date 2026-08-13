@@ -4,9 +4,10 @@
  * Fase 1: Selección de Asociación y Jardín (UDS), e ingreso al módulo correspondiente.
  */
 
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const xlsx = require('xlsx');
 const fs = require('fs');
-const path = require('path');
 const { chromium } = require('playwright');
 const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
@@ -481,6 +482,7 @@ async function main() {
       let accionRapida = null;
       let modoExcel = null;
       let ninosExcel = [];
+      let ninosProcesados = [];
       let idxNinoExcelActual = 0;
       let listaArchivosPendientes = [];
       let idxArchivoActual = 0;
@@ -858,7 +860,7 @@ async function main() {
 
       idxNinoExcelActual = 0;
       let consecutivosDuplicados = 0;
-      let ninosProcesados = [];
+      ninosProcesados = [];
 
       while (true) {
           console.log(c.cyan('\n------------------------------------------------------'));
