@@ -863,6 +863,10 @@ async function main() {
                       break;
                   }
               }
+
+              if (salirModulo) break;
+              if (!modoExcel) continue;
+
               const ninoTarget = ninosExcel[idxNinoExcelActual];
               console.log(c.cyan(`\n  🚀 PROCESANDO NIÑO ${idxNinoExcelActual + 1} de ${ninosExcel.length}: ${ninoTarget.nombreCompleto}`));
               preFiltroBeneficiario = ninoTarget.documento;
