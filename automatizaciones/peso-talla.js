@@ -1461,20 +1461,65 @@ async function main() {
                           return errorElms.map(e => e.innerText.trim()).join(' | ');
                       }).catch(() => '');
 
-                      if (txtError) {
-                          console.log(c.rojo(`  ❌ Error reportado por Cuéntame en la pantalla: "${txtError}"`));
-                      } else {
-                          console.log(c.rojo('  ❌ NO se confirmó el guardado ("La Información ha sido guardada.") por parte del servidor.'));
+                      let autoHealed = false;
+                      const ninoTarget = (modoExcel && modoExcel.startsWith('MASIVO_')) ? (ninosExcel[idxNinoExcelActual] || ninoSeleccionado) : ninoSeleccionado;
+
+                      // Auto-recuperación si Cuéntame reclama por Fecha de medición de perímetro braquial > Fecha de valoración
+                      if (txtError && (txtError.toLowerCase().includes('perimetro braquial') || txtError.toLowerCase().includes('menor o igual')) && ninoTarget && ninoTarget.fecha) {
+                          console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perímetro braquial en Cuéntame.`));
+                          console.log(c.amarillo(`  🛠️ Autocorrigiendo: Sincronizando Fecha de medición de perímetro braquial con Fecha de valoración (${ninoTarget.fecha})...`));
+                          
+                          await currentFrameErr.evaluate((fDate) => {
+                              const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
+                              if (inpPbFecha) {
+                                  inpPbFecha.value = fDate;
+                                  inpPbFecha.dispatchEvent(new Event('input', { bubbles: true }));
+                                  inpPbFecha.dispatchEvent(new Event('change', { bubbles: true }));
+                                  inpPbFecha.dispatchEvent(new Event('blur', { bubbles: true }));
+                              }
+                          }, ninoTarget.fecha).catch(() => {});
+
+                          const btnGuardarRetry = currentFrameErr.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
+                          if (await btnGuardarRetry.count() > 0) {
+                              console.log(c.amarillo('  ⏳ Reintentando guardado...'));
+                              await btnGuardarRetry.click({ timeout: 3000 }).catch(() => btnGuardarRetry.evaluate(node => node.click()));
+                              await page.waitForTimeout(2000);
+
+                              const currentFrameRetry = page.frame({ name: 'frameContent' }) || page;
+                              const txtBodyRetry = await currentFrameRetry.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+                              const txtMainRetry = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+
+                              if (txtBodyRetry.includes('La Información ha sido guardada') || txtMainRetry.includes('La Información ha sido guardada') || txtBodyRetry.includes('ha sido guardada')) {
+                                  autoHealed = true;
+                                  consecutivosDuplicados = 0;
+                                  console.log(c.verde('  🎉 ¡Corregido y guardado exitosamente! Banner "La Información ha sido guardada." recibido.'));
+                                  if (modoExcel && modoExcel.startsWith('MASIVO_') && ninoTarget) {
+                                      ninosProcesados.push({
+                                          ...ninoTarget,
+                                          estado: '✅ CARGADO EXITOSAMENTE (AUTOCORREGIDO FECHA PERIMETRO)',
+                                          observacion: 'La información de la toma se guardó tras autocorregir fecha de perímetro braquial.'
+                                      });
+                                      console.log(c.verde(`  🎉 Niño ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
+                                  }
+                              }
+                          }
                       }
 
-                      if (modoExcel && modoExcel.startsWith('MASIVO_')) {
-                          const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
-                          if (ninoTarget) {
-                              ninosProcesados.push({
-                                  ...ninoTarget,
-                                  estado: '❌ ERROR EN GUARDADO',
-                                  observacion: txtError ? `Cuéntame reportó: ${txtError}` : 'El servidor de Cuéntame no retornó la confirmación de guardado.'
-                              });
+                      if (!autoHealed) {
+                          if (txtError) {
+                              console.log(c.rojo(`  ❌ Error reportado por Cuéntame en la pantalla: "${txtError}"`));
+                          } else {
+                              console.log(c.rojo('  ❌ NO se confirmó el guardado ("La Información ha sido guardada.") por parte del servidor.'));
+                          }
+
+                          if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                              if (ninoTarget) {
+                                  ninosProcesados.push({
+                                      ...ninoTarget,
+                                      estado: '❌ ERROR EN GUARDADO',
+                                      observacion: txtError ? `Cuéntame reportó: ${txtError}` : 'El servidor de Cuéntame no retornó la confirmación de guardado.'
+                                  });
+                              }
                           }
                       }
                   }

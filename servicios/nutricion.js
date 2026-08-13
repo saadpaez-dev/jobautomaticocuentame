@@ -499,28 +499,28 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             await page.waitForTimeout(200);
         }
 
-        // B. Perimetro Braquial (SI YA TIENE VALOR REGISTRADO O VIENE ERRONEO EN EXCEL, SE IGNORA / CONSERVA)
+        // B. Perimetro Braquial (Sincronizar fecha siempre con Fecha de valoración antropométrica para evitar errores de validación)
         try {
-            const pbEstado = await f.evaluate(() => {
-                const inpPbVal = document.querySelector('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]');
-                const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
-                
-                const tieneVal = inpPbVal && inpPbVal.value && inpPbVal.value.trim() !== '' && inpPbVal.value.trim() !== '0';
-                const tieneFecha = inpPbFecha && inpPbFecha.value && inpPbFecha.value.trim() !== '';
-                
-                return { tieneVal, tieneFecha };
-            });
-
-            // Validar si el perímetro del Excel es un número válido entre 5.0 y 30.0 cm
             const numPb = parseFloat(String(datos.perimetro || '').replace(',', '.'));
             const pbEsValido = !isNaN(numPb) && numPb >= 5.0 && numPb <= 30.0;
 
-            if (pbEstado.tieneVal || pbEstado.tieneFecha) {
-                console.log(c.gris('    ℹ️ Perímetro Braquial ya registrado previamente → se ignora y se conserva el valor existente.'));
-            } else if (!pbEsValido && datos.perimetro) {
-                console.log(c.amarillo(`    ⚠️ Perímetro Braquial en Excel ("${datos.perimetro}") está fuera de rango válido (5-30 cm) → Se omite para conservar datos y continuar el guardado.`));
+            if (datos.perimetro && !pbEsValido) {
+                console.log(c.amarillo(`    ⚠️ Perímetro Braquial en Excel ("${datos.perimetro}") está fuera de rango válido (5-30 cm) → Se omite.`));
             } else {
-                if (datos.fecha && pbEsValido) await safeFillText('Fecha de medición', datos.fecha);
+                // Sincronizar SIEMPRE la Fecha de medición del perímetro con la Fecha de valoración antropométrica
+                if (datos.fecha) {
+                    await f.evaluate((fDate) => {
+                        const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
+                        if (inpPbFecha) {
+                            inpPbFecha.value = fDate;
+                            inpPbFecha.dispatchEvent(new Event('input', { bubbles: true }));
+                            inpPbFecha.dispatchEvent(new Event('change', { bubbles: true }));
+                            inpPbFecha.dispatchEvent(new Event('blur', { bubbles: true }));
+                        }
+                    }, datos.fecha).catch(() => {});
+                    console.log(c.verde('    ✅ [Texto] Sincronizada Fecha de medición de perímetro braquial con Fecha de valoración'));
+                }
+
                 if (datos.perimetro && pbEsValido) {
                     const inpPb = f.locator('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]').first();
                     if (await inpPb.count() > 0 && await inpPb.isVisible().catch(() => false) && !await inpPb.isDisabled().catch(() => true)) {
