@@ -348,6 +348,8 @@ async function main() {
       let modoExcel = null;
       let ninosExcel = [];
       let idxNinoExcelActual = 0;
+      let listaArchivosPendientes = [];
+      let idxArchivoActual = 0;
 
       console.log(c.cyan('\n------------------------------------------------------'));
       console.log(c.cyan('  📋 MENÚ DE OPCIONES - PESO Y TALLA'));
@@ -368,51 +370,98 @@ async function main() {
           break;
       }
       
-      const obtenerRutaExcel = () => {
+      const obtenerRutasExcelMultiples = () => {
           const docsDir = require('path').join(__dirname, '..', 'Docs', 'peso y talla');
-          let archivos = [];
+          let archivosDocs = [];
           if (require('fs').existsSync(docsDir)) {
-              archivos = require('fs').readdirSync(docsDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
+              archivosDocs = require('fs').readdirSync(docsDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
           }
-          if (archivos.length > 0) {
+          if (archivosDocs.length > 0) {
               console.log(c.cyan('\n  Archivos Excel encontrados en "Docs/peso y talla":'));
-              archivos.forEach((a, i) => console.log(`  ${i + 1}. ${a}`));
-              console.log(`  0. Escribir/Pegar ruta manualmente`);
-              let idxArchivo = -1;
-              while (idxArchivo < 0 || idxArchivo > archivos.length) {
-                  const res = readline.question(c.negrita('\n  > Selecciona el archivo a cargar (0-N): '));
-                  idxArchivo = parseInt(res, 10);
-                  if (isNaN(idxArchivo)) idxArchivo = -1;
-              }
-              if (idxArchivo > 0) {
-                  return require('path').join(docsDir, archivos[idxArchivo - 1]);
+              archivosDocs.forEach((a, i) => console.log(`  ${i + 1}. ${a}`));
+          }
+
+          console.log(c.cyan('\n  📥 MULTI-CARGA DE ARCHIVOS EXCEL:'));
+          console.log(c.gris('     • Puedes arrastrar UNO o VARIOS archivos a la vez (ej: los 11 Excel de tu asociación).'));
+          console.log(c.gris('     • Puedes arrastrar una CARPETA completa con todos los archivos Excel.'));
+          console.log(c.gris('     • O escribe un número (1-N) para elegir de "Docs/peso y talla".'));
+
+          const inputRaw = readline.question(c.negrita('\n  > Arrastra los archivos/carpeta aquí o pega las rutas: ')).trim();
+          if (!inputRaw) return [];
+
+          if (/^\d+$/.test(inputRaw) && archivosDocs.length > 0) {
+              const idx = parseInt(inputRaw, 10);
+              if (idx > 0 && idx <= archivosDocs.length) {
+                  return [require('path').join(docsDir, archivosDocs[idx - 1])];
               }
           }
-          const rutaRaw = readline.question(c.negrita('\n  > Arrastra el archivo Excel aqui o pega la ruta: ')).replace(/['"]/g, '').trim();
-          return resolverRutaConEspeciales(rutaRaw);
+
+          const regexRutas = /"([^"]+)"|'([^']+)'|(\S+\.(?:xlsx|xls|csv))/gi;
+          let rutasEncontradas = [];
+          let match;
+
+          while ((match = regexRutas.exec(inputRaw)) !== null) {
+              const r = match[1] || match[2] || match[3];
+              if (r && r.trim()) {
+                  rutasEncontradas.push(r.trim());
+              }
+          }
+
+          if (rutasEncontradas.length === 0 && inputRaw) {
+              rutasEncontradas = [inputRaw.replace(/['"]/g, '').trim()];
+          }
+
+          const rutasValidadas = [];
+          for (const r of rutasEncontradas) {
+              const resolved = resolverRutaConEspeciales(r);
+              if (fs.existsSync(resolved)) {
+                  const stat = fs.statSync(resolved);
+                  if (stat.isDirectory()) {
+                      console.log(c.cyan(`\n  📁 Carpeta detectada: "${path.basename(resolved)}"`));
+                      const enCarpeta = fs.readdirSync(resolved)
+                          .filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls')))
+                          .map(f => path.join(resolved, f));
+                      console.log(c.verde(`     ✅ Encontrados ${enCarpeta.length} archivos Excel en la carpeta.`));
+                      rutasValidadas.push(...enCarpeta);
+                  } else if (stat.isFile() && !path.basename(resolved).startsWith('~') && (resolved.endsWith('.xlsx') || resolved.endsWith('.xls'))) {
+                      rutasValidadas.push(resolved);
+                  }
+              } else {
+                  console.log(c.amarillo(`  ⚠️ No se encontró la ruta: ${r}`));
+              }
+          }
+
+          return Array.from(new Set(rutasValidadas));
       };
       
       if (respBenef.trim() === '1' || respBenef.trim() === '4') {
           const accionMsj = respBenef.trim() === '1' ? 'Crear Nuevas Tomas' : 'Corregir/Editar Tomas Existentes';
           console.log(c.amarillo(`\n  Has seleccionado Procesamiento Masivo (${accionMsj}).`));
           
-          let fileP = obtenerRutaExcel();
-          while (fileP && !fs.existsSync(fileP)) {
-              console.log(c.rojo(`  ❌ El archivo no existe: ${fileP}`));
-              const reintento = readline.question(c.negrita('  > Arrastra nuevamente el archivo Excel o pega la ruta (ENTER para cancelar): ')).replace(/['"]/g, '').trim();
+          let listaArchivos = obtenerRutasExcelMultiples();
+          while (listaArchivos.length === 0) {
+              const reintento = readline.question(c.negrita('  > No se encontraron archivos válidos. Arrastra los archivos/carpeta nuevamente (ENTER para cancelar): ')).trim();
               if (!reintento) break;
-              fileP = resolverRutaConEspeciales(reintento);
+              listaArchivos = obtenerRutasExcelMultiples();
           }
 
-          if (!fileP || !fs.existsSync(fileP)) continue;
+          if (listaArchivos.length === 0) continue;
+
+          listaArchivosPendientes = listaArchivos;
+          idxArchivoActual = 0;
+
+          const fileP = listaArchivosPendientes[idxArchivoActual];
+          console.log(c.verde(`\n  🚀 MULTI-PROCESAMIENTO: ${listaArchivosPendientes.length} archivo(s) Excel cargado(s) para procesar:`));
+          listaArchivosPendientes.forEach((f, idx) => console.log(c.gris(`     ${idx + 1}. ${path.basename(f)}`)));
 
           try {
               const parseResult = parsearExcel(fileP);
               ninosExcel = parseResult.ninos;
               if (ninosExcel.length === 0) {
-                  console.log(c.rojo('  ❌ No se encontraron niños válidos en el Excel (o todos están retirados sin tomas válidas).'));
+                  console.log(c.rojo(`  ❌ No se encontraron niños válidos en el primer Excel (${path.basename(fileP)}).`));
                   continue;
               }
+              console.log(c.verde(`\n  📄 [1/${listaArchivosPendientes.length}] Leyendo Excel: ${path.basename(fileP)}`));
               console.log(c.verde(`  ✅ Excel cargado exitosamente. Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
               
               const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
@@ -432,7 +481,9 @@ async function main() {
               continue;
           }
       } else if (respBenef.trim() === '2') {
-          const fileP = obtenerRutaExcel();
+          const rutas = obtenerRutasExcelMultiples();
+          const fileP = rutas.length > 0 ? rutas[0] : null;
+          if (!fileP) continue;
           preFiltroBeneficiario = readline.question(c.negrita('\n  > Ingresa el/los nombre(s) o documento(s) (separados por coma, ej. LIAM,NICOLAS): ')).trim().toLowerCase();
           if (preFiltroBeneficiario) {
               try {
@@ -782,19 +833,41 @@ async function main() {
               if (idxNinoExcelActual >= ninosExcel.length) {
                   generarReporteExcel(ninosProcesados, jardinSeleccionado ? jardinSeleccionado.nombre : '', ascSeleccionada ? ascSeleccionada.nombreCorto : '');
 
+                  // Si hay más archivos en la lista pendiente de multi-carga, avanzar automáticamente al siguiente jardín
+                  if (listaArchivosPendientes && idxArchivoActual < listaArchivosPendientes.length - 1) {
+                      idxArchivoActual++;
+                      const proximoFile = listaArchivosPendientes[idxArchivoActual];
+                      console.log(c.verde('\n========================================================================================'));
+                      console.log(c.verde(`  🎉 JARDÍN PROCESADO EXITOSAMENTE. AVANZANDO AUTOMÁTICAMENTE AL ARCHIVO ${idxArchivoActual + 1} DE ${listaArchivosPendientes.length}:`));
+                      console.log(c.verde(`  📄 ${path.basename(proximoFile)}`));
+                      console.log(c.verde('========================================================================================\n'));
+
+                      try {
+                          const parseResult = parsearExcel(proximoFile);
+                          ninosExcel = parseResult.ninos;
+                          console.log(c.verde(`  ✅ Excel cargado exitosamente (${ninosExcel.length} niños). Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+
+                          const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
+                          ascSeleccionada = match.ascSeleccionada;
+                          jardinSeleccionado = match.jardinSeleccionado;
+
+                          idxNinoExcelActual = 0;
+                          consecutivosDuplicados = 0;
+                          continue; // salta directo a procesar el primer niño del nuevo archivo
+                      } catch(e) {
+                          console.log(c.rojo(`  ❌ Error leyendo el siguiente Excel (${path.basename(proximoFile)}): ${e.message}`));
+                      }
+                  }
+
+                  const numTotalArchivos = listaArchivosPendientes ? listaArchivosPendientes.length : 1;
                   console.log(c.verde('\n========================================================================================'));
-                  console.log(c.verde('  🎉 ¡PROCESAMIENTO MASIVO COMPLETADO EXITOSAMENTE PARA ESTE EXCEL!'));
+                  console.log(c.verde(`  🎉 ¡MULTI-PROCESAMIENTO COMPLETADO EXITOSAMENTE PARA LOS ${numTotalArchivos} ARCHIVO(S) EXCEL!`));
                   console.log(c.verde('========================================================================================'));
 
                   console.log(c.cyan('\n  ╔════════════════════════════════════════════════════════════════════╗'));
                   console.log(c.cyan('  ║                ¿Qué deseas hacer a continuación?                   ║'));
                   console.log(c.cyan('  ╠════════════════════════════════════════════════════════════════════╣'));
-                  if (ascSeleccionada) {
-                      const ascNom = (ascSeleccionada.nombreCorto || '').slice(0, 18);
-                      console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociación (${ascNom.padEnd(18)}) ║`));
-                  } else {
-                      console.log(c.cyan('  ║  1. Cargar otro Excel de esta misma asociación                     ║'));
-                  }
+                  console.log(c.cyan('  ║  1. Cargar más archivos Excel / carpetas                           ║'));
                   console.log(c.cyan('  ║  2. Cambiar de Jardín (UDS)                                        ║'));
                   console.log(c.cyan('  ║  3. Cambiar de Asociación                                          ║'));
                   console.log(c.cyan('  ║  4. Volver al menú de opciones de Peso y Talla                     ║'));
@@ -812,39 +885,38 @@ async function main() {
                       modoExcel = null;
                       break;
                   } else if (opt === '1') {
-                      console.log(c.cyan('\n  📂 Carga de nuevo Excel para ' + (ascSeleccionada ? ascSeleccionada.nombreCorto : 'la asociación activa')));
-                      const fileP = obtenerRutaExcel();
-                      try {
-                          const parseResult = parsearExcel(fileP);
-                          ninosExcel = parseResult.ninos;
-                          if (!ninosExcel || ninosExcel.length === 0) {
-                              console.log(c.rojo('  ❌ No se encontraron niños válidos en el nuevo Excel.'));
+                      console.log(c.cyan('\n  📂 MULTI-CARGA DE NUEVOS EXCEL'));
+                      const rutas = obtenerRutasExcelMultiples();
+                      if (rutas.length > 0) {
+                          listaArchivosPendientes = rutas;
+                          idxArchivoActual = 0;
+                          const fileP = listaArchivosPendientes[0];
+                          try {
+                              const parseResult = parsearExcel(fileP);
+                              ninosExcel = parseResult.ninos;
+                              if (!ninosExcel || ninosExcel.length === 0) {
+                                  console.log(c.rojo('  ❌ No se encontraron niños válidos en el nuevo Excel.'));
+                                  modoExcel = null;
+                                  break;
+                              }
+                              console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} niños).`));
+                              console.log(c.verde(`  Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+
+                              modoExcel = 'MASIVO_NUEVO';
+                              idxNinoExcelActual = 0;
+                              consecutivosDuplicados = 0;
+                              ninosProcesados = [];
+
+                              const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
+                              ascSeleccionada = match.ascSeleccionada;
+                              jardinSeleccionado = match.jardinSeleccionado;
+                              break;
+                          } catch(e) {
+                              console.log(c.rojo(`  ❌ Error leyendo el nuevo Excel: ${e.message}`));
                               modoExcel = null;
                               break;
                           }
-                          console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} niños).`));
-                          console.log(c.verde(`  Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
-
-                          modoExcel = 'MASIVO_NUEVO';
-                          idxNinoExcelActual = 0;
-                          consecutivosDuplicados = 0;
-                          ninosProcesados = [];
-
-                          if (parseResult.uds && ascSeleccionada) {
-                              const udsStr = parseResult.uds.trim().toUpperCase();
-                              const nuevoJardin = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
-                              if (nuevoJardin) {
-                                  jardinSeleccionado = nuevoJardin;
-                                  console.log(c.verde(`  ✅ Jardín (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
-                              } else {
-                                  jardinSeleccionado = null;
-                              }
-                          } else {
-                              jardinSeleccionado = null;
-                          }
-                          break;
-                      } catch(e) {
-                          console.log(c.rojo(`  ❌ Error leyendo el nuevo Excel: ${e.message}`));
+                      } else {
                           modoExcel = null;
                           break;
                       }
