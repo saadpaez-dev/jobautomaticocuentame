@@ -1,14 +1,21 @@
 /**
  * automatizaciones/prellenar-formatos.js
  * 
- * Lee el archivo de Beneficiarios Activos o Seguimiento Nutricional descargado de Cuéntame
- * y genera un Formato de Peso y Talla pre-llenado (basado en docs/formato peso y talla.xlsx)
- * para cada UDS / Jardín.
+ * Lee el Reporte de Nutrición / Activos descargado de Cuéntame
+ * y genera un Formato de Peso y Talla independiente pre-llenado (basado en docs/formato peso y talla.xlsx)
+ * para cada Jardín / UDS.
  * 
- * Llena únicamente:
- *  - Encabezado: Nombre EAS / Asociación y Nombre UDS / Jardín.
- *  - Filas de Niños: # Orden, Documento, Nombres, Apellidos, Sexo (H/M), Fecha Nacimiento, Fecha Ingreso.
- * Dejando en blanco los campos de mediciones nutricionales para el diligenciamiento de las Madres Comunitarias.
+ * Mapeo exacto de columnas del Reporte Nutricional:
+ *  - Col E (index 4 / E3): Nombre Entidad Contratista (EAS) -> Celda E9 del formato.
+ *  - Col G (index 6): Nombre de la UDS / Jardín -> Celda X9 del formato (agrupa los niños por Jardín).
+ *  - Col K (index 10): Numero Documento Beneficiario -> Col B del formato (B16 en adelante).
+ *  - Col N + O (index 13 + 14): Primer y Segundo Nombre -> Col C del formato (C16 en adelante).
+ *  - Col L + M (index 11 + 12): Primer y Segundo Apellido -> Col D del formato (D16 en adelante).
+ *  - Sexo: H (Hombre) / M (Mujer) -> Col E del formato (E16 en adelante).
+ *  - Col R (index 17): Fecha Nacimiento -> Col F del formato (F16 en adelante).
+ *  - Col S (index 18): Fecha Ingreso al programa -> Col G del formato (G16 en adelante).
+ * 
+ * Quedan totalmente en blanco las casillas nutricionales (Cols H a AE) para el llenado de las Madres Comunitarias.
  */
 
 const ExcelJS = require('exceljs');
@@ -34,7 +41,7 @@ function removeAccents(str) {
 
 function normalizarDoc(val) {
     if (val === undefined || val === null) return '';
-    return String(val).replace(/[^a-zA-Z0-9]/g, '').trim().toUpperCase();
+    return String(val).replace(/[^0-9Kk]/g, '').trim().toUpperCase();
 }
 
 function normalizarFecha(val) {
@@ -64,64 +71,50 @@ function normalizarFecha(val) {
     return str;
 }
 
-function detectarColumnas(headers) {
+function detectarMapaColumnas(headers) {
     const mapa = {
-        documento: -1,
-        nombres: -1,
-        apellidos: -1,
-        nombreCompleto: -1,
+        eas: 4,              // Col E
+        uds: 6,              // Col G
+        documento: 10,       // Col K
+        pApellido: 11,       // Col L
+        sApellido: 12,       // Col M
+        pNombre: 13,         // Col N
+        sNombre: 14,         // Col O
         sexo: -1,
-        fechaNacimiento: -1,
-        fechaIngreso: -1,
-        uds: -1,
-        eas: -1
+        fechaNacimiento: 17, // Col R
+        fechaIngreso: 18     // Col S
     };
 
     headers.forEach((h, idx) => {
         const clean = removeAccents(h);
-        
-        // Documento
-        if (mapa.documento === -1 && (clean.includes('DOCUMENTO') || clean.includes('IDENTIFICACION') || clean.includes('NUIP') || clean.includes('NUM_DOC'))) {
-            mapa.documento = idx;
-        }
-        // Nombres
-        if (clean.includes('PRIMER NOMBRE') || clean.includes('NOMBRES')) {
-            mapa.nombres = idx;
-        }
-        // Apellidos
-        if (clean.includes('PRIMER APELLIDO') || clean.includes('APELLIDOS')) {
-            mapa.apellidos = idx;
-        }
-        // Nombre Completo si no hay nombres/apellidos separados
-        if (clean.includes('BENEFICIARIO') || clean.includes('NOMBRE COMPLETO') || clean.includes('NOMBRE DEL BENEFICIARIO')) {
-            mapa.nombreCompleto = idx;
-        }
-        // Sexo
-        if (mapa.sexo === -1 && (clean.includes('SEXO') || clean.includes('GENERO'))) {
-            mapa.sexo = idx;
-        }
-        // Fecha Nacimiento
-        if (mapa.fechaNacimiento === -1 && (clean.includes('NACIMIENTO') || clean.includes('FEC_NAC'))) {
-            mapa.fechaNacimiento = idx;
-        }
-        // Fecha Ingreso
-        if (mapa.fechaIngreso === -1 && (clean.includes('INGRESO') || clean.includes('VINCULACION') || clean.includes('ATENCION') || clean.includes('APERTURA'))) {
-            mapa.fechaIngreso = idx;
-        }
-        // UDS
-        if (mapa.uds === -1 && (clean.includes('UNIDAD DE SERVICIO') || clean.includes('NOMBRE UDS') || clean.includes('UDS') || clean.includes('JARDIN'))) {
-            mapa.uds = idx;
-        }
-        // EAS
-        if (mapa.eas === -1 && (clean.includes('ENTIDAD ADMINISTRADORA') || clean.includes('EAS') || clean.includes('ASOCIACION'))) {
+
+        if (clean.includes('ENTIDAD') || clean.includes('CONTRATISTA') || clean.includes('EAS')) {
             mapa.eas = idx;
+        } else if (clean.includes('UNIDAD DE SERVICIO') || clean.includes('NOMBRE UDS') || clean.includes('JARDIN')) {
+            mapa.uds = idx;
+        } else if (clean.includes('NUMERO DOCUMENTO') || clean.includes('DOCUMENTO BENEFICIARIO') || clean.includes('NUIP')) {
+            mapa.documento = idx;
+        } else if (clean.includes('PRIMER APELLIDO')) {
+            mapa.pApellido = idx;
+        } else if (clean.includes('SEGUNDO APELLIDO')) {
+            mapa.sApellido = idx;
+        } else if (clean.includes('PRIMER NOMBRE')) {
+            mapa.pNombre = idx;
+        } else if (clean.includes('SEGUNDO NOMBRE')) {
+            mapa.sNombre = idx;
+        } else if (clean.includes('NACIMIENTO') || clean.includes('FEC_NAC')) {
+            mapa.fechaNacimiento = idx;
+        } else if (clean.includes('INGRESO AL PROGRAMA') || clean.includes('FECHA INGRESO') || clean.includes('VINCULACION')) {
+            mapa.fechaIngreso = idx;
+        } else if (clean.includes('SEXO') || clean.includes('GENERO')) {
+            mapa.sexo = idx;
         }
     });
 
     return mapa;
 }
 
-function parsearExcelReporte(rutaArchivo) {
+function parsearReporteNutricional(rutaArchivo) {
     const workbook = xlsx.readFile(rutaArchivo, { cellDates: true, cellText: false });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
@@ -131,22 +124,38 @@ function parsearExcelReporte(rutaArchivo) {
         throw new Error('El archivo Excel está vacío.');
     }
 
-    // Buscar la fila de encabezados en las primeras 25 filas
+    // EAS global de E3 si existe
+    let easGlobal = '';
+    for (let i = 0; i < Math.min(10, rows.length); i++) {
+        if (rows[i] && rows[i][4]) { // Col E
+            const val = String(rows[i][4]).trim();
+            if (val.toUpperCase().includes('ASOCIACION') || val.toUpperCase().includes('ENTIDAD') || val.toUpperCase().includes('HOGARES')) {
+                easGlobal = val;
+                break;
+            }
+        }
+    }
+
+    // Buscar fila de encabezados
     let headerRowIdx = -1;
-    let mapaCols = null;
+    let mapa = null;
 
     for (let i = 0; i < Math.min(25, rows.length); i++) {
         const row = rows[i].map(c => String(c).trim());
-        const mapa = detectarColumnas(row);
-        if (mapa.documento !== -1 && (mapa.nombres !== -1 || mapa.apellidos !== -1 || mapa.nombreCompleto !== -1)) {
+        const tempMapa = detectarMapaColumnas(row);
+        const hasDoc = tempMapa.documento !== -1 && row[tempMapa.documento] && removeAccents(row[tempMapa.documento]).includes('DOCUMENTO');
+        const hasUds = tempMapa.uds !== -1 && row[tempMapa.uds] && (removeAccents(row[tempMapa.uds]).includes('UDS') || removeAccents(row[tempMapa.uds]).includes('UNIDAD'));
+        
+        if (hasDoc || hasUds) {
             headerRowIdx = i;
-            mapaCols = mapa;
+            mapa = tempMapa;
             break;
         }
     }
 
-    if (headerRowIdx === -1 || !mapaCols) {
-        throw new Error('No se detectó una estructura válida de reporte de Cuéntame (faltan columnas de Documento / Nombre / UDS).');
+    if (headerRowIdx === -1 || !mapa) {
+        headerRowIdx = 0;
+        mapa = detectarMapaColumnas(rows[0] ? rows[0].map(c => String(c).trim()) : []);
     }
 
     const agrupadoPorUds = {};
@@ -155,38 +164,36 @@ function parsearExcelReporte(rutaArchivo) {
         const row = rows[i];
         if (!row || row.length === 0) continue;
 
-        const docRaw = row[mapaCols.documento];
+        const docRaw = row[mapa.documento];
         const docNorm = normalizarDoc(docRaw);
         if (!docNorm || docNorm.length < 3) continue;
 
-        let nombres = mapaCols.nombres !== -1 ? String(row[mapaCols.nombres]).trim() : '';
-        let apellidos = mapaCols.apellidos !== -1 ? String(row[mapaCols.apellidos]).trim() : '';
+        const pNom = String(row[mapa.pNombre] || '').trim();
+        const sNom = String(row[mapa.sNombre] || '').trim();
+        const nombres = (pNom + (sNom ? ' ' + sNom : '')).toUpperCase().trim();
 
-        if (!nombres && !apellidos && mapaCols.nombreCompleto !== -1) {
-            const completo = String(row[mapaCols.nombreCompleto]).trim();
-            const parts = completo.split(/\s+/);
-            if (parts.length <= 2) {
-                nombres = parts[0] || '';
-                apellidos = parts[1] || '';
-            } else {
-                const mitad = Math.floor(parts.length / 2);
-                nombres = parts.slice(0, mitad).join(' ');
-                apellidos = parts.slice(mitad).join(' ');
-            }
-        }
+        const pApe = String(row[mapa.pApellido] || '').trim();
+        const sApe = String(row[mapa.sApellido] || '').trim();
+        const apellidos = (pApe + (sApe ? ' ' + sApe : '')).toUpperCase().trim();
 
-        const sexoRaw = mapaCols.sexo !== -1 ? removeAccents(row[mapaCols.sexo]) : 'H';
+        // Sexo
         let sexoCod = 'H';
-        if (sexoRaw.startsWith('M') || sexoRaw.includes('FEMEN') || sexoRaw.includes('MUJER')) {
-            sexoCod = 'M';
-        } else if (sexoRaw.startsWith('H') || sexoRaw.includes('MASC') || sexoRaw.includes('HOMB')) {
-            sexoCod = 'H';
+        if (mapa.sexo !== -1 && row[mapa.sexo]) {
+            const sUpper = removeAccents(String(row[mapa.sexo])).toUpperCase();
+            if (sUpper.startsWith('M') || sUpper.includes('FEMEN') || sUpper.includes('MUJER')) sexoCod = 'M';
+            else if (sUpper.startsWith('H') || sUpper.includes('MASC') || sUpper.includes('HOMB')) sexoCod = 'H';
+        } else {
+            // Intentar buscar en otras celdas de la fila si alguna dice MASCULINO/FEMENINO
+            const rowStr = row.map(c => removeAccents(String(c))).join(' ').toUpperCase();
+            if (rowStr.includes('FEMENINO') || rowStr.includes('MUJER')) sexoCod = 'M';
+            else if (rowStr.includes('MASCULINO') || rowStr.includes('HOMBRE')) sexoCod = 'H';
         }
 
-        const fechaNacimiento = mapaCols.fechaNacimiento !== -1 ? normalizarFecha(row[mapaCols.fechaNacimiento]) : '';
-        const fechaIngreso = mapaCols.fechaIngreso !== -1 ? normalizarFecha(row[mapaCols.fechaIngreso]) : '';
-        const nombreUds = mapaCols.uds !== -1 && row[mapaCols.uds] ? String(row[mapaCols.uds]).trim().toUpperCase() : 'MI JARDIN';
-        const nombreEas = mapaCols.eas !== -1 && row[mapaCols.eas] ? String(row[mapaCols.eas]).trim().toUpperCase() : 'ASOCIACION DE PADRES DE FAMILIA HCB MAFALDA';
+        const fechaNacimiento = mapa.fechaNacimiento !== -1 ? normalizarFecha(row[mapa.fechaNacimiento]) : '';
+        const fechaIngreso = mapa.fechaIngreso !== -1 ? normalizarFecha(row[mapa.fechaIngreso]) : '';
+        
+        const nombreUds = mapa.uds !== -1 && row[mapa.uds] ? String(row[mapa.uds]).trim().toUpperCase() : 'MI JARDIN';
+        const nombreEas = mapa.eas !== -1 && row[mapa.eas] ? String(row[mapa.eas]).trim().toUpperCase() : (easGlobal || 'ASOCIACION PADRES USUARIOS DE LOS HOGARES DEL BIENESTAR BARRIOS UNIDOS DEL NORTE DE SAN CRISTOBAL');
 
         if (!agrupadoPorUds[nombreUds]) {
             agrupadoPorUds[nombreUds] = {
@@ -196,12 +203,11 @@ function parsearExcelReporte(rutaArchivo) {
             };
         }
 
-        // Evitar duplicados por documento dentro de la misma UDS
         if (!agrupadoPorUds[nombreUds].ninos.some(n => n.documento === docNorm)) {
             agrupadoPorUds[nombreUds].ninos.push({
                 documento: docNorm,
-                nombres: nombres.toUpperCase(),
-                apellidos: apellidos.toUpperCase(),
+                nombres: nombres || 'N/A',
+                apellidos: apellidos || 'N/A',
                 sexo: sexoCod,
                 fechaNacimiento,
                 fechaIngreso
@@ -212,18 +218,18 @@ function parsearExcelReporte(rutaArchivo) {
     return agrupadoPorUds;
 }
 
-async function prellenarFormatoUds(datosUds, plantillaPath) {
+async function generarFormatoPesoYTallaUds(datosUds, plantillaPath) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(plantillaPath);
     const worksheet = workbook.getWorksheet(1);
 
-    // 1. Encabezados (Fila 9)
-    // E9 (Col 5): Nombre EAS / Asociación
-    // X9 (Col 24): Nombre UDS / Jardín
+    // 1. Encabezado de la planilla
+    // E9 (Col 5): Nombre de la Entidad Administradora de Servicio (EAS / Asociación)
+    // X9 (Col 24): Nombre de la Unidad de Servicio (UDS / Jardín)
     worksheet.getRow(9).getCell(5).value = datosUds.nombreEas;
     worksheet.getRow(9).getCell(24).value = datosUds.nombreUds;
 
-    // 2. Llenar filas de beneficiarios desde la Fila 16
+    // 2. Filas de Beneficiarios (desde la fila 16)
     const ninos = datosUds.ninos;
     const templateRow = worksheet.getRow(16);
 
@@ -232,7 +238,7 @@ async function prellenarFormatoUds(datosUds, plantillaPath) {
         const rowNum = 16 + i;
         const row = worksheet.getRow(rowNum);
 
-        // Copiar estilos de la fila plantilla para preservar bordes y tipografía
+        // Copiar formato y bordes desde la fila 16 original
         for (let cCol = 1; cCol <= 31; cCol++) {
             const cell = row.getCell(cCol);
             const templateCell = templateRow.getCell(cCol);
@@ -241,15 +247,15 @@ async function prellenarFormatoUds(datosUds, plantillaPath) {
             }
         }
 
-        row.getCell(1).value = i + 1;                  // No. DE ORDEN
-        row.getCell(2).value = String(nino.documento); // NUIP
-        row.getCell(3).value = String(nino.nombres);   // NOMBRES
-        row.getCell(4).value = String(nino.apellidos); // APELLIDOS
-        row.getCell(5).value = nino.sexo;              // Sexo (H/M)
-        row.getCell(6).value = nino.fechaNacimiento;   // FECHA DE NACIMIENTO
-        row.getCell(7).value = nino.fechaIngreso;      // FECHA DE INGRESO
+        row.getCell(1).value = i + 1;                  // A: No. DE ORDEN
+        row.getCell(2).value = String(nino.documento); // B: NUIP (Sólo número de documento)
+        row.getCell(3).value = String(nino.nombres);   // C: NOMBRES (Primer + Segundo Nombre)
+        row.getCell(4).value = String(nino.apellidos); // D: APELLIDOS (Primer + Segundo Apellido)
+        row.getCell(5).value = nino.sexo;              // E: Sexo (H / M)
+        row.getCell(6).value = nino.fechaNacimiento;   // F: FECHA DE NACIMIENTO (dd/mm/aaaa)
+        row.getCell(7).value = nino.fechaIngreso;      // G: FECHA DE INGRESO AL SERVICIO (dd/mm/aaaa)
 
-        // Cols 8 a 31 se dejan en BLANCO para las Madres Comunitarias
+        // Cols H a AE (8 a 31) se dejan en blanco para el diligenciamiento de la Madre Comunitaria
         for (let cCol = 8; cCol <= 31; cCol++) {
             row.getCell(cCol).value = null;
         }
@@ -261,9 +267,9 @@ async function prellenarFormatoUds(datosUds, plantillaPath) {
 }
 
 async function main() {
-    console.log(c.cyan('\n======================================================'));
-    console.log(c.negrita(' 📝 PRE-LLENAR FORMATOS DE PESO Y TALLA (PARA MADRES COMUNITARIAS)'));
-    console.log(c.cyan('======================================================\n'));
+    console.log(c.cyan('\n========================================================================'));
+    console.log(c.negrita(' 📝 PRE-LLENAR FORMATOS INDEPENDIENTES DE PESO Y TALLA (POR JARDÍN)'));
+    console.log(c.cyan('========================================================================\n'));
 
     const plantillaPath = path.join(__dirname, '..', 'docs', 'formato peso y talla.xlsx');
     if (!fs.existsSync(plantillaPath)) {
@@ -271,10 +277,9 @@ async function main() {
         return;
     }
 
-    console.log(c.gris('Arrastra y suelta el reporte descargado de Cuéntame'));
-    console.log(c.gris('(Beneficiarios Activos o Seguimiento Nutricional).\n'));
+    console.log(c.gris('Arrastra y suelta el Reporte Nutricional o de Activos descargado de Cuéntame.\n'));
 
-    const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel aquí: '));
+    const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel del Reporte Nutricional aquí: '));
     const inputPath = inputPathRaw.trim().replace(/^["']|["']$/g, '');
 
     if (!inputPath || !fs.existsSync(inputPath)) {
@@ -282,18 +287,18 @@ async function main() {
         return;
     }
 
-    console.log(c.cyan('\n  ⏳ Analizando reporte y procesando niños activos por UDS...'));
+    console.log(c.cyan('\n  ⏳ Analizando reporte y organizando beneficiarios por Jardín (UDS)...'));
 
     try {
-        const agrupado = parsearExcelReporte(inputPath);
-        const listaUds = Object.keys(agrupado);
+        const agrupado = parsearReporteNutricional(inputPath);
+        const listaUds = Object.keys(agrupado).sort();
 
         if (listaUds.length === 0) {
-            console.log(c.rojo('  ❌ No se encontraron niños activos en el archivo reportado.'));
+            console.log(c.rojo('  ❌ No se encontraron beneficiarios válidos en el archivo.'));
             return;
         }
 
-        console.log(c.verde(`\n  ✅ Se detectaron ${listaUds.length} Jardines/UDS en el reporte:\n`));
+        console.log(c.verde(`\n  ✅ Se identificaron ${listaUds.length} Jardines/UDS independientes:\n`));
 
         const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla');
         const dirReportes = path.join(__dirname, '..', 'reportes');
@@ -307,11 +312,11 @@ async function main() {
             const nombreUds = listaUds[i];
             const datosUds = agrupado[nombreUds];
 
-            console.log(`  ${i + 1}. ${c.cyan(nombreUds)}: ${c.verde(datosUds.ninos.length + ' niños activos')}`);
+            console.log(`  ${i + 1}. ${c.cyan(nombreUds)}: ${c.verde(datosUds.ninos.length + ' niños')}`);
 
-            const wbPrellenado = await prellenarFormatoUds(datosUds, plantillaPath);
+            const wbPrellenado = await generarFormatoPesoYTallaUds(datosUds, plantillaPath);
             const nombreClean = nombreUds.replace(/[^a-z0-9]/gi, '_');
-            const fileBaseName = `Formato_Prellenado_${nombreClean}_${fechaHoy}.xlsx`;
+            const fileBaseName = `Formato_Peso_Talla_${nombreClean}_${fechaHoy}.xlsx`;
 
             const pathDocs = path.join(dirDocs, fileBaseName);
             const pathReportes = path.join(dirReportes, fileBaseName);
@@ -319,10 +324,10 @@ async function main() {
             await wbPrellenado.xlsx.writeFile(pathDocs);
             await wbPrellenado.xlsx.writeFile(pathReportes);
 
-            console.log(c.gris(`     -> Guardado en: docs/peso y talla/${fileBaseName}`));
+            console.log(c.gris(`     -> Generado: docs/peso y talla/${fileBaseName}`));
         }
 
-        console.log(c.verde('\n  🎉 ¡Todos los formatos han sido pre-llenados exitosamente para las Madres Comunitarias!\n'));
+        console.log(c.verde('\n  🎉 ¡Todos los formatos de Peso y Talla por Jardín han sido generados exitosamente!\n'));
 
     } catch (err) {
         console.log(c.rojo(`\n  ❌ Error procesando el archivo: ${err.message}`));
@@ -333,4 +338,4 @@ if (require.main === module) {
     main().finally(() => process.exit(0));
 }
 
-module.exports = { parsearExcelReporte, prellenarFormatoUds };
+module.exports = { parsearReporteNutricional, generarFormatoPesoYTallaUds };
