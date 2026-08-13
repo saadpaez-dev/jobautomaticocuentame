@@ -516,50 +516,66 @@ async function main() {
         await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00').click();
         console.log(c.cyan('    ⏳ Esperando a que el sistema procese el reporte (esto puede tardar unos minutos)...'));
         
-        const exportButton = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl05_ctl04_ctl00_ButtonImg');
-        await exportButton.waitFor({ state: 'visible', timeout: 120000 });
+        const exportButton = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl05_ctl04_ctl00_ButtonImg, input[id*="ButtonImg"], a[title*="Export" i], img[alt*="Export" i], a[id*="ButtonLink"]').first();
+        await exportButton.waitFor({ state: 'visible', timeout: 180000 }).catch(() => {});
         
         console.log('    👉 Iniciando descarga en Excel...');
         
-        const exportBtn = reportFrame.locator('a[title="Exportar"], a[title="Export drop down menu"], img[alt="Exportar"], a[title="Export"]').first();
-        if (await exportBtn.count() > 0) {
-            await exportBtn.click({ force: true });
-            await reportPage.waitForTimeout(1500);
-            
-            const excelOption = reportFrame.locator('a:has-text("Excel")').first();
-            
-            // Forzamos el timeout a nivel de página para versiones antiguas de Playwright
-            reportPage.setDefaultTimeout(180000);
-            
-            const [download] = await Promise.all([
-                reportPage.waitForEvent('download', { timeout: 180000 }).catch(() => null),
-                reportFrame.evaluate(() => {
-                    try {
-                        // Prevenir que abra una ventana nueva (para que Playwright intercepte la descarga)
-                        const form = document.querySelector('form');
-                        if (form) form.target = '_self';
-                        window.open = function(url) { window.location.href = url; return window; };
+        // 1. Intentar desplegar el menú de exportación
+        let exportBtn = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl05_ctl04_ctl00_ButtonImg, input[id*="ButtonImg"], a[title*="Export" i], img[alt*="Export" i], a[id*="ButtonLink"]').first();
+        if (await exportBtn.count() === 0) {
+            exportBtn = exportButton;
+        }
 
-                        if (typeof $find !== 'undefined' && $find('ctl00_cphCont_rvTransversarReportes')) {
-                            $find('ctl00_cphCont_rvTransversarReportes').exportReport('EXCELOPENXML');
-                        } else {
-                            const links = Array.from(document.querySelectorAll('a'));
-                            const excel = links.find(a => a.textContent && a.textContent.includes('Excel'));
-                            if (excel) {
-                                excel.removeAttribute('target');
-                                excel.click();
-                            }
-                        }
-                    } catch (e) {
-                        const links = Array.from(document.querySelectorAll('a'));
-                        const excel = links.find(a => a.textContent && a.textContent.includes('Excel'));
-                        if (excel) {
-                            excel.removeAttribute('target');
-                            excel.click();
+        if (await exportBtn.count() > 0) {
+            await exportBtn.click({ force: true }).catch(() => exportBtn.evaluate(el => el.click()).catch(() => {}));
+            await reportPage.waitForTimeout(1000);
+            
+            const excelOption = reportFrame.locator('a:has-text("Excel"), a[title*="Excel" i]').first();
+            if (await excelOption.count() > 0) {
+                await excelOption.click({ force: true }).catch(() => {});
+            }
+        }
+
+        // 2. Ejecutar la función interna de exportación de SSRS $find().exportReport() por JavaScript como respaldo infalible
+        reportPage.setDefaultTimeout(180000);
+        
+        const [download] = await Promise.all([
+            reportPage.waitForEvent('download', { timeout: 180000 }).catch(() => null),
+            reportFrame.evaluate(() => {
+                try {
+                    const form = document.querySelector('form');
+                    if (form) form.target = '_self';
+                    window.open = function(url) { window.location.href = url; return window; };
+
+                    if (typeof $find !== 'undefined') {
+                        const rv = $find('ctl00_cphCont_rvTransversarReportes') || 
+                                   Array.from(document.querySelectorAll('[id*="rvTransversarReportes"]'))
+                                       .map(e => $find(e.id))
+                                       .find(c => c && typeof c.exportReport === 'function');
+                        
+                        if (rv && typeof rv.exportReport === 'function') {
+                            try { rv.exportReport('EXCELOPENXML'); } catch(e) { rv.exportReport('Excel'); }
+                            return;
                         }
                     }
-                })
-            ]);
+
+                    const links = Array.from(document.querySelectorAll('a'));
+                    const excelLink = links.find(a => a.textContent && a.textContent.toLowerCase().includes('excel'));
+                    if (excelLink) {
+                        excelLink.removeAttribute('target');
+                        excelLink.click();
+                    }
+                } catch (e) {
+                    const links = Array.from(document.querySelectorAll('a'));
+                    const excelLink = links.find(a => a.textContent && a.textContent.toLowerCase().includes('excel'));
+                    if (excelLink) {
+                        excelLink.removeAttribute('target');
+                        excelLink.click();
+                    }
+                }
+            })
+        ]);
             
             reportPage.setDefaultTimeout(30000); // restaurar
             
