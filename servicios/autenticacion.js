@@ -165,6 +165,18 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
   const nombreLargo = typeof ascInput === 'string' ? '' : (ascInput.nombreLargo || '');
 
   let contenidoFinal = await page.content();
+
+  // Si la pagina actual no esta en la pantalla de seleccion de entidad (DefaultF.aspx),
+  // forzar la navegacion a DefaultF.aspx para elegir la nueva asociacion limpia
+  if (!contenidoFinal.includes('Seleccione la entidad')) {
+      console.log(c.amarillo('  ⏳ Navegando a la pantalla de seleccion de asociacion (DefaultF.aspx)...'));
+      try {
+          await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
+          await page.waitForTimeout(1500);
+      } catch(e) {}
+      contenidoFinal = await page.content();
+  }
+
   let intentos = 0;
   const MAX_INTENTOS = 3;
 

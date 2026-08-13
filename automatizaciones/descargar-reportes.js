@@ -282,14 +282,14 @@ async function main() {
 
                 await selectElement.waitFor({ state: 'visible', timeout: 5000 });
                 
-                let isDisabled = await selectElement.evaluate(el => el.disabled);
+                let isDisabled = await selectElement.evaluate(el => el.disabled || el.classList.contains('aspNetDisabled'));
                 let waitAttempts = 0;
                 if (isDisabled) {
                     console.log(c.gris(`      (Esperando a que "${labelText}" se habilite tras el postback...)`));
                 }
-                while (isDisabled && waitAttempts < 15) { 
+                while (isDisabled && waitAttempts < 20) { 
                     await reportPage.waitForTimeout(1500);
-                    isDisabled = await selectElement.evaluate(el => el.disabled);
+                    isDisabled = await selectElement.evaluate(el => el.disabled || el.classList.contains('aspNetDisabled'));
                     waitAttempts++;
                 }
                 
@@ -336,6 +336,15 @@ async function main() {
             try {
                 const selectLocator = reportFrame.locator(`#${id}`);
                 await selectLocator.waitFor({ state: 'visible', timeout: 5000 });
+
+                let isDisabled = await selectLocator.evaluate(el => el.disabled || el.classList.contains('aspNetDisabled'));
+                let waitAttempts = 0;
+                while (isDisabled && waitAttempts < 20) { 
+                    await reportPage.waitForTimeout(1500);
+                    isDisabled = await selectLocator.evaluate(el => el.disabled || el.classList.contains('aspNetDisabled'));
+                    waitAttempts++;
+                }
+
                 if (typeof valueOrText === 'number') {
                     await selectLocator.selectOption({ index: valueOrText });
                 } else {
