@@ -485,9 +485,17 @@ async function main() {
       let listaArchivosPendientes = [];
       let idxArchivoActual = 0;
 
-      console.log(c.cyan('\n------------------------------------------------------'));
-      console.log(c.cyan('  📋 MENÚ DE OPCIONES - PESO Y TALLA'));
-      console.log(c.cyan('------------------------------------------------------'));
+      ascSeleccionada = null;
+      jardinSeleccionado = null;
+      ninosExcel = [];
+      ninosProcesados = [];
+      listaArchivosPendientes = [];
+      idxArchivoActual = 0;
+      modoExcel = null;
+
+      console.log(c.cyan('\n======================================================'));
+      console.log(c.cyan('   ⚖️  REGISTRO DE PESO Y TALLA'));
+      console.log(c.cyan('======================================================\n'));
       console.log('  1. Cargar excel jardin (Procesamiento masivo / Automático)');
       console.log('  2. Cargar beneficiario con excel (Individual)');
       console.log('  3. Cargar beneficiario sin excel (Manual)');
@@ -827,80 +835,7 @@ async function main() {
       }
       const rootContent = contentFrame || page;
 
-      // Hacer clic en la lupa para abrir la ventana emergente de UDS
-      console.log(c.cyan('  🔍 Abriendo ventana emergente de UDS...'));
-      
-      let lupaLocator = rootContent.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"], input[src*="lupa"]').first();
-      
-      const [popup] = await Promise.all([
-          page.waitForEvent('popup'),
-          lupaLocator.evaluate(node => node.click())
-      ]);
-
-      await popup.waitForLoadState('networkidle');
-      console.log(c.verde('  ✅ Ventana emergente "Lupa Unidades de Servicio" abierta.'));
-
-      // Llenar datos en el popup
-      console.log(c.cyan(`  📝 Ingresando codigo de la UDS: ${jardinSeleccionado.codigo}...`));
-      await popup.locator('input[id*="txtCodigoUnidadServicio"], input[name*="CodigoUnidadServicio"]').first().fill(String(jardinSeleccionado.codigo));
-
-      console.log(c.cyan('  📝 Seleccionando Departamento: BOGOTA D.C.'));
-      let ddlDepto = popup.locator('select[id*="ddlDepartamento"], select[name*="ddlDepartamento"]').first();
-      
-      if (await ddlDepto.count() === 0) {
-          // Fallback: buscar el select cuyo texto anterior (label o td) sea "Departamento"
-          console.log(c.amarillo('    ⚠️ No se encontro select por ID. Buscando por estructura DOM...'));
-          const tdLabel = popup.locator('td:has-text("Departamento")').last();
-          ddlDepto = tdLabel.locator('xpath=following-sibling::td//select').first();
-          if (await ddlDepto.count() === 0) {
-              ddlDepto = popup.locator('select').nth(1); // Asumiendo que es el 2do select
-          }
-      }
-
-      try {
-          // Usar una expresión regular para lidiar con tildes y espacios dobles
-          await ddlDepto.selectOption({ label: /BOGOT. D\.C\./i });
-          console.log(c.verde('    ✅ Departamento BOGOTA D.C. seleccionado.'));
-      } catch (err) {
-          console.log(c.amarillo('    Intentando buscar la opcion que contenga BOGOTA...'));
-          try {
-              const options = await ddlDepto.locator('option').allInnerTexts();
-              const bogotaOpt = options.find(o => o.toUpperCase().includes('BOGOT'));
-              if (bogotaOpt) {
-                  await ddlDepto.selectOption({ label: bogotaOpt });
-                  console.log(c.verde(`    ✅ Seleccionado fallback: ${bogotaOpt}`));
-              } else {
-                  console.log(c.rojo(`    ❌ No existe ninguna opcion con BOGOTA en el select.`));
-              }
-          } catch (e) {
-              console.log(c.rojo(`    ❌ Error fatal al intentar fallback del departamento.`));
-          }
-      }
-
-      console.log(c.cyan('  🔍 Haciendo clic en buscar/aceptar dentro de la Lupa...'));
-      await popup.locator('input[type="image"][id*="btnBuscar"], input[name*="btnBuscar"], a[id*="btnBuscar"]').first().click();
-
-      console.log(c.amarillo('  ⏳ Esperando a que el sistema procese la busqueda...'));
-      
-      try {
-          // Esperar a que la tabla de resultados (grid) se cargue y el botón de info aparezca
-          const btnInfo = popup.locator('input[type="image"][id*="btnInfo"], input[src*="info.jpg"]').first();
-          await btnInfo.waitFor({ state: 'visible', timeout: 15000 });
-          
-          console.log(c.verde('  ✅ Resultado encontrado. Seleccionando la UDS...'));
-          await btnInfo.click();
-      } catch (err) {
-          console.log(c.rojo(`  ❌ Error: No se encontraron resultados o el boton de info no aparecio.`));
-      }
-
-      console.log(c.amarillo('  ⏳ Esperando a que el popup se cierre y transfiera la UDS...'));
-      try {
-          await popup.waitForEvent('close', { timeout: 10000 });
-      } catch (e) {
-          // A veces el postback no cierra la ventana inmediatamente si no hay resultados
-      }
-      
-      console.log(c.verde(`\n  🎉 ¡Fase 1 completada! El sistema tiene la UDS cargada y la grilla de ninos visible.`));
+      await cargarUdsEnCuentame(page, jardinSeleccionado);
       
       // =========================================================================
       // FASE 2: SELECCION DE NINO EN LA GRILLA
