@@ -421,7 +421,7 @@ async function main() {
                     udsAProcesar = listaUds;
                 }
 
-                console.log(c.verde(`\n  🚀 Generando formatos pre-llenados para ${udsAProcesar.length} jardín(es)...\n`));
+                console.log(c.verde(`\n  🚀 Generando formatos pre-llenados (máximo 13 niños por archivo)...\n`));
 
                 const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla');
                 const dirReportes = path.join(__dirname, '..', 'reportes');
@@ -430,24 +430,48 @@ async function main() {
                 if (!fs.existsSync(dirReportes)) fs.mkdirSync(dirReportes, { recursive: true });
 
                 const fechaHoy = new Date().toISOString().split('T')[0];
+                const TAMANO_PARTE = 13;
 
                 for (let i = 0; i < udsAProcesar.length; i++) {
                     const nombreUds = udsAProcesar[i];
                     const datosUds = agrupado[nombreUds];
+                    const todosNinos = datosUds.ninos;
 
-                    console.log(`  ${i + 1}/${udsAProcesar.length}. ${c.cyan(nombreUds)} (${c.verde(datosUds.ninos.length + ' niños')})`);
+                    // Dividir en bloques de máximo 13 niños para evitar que el Excel se meche o me trunque las planillas
+                    const partesNinos = [];
+                    for (let k = 0; k < todosNinos.length; k += TAMANO_PARTE) {
+                        partesNinos.push(todosNinos.slice(k, k + TAMANO_PARTE));
+                    }
 
-                    const wbPrellenado = await generarFormatoPesoYTallaUds(datosUds, plantillaPath);
-                    const nombreClean = nombreUds.replace(/[^a-z0-9]/gi, '_');
-                    const fileBaseName = `Formato_Peso_Talla_${nombreClean}_${fechaHoy}.xlsx`;
+                    const totalPartes = partesNinos.length;
+                    const descPartes = totalPartes > 1 ? ` -> ${totalPartes} archivos de máx 13 niños` : '';
+                    console.log(`  ${i + 1}/${udsAProcesar.length}. ${c.cyan(nombreUds)} (${c.verde(todosNinos.length + ' niños')}${descPartes})`);
 
-                    const pathDocs = path.join(dirDocs, fileBaseName);
-                    const pathReportes = path.join(dirReportes, fileBaseName);
+                    for (let p = 0; p < totalPartes; p++) {
+                        const ninosChunk = partesNinos[p];
+                        const numParte = p + 1;
 
-                    await wbPrellenado.xlsx.writeFile(pathDocs);
-                    await wbPrellenado.xlsx.writeFile(pathReportes);
+                        const nombreUdsHeader = totalPartes > 1 ? `${nombreUds} (PARTE ${numParte}/${totalPartes})` : nombreUds;
 
-                    console.log(c.gris(`     -> Guardado exitosamente: docs/peso y talla/${fileBaseName}`));
+                        const datosSubUds = {
+                            nombreEas: datosUds.nombreEas,
+                            nombreUds: nombreUdsHeader,
+                            ninos: ninosChunk
+                        };
+
+                        const wbPrellenado = await generarFormatoPesoYTallaUds(datosSubUds, plantillaPath);
+                        const nombreClean = nombreUds.replace(/[^a-z0-9]/gi, '_');
+                        const sufijoParte = totalPartes > 1 ? `_Parte${numParte}` : '';
+                        const fileBaseName = `Formato_Peso_Talla_${nombreClean}${sufijoParte}_${fechaHoy}.xlsx`;
+
+                        const pathDocs = path.join(dirDocs, fileBaseName);
+                        const pathReportes = path.join(dirReportes, fileBaseName);
+
+                        await wbPrellenado.xlsx.writeFile(pathDocs);
+                        await wbPrellenado.xlsx.writeFile(pathReportes);
+
+                        console.log(c.gris(`     -> Guardado (${ninosChunk.length} niños): docs/peso y talla/${fileBaseName}`));
+                    }
                 }
 
                 console.log(c.verde('\n  🎉 ¡Formatos de Peso y Talla generados exitosamente!'));
