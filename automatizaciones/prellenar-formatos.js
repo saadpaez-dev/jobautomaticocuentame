@@ -379,7 +379,9 @@ async function main() {
             if (listaUds.length === 0) {
                 console.log(c.rojo('  ❌ No se encontraron beneficiarios válidos en el archivo.'));
             } else {
-                console.log(c.verde(`\n  ✅ Se identificaron ${listaUds.length} Jardines/UDS en el reporte:\n`));
+                const easDetectada = agrupado[listaUds[0]]?.nombreEas || 'DESCONOCIDA';
+                console.log(c.amarillo(`\n  📌 Asociación en el archivo: ${c.negrita(easDetectada)}`));
+                console.log(c.verde(`  ✅ Se identificaron ${listaUds.length} Jardines/UDS en el reporte:\n`));
 
                 listaUds.forEach((nombreUds, idx) => {
                     const count = agrupado[nombreUds].ninos.length;

@@ -592,8 +592,13 @@ async function main() {
             if (files.length > 0) {
                 files.sort((a, b) => fs.statSync(path.join(downloadsFolder, b)).mtimeMs - fs.statSync(path.join(downloadsFolder, a)).mtimeMs);
                 const latestFile = path.join(downloadsFolder, files[0]);
-                fs.copyFileSync(latestFile, savePath);
-                console.log(c.verde(`    ✅ Reporte recuperado y guardado exitosamente: ${fileName}`));
+                const mtimeMs = fs.statSync(latestFile).mtimeMs;
+                if (Date.now() - mtimeMs < 300000) { // Creado en los últimos 5 minutos
+                    fs.copyFileSync(latestFile, savePath);
+                    console.log(c.verde(`    ✅ Reporte recuperado y guardado exitosamente: ${fileName}`));
+                } else {
+                    console.log(c.rojo(`    ❌ No se encontró una descarga reciente para ${asc.nombreCorto}. El archivo en Downloads es de una ejecución anterior.`));
+                }
             } else {
                 console.log(c.rojo(`    ❌ No se encontró el archivo descargado en la carpeta de Descargas.`));
             }
