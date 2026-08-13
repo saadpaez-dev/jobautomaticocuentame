@@ -198,21 +198,26 @@ async function main() {
           console.log(c.amarillo(`======================================================`));
           console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
           
-          const mismaAsociacion = await validarYCambiarAsociacion(mainPage, asc);
-          if (!mismaAsociacion) {
-              const currentText = await mainPage.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
-              if (currentText.includes('Iniciar Sesión') || currentText.includes('Ingrese su código') || mainPage.url().includes('DefaultF.aspx')) {
-                  await loginYLlegarARoles(mainPage, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
-              }
-              console.log('  🏢 Seleccionando entidad (asociación)...');
-              reportPage = await seleccionarRolYEntrar(mainPage, asc, false);
-              console.log(c.verde('  ✅ Asociación cargada exitosamente.'));
-          } else {
-              console.log(c.verde(`  ✅ Preservando sesión y asociación activa: "${asc.nombreCorto}".`));
-              reportPage = mainPage;
+          // Navegar SIEMPRE a la pantalla de selección de roles (DefaultF.aspx) para cambiar la entidad activa en Cuéntame
+          if (!rolesUrl || mainPage.isClosed()) {
+              rolesUrl = await loginYLlegarARoles(mainPage, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
           }
+
+          console.log('  🏢 Navegando a la pantalla de selección de entidad...');
+          await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+          await mainPage.waitForTimeout(2000);
+
+          const currentText = await mainPage.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+          if (currentText.includes('Iniciar Sesión') || currentText.includes('Ingrese su código') || !mainPage.url().includes('DefaultF.aspx')) {
+              console.log(c.amarillo('  🔑 Re-iniciando sesión y 2FA en Cuéntame...'));
+              rolesUrl = await loginYLlegarARoles(mainPage, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
+          }
+
+          console.log(`  🏢 Seleccionando entidad/asociación: "${asc.nombreCorto}"...`);
+          reportPage = await seleccionarRolYEntrar(mainPage, asc, false);
+          console.log(c.verde(`  ✅ Asociación "${asc.nombreCorto}" cargada exitosamente en la plataforma.`));
       } catch (e) {
-          console.log(c.rojo(`  ❌ Error al seleccionar rol: ${e.message}`));
+          console.log(c.rojo(`  ❌ Error al cambiar a la asociación ${asc.nombreCorto}: ${e.message}`));
           continue;
       }
 
@@ -388,7 +393,12 @@ async function main() {
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', 'CZ USAQUEN');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13_ddValue', 'Bogota, D.C.');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', asc.vigenciaContrato);
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato);
+            
+            const okContrato = await seleccionarSSRSByLabel('Número Contrato', asc.numeroContrato);
+            if (!okContrato) {
+                await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato);
+            }
+            
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19_ddValue', '2026');
             
             console.log('    👉 Marcando casilla NULL en Código de la UDS...');
@@ -397,7 +407,6 @@ async function main() {
                 const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
                 if (!(await chkLocator.isChecked())) {
                     await chkLocator.check();
-                    // Esperar a que SSRS procese
                     await mainPage.waitForTimeout(1500);
                 }
             } catch(e) {}
@@ -415,12 +424,13 @@ async function main() {
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
-            // Municipio en el Nutricional (oRp=1177) ES MULTI-SELECT! (a diferencia del otro reporte)
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
             
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
             
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', asc.nombreCorto);
+            await seleccionarSSRSByLabel('Nombre Entidad Contratista', asc.nombreCorto);
+            
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 'Mensual');
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Select All)');
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
