@@ -73,7 +73,7 @@ function normalizarFecha(val) {
 
 function detectarMapaColumnas(headers) {
     const mapa = {
-        eas: 4,              // Col E
+        eas: -1,             // La EAS se extrae del encabezado global E2/E3, no de las filas de datos
         uds: 6,              // Col G
         documento: 10,       // Col K
         pApellido: 11,       // Col L
@@ -88,9 +88,7 @@ function detectarMapaColumnas(headers) {
     headers.forEach((h, idx) => {
         const clean = removeAccents(h);
 
-        if (clean.includes('ENTIDAD') || clean.includes('CONTRATISTA') || clean.includes('EAS')) {
-            mapa.eas = idx;
-        } else if (clean.includes('UNIDAD DE SERVICIO') || clean.includes('NOMBRE UDS') || clean.includes('JARDIN')) {
+        if (clean.includes('UNIDAD DE SERVICIO') || clean.includes('NOMBRE UDS') || clean.includes('JARDIN')) {
             mapa.uds = idx;
         } else if (clean.includes('NUMERO DOCUMENTO') || clean.includes('DOCUMENTO BENEFICIARIO') || clean.includes('NUIP')) {
             mapa.documento = idx;
@@ -124,16 +122,45 @@ function parsearReporteNutricional(rutaArchivo) {
         throw new Error('El archivo Excel está vacío.');
     }
 
-    // EAS global de E3 si existe
+    // Extraer el Nombre de la Asociación (EAS) de las celdas superiores del reporte (E2, E3, E1, E4)
     let easGlobal = '';
-    for (let i = 0; i < Math.min(10, rows.length); i++) {
-        if (rows[i] && rows[i][4]) { // Col E
-            const val = String(rows[i][4]).trim();
-            if (val.toUpperCase().includes('ASOCIACION') || val.toUpperCase().includes('ENTIDAD') || val.toUpperCase().includes('HOGARES')) {
-                easGlobal = val;
+    const candidatosCeldasHeader = [
+        rows[1]?.[4], // E2 (Row index 1, Col index 4)
+        rows[2]?.[4], // E3 (Row index 2, Col index 4)
+        rows[0]?.[4], // E1
+        rows[3]?.[4], // E4
+        rows[1]?.[0], // A2
+        rows[2]?.[0]  // A3
+    ];
+
+    for (const valRaw of candidatosCeldasHeader) {
+        if (valRaw) {
+            const val = String(valRaw).trim();
+            if (val.length > 5 && !val.toUpperCase().includes('DESNUTRICION') && !val.toUpperCase().includes('DIAGNOSTICO') && !val.toUpperCase().includes('PESO')) {
+                easGlobal = val.toUpperCase();
                 break;
             }
         }
+    }
+
+    // Si no se encontró en E2/E3, buscar en cualquier celda de las primeras 10 filas que contenga "ASOCIACION" o "HOGARES"
+    if (!easGlobal) {
+        for (let r = 0; r < Math.min(10, rows.length); r++) {
+            if (!rows[r]) continue;
+            for (let cCol = 0; cCol < Math.min(15, rows[r].length); cCol++) {
+                const val = String(rows[r][cCol] || '').trim();
+                const uVal = val.toUpperCase();
+                if (uVal.includes('ASOCIACION') || uVal.includes('HOGARES') || uVal.includes('BARRIOS UNIDOS')) {
+                    easGlobal = uVal;
+                    break;
+                }
+            }
+            if (easGlobal) break;
+        }
+    }
+
+    if (!easGlobal) {
+        easGlobal = 'ASOCIACION PADRES USUARIOS DE LOS HOGARES DEL BIENESTAR BARRIOS UNIDOS DEL NORTE DE SAN CRISTOBAL';
     }
 
     // Buscar fila de encabezados
@@ -183,7 +210,6 @@ function parsearReporteNutricional(rutaArchivo) {
             if (sUpper.startsWith('M') || sUpper.includes('FEMEN') || sUpper.includes('MUJER')) sexoCod = 'M';
             else if (sUpper.startsWith('H') || sUpper.includes('MASC') || sUpper.includes('HOMB')) sexoCod = 'H';
         } else {
-            // Intentar buscar en otras celdas de la fila si alguna dice MASCULINO/FEMENINO
             const rowStr = row.map(c => removeAccents(String(c))).join(' ').toUpperCase();
             if (rowStr.includes('FEMENINO') || rowStr.includes('MUJER')) sexoCod = 'M';
             else if (rowStr.includes('MASCULINO') || rowStr.includes('HOMBRE')) sexoCod = 'H';
@@ -193,7 +219,7 @@ function parsearReporteNutricional(rutaArchivo) {
         const fechaIngreso = mapa.fechaIngreso !== -1 ? normalizarFecha(row[mapa.fechaIngreso]) : '';
         
         const nombreUds = mapa.uds !== -1 && row[mapa.uds] ? String(row[mapa.uds]).trim().toUpperCase() : 'MI JARDIN';
-        const nombreEas = mapa.eas !== -1 && row[mapa.eas] ? String(row[mapa.eas]).trim().toUpperCase() : (easGlobal || 'ASOCIACION PADRES USUARIOS DE LOS HOGARES DEL BIENESTAR BARRIOS UNIDOS DEL NORTE DE SAN CRISTOBAL');
+        const nombreEas = easGlobal;
 
         if (!agrupadoPorUds[nombreUds]) {
             agrupadoPorUds[nombreUds] = {
