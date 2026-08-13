@@ -1849,14 +1849,15 @@ async function main() {
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error navegando a roles: ${e.message}`));
                       }
-                      break; // Sale de Fase 3 y regresa al while(true) principal
-                  }
-              } // fin while (true)
-          } catch (err) {
-              console.log(c.rojo(`  ❌ Error al abrir formulario del nino: ${err.message}`));
-          }
-      }
-  } catch (err) {
+                       break;
+                   }
+               } // fin while (true) 3
+           } catch (err) {
+               console.log(c.rojo(`  ❌ Error al abrir formulario del nino: ${err.message}`));
+           }
+       } // fin while (true) 2
+   } // fin while (true) 1
+} catch (err) {
     console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
   } finally {
     if (browser) await browser.close().catch(() => {});
