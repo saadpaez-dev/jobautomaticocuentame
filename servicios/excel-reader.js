@@ -64,4 +64,72 @@ function leerJardines(rutaExcel) {
   return { jardines, porAsociacion };
 }
 
-module.exports = { leerJardines };
+function encontrarMejorAsociacionYJardin(asociaciones, ascStr, udsStr) {
+    let ascSeleccionada = null;
+    let jardinSeleccionado = null;
+
+    if (ascStr && ascStr.trim().length >= 3) {
+        const ascUpper = ascStr.trim().toUpperCase();
+        
+        let mejorScoreAsc = 0;
+        for (const a of asociaciones) {
+            const cortoUpper = a.nombreCorto.toUpperCase();
+            const largoUpper = a.nombreLargo ? a.nombreLargo.toUpperCase() : '';
+            
+            let score = 0;
+            // Coincidencia exacta
+            if (ascUpper === cortoUpper || ascUpper === largoUpper) {
+                score = 1000 + cortoUpper.length;
+            } 
+            // ascUpper contiene el nombre corto o viceversa
+            else if (ascUpper.includes(cortoUpper)) {
+                score = 500 + cortoUpper.length;
+            } else if (cortoUpper.includes(ascUpper)) {
+                score = 300 + ascUpper.length;
+            } else if (largoUpper && ascUpper.includes(largoUpper)) {
+                score = 400 + largoUpper.length;
+            } else if (largoUpper && largoUpper.includes(ascUpper)) {
+                score = 200 + ascUpper.length;
+            }
+
+            // Bono de coincidencia de palabras clave (ej: BRISAS)
+            const palabrasAscUpper = ascUpper.split(/\s+/).filter(w => w.length > 3);
+            const palabrasCorto = cortoUpper.split(/\s+/).filter(w => w.length > 3);
+            const palabrasCoincidentes = palabrasCorto.filter(w => palabrasAscUpper.includes(w));
+            score += palabrasCoincidentes.length * 50;
+
+            if (score > mejorScoreAsc) {
+                mejorScoreAsc = score;
+                ascSeleccionada = a;
+            }
+        }
+    }
+
+    if (ascSeleccionada && udsStr && udsStr.trim().length >= 3) {
+        const udsUpper = udsStr.trim().toUpperCase();
+        let mejorScoreUds = 0;
+
+        for (const j of ascSeleccionada.jardines) {
+            const jNomUpper = j.nombre.toUpperCase();
+            let score = 0;
+            
+            if (udsUpper === jNomUpper) {
+                score = 1000 + jNomUpper.length;
+            } else if (udsUpper.includes(jNomUpper)) {
+                score = 500 + jNomUpper.length;
+            } else if (jNomUpper.includes(udsUpper)) {
+                score = 300 + udsUpper.length;
+            }
+
+            if (score > mejorScoreUds) {
+                mejorScoreUds = score;
+                jardinSeleccionado = j;
+            }
+        }
+    }
+
+    return { ascSeleccionada, jardinSeleccionado };
+}
+
+module.exports = { leerJardines, encontrarMejorAsociacionYJardin };
+
