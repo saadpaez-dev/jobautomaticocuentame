@@ -356,6 +356,89 @@ function buscarCoincidenciaSegura(ninoTarget, listaNinos) {
     return null;
 }
 
+async function cargarUdsEnCuentame(page, jardinSeleccionado) {
+    if (!jardinSeleccionado || !jardinSeleccionado.codigo) return false;
+
+    let contentFrame = page.frame({ name: 'frameContent' });
+    if (!contentFrame) {
+        for (const f of page.frames()) {
+            if (f.name() === 'frameContent') {
+                contentFrame = f;
+                break;
+            }
+        }
+    }
+    const rootContent = contentFrame || page;
+
+    console.log(c.cyan(`  🔍 Cargando UDS en Cuéntame: ${jardinSeleccionado.nombre} (Código: ${jardinSeleccionado.codigo})...`));
+
+    let lupaLocator = rootContent.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"], input[src*="lupa"]').first();
+
+    if (await lupaLocator.count() === 0) {
+        const rootMenu = page.frame({ name: 'frameMenu' }) || page;
+        const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
+        if (await childMenu.count() > 0) {
+            await childMenu.evaluate(node => node.click());
+            await page.waitForTimeout(3000);
+        }
+        let updatedFrame = page.frame({ name: 'frameContent' }) || page;
+        lupaLocator = updatedFrame.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"], input[src*="lupa"]').first();
+    }
+
+    if (await lupaLocator.count() === 0) {
+        console.log(c.rojo('  ❌ No se encontró la lupa de UDS para recargar.'));
+        return false;
+    }
+
+    const [popup] = await Promise.all([
+        page.waitForEvent('popup'),
+        lupaLocator.evaluate(node => node.click())
+    ]);
+
+    await popup.waitForLoadState('networkidle');
+    console.log(c.verde('  ✅ Ventana emergente Lupa abierta.'));
+
+    console.log(c.cyan(`  📝 Ingresando código de UDS: ${jardinSeleccionado.codigo}...`));
+    await popup.locator('input[id*="txtCodigoUnidadServicio"], input[name*="CodigoUnidadServicio"]').first().fill(String(jardinSeleccionado.codigo));
+
+    let ddlDepto = popup.locator('select[id*="ddlDepartamento"], select[name*="ddlDepartamento"]').first();
+    if (await ddlDepto.count() === 0) {
+        const tdLabel = popup.locator('td:has-text("Departamento")').last();
+        ddlDepto = tdLabel.locator('xpath=following-sibling::td//select').first();
+        if (await ddlDepto.count() === 0) ddlDepto = popup.locator('select').nth(1);
+    }
+
+    try {
+        await ddlDepto.selectOption({ label: /BOGOT. D\.C\./i });
+        console.log(c.verde('    ✅ Departamento BOGOTA D.C. seleccionado.'));
+    } catch (err) {
+        try {
+            const options = await ddlDepto.locator('option').allInnerTexts();
+            const bogotaOpt = options.find(o => o.toUpperCase().includes('BOGOT'));
+            if (bogotaOpt) await ddlDepto.selectOption({ label: bogotaOpt });
+        } catch (e) {}
+    }
+
+    console.log(c.cyan('  🔍 Haciendo clic en buscar dentro de la Lupa...'));
+    await popup.locator('input[type="image"][id*="btnBuscar"], input[name*="btnBuscar"], a[id*="btnBuscar"]').first().click();
+
+    try {
+        const btnInfo = popup.locator('input[type="image"][id*="btnInfo"], input[src*="info.jpg"]').first();
+        await btnInfo.waitFor({ state: 'visible', timeout: 15000 });
+        console.log(c.verde('  ✅ Resultado de UDS encontrado. Seleccionando...'));
+        await btnInfo.click();
+    } catch (err) {
+        console.log(c.rojo(`  ❌ Error: No se encontraron resultados en el popup para la UDS ${jardinSeleccionado.nombre}.`));
+    }
+
+    try {
+        await popup.waitForEvent('close', { timeout: 10000 });
+    } catch (e) {}
+
+    await page.waitForTimeout(3000);
+    return true;
+}
+
 async function main() {
   const USUARIO = process.env.CUENTAME_USUARIO;
   const PASSWORD = process.env.CUENTAME_PASSWORD;
@@ -889,6 +972,11 @@ async function main() {
               });
           }
 
+
+    await page.waitForTimeout(3000);
+    return true;
+}
+
           console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS.`));
           
           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
@@ -910,12 +998,35 @@ async function main() {
                           console.log(c.verde(`  ✅ Excel cargado exitosamente (${ninosExcel.length} niños). Detectado -> Asociación: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
 
                           const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
-                          ascSeleccionada = match.ascSeleccionada;
+
+                          if (match.ascSeleccionada && ascSeleccionada && match.ascSeleccionada.nombreCorto !== ascSeleccionada.nombreCorto) {
+                              ascSeleccionada = match.ascSeleccionada;
+                              console.log(c.amarillo(`  🏢 Cambiando de Asociación a: ${ascSeleccionada.nombreCorto}...`));
+                              await seleccionarRolYEntrar(page, ascSeleccionada);
+                              await page.waitForTimeout(3000);
+                              const rootMenu = page.frame({ name: 'frameMenu' }) || page;
+                              const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
+                              if (await childMenu.count() > 0) {
+                                  await childMenu.evaluate(node => node.click());
+                                  await page.waitForTimeout(3000);
+                              }
+                          }
+
+                          ascSeleccionada = match.ascSeleccionada || ascSeleccionada;
                           jardinSeleccionado = match.jardinSeleccionado;
 
                           idxNinoExcelActual = 0;
                           consecutivosDuplicados = 0;
-                          continue; // salta directo a procesar el primer niño del nuevo archivo
+                          ninosProcesados = [];
+
+                          if (jardinSeleccionado) {
+                              console.log(c.cyan(`  🔄 Cambiando la UDS en Cuéntame al nuevo Jardín: ${jardinSeleccionado.nombre} (Código: ${jardinSeleccionado.codigo})...`));
+                              await cargarUdsEnCuentame(page, jardinSeleccionado);
+                          } else {
+                              console.log(c.amarillo(`  ⚠️ No se pudo emparejar la UDS automáticamente. Se mantendrá la actual.`));
+                          }
+
+                          continue; // Continúa la ejecución del loop procesando los niños del NUEVO Jardín
                       } catch(e) {
                           console.log(c.rojo(`  ❌ Error leyendo el siguiente Excel (${path.basename(proximoFile)}): ${e.message}`));
                       }
