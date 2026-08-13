@@ -500,7 +500,7 @@ async function main() {
                     }
                 } else if (paso === 1) {
                     const hint = datosNino.docNum ? ` [actual: ${datosNino.docNum}]` : '';
-                    const res = readline.question(c.negrita(`  > Número de Documento${hint}: `)).trim();
+                    const res = readline.question(c.negrita(`  > Numero de Documento${hint}: `)).trim();
                     if (isGoBack(res)) {
                         paso--;
                     } else {
@@ -1138,13 +1138,13 @@ async function main() {
 
                                     // --- PREGUNTAR / CONFIRMAR LUGAR DE NACIMIENTO DEL ACUDIENTE ---
                                     console.log(c.cyan(`\n  📝 LUGAR DE NACIMIENTO DE ${labelJefe.toUpperCase()}`));
-                                    const resPaisM = readline.question(c.negrita(`  > ¿País de Nacimiento? (Enter/Tab para COLOMBIA): `)).trim().toUpperCase();
+                                    const resPaisM = readline.question(c.negrita(`  > Pais de Nacimiento? (Enter/Tab para COLOMBIA): `)).trim().toUpperCase();
                                     const valPaisM = (resPaisM === '' || resPaisM === '1') ? 'COLOMBIA' : resPaisM;
 
-                                    const resDeptoM = readline.question(c.negrita(`  > ¿Departamento de Nacimiento? (Enter/Tab para BOGOTA D.C.): `)).trim().toUpperCase();
+                                    const resDeptoM = readline.question(c.negrita(`  > Departamento de Nacimiento? (Enter/Tab para BOGOTA D.C.): `)).trim().toUpperCase();
                                     const valDeptoM = (resDeptoM === '' || resDeptoM === '1') ? 'BOGOTA D.C.' : resDeptoM;
 
-                                    const resMuniM = readline.question(c.negrita(`  > ¿Municipio de Nacimiento? (Enter/Tab para BOGOTA, D.C.): `)).trim().toUpperCase();
+                                    const resMuniM = readline.question(c.negrita(`  > Municipio de Nacimiento? (Enter/Tab para BOGOTA, D.C.): `)).trim().toUpperCase();
                                     const valMuniM = (resMuniM === '' || resMuniM === '1') ? 'BOGOTA, D.C.' : resMuniM;
 
                                     // Helper para seleccionar dropdowns en cascada con postback de ASP.NET
