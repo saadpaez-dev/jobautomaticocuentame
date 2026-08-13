@@ -403,36 +403,26 @@ async function main() {
                 });
 
                 console.log(c.cyan('\n  📋 Selecciona qué jardines deseas procesar:'));
-                console.log('    1. Procesar TODOS los jardines (por defecto)');
-                console.log('    2. Seleccionar UN SOLO jardín');
-                console.log('    3. Seleccionar VARIOS jardines (ej. 1, 3, 5)\n');
+                console.log(c.gris('  - Presiona ENTER (o 0) para procesar TODOS los jardines.'));
+                console.log(c.gris('  - O escribe el número o lista de números (ej: 4,7,6 o solo 2).\n'));
 
-                const modoOptRaw = readline.question(c.negrita('  > Elige una opción (1, 2 o 3) [1]: ')).trim();
-                const modoOpt = modoOptRaw || '1';
+                const respuestaRaw = readline.question(c.negrita('  > Ingresa tu selección [0 = Todos]: ')).trim();
 
                 let udsAProcesar = [];
 
-                if (modoOpt === '2') {
-                    const selOne = readline.question(c.negrita(`  > Ingresa el número del jardín a procesar (1-${listaUds.length}): `)).trim();
-                    const numOne = parseInt(selOne, 10);
-                    if (!isNaN(numOne) && numOne >= 1 && numOne <= listaUds.length) {
-                        udsAProcesar.push(listaUds[numOne - 1]);
-                    } else {
-                        console.log(c.amarillo('  ⚠️ Selección inválida. Se procesarán todos los jardines.'));
-                        udsAProcesar = listaUds;
-                    }
-                } else if (modoOpt === '3') {
-                    const selMulti = readline.question(c.negrita('  > Ingresa los números separados por coma (ej: 1, 3, 5): ')).trim();
-                    const indices = selMulti.split(/[,;\s]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= listaUds.length);
-                    if (indices.length > 0) {
-                        const setIndices = Array.from(new Set(indices));
+                if (!respuestaRaw || respuestaRaw === '0') {
+                    udsAProcesar = listaUds;
+                } else {
+                    const numerosIngresados = respuestaRaw.split(/[,;\s]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
+                    const indicesValidos = numerosIngresados.filter(n => n >= 1 && n <= listaUds.length);
+
+                    if (indicesValidos.length > 0) {
+                        const setIndices = Array.from(new Set(indicesValidos));
                         udsAProcesar = setIndices.map(idx => listaUds[idx - 1]);
                     } else {
-                        console.log(c.amarillo('  ⚠️ No ingresaste números válidos. Se procesarán todos los jardines.'));
+                        console.log(c.amarillo('  ⚠️ No se ingresaron números válidos. Se procesarán todos los jardines.'));
                         udsAProcesar = listaUds;
                     }
-                } else {
-                    udsAProcesar = listaUds;
                 }
 
                 console.log(c.verde(`\n  🚀 Generando formatos pre-llenados (máximo 13 niños por archivo)...\n`));
