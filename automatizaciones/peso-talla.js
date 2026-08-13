@@ -432,20 +432,31 @@ async function main() {
               archivosDocs.forEach((a, i) => console.log(`  ${i + 1}. ${a}`));
           }
 
-          console.log(c.cyan('\n  📥 MULTI-CARGA DE ARCHIVOS EXCEL:'));
-          console.log(c.gris('     • Puedes arrastrar UNO o VARIOS archivos a la vez (ej: los 11 Excel de tu asociación).'));
-          console.log(c.gris('     • Puedes arrastrar una CARPETA completa con todos los archivos Excel.'));
-          console.log(c.gris('     • O escribe un número (1-N) para elegir de "Docs/peso y talla".'));
+          console.log(c.cyan('\n  📥 SELECCIÓN Y MULTI-CARGA DE ARCHIVOS EXCEL:'));
+          console.log(c.gris('     • Presiona ENTER (o escribe 0) para procesar TODOS los archivos de "Docs/peso y talla".'));
+          console.log(c.gris('     • O escribe el número o lista de números (ej: 1, 3 o solo 2).'));
+          console.log(c.gris('     • O arrastra UNO o VARIOS archivos / CARPETA directamente a esta consola.\n'));
 
-          const inputRaw = readline.question(c.negrita('\n  > Arrastra los archivos/carpeta aqui o pega las rutas: ')).trim();
-          if (!inputRaw) return [];
+          const inputRaw = readline.question(c.negrita('  > Ingresa tu opción o arrastra los archivos aqui [0 = Todos]: ')).trim();
+          
+          if (archivosDocs.length > 0) {
+              if (!inputRaw || inputRaw === '0' || inputRaw.toUpperCase() === 'TODOS') {
+                  console.log(c.verde(`  ✅ Seleccionados TODOS los ${archivosDocs.length} archivos de "Docs/peso y talla".`));
+                  return archivosDocs.map(a => path.join(docsDir, a));
+              }
 
-          if (/^\d+$/.test(inputRaw) && archivosDocs.length > 0) {
-              const idx = parseInt(inputRaw, 10);
-              if (idx > 0 && idx <= archivosDocs.length) {
-                  return [require('path').join(docsDir, archivosDocs[idx - 1])];
+              const partesNumericas = inputRaw.split(/[,;\s]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
+              const indicesValidos = partesNumericas.filter(n => n >= 1 && n <= archivosDocs.length);
+
+              if (indicesValidos.length > 0 && indicesValidos.length === partesNumericas.length) {
+                  const setIndices = Array.from(new Set(indicesValidos));
+                  const seleccionados = setIndices.map(idx => path.join(docsDir, archivosDocs[idx - 1]));
+                  console.log(c.verde(`  ✅ Seleccionados ${seleccionados.length} archivo(s) especifico(s).`));
+                  return seleccionados;
               }
           }
+
+          if (!inputRaw) return [];
 
           const regexRutas = /"([^"]+)"|'([^']+)'|(\S+\.(?:xlsx|xls|csv))/gi;
           let rutasEncontradas = [];
