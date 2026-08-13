@@ -35,6 +35,9 @@ function runScript(scriptName) {
     if (result.error) {
         console.error(c.rojo(`\n❌ Error al intentar ejecutar el script: ${result.error.message}`));
         readline.question(c.negrita('\nPresiona ENTER para volver al menú principal...'));
+    } else if (result.status !== 0 && result.status !== null) {
+        console.error(c.rojo(`\n⚠️ El módulo finalizó con código de salida: ${result.status}`));
+        readline.question(c.negrita('\nPresiona ENTER para volver al menú principal...'));
     }
 }
 
@@ -162,13 +165,13 @@ async function main() {
         console.log(`\n  ${c.rojo('0')}. Salir de AutoTrabajo`);
         console.log(`  ${c.rojo('X')}. 🔴 Cerrar Trabajo (cierra Brave + terminal)`);
         
-        const respuesta = readline.question(c.negrita('\n  > Ingresa tu opcion: '));
-        const opcionInt = parseInt(respuesta, 10);
-        
-        if (opcionInt === 0) {
+        const respuestaRaw = readline.question(c.negrita('\n  > Ingresa tu opcion: '));
+        const respuesta = respuestaRaw ? respuestaRaw.trim() : '';
+
+        if (respuesta === '0') {
             console.log(c.verde('\n  👋 ¡Hasta luego! Cerrando AutoTrabajo.\n'));
             break;
-        } else if (respuesta.trim().toUpperCase() === 'X') {
+        } else if (respuesta.toUpperCase() === 'X') {
             console.log(c.rojo('\n  🔴 Cerrando Brave y finalizando sesión de trabajo...'));
             try {
                 const { exec } = require('child_process');
@@ -184,9 +187,15 @@ async function main() {
             console.log(c.verde('  👋 ¡Trabajo finalizado! Cerrando terminal...\n'));
             setTimeout(() => process.exit(0), 1000);
             break;
-        } else if (opcionInt >= 1 && opcionInt <= opciones.length) {
-            const opcSeleccionada = opciones[opcionInt - 1];
-            runScript(opcSeleccionada.archivo);
+        } else if (/^\d+$/.test(respuesta)) {
+            const opcionInt = parseInt(respuesta, 10);
+            if (opcionInt >= 1 && opcionInt <= opciones.length) {
+                const opcSeleccionada = opciones[opcionInt - 1];
+                runScript(opcSeleccionada.archivo);
+            } else {
+                console.log(c.rojo(`\n  ❌ Opción "${respuesta}" fuera de rango (1-${opciones.length}). Inténtalo de nuevo.`));
+                readline.question(c.gris('  Presiona ENTER para continuar...'));
+            }
         } else {
             console.log(c.rojo('\n  ❌ Opción inválida. Inténtalo de nuevo.'));
             readline.question(c.gris('  Presiona ENTER para continuar...'));
