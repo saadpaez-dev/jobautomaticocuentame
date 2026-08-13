@@ -113,26 +113,26 @@ function parseFechaTimestamp(val) {
 function detectarMapaColumnas(headers) {
     const mapa = {
         eas: -1,             // La EAS se extrae del encabezado global E2/E3
-        uds: 6,              // Col G
-        documento: 10,       // Col K
-        pApellido: 11,       // Col L
-        sApellido: 12,       // Col M
-        pNombre: 13,         // Col N
-        sNombre: 14,         // Col O
-        sexo: -1,
-        fechaNacimiento: 17, // Col R
-        fechaIngreso: 18,    // Col S
-        fechaToma: 19,       // Col T (H15 en formato salida)
-        perimetro: 37,       // Col AL (K15 en formato salida)
-        peso: 43,            // Col AR (I15 en formato salida)
-        talla: 44,           // Col AS (J15 en formato salida)
-        estado: 65           // Col BN (Index 65)
+        uds: 6,              // Col G (index 6)
+        documento: 10,       // Col K (index 10)
+        pApellido: 11,       // Col L (index 11)
+        sApellido: 12,       // Col M (index 12)
+        pNombre: 13,         // Col N (index 13)
+        sNombre: 14,         // Col O (index 14)
+        sexo: 15,            // Col P (index 15)
+        fechaNacimiento: 17, // Col R (index 17)
+        fechaIngreso: 18,    // Col S (index 18)
+        fechaToma: 19,       // Col T (index 19 - Fecha Valoración Nutricional)
+        perimetro: 37,       // Col AL (index 37 - Perimetro Braquial)
+        peso: 43,            // Col AR (index 43 - Peso kg)
+        talla: 44,           // Col AS (index 44 - Talla cm)
+        estado: 65           // Col BN (index 65)
     };
 
     headers.forEach((h, idx) => {
-        const clean = removeAccents(h);
+        const clean = removeAccents(String(h || '')).trim().toUpperCase();
 
-        if (clean.includes('UNIDAD DE SERVICIO') || clean.includes('NOMBRE UDS') || clean.includes('JARDIN')) {
+        if (clean.includes('UNIDAD DE SERVICIO') || clean.includes('NOMBRE UNIDAD') || clean.includes('NOMBRE UDS') || clean.includes('JARDIN')) {
             mapa.uds = idx;
         } else if (clean.includes('NUMERO DOCUMENTO') || clean.includes('DOCUMENTO BENEFICIARIO') || clean.includes('NUIP')) {
             mapa.documento = idx;
@@ -148,17 +148,19 @@ function detectarMapaColumnas(headers) {
             mapa.fechaNacimiento = idx;
         } else if (clean.includes('INGRESO AL PROGRAMA') || clean.includes('FECHA INGRESO') || clean.includes('VINCULACION')) {
             mapa.fechaIngreso = idx;
-        } else if (clean.includes('SEXO') || clean.includes('GENERO')) {
+        } else if (clean === 'SEXO' || clean.includes('GENERO')) {
             mapa.sexo = idx;
-        } else if (clean.includes('ESTADO BENEFICIARIO') || clean.includes('ESTADO')) {
+        } else if (clean.includes('ESTADO BENEFICIARIO') || clean === 'ESTADO') {
             mapa.estado = idx;
-        } else if (clean.includes('FECHA TOMA') || clean.includes('FECHA VALORACION') || clean.includes('FECHA DE LA TOMA') || clean.includes('FECHA EVALUACION')) {
-            mapa.fechaToma = idx;
-        } else if (clean.includes('PERIMETRO') || clean.includes('BRAQUIAL')) {
+        } else if (clean.includes('VALORACION') || clean.includes('FECHA TOMA') || clean.includes('FECHA VALORACION') || clean.includes('FECHA DE LA TOMA')) {
+            if (!clean.includes('REGISTRO') && !clean.includes('MODIFICACION') && !clean.includes('A LA FECHA')) {
+                mapa.fechaToma = idx;
+            }
+        } else if (clean.includes('PERIMETRO') && clean.includes('BRAQUIAL') && !clean.includes('FECHA')) {
             mapa.perimetro = idx;
-        } else if (clean.includes('PESO')) {
+        } else if ((clean === 'PESO' || clean === 'PESO (KG)' || clean === 'PESO KG') && !clean.includes('PERCENTIL') && !clean.includes('ZSCORE') && !clean.includes('ESTADO') && !clean.includes('NACER') && !clean.includes('SECO')) {
             mapa.peso = idx;
-        } else if (clean.includes('TALLA') || clean.includes('ESTATURA')) {
+        } else if ((clean === 'TALLA' || clean === 'TALLA (CM)' || clean === 'TALLA CM') && !clean.includes('PERCENTIL') && !clean.includes('ZSCORE') && !clean.includes('ESTADO') && !clean.includes('NACER') && !clean.includes('INFERIOR')) {
             mapa.talla = idx;
         }
     });
