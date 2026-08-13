@@ -220,24 +220,31 @@ async function main() {
           console.log(c.amarillo(`======================================================`));
           console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
           
-          // Navegar SIEMPRE a la pantalla de selección de roles (DefaultF.aspx) para cambiar la entidad activa en Cuéntame
-          if (!rolesUrl || mainPage.isClosed()) {
-              rolesUrl = await loginYLlegarARoles(mainPage, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
-          }
+          // Para asegurar el cambio limpio de sesión ASP.NET en el servidor de Cuéntame,
+          // forzar cierre de sesión (LogOut) e ingresar limpiamente desde el login
+          if (i > 0) {
+              console.log(c.amarillo(`  🔄 Cerrando sesión para forzar la actualización limpia a "${asc.nombreCorto}"...`));
+              try {
+                  await mainPage.goto('https://rubonline.icbf.gov.co/LogOut.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+                  await mainPage.waitForTimeout(1000);
+                  const btnHome = mainPage.locator('a:has(img[src*="home"]), a[href*="Default.aspx"], img[title*="Inicio"]').first();
+                  if (await btnHome.count() > 0) {
+                      await btnHome.click().catch(() => {});
+                  }
+              } catch (e) {}
 
-          console.log('  🏢 Navegando a la pantalla de selección de entidad...');
-          await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
-          await mainPage.waitForTimeout(2000);
-
-          const currentText = await mainPage.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
-          if (currentText.includes('Iniciar Sesión') || currentText.includes('Ingrese su código') || !mainPage.url().includes('DefaultF.aspx')) {
-              console.log(c.amarillo('  🔑 Re-iniciando sesión y 2FA en Cuéntame...'));
-              rolesUrl = await loginYLlegarARoles(mainPage, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
+              console.log('  🔐 Re-iniciando sesión limpia en Cuéntame...');
+              rolesUrl = await loginYLlegarARoles(mainPage, {
+                  usuario: USUARIO,
+                  password: PASSWORD,
+                  gmailUser: GMAIL_USER,
+                  gmailAppPassword: GMAIL_APP_PASSWORD
+              });
           }
 
           console.log(`  🏢 Seleccionando entidad/asociación: "${asc.nombreCorto}"...`);
           reportPage = await seleccionarRolYEntrar(mainPage, asc, false);
-          console.log(c.verde(`  ✅ Asociación "${asc.nombreCorto}" cargada exitosamente en la plataforma.`));
+          console.log(c.verde(`  ✅ Asociación "${asc.nombreCorto}" cargada e ingresada limpia en la plataforma.`));
       } catch (e) {
           console.log(c.rojo(`  ❌ Error al cambiar a la asociación ${asc.nombreCorto}: ${e.message}`));
           continue;

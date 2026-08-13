@@ -430,7 +430,6 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
             console.log(c.verde('  ✅ Clic en Cerrar Sesión ejecutado.'));
             await page.waitForTimeout(1500);
 
-            // Hacer clic en la casita (Home) si estamos en LogOut.aspx
             console.log(c.amarillo('  🏠 Haciendo clic en el botón de la casita (Inicio)...'));
             const btnHome = page.locator('a:has(img[src*="home.png"]), a[href*="Default.aspx"], img[title="Inicio"]').first();
             if (await btnHome.count() > 0) {
@@ -439,6 +438,14 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
                     btnHome.evaluate(node => node.click())
                 ]);
                 console.log(c.verde('  ✅ Regresado a la pantalla inicial de Cuéntame.'));
+            }
+        } else {
+            console.log(c.amarillo('  ⏳ Redirigiendo a LogOut.aspx para limpiar la sesión...'));
+            await page.goto('https://rubonline.icbf.gov.co/LogOut.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(1000);
+            const btnHome = page.locator('a:has(img[src*="home.png"]), a[href*="Default.aspx"], img[title="Inicio"]').first();
+            if (await btnHome.count() > 0) {
+                await btnHome.click().catch(() => {});
             }
         }
     } catch(e) {
