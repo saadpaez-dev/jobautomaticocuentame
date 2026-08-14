@@ -113,47 +113,24 @@ async function main() {
       }
 
       try {
-        if (!loggedIn) {
-            // Dar tiempo a que el navegador termine de cargar si nos acabamos de conectar
-            await page.waitForTimeout(1000);
-            
-            const isSessionLost = await verificarConexionOCaida(page);
-            
-            const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
-            if (!mismaAsociacion) {
-                console.log(c.amarillo('  🔐 Verificando inicio de sesion en Cuentame...'));
-                await loginYLlegarARoles(page, {
-                  usuario: USUARIO,
-                  password: PASSWORD,
-                  gmailUser: GMAIL_USER,
-                  gmailAppPassword: GMAIL_APP_PASSWORD
-                });
-                loggedIn = true;
-                console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
-                await seleccionarRolYEntrar(page, ascSeleccionada);
-            } else {
-                console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
-                loggedIn = true;
-            }
+        await page.waitForTimeout(1000);
+        
+        const esMismaAsoc = await validarYCambiarAsociacion(page, ascSeleccionada);
+        if (!esMismaAsoc || await verificarConexionOCaida(page)) {
+            console.log(c.amarillo('  🔐 Verificando inicio de sesion en Cuentame...'));
+            await loginYLlegarARoles(page, {
+              usuario: USUARIO,
+              password: PASSWORD,
+              gmailUser: GMAIL_USER,
+              gmailAppPassword: GMAIL_APP_PASSWORD
+            });
+            console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
+            await seleccionarRolYEntrar(page, ascSeleccionada);
+            loggedIn = true;
         } else {
-            await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
-            
-            // Verificar si al forzar la redireccion nos mando al login por timeout
-            await page.waitForTimeout(1000);
-            if (await verificarConexionOCaida(page)) {
-                console.log(c.amarillo('  ⚠️ La sesion expiro. Reiniciando login (2FA)...'));
-                await loginYLlegarARoles(page, {
-                  usuario: USUARIO,
-                  password: PASSWORD,
-                  gmailUser: GMAIL_USER,
-                  gmailAppPassword: GMAIL_APP_PASSWORD
-                });
-                console.log(c.verde('  ✅ Login restaurado exitosamente.'));
-            }
+            console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
+            loggedIn = true;
         }
-
-        console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
-        await seleccionarRolYEntrar(page, ascSeleccionada);
         
         // Navegar a Beneficiario > Beneficiario
         console.log(c.cyan('  🚀 Navegando al modulo de Beneficiarios...'));
