@@ -257,63 +257,86 @@ async function main() {
         // Funcion helper que busca un select en SSRS a partir de su label (texto) y lo llena
         const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
             try {
-                const searchLabel = labelText.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                const tdElements = reportFrame.locator('td').filter({
-                    hasText: new RegExp(searchLabel, 'i')
-                });
-                
-                if (await tdElements.count() === 0) {
-                    console.log(c.amarillo(`    ⚠️ No se encontro la etiqueta "${labelText}" en la pagina.`));
-                    return false;
-                }
-                
-                const lastTd = tdElements.last();
-                let selectElement = lastTd.locator('select').first();
-                
-                if (await selectElement.count() === 0) {
-                    selectElement = lastTd.locator('xpath=following-sibling::td[1]//select').first();
-                }
-                
-                if (await selectElement.count() === 0) {
-                    selectElement = lastTd.locator('xpath=following-sibling::td[2]//select').first();
-                }
-                
-                if (await selectElement.count() === 0) {
-                    console.log(c.amarillo(`    ⚠️ Se encontro el texto "${labelText}" pero no hay un <select> cerca.`));
-                    return false;
-                }
+                const exito = await reportFrame.evaluate(({ labelText, valueOrText }) => {
+                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+                    const targetLabel = removeAccents(labelText);
+                    
+                    const allElements = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
+                    let matchedTd = null;
 
-                await selectElement.waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
-                
-                const exito = await selectElement.evaluate((el, targetVal) => {
-                    el.disabled = false;
-                    el.classList.remove('aspNetDisabled');
-                    let idx = -1;
-                    if (typeof targetVal === 'number') {
-                        idx = targetVal;
-                    } else {
-                        const search = targetVal.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                        for (let i = 0; i < el.options.length; i++) {
-                            const optText = el.options[i].text.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                            if (optText.includes(search) || search.includes(optText)) {
-                                idx = i;
+                    for (const el of allElements) {
+                        const txt = removeAccents(el.innerText);
+                        if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
+                            if (el.innerText.length < 100) {
+                                matchedTd = el.closest('td') || el;
                                 break;
                             }
                         }
                     }
-                    if (idx >= 0 && idx < el.options.length) {
-                        el.selectedIndex = idx;
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                        if (typeof __doPostBack === 'function') {
-                            __doPostBack(el.name, '');
-                        }
-                        return true;
-                    }
-                    return false;
-                }, valueOrText);
 
-                await reportPage.waitForTimeout(600); 
-                return exito;
+                    if (!matchedTd) return { ok: false, reason: 'Etiqueta no encontrada en el DOM' };
+
+                    let select = matchedTd.querySelector('select');
+                    if (!select && matchedTd.nextElementSibling) {
+                        select = matchedTd.nextElementSibling.querySelector('select') || (matchedTd.nextElementSibling.tagName === 'SELECT' ? matchedTd.nextElementSibling : null);
+                    }
+                    if (!select && matchedTd.parentElement) {
+                        select = matchedTd.parentElement.querySelector('select');
+                    }
+                    if (!select) {
+                        const tr = matchedTd.closest('tr');
+                        if (tr) select = tr.querySelector('select');
+                    }
+
+                    if (!select) return { ok: false, reason: 'Select no encontrado cerca de la etiqueta' };
+
+                    select.disabled = false;
+                    select.classList.remove('aspNetDisabled');
+
+                    let targetIdx = -1;
+                    if (valueOrText !== null && valueOrText !== undefined && valueOrText !== '') {
+                        const searchVal = removeAccents(String(valueOrText));
+                        for (let i = 0; i < select.options.length; i++) {
+                            const optText = removeAccents(select.options[i].text);
+                            const optVal = removeAccents(select.options[i].value);
+                            if (optText === searchVal || optVal === searchVal || optText.includes(searchVal) || searchVal.includes(optText)) {
+                                targetIdx = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (targetIdx === -1 && select.options.length > 1) {
+                        for (let i = 0; i < select.options.length; i++) {
+                            const txt = removeAccents(select.options[i].text);
+                            const val = select.options[i].value;
+                            if (val && val !== '0' && val !== '-1' && !txt.includes('SELECT') && !txt.includes('SELECCION')) {
+                                targetIdx = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (targetIdx >= 0 && targetIdx < select.options.length) {
+                        select.selectedIndex = targetIdx;
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                        if (typeof __doPostBack === 'function') {
+                            try { __doPostBack(select.name, ''); } catch(e) {}
+                        }
+                        return { ok: true, textSelected: select.options[targetIdx].text };
+                    }
+
+                    return { ok: false, reason: 'Opcion no valida o lista vacia' };
+                }, { labelText, valueOrText });
+
+                if (exito && exito.ok) {
+                    console.log(c.verde(`    ✅ [Filtro] "${labelText}" -> ${exito.textSelected}`));
+                    await reportPage.waitForTimeout(400);
+                    return true;
+                } else {
+                    console.log(c.amarillo(`    ⚠️ [Filtro] "${labelText}": ${exito ? exito.reason : 'No seleccionado'}`));
+                    return false;
+                }
             } catch (e) {
                 console.log(c.rojo(`    ⚠️ Error al seleccionar "${labelText}": ${e.message}`));
                 return false;
@@ -453,27 +476,23 @@ async function main() {
             reportFrame = await obtenerReportFrame(mainPage);
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
 
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Unidad de Servicio');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Direccion de Primera Infancia');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', 'Bogota D.C.');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', 'CZ USAQUEN');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13_ddValue', 'Bogota, D.C.');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', asc.vigenciaContrato);
+            console.log(c.amarillo('  ⏳ Llenando filtros dinamicamente por etiqueta...'));
             
-            const okContrato = await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
-            if (!okContrato) {
-                await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato);
-            }
-            
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19_ddValue', '2026');
+            await seleccionarSSRSByLabel('Tipo Unidad', 'Unidad de Servicio');
+            await seleccionarSSRSByLabel('Direccion', 'Direccion de Primera Infancia');
+            await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato || '2024');
+            await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
+            await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
+            await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
+            await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
+            await seleccionarSSRSByLabel('Ano de atencion', '2026');
             
             console.log('    👉 Marcando casilla NULL en Codigo de la UDS...');
             try {
-                const nullCheckboxId = 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_cbNull';
-                const chkLocator = reportFrame.locator(`#${nullCheckboxId}`);
-                if (!(await chkLocator.isChecked())) {
-                    await chkLocator.check();
-                    await mainPage.waitForTimeout(1500);
+                const chkLocator = reportFrame.locator('input[id*="ctl17_cbNull"], input[id*="cbNull"]').first();
+                if (await chkLocator.count() > 0 && !(await chkLocator.isChecked().catch(() => false))) {
+                    await chkLocator.check().catch(() => chkLocator.evaluate(n => n.checked = true));
+                    await mainPage.waitForTimeout(600);
                 }
             } catch(e) {}
         } else if (opcionReporte === 2) {
