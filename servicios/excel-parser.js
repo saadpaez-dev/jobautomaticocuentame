@@ -50,9 +50,10 @@ function esFechaMasReciente(fechaNueva, fechaExistente) {
 }
 
 function obtenerUltimaToma(fila) {
-    // Las tomas inician en el indice 7 (Toma 1) y avanzan cada 12 columnas.
-    // Toma 1: 7, Toma 2: 19, Toma 3: 31, Toma 4: 43
-    const iniciosToma = [43, 31, 19, 7];
+    // Las tomas inician en el indice 7 (Toma 1) y avanzan cada 12 columnas (7, 19, 31, 43...)
+    const iniciosToma = [7, 19, 31, 43];
+    let ultimaTomaValida = null;
+
     for (const inicio of iniciosToma) {
         const fechaToma = fila[inicio];
         const pesoToma = fila[inicio + 1];
@@ -60,15 +61,20 @@ function obtenerUltimaToma(fila) {
         const perimetroToma = fila[inicio + 3];
 
         if (fechaToma && pesoToma && String(fechaToma).trim().toLowerCase() !== 'retirado' && String(fechaToma).trim().toLowerCase() !== 'retirada') {
-            return {
-                fecha: formatDate(fechaToma),
+            const fechaStr = formatDate(fechaToma);
+            const tomaCandidate = {
+                fecha: fechaStr,
                 peso: normalizarDecimal(pesoToma),
                 talla: normalizarDecimal(tallaToma),
                 perimetro: normalizarDecimal(perimetroToma)
             };
+
+            if (!ultimaTomaValida || esFechaMasReciente(tomaCandidate.fecha, ultimaTomaValida.fecha)) {
+                ultimaTomaValida = tomaCandidate;
+            }
         }
     }
-    return null;
+    return ultimaTomaValida;
 }
 
 function resolverRutaConEspeciales(inputPath) {
