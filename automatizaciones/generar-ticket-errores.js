@@ -231,33 +231,44 @@ async function generarTicketExcelLimpio({
         rowClear.commit();
     }
 
+    const mapSexoFormato = (sexoStr) => {
+        const s = (sexoStr || '').toUpperCase();
+        if (s.includes('HOMBRE') || s.includes('MASCULINO') || s === 'M') return 'MASCULINO';
+        if (s.includes('MUJER') || s.includes('FEMENINO') || s === 'F') return 'FEMENINO';
+        return 'FEMENINO';
+    };
+
     // Escribir el ticket estrictamente en la Fila 6 (Limpio para esta persona)
     const row = sheet.getRow(6);
-    row.getCell(3).value = mapTiposInversos[tipoDocReal]; // C
-    row.getCell(4).value = numDocReal; // D
-    row.getCell(5).value = pNombreReal; // E
-    row.getCell(6).value = sNombreReal; // F
-    row.getCell(7).value = pApellidoReal; // G
-    row.getCell(8).value = sApellidoReal; // H
-    row.getCell(9).value = fechaNacReal; // I
-    row.getCell(10).value = sexoReal; // J
-    row.getCell(11).value = 'COLOMBIA'; // K
-    row.getCell(12).value = deptoNacReal; // L (Departamento Nacimiento Real)
-    row.getCell(13).value = muniNacReal; // M (Municipio Nacimiento Real)
+    
+    // 1. Datos segun Documento de Identidad (REAL) - Cols B (2) a L (12)
+    row.getCell(2).value = mapTiposInversos[tipoDocReal]; // B: Tipo Documento Real
+    row.getCell(3).value = numDocReal; // C: Numero Documento Real
+    row.getCell(4).value = pNombreReal; // D: Primer Nombre Real
+    row.getCell(5).value = sNombreReal; // E: Segundo Nombre Real
+    row.getCell(6).value = pApellidoReal; // F: Primer Apellido Real
+    row.getCell(7).value = sApellidoReal; // G: Segundo Apellido Real
+    row.getCell(8).value = fechaNacReal; // H: Fecha Nacimiento Real
+    row.getCell(9).value = mapSexoFormato(sexoReal); // I: Sexo Real (FEMENINO/MASCULINO)
+    row.getCell(10).value = 'COLOMBIA'; // J: Pais Real
+    row.getCell(11).value = deptoNacReal; // K: Departamento Nacimiento Real
+    row.getCell(12).value = muniNacReal; // L: Municipio Nacimiento Real
 
-    row.getCell(14).value = datosCuentame.tipoDocCod; // N
-    row.getCell(15).value = datosCuentame.numDoc; // O
-    row.getCell(16).value = datosCuentame.primerNombre; // P
-    row.getCell(17).value = datosCuentame.segundoNombre; // Q
-    row.getCell(18).value = datosCuentame.primerApellido; // R
-    row.getCell(19).value = datosCuentame.segundoApellido; // S
-    row.getCell(20).value = datosCuentame.fechaNacimiento; // T
-    row.getCell(21).value = (datosCuentame.sexo || '').toUpperCase(); // U
-    row.getCell(22).value = (datosCuentame.pais || 'COLOMBIA').toUpperCase(); // V
-    row.getCell(23).value = (datosCuentame.departamento || '').toUpperCase(); // W
-    row.getCell(24).value = (datosCuentame.municipio || '').toUpperCase(); // X
+    // 2. Datos segun el Sistema de Informacion (CUENTAME) - Cols M (13) a W (23)
+    row.getCell(13).value = datosCuentame.tipoDocCod; // M: Tipo Documento Sistema
+    row.getCell(14).value = datosCuentame.numDoc; // N: Numero Documento Sistema
+    row.getCell(15).value = datosCuentame.primerNombre; // O: Primer Nombre Sistema
+    row.getCell(16).value = datosCuentame.segundoNombre; // P: Segundo Nombre Sistema
+    row.getCell(17).value = datosCuentame.primerApellido; // Q: Primer Apellido Sistema
+    row.getCell(18).value = datosCuentame.segundoApellido; // R: Segundo Apellido Sistema
+    row.getCell(19).value = datosCuentame.fechaNacimiento; // S: Fecha Nacimiento Sistema
+    row.getCell(20).value = mapSexoFormato(datosCuentame.sexo); // T: Sexo Sistema (FEMENINO/MASCULINO)
+    row.getCell(21).value = (datosCuentame.pais || 'COLOMBIA').toUpperCase(); // U: Pais Sistema
+    row.getCell(22).value = (datosCuentame.departamento || 'BOGOTA D.C.').toUpperCase(); // V: Depto Sistema
+    row.getCell(23).value = (datosCuentame.municipio || 'BOGOTA, D.C.').toUpperCase(); // W: Municipio Sistema
 
-    row.getCell(25).value = 'Error en Diligenciamiento de Datos Basicos'; // Y
+    // 3. Clase de Novedad & Observaciones - Cols X (24) & AB (28)
+    row.getCell(24).value = 'Error en Diligenciamiento de Datos Basicos'; // X
     row.getCell(28).value = observacion; // AB
 
     row.commit();
