@@ -525,7 +525,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 }
             }
 
-            if (fechaUso) {
+            if (fechaUso && !fechaUso.includes('1900')) {
                 await f.evaluate((fDate) => {
                     const dateInputSelectors = [
                         '#cphCont_cuwFechaValoracionNuricional_txtFecha',
@@ -537,14 +537,17 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                     dateInputSelectors.forEach(sel => {
                         const inp = document.querySelector(sel);
                         if (inp) {
-                            inp.value = fDate;
-                            inp.dispatchEvent(new Event('input', { bubbles: true }));
-                            inp.dispatchEvent(new Event('change', { bubbles: true }));
-                            inp.dispatchEvent(new Event('blur', { bubbles: true }));
+                            // Limpiar cualquier 1900 por defecto de ASP.NET y forzar la fecha de la toma nutricional
+                            if (!inp.value || inp.value.includes('1900') || inp.value !== fDate) {
+                                inp.value = fDate;
+                                inp.dispatchEvent(new Event('input', { bubbles: true }));
+                                inp.dispatchEvent(new Event('change', { bubbles: true }));
+                                inp.dispatchEvent(new Event('blur', { bubbles: true }));
+                            }
                         }
                     });
                 }, fechaUso).catch(() => {});
-                console.log(c.verde(`    ✅ [Texto] Sincronizadas Fechas con fecha valida (${fechaUso})`));
+                console.log(c.verde(`    ✅ [Texto] Sincronizadas Fechas con Fecha de la Toma Nutricional (${fechaUso})`));
                 await page.waitForTimeout(400); // Esperar a que terminen los AJAX postbacks de las fechas
             }
 
