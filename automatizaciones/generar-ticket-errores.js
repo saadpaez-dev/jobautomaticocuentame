@@ -63,23 +63,29 @@ function normalizarTexto(str) {
         .trim();
 }
 
-async function extraerDatosPersonaDeFormulario(frame) {
+async function extraerDatosPersonaDeFormulario(frame, esAcudiente = false) {
     await frame.locator('input[id*="txtIdentificacion"], input[id*="txtPrimerNombre"]').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
 
-    const datos = await frame.evaluate(() => {
+    const datos = await frame.evaluate((isAcudiente) => {
         const getVal = (selectors) => {
             for (const s of selectors) {
-                const el = document.querySelector(s);
-                if (el && el.value && el.value.trim() !== '') return el.value.trim();
+                const elements = Array.from(document.querySelectorAll(s));
+                if (elements.length > 0) {
+                    const el = isAcudiente ? elements[elements.length - 1] : elements[0];
+                    if (el && el.value && el.value.trim() !== '') return el.value.trim();
+                }
             }
             return '';
         };
         const getSelectText = (selectors) => {
             for (const s of selectors) {
-                const el = document.querySelector(s);
-                if (el && el.selectedIndex >= 0) {
-                    const txt = el.options[el.selectedIndex]?.text;
-                    if (txt && txt.trim() !== '' && !txt.toLowerCase().includes('select')) return txt.trim();
+                const elements = Array.from(document.querySelectorAll(s));
+                if (elements.length > 0) {
+                    const el = isAcudiente ? elements[elements.length - 1] : elements[0];
+                    if (el && el.selectedIndex >= 0) {
+                        const txt = el.options[el.selectedIndex]?.text;
+                        if (txt && txt.trim() !== '' && !txt.toLowerCase().includes('select')) return txt.trim();
+                    }
                 }
             }
             return '';
@@ -112,7 +118,7 @@ async function extraerDatosPersonaDeFormulario(frame) {
             departamento,
             municipio
         };
-    });
+    }, esAcudiente);
 
     const mapTipoDoc = (tipoFull) => {
         const t = (tipoFull || '').toUpperCase();
@@ -829,7 +835,7 @@ async function main() {
 
             console.log(c.amarillo('  ⏳ Extrayendo datos del Acudiente de Cuentame...'));
             
-            const datosCuentame = await extraerDatosPersonaDeFormulario(frame);
+            const datosCuentame = await extraerDatosPersonaDeFormulario(frame, true);
             
             console.log(c.verde('  ✅ Datos extraidos del Acudiente en Cuentame:'));
             console.log(c.gris(`     - Nombre: ${datosCuentame.primerNombre} ${datosCuentame.segundoNombre} ${datosCuentame.primerApellido} ${datosCuentame.segundoApellido}`));
