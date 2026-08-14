@@ -1580,6 +1580,19 @@ async function main() {
                           break;
                       }
 
+                      // 3. Verificar si aparecieron errores en pantalla (color rojo) para no esperar 15s innecesariamente
+                      const tieneErrorRed = await currentFrame.evaluate(() => {
+                          const elms = Array.from(document.querySelectorAll('span, div, td')).filter(el => {
+                              const style = window.getComputedStyle(el);
+                              return (style.color === 'rgb(255, 0, 0)' || el.className.includes('error')) && el.innerText.trim().length > 3;
+                          });
+                          return elms.length > 0;
+                      }).catch(() => false);
+
+                      if (tieneErrorRed) {
+                          break;
+                      }
+
                       await page.waitForTimeout(500);
                   }
 
@@ -1653,13 +1666,18 @@ async function main() {
                       if (txtError && (txtError.toLowerCase().includes('perimetro braquial') || txtError.toLowerCase().includes('menor o igual') || txtError.toLowerCase().includes('inicio de atencion')) && ninoTarget) {
                           console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perimetro braquial / inicio de atencion en Cuentame.`));
                           
-                          // Extraer cualquier fecha valida mencionada en el mensaje de error (ej: 01/08/2026)
+                          // Extraer cualquier fecha valida mencionada en el mensaje de error (EXCLUYENDO 01/01/1900)
                           let fechaRef = ninoTarget.fecha;
-                          const matchDate = txtError.match(/\d{2}\/\d{2}\/\d{4}/);
-                          if (matchDate) {
-                              fechaRef = matchDate[0];
+                          const allDates = txtError.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
+                          const validDates = allDates.filter(d => !d.includes('1900'));
+                          
+                          if (validDates.length > 0) {
+                              fechaRef = validDates[0];
                               console.log(c.amarillo(`  🛠️ Autocorrigiendo: Ajustando Fecha a ${fechaRef} (sugerida por la regla de validacion)...`));
                           } else {
+                              // Fallback a la fecha actual o fecha del registro (NUNCA 1900)
+                              const hoyStr = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/-/g, '/');
+                              if (!fechaRef || fechaRef.includes('1900')) fechaRef = hoyStr;
                               console.log(c.amarillo(`  🛠️ Autocorrigiendo: Re-sincronizando formulario completo con Fecha (${fechaRef})...`));
                           }
                           
