@@ -410,8 +410,13 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
                         pageText.includes('Se ha enviado un codigo') || 
                         pageText.includes('Olvidaste tu Contrasena?');
 
-    if (esLoginO2FA || pageUrl.includes('DefaultF.aspx')) {
-        return false; // No hay sesion activa de todos modos
+    if (esLoginO2FA) {
+        return false;
+    }
+
+    if (pageUrl.includes('DefaultF.aspx')) {
+        await seleccionarRolYEntrar(page, asociacionObj);
+        return true;
     }
 
     // Extraer texto de la cabecera donde Cuentame muestra la asociacion activa
@@ -428,43 +433,16 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
         return true;
     }
 
-    // Si la sesion activa pertenece a OTRA asociacion, cerrar sesion segun el flujo de las capturas
-    console.log(c.amarillo(`  🔄 La sesion activa pertenece a otra asociacion (${headerClean.slice(0, 45)}...).`));
-    console.log(c.amarillo('  ⏳ Cerrando sesion (clic en icono de Cerrar Sesion)...'));
-
+    console.log(c.amarillo(`  🔄 Cambiando a la asociacion "${targetNombre}"...`));
     try {
-        const btnLogout = page.locator('a#btnLogOut, a[id*="btnLogOut"], a:has(img[src*="logout"])').first();
-        if (await btnLogout.count() > 0) {
-            await Promise.all([
-                page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                btnLogout.evaluate(node => node.click())
-            ]);
-            console.log(c.verde('  ✅ Clic en Cerrar Sesion ejecutado.'));
-            await page.waitForTimeout(1500);
-
-            console.log(c.amarillo('  🏠 Haciendo clic en el boton de la casita (Inicio)...'));
-            const btnHome = page.locator('a:has(img[src*="home.png"]), a[href*="Default.aspx"], img[title="Inicio"]').first();
-            if (await btnHome.count() > 0) {
-                await Promise.all([
-                    page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                    btnHome.evaluate(node => node.click())
-                ]);
-                console.log(c.verde('  ✅ Regresado a la pantalla inicial de Cuentame.'));
-            }
-        } else {
-            console.log(c.amarillo('  ⏳ Redirigiendo a LogOut.aspx para limpiar la sesion...'));
-            await page.goto('https://rubonline.icbf.gov.co/LogOut.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-            await page.waitForTimeout(1000);
-            const btnHome = page.locator('a:has(img[src*="home.png"]), a[href*="Default.aspx"], img[title="Inicio"]').first();
-            if (await btnHome.count() > 0) {
-                await btnHome.click().catch(() => {});
-            }
-        }
+        await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(1000);
+        await seleccionarRolYEntrar(page, asociacionObj);
     } catch(e) {
-        console.log(c.rojo(`  ❌ Error al cerrar sesion: ${e.message}`));
+        console.log(c.rojo(`  ❌ Error al cambiar asociacion: ${e.message}`));
     }
 
-    return false; // La sesion fue cerrada, se requiere nuevo ingreso
+    return true;
 }
 
 module.exports = {

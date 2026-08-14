@@ -220,26 +220,12 @@ async function main() {
           console.log(c.amarillo(`======================================================`));
           console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
           
-          // Para asegurar el cambio limpio de sesion ASP.NET en el servidor de Cuentame,
-          // forzar cierre de sesion (LogOut) e ingresar limpiamente desde el login
           if (i > 0) {
-              console.log(c.amarillo(`  🔄 Cerrando sesion para forzar la actualizacion limpia a "${asc.nombreCorto}"...`));
+              console.log(c.amarillo(`  🔄 Cambiando a la asociacion "${asc.nombreCorto}"...`));
               try {
-                  await mainPage.goto('https://rubonline.icbf.gov.co/LogOut.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-                  await mainPage.waitForTimeout(1000);
-                  const btnHome = mainPage.locator('a:has(img[src*="home"]), a[href*="Default.aspx"], img[title*="Inicio"]').first();
-                  if (await btnHome.count() > 0) {
-                      await btnHome.click().catch(() => {});
-                  }
+                  await mainPage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+                  await mainPage.waitForTimeout(800);
               } catch (e) {}
-
-              console.log('  🔐 Re-iniciando sesion limpia en Cuentame...');
-              rolesUrl = await loginYLlegarARoles(mainPage, {
-                  usuario: USUARIO,
-                  password: PASSWORD,
-                  gmailUser: GMAIL_USER,
-                  gmailAppPassword: GMAIL_APP_PASSWORD
-              });
           }
 
           console.log(`  🏢 Seleccionando entidad/asociacion: "${asc.nombreCorto}"...`);
