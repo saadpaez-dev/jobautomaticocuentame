@@ -4,9 +4,10 @@ const { ImapFlow } = require('imapflow');
  * Sube un archivo .eml (buffer) a la carpeta de Borradores de Gmail.
  */
 async function guardarEnBorradores(gmailUser, appPassword, messageBuffer) {
+  const cleanPass = (appPassword || '').replace(/\s+/g, '');
   const c = new ImapFlow({
     host: 'imap.gmail.com', port: 993, secure: true,
-    auth: { user: gmailUser, pass: appPassword },
+    auth: { user: gmailUser, pass: cleanPass },
     logger: false
   });
 

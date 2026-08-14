@@ -13,11 +13,12 @@ const nodemailer = require('nodemailer');
  * @param {string} appPassword - El mismo App Password de 16 caracteres
  */
 function crearTransportador(gmailUser, appPassword) {
+  const cleanPass = (appPassword || '').replace(/\s+/g, '');
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
-    auth: { user: gmailUser, pass: appPassword },
+    auth: { user: gmailUser, pass: cleanPass },
   });
 }
 

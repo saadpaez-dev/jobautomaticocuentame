@@ -344,36 +344,50 @@ async function procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPat
         const modoEnvio = readline.question(c.negrita('  > Selecciona (1 o 2) [por defecto 2]: ')).trim();
 
         const gmailUser = process.env.GMAIL_USER;
-        const gmailPass = process.env.GMAIL_APP_PASSWORD;
+        const gmailPass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
 
-        if (!gmailUser || !gmailPass) {
-            console.log(c.rojo('  ❌ Faltan GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
-        } else if (modoEnvio === '1') {
+        const MailComposer = require('nodemailer/lib/mail-composer');
+        const mail = new MailComposer({
+            from: gmailUser || 'SAAD PAEZ',
+            to: destinatario,
+            subject: asuntoCorreo,
+            html: cuerpoCorreoHtml,
+            attachments: attachments
+        });
+
+        if (modoEnvio === '1') {
             console.log(c.amarillo('  ⏳ Enviando correo directamente...'));
-            const { enviarCorreo } = require('../servicios/gmail-sender');
-            await enviarCorreo(gmailUser, gmailPass, {
-                to: destinatario,
-                subject: asuntoCorreo,
-                html: cuerpoCorreoHtml,
-                attachments: attachments
-            });
-            console.log(c.verde(`  🎉 ¡Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
+            try {
+                const { enviarCorreo } = require('../servicios/gmail-sender');
+                await enviarCorreo(gmailUser, gmailPass, {
+                    to: destinatario,
+                    subject: asuntoCorreo,
+                    html: cuerpoCorreoHtml,
+                    attachments: attachments
+                });
+                console.log(c.verde(`  🎉 ¡Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
+            } catch (err) {
+                console.log(c.rojo(`  ❌ Error al enviar correo via SMTP: ${err.message}`));
+            }
         } else {
             console.log(c.amarillo('  ⏳ Guardando borrador en Gmail...'));
-            const MailComposer = require('nodemailer/lib/mail-composer');
-            const { guardarEnBorradores } = require('../servicios/gmail-draft');
+            const scratchDir = path.join(__dirname, '..', 'scratch');
+            if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
+            const localEmlPath = path.join(scratchDir, `Borrador_Ticket_${numDocReal}.eml`);
 
-            const mail = new MailComposer({
-                from: gmailUser,
-                to: destinatario,
-                subject: asuntoCorreo,
-                html: cuerpoCorreoHtml,
-                attachments: attachments
-            });
+            try {
+                const messageBuffer = await mail.compile().build();
+                fs.writeFileSync(localEmlPath, messageBuffer);
 
-            const messageBuffer = await mail.compile().build();
-            await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
-            console.log(c.verde(`  🎉 ¡Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
+                const { guardarEnBorradores } = require('../servicios/gmail-draft');
+                await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
+                console.log(c.verde(`  🎉 ¡Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
+            } catch (err) {
+                console.log(c.amarillo(`  ⚠️ No se pudo subir el borrador a la API de Gmail (${err.message}).`));
+                console.log(c.verde(`  ✅ Se guardo la copia local del borrador (.eml) en:`));
+                console.log(c.cyan(`     ${localEmlPath}`));
+                console.log(c.gris(`     (Puedes abrir este archivo .eml para enviarlo directamente desde tu cliente de correo).`));
+            }
         }
     }
 }
