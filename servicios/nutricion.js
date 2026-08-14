@@ -504,30 +504,56 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             const numPb = parseFloat(String(datos.perimetro || '').replace(',', '.'));
             const pbEsValido = !isNaN(numPb) && numPb >= 5.0 && numPb <= 30.0;
 
+            if (datos.fecha) {
+                await f.evaluate((fDate) => {
+                    const dateInputSelectors = [
+                        '#cphCont_cuwFechaValoracionNuricional_txtFecha',
+                        'input[id*="cuwFechaValoracionNuricional_txtFecha"]',
+                        'input[id*="cuwFechaVerificaVacunas_txtFecha"]',
+                        '#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha',
+                        'input[id*="cuwFechaMedicionPerimetroBraquial_txtFecha"]'
+                    ];
+                    dateInputSelectors.forEach(sel => {
+                        const inp = document.querySelector(sel);
+                        if (inp) {
+                            inp.value = fDate;
+                            inp.dispatchEvent(new Event('input', { bubbles: true }));
+                            inp.dispatchEvent(new Event('change', { bubbles: true }));
+                            inp.dispatchEvent(new Event('blur', { bubbles: true }));
+                        }
+                    });
+                }, datos.fecha).catch(() => {});
+                console.log(c.verde('    ✅ [Texto] Sincronizadas Fechas de valoracion, vacunas y perimetro braquial'));
+                await page.waitForTimeout(600); // Esperar a que terminen los AJAX postbacks de las fechas
+            }
+
             if (datos.perimetro && !pbEsValido) {
                 console.log(c.amarillo(`    ⚠️ Perimetro Braquial en Excel ("${datos.perimetro}") esta fuera de rango valido (5-30 cm) → Se omite.`));
-            } else {
-                // Sincronizar SIEMPRE la Fecha de medicion del perimetro con la Fecha de valoracion antropometrica
-                if (datos.fecha) {
-                    await f.evaluate((fDate) => {
-                        const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
-                        if (inpPbFecha) {
-                            inpPbFecha.value = fDate;
-                            inpPbFecha.dispatchEvent(new Event('input', { bubbles: true }));
-                            inpPbFecha.dispatchEvent(new Event('change', { bubbles: true }));
-                            inpPbFecha.dispatchEvent(new Event('blur', { bubbles: true }));
-                        }
-                    }, datos.fecha).catch(() => {});
-                    console.log(c.verde('    ✅ [Texto] Sincronizada Fecha de medicion de perimetro braquial con Fecha de valoracion'));
+            } else if (datos.perimetro && pbEsValido) {
+                const pbStr = numPb.toString();
+
+                await f.evaluate((val) => {
+                    const el = document.querySelector('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]');
+                    if (el) {
+                        el.disabled = false;
+                        el.value = val;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        el.dispatchEvent(new Event('blur', { bubbles: true }));
+                    }
+                }, pbStr).catch(() => {});
+
+                const inpPb = f.locator('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]').first();
+                if (await inpPb.count() > 0) {
+                    await inpPb.fill(pbStr, { force: true }).catch(() => {});
                 }
 
-                if (datos.perimetro && pbEsValido) {
-                    const inpPb = f.locator('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]').first();
-                    if (await inpPb.count() > 0 && await inpPb.isVisible().catch(() => false) && !await inpPb.isDisabled().catch(() => true)) {
-                        await inpPb.fill(numPb.toString(), { timeout: 1500 }).catch(() => {});
-                        console.log(c.verde('    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial'));
-                    }
-                }
+                const finalVal = await f.evaluate(() => {
+                    const el = document.querySelector('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]');
+                    return el ? el.value : '';
+                }).catch(() => '');
+
+                console.log(c.verde(`    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial = ${finalVal || pbStr} cm`));
             }
         } catch(e) { 
             console.log(c.rojo('    ❌ [Texto] Error perimetro: ' + e.message.substring(0, 50))); 
