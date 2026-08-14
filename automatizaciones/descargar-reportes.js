@@ -244,7 +244,7 @@ async function main() {
         const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
             try {
                 const exito = await reportFrame.evaluate(({ labelText, valueOrText }) => {
-                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").trim().toUpperCase();
                     const targetLabel = removeAccents(labelText);
                     
                     const allElements = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
@@ -316,17 +316,6 @@ async function main() {
                         }
                     }
 
-                    if (targetIdx === -1 && select.options.length > 1) {
-                        for (let i = 0; i < select.options.length; i++) {
-                            const txt = removeAccents(select.options[i].text);
-                            const val = select.options[i].value;
-                            if (val && val !== '0' && val !== '-1' && !txt.includes('SELECT') && !txt.includes('SELECCION')) {
-                                targetIdx = i;
-                                break;
-                            }
-                        }
-                    }
-
                     if (targetIdx >= 0 && targetIdx < select.options.length) {
                         select.selectedIndex = targetIdx;
                         select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -348,7 +337,7 @@ async function main() {
                     return false;
                 }
             } catch (e) {
-                console.log(c.rojo(`    ⚠️ Error al seleccionar "${labelText}": ${e.message}`));
+                console.log(c.amarillo(`    ⚠️ Error al seleccionar "${labelText}": ${e.message}`));
                 return false;
             }
         };
