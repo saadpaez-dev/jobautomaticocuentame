@@ -447,6 +447,95 @@ async function main() {
             }
         };
 
+        const seleccionarSSRSMultiByLabel = async (labelText, valueOrText) => {
+            try {
+                const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+                const targetLabel = removeAccents(labelText);
+
+                const okClicked = await reportFrame.evaluate(({ targetLabel }) => {
+                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+                    const allElements = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
+                    let matchedTd = null;
+
+                    for (const el of allElements) {
+                        const txt = removeAccents(el.innerText);
+                        if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
+                            if (el.innerText.length < 100) {
+                                matchedTd = el.closest('td') || el;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!matchedTd) return false;
+
+                    let btn = matchedTd.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
+                    if (!btn && matchedTd.nextElementSibling) {
+                        btn = matchedTd.nextElementSibling.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
+                    }
+                    if (!btn && matchedTd.parentElement) {
+                        btn = matchedTd.parentElement.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
+                    }
+
+                    if (btn) {
+                        btn.click();
+                        return true;
+                    }
+                    return false;
+                }, { targetLabel });
+
+                if (okClicked) {
+                    await mainPage.waitForTimeout(600);
+                    
+                    await reportFrame.evaluate(({ valueOrText }) => {
+                        const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+                        const openDropdown = document.querySelector('div[id*="divDropDown"][style*="visible"], div[id*="divDropDown"]:not([style*="display: none"])');
+                        if (!openDropdown) return;
+
+                        const labels = Array.from(openDropdown.querySelectorAll('label'));
+                        
+                        if (valueOrText === '(Select All)' || valueOrText === '(Check All)') {
+                            const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
+                            if (selectAll) {
+                                let chk = document.getElementById(selectAll.htmlFor) || selectAll.querySelector('input[type="checkbox"]');
+                                if (chk && !chk.checked) chk.click();
+                            }
+                        } else {
+                            const vals = String(valueOrText).split(',').map(v => removeAccents(v));
+                            
+                            if (!vals.includes('SELECT ALL')) {
+                                const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
+                                if (selectAll) {
+                                    let chk = document.getElementById(selectAll.htmlFor) || selectAll.querySelector('input[type="checkbox"]');
+                                    if (chk && chk.checked) chk.click();
+                                }
+                            }
+
+                            for (const val of vals) {
+                                const matchedLabel = labels.find(l => {
+                                    const txt = removeAccents(l.innerText);
+                                    return txt.includes(val) || val.includes(txt);
+                                });
+                                if (matchedLabel) {
+                                    let chk = document.getElementById(matchedLabel.htmlFor) || matchedLabel.querySelector('input[type="checkbox"]');
+                                    if (chk && !chk.checked) chk.click();
+                                }
+                            }
+                        }
+                    }, { valueOrText });
+
+                    await mainPage.waitForTimeout(400);
+                    await reportFrame.locator('body').click().catch(() => {});
+                    await mainPage.waitForTimeout(400);
+                    console.log(c.verde(`    ✅ [Filtro Multi] "${labelText}" -> ${valueOrText}`));
+                    return true;
+                }
+            } catch(e) {
+                console.log(c.amarillo(`    ⚠️ [Filtro Multi] "${labelText}": ${e.message}`));
+            }
+            return false;
+        };
+
         const obtenerReportFrame = async (targetPage) => {
             let frame = targetPage;
             try {
@@ -497,48 +586,41 @@ async function main() {
             } catch(e) {}
         } else if (opcionReporte === 2) {
             console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de ninos y ninas...\n');
-            await reportPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
+            await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
               waitUntil: 'domcontentloaded',
               timeout: 120000
             });
-            reportFrame = await obtenerReportFrame(reportPage);
+            reportFrame = await obtenerReportFrame(mainPage);
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
 
             console.log(c.amarillo('  ⏳ Aplicando filtros en pantalla de reporte...'));
             
-            // 1. Area Misional
-            const okArea = await seleccionarSSRSByLabel('Area Misional', 'Dirección de Primera Infancia');
-            if (!okArea) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue', 'Dirección de Primera Infancia');
+            // 1. Direccion / Area Misional
+            await seleccionarSSRSByLabel('Direccion', 'Direccion de Primera Infancia') || await seleccionarSSRSByLabel('Area Misional', 'Direccion de Primera Infancia');
             
             // 2. Regional
-            const okReg = await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
-            if (!okReg) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue', 'Bogota D.C.');
+            await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
 
             // 3. Centro Zonal
-            const okCZ = await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
-            if (!okCZ) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue', 'CZ USAQUEN');
+            await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
 
             // 4. Municipio
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
+            await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
             
             // 5. Ano de Toma
-            const okAnio = await seleccionarSSRSByLabel('Año de Toma', '2026');
-            if (!okAnio) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
+            await seleccionarSSRSByLabel('Ano de Toma', '2026') || await seleccionarSSRSByLabel('Ano', '2026');
             
             // 6. Entidad Contratista
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15', asc.nombreCorto);
-            await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
+            await seleccionarSSRSMultiByLabel('Entidad Contratista', asc.nombreCorto) || await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
             
             // 7. Periodo Toma
-            const okPer = await seleccionarSSRSByLabel('Periodo Toma', 'Mensual');
-            if (!okPer) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl17_ddValue', 'Mensual');
+            await seleccionarSSRSByLabel('Periodo Toma', 'Mensual');
 
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Select All)');
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
+            // 8. Mes Toma
+            await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma) || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
             
-            // 8. TODAS LAS TOMAS
-            const okTodas = await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO');
-            if (!okTodas) await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', 'NO');
+            // 9. TODAS LAS TOMAS
+            await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO');
         } else if (opcionReporte === 3 || opcionReporte === 4) {
             const reportName = opcionReporte === 3 ? "Informe de registro asistencia mensual" : "Unidades de servicio";
             console.log(`  🚀 Navegando a ${reportName}...\n`);
