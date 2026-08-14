@@ -341,49 +341,53 @@ async function generarReporteExcelFaltantes(faltantes, totalActivos, totalNutric
     return pathReportes;
 }
 
-function pedirRutaReporte(mensaje, filtroSugerido) {
+function pedirRutaReporte(mensaje, filtroKeyword) {
     const reportesDir = path.join(__dirname, '..', 'reportes');
-    const docsDir = path.join(__dirname, '..', 'docs');
-    
-    let archivosReportes = [];
+    let archivos = [];
     if (fs.existsSync(reportesDir)) {
-        archivosReportes = fs.readdirSync(reportesDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
+        archivos = fs.readdirSync(reportesDir).filter(f => !f.startsWith('~') && !f.startsWith('Reporte_Faltantes_') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
     }
 
-    let archivosDocs = [];
-    if (fs.existsSync(docsDir)) {
-        archivosDocs = fs.readdirSync(docsDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
+    if (archivos.length === 0) {
+        console.log(c.rojo('\n  ❌ No se encontraron archivos de reportes en la carpeta "reportes".'));
+        console.log(c.amarillo('     Primero descarga los reportes desde la Opcion 2 de AutoTrabajo.\n'));
+        console.log(c.gris('     • O puedes arrastrar manualmente un archivo Excel aqui:'));
+        const inputManual = readline.question(c.negrita('\n  > Ruta del archivo Excel: ')).trim();
+        return inputManual ? resolverRutaConEspeciales(inputManual) : null;
     }
 
-    // Combinar archivos (priorizando reportes)
-    const listaArchivos = [
-        ...archivosReportes.map(f => ({ nombre: f, dir: reportesDir, origen: 'reportes' })),
-        ...archivosDocs.map(f => ({ nombre: f, dir: docsDir, origen: 'docs' }))
-    ];
+    // Ordenar archivos para colocar los mas relevantes (coincidentes con filtroKeyword) de primeros
+    archivos.sort((a, b) => {
+        const matchA = filtroKeyword && a.toLowerCase().includes(filtroKeyword.toLowerCase());
+        const matchB = filtroKeyword && b.toLowerCase().includes(filtroKeyword.toLowerCase());
+        if (matchA && !matchB) return -1;
+        if (!matchA && matchB) return 1;
+        return a.localeCompare(b);
+    });
 
-    if (listaArchivos.length > 0) {
-        console.log(c.cyan(`\n  📂 Archivos disponibles en "reportes" y "docs":`));
-        listaArchivos.forEach((item, i) => {
-            const esSugerido = filtroSugerido && item.nombre.toLowerCase().includes(filtroSugerido.toLowerCase());
-            const tagSugerido = esSugerido ? c.verde(' ⭐ (Recomendado)') : '';
-            console.log(`  ${i + 1}. [${item.origen}] ${item.nombre}${tagSugerido}`);
-        });
-    }
+    console.log(c.cyan(`\n  📂 Archivos disponibles en "reportes":`));
+    archivos.forEach((nombre, i) => {
+        const esRecomendado = (i === 0 && filtroKeyword && nombre.toLowerCase().includes(filtroKeyword.toLowerCase()));
+        const tagRecomendado = esRecomendado ? c.verde(' ⭐ [Presiona ENTER para usar este]') : '';
+        console.log(`  ${i + 1}. ${nombre}${tagRecomendado}`);
+    });
 
     console.log(c.cyan(`\n  📥 ${mensaje}`));
-    console.log(c.gris('     • Puedes arrastrar el archivo Excel descargado de Cuentame aqui.'));
-    if (listaArchivos.length > 0) {
-        console.log(c.gris(`     • O escribe un numero (1-${listaArchivos.length}) para elegir de la lista.`));
+    console.log(c.gris('     • Presiona ENTER para seleccionar la opcion [1] por defecto.'));
+    console.log(c.gris(`     • O escribe un numero (1-${archivos.length}) / arrastra la ruta.`));
+
+    const inputRaw = readline.question(c.negrita('\n  > Selecciona opcion (o presiona ENTER) [Default 1]: ')).trim();
+
+    if (inputRaw === '') {
+        console.log(c.verde(`  ✅ Seleccionado automaticamente [1]: ${archivos[0]}`));
+        return path.join(reportesDir, archivos[0]);
     }
 
-    const inputRaw = readline.question(c.negrita('\n  > Ruta del archivo Excel: ')).trim();
-    if (!inputRaw) return null;
-
-    if (/^\d+$/.test(inputRaw) && listaArchivos.length > 0) {
+    if (/^\d+$/.test(inputRaw)) {
         const idx = parseInt(inputRaw, 10);
-        if (idx > 0 && idx <= listaArchivos.length) {
-            const item = listaArchivos[idx - 1];
-            return path.join(item.dir, item.nombre);
+        if (idx > 0 && idx <= archivos.length) {
+            console.log(c.verde(`  ✅ Seleccionado [${idx}]: ${archivos[idx - 1]}`));
+            return path.join(reportesDir, archivos[idx - 1]);
         }
     }
 
