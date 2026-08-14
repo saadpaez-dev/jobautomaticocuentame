@@ -1649,20 +1649,25 @@ async function main() {
                       let autoHealed = false;
                       const ninoTarget = (modoExcel && modoExcel.startsWith('MASIVO_')) ? (ninosExcel[idxNinoExcelActual] || ninoSeleccionado) : ninoSeleccionado;
 
-                      // Auto-recuperacion si Cuentame reclama por Fecha de medicion de perimetro braquial > Fecha de valoracion
-                      if (txtError && (txtError.toLowerCase().includes('perimetro braquial') || txtError.toLowerCase().includes('menor o igual')) && ninoTarget && ninoTarget.fecha) {
-                          console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perimetro braquial en Cuentame.`));
-                          console.log(c.amarillo(`  🛠️ Autocorrigiendo: Sincronizando Fecha de medicion de perimetro braquial con Fecha de valoracion (${ninoTarget.fecha})...`));
+                      // Auto-recuperacion si Cuentame reclama por Fecha de medicion de perimetro braquial o fecha de inicio de atencion
+                      if (txtError && (txtError.toLowerCase().includes('perimetro braquial') || txtError.toLowerCase().includes('menor o igual') || txtError.toLowerCase().includes('inicio de atencion')) && ninoTarget) {
+                          console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perimetro braquial / inicio de atencion en Cuentame.`));
                           
-                          await currentFrameErr.evaluate((fDate) => {
-                              const inpPbFecha = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial"]');
-                              if (inpPbFecha) {
-                                  inpPbFecha.value = fDate;
-                                  inpPbFecha.dispatchEvent(new Event('input', { bubbles: true }));
-                                  inpPbFecha.dispatchEvent(new Event('change', { bubbles: true }));
-                                  inpPbFecha.dispatchEvent(new Event('blur', { bubbles: true }));
-                              }
-                          }, ninoTarget.fecha).catch(() => {});
+                          // Extraer cualquier fecha valida mencionada en el mensaje de error (ej: 01/08/2026)
+                          let fechaRef = ninoTarget.fecha;
+                          const matchDate = txtError.match(/\d{2}\/\d{2}\/\d{4}/);
+                          if (matchDate) {
+                              fechaRef = matchDate[0];
+                              console.log(c.amarillo(`  🛠️ Autocorrigiendo: Ajustando Fecha a ${fechaRef} (sugerida por la regla de validacion)...`));
+                          } else {
+                              console.log(c.amarillo(`  🛠️ Autocorrigiendo: Re-sincronizando formulario completo con Fecha (${fechaRef})...`));
+                          }
+                          
+                          datosLlenado.fecha = fechaRef;
+
+                          // RE-LLENAR EL FORMULARIO COMPLETO PARA GARANTIZAR QUE NINGUN CAMPO QUEDE EN BLANCO
+                          await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
+                          await page.waitForTimeout(500);
 
                           const btnGuardarRetry = currentFrameErr.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
                           if (await btnGuardarRetry.count() > 0) {

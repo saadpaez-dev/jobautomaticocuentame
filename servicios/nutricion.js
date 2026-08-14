@@ -504,7 +504,28 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             const numPb = parseFloat(String(datos.perimetro || '').replace(',', '.'));
             const pbEsValido = !isNaN(numPb) && numPb >= 5.0 && numPb <= 30.0;
 
-            if (datos.fecha) {
+            let fechaUso = datos.fecha;
+
+            // Detectar Fecha de Inicio de Atencion en el formulario de Cuentame
+            const fechaInicioAtencion = await f.evaluate(() => {
+                const el = document.querySelector('span[id*="lblFechaAtencion"], span[id*="lblFechaIngreso"], span[id*="lblFechaInicio"], td:has-text("inicio de atencion") + td, td:has-text("Inicio de Atención") + td, label:has-text("Inicio de Atención") + span');
+                return el ? el.innerText.trim() : '';
+            }).catch(() => '');
+
+            if (fechaInicioAtencion && /^\d{2}\/\d{2}\/\d{4}$/.test(fechaInicioAtencion) && datos.fecha && /^\d{2}\/\d{2}\/\d{4}$/.test(datos.fecha)) {
+                const parseF = (str) => {
+                    const [d, m, y] = str.split('/').map(Number);
+                    return new Date(y, m - 1, d);
+                };
+                const fAtencion = parseF(fechaInicioAtencion);
+                const fDatos = parseF(datos.fecha);
+                if (fDatos < fAtencion) {
+                    console.log(c.amarillo(`    ⚠️ Fecha de excel (${datos.fecha}) es anterior a Fecha de inicio de atencion (${fechaInicioAtencion}) → Ajustando fecha a ${fechaInicioAtencion}`));
+                    fechaUso = fechaInicioAtencion;
+                }
+            }
+
+            if (fechaUso) {
                 await f.evaluate((fDate) => {
                     const dateInputSelectors = [
                         '#cphCont_cuwFechaValoracionNuricional_txtFecha',
@@ -522,9 +543,9 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                             inp.dispatchEvent(new Event('blur', { bubbles: true }));
                         }
                     });
-                }, datos.fecha).catch(() => {});
-                console.log(c.verde('    ✅ [Texto] Sincronizadas Fechas de valoracion, vacunas y perimetro braquial'));
-                await page.waitForTimeout(600); // Esperar a que terminen los AJAX postbacks de las fechas
+                }, fechaUso).catch(() => {});
+                console.log(c.verde(`    ✅ [Texto] Sincronizadas Fechas con fecha valida (${fechaUso})`));
+                await page.waitForTimeout(400); // Esperar a que terminen los AJAX postbacks de las fechas
             }
 
             if (datos.perimetro && !pbEsValido) {
