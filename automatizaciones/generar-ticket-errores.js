@@ -53,6 +53,147 @@ async function convertirImagenOConplanarPdf(rutaInput, rutaSalidaPdf) {
     return rutaInput;
 }
 
+function normalizarTexto(str) {
+    if (!str) return '';
+    return str.toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .trim();
+}
+
+async function extraerDatosPersonaDeFormulario(frame) {
+    await frame.locator('input[id*="txtIdentificacion"], input[id*="txtPrimerNombre"]').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+
+    const datos = await frame.evaluate(() => {
+        const getVal = (selectors) => {
+            for (const s of selectors) {
+                const el = document.querySelector(s);
+                if (el && el.value && el.value.trim() !== '') return el.value.trim();
+            }
+            return '';
+        };
+        const getSelectText = (selectors) => {
+            for (const s of selectors) {
+                const el = document.querySelector(s);
+                if (el && el.selectedIndex >= 0) {
+                    const txt = el.options[el.selectedIndex]?.text;
+                    if (txt && txt.trim() !== '' && !txt.toLowerCase().includes('select')) return txt.trim();
+                }
+            }
+            return '';
+        };
+
+        const tipoDoc = getSelectText(['select[id*="TipoDocumento"]', 'select[id*="ddlTipoDocumento"]']);
+        const numDoc = getVal(['input[id*="txtIdentificacion"]', 'input[id*="Identificacion"]']);
+        const primerNombre = getVal(['input[id*="txtPrimerNombre"]', 'input[id*="PrimerNombre"]']);
+        const segundoNombre = getVal(['input[id*="txtSegundoNombre"]', 'input[id*="SegundoNombre"]']);
+        const primerApellido = getVal(['input[id*="txtPrimerApellido"]', 'input[id*="PrimerApellido"]']);
+        const segundoApellido = getVal(['input[id*="txtSegundoApellido"]', 'input[id*="SegundoApellido"]']);
+        
+        const fechaNacimiento = getVal(['input[id*="txtFechaNacimiento"]', 'input[id*="FechaNacimiento"]', 'input[id*="txtFechaNac"]']);
+        const sexo = getSelectText(['select[id*="ddlSexo"]', 'select[id*="ddlGenero"]', 'select[id*="Sexo"]']);
+        
+        const pais = getSelectText(['select[id*="ddlPaisNacimiento"]', 'select[id*="ddlPais"]']) || 'COLOMBIA';
+        const departamento = getSelectText(['select[id*="ddlDepartamentoNacimiento"]', 'select[id*="ddlDeptoNacimiento"]', 'select[id*="ddlDepartamento"]']);
+        const municipio = getSelectText(['select[id*="ddlMunicipioNacimiento"]', 'select[id*="ddlMpioNacimiento"]', 'select[id*="ddlMunicipio"]']);
+
+        return {
+            tipoDoc,
+            numDoc,
+            primerNombre,
+            segundoNombre,
+            primerApellido,
+            segundoApellido,
+            fechaNacimiento,
+            sexo,
+            pais,
+            departamento,
+            municipio
+        };
+    });
+
+    const mapTipoDoc = (tipoFull) => {
+        const t = (tipoFull || '').toUpperCase();
+        if (t.includes('REGISTRO CIVIL')) return 'RC';
+        if (t.includes('TARJETA DE IDENTIDAD')) return 'TI';
+        if (t.includes('CEDULA DE CIUDADANIA')) return 'CC';
+        if (t.includes('CEDULA DE EXTRANJERIA')) return 'CE';
+        if (t.includes('PASAPORTE')) return 'PA';
+        if (t.includes('SIN DOCUMENTO')) return 'SD';
+        if (t.includes('ACTA DE NACIMIENTO')) return 'AN';
+        if (t.includes('PROTECCI')) return 'PPT';
+        return 'CC'; // Default
+    };
+
+    datos.tipoDocCod = mapTipoDoc(datos.tipoDoc);
+    return datos;
+}
+
+function generarObservacionTicket({
+    mapTiposInversos,
+    tipoDocReal,
+    numDocReal,
+    pNombreReal,
+    sNombreReal,
+    pApellidoReal,
+    sApellidoReal,
+    fechaNacReal,
+    sexoReal,
+    muniNacReal,
+    datosCuentame
+}) {
+    const obs = [];
+
+    const tipoDocRealCod = mapTiposInversos[tipoDocReal];
+    if (tipoDocRealCod && datosCuentame.tipoDocCod && tipoDocRealCod !== datosCuentame.tipoDocCod) {
+        obs.push(`CAMBIAR DE (${datosCuentame.tipoDocCod}) A (${tipoDocRealCod})`);
+    }
+
+    if (normalizarTexto(numDocReal) !== normalizarTexto(datosCuentame.numDoc)) {
+        obs.push("NUMERO DE DOCUMENTO MAL DIGITADO");
+    }
+
+    const nombresMal = (normalizarTexto(pNombreReal) !== normalizarTexto(datosCuentame.primerNombre)) || 
+                       (normalizarTexto(sNombreReal) !== normalizarTexto(datosCuentame.segundoNombre));
+    const apellidosMal = (normalizarTexto(pApellidoReal) !== normalizarTexto(datosCuentame.primerApellido)) || 
+                         (normalizarTexto(sApellidoReal) !== normalizarTexto(datosCuentame.segundoApellido));
+
+    if (nombresMal && apellidosMal) {
+        obs.push("DATOS DE NOMBRES Y APELLIDOS MAL DIGITADOS");
+    } else {
+        if (nombresMal) {
+            const pMal = normalizarTexto(pNombreReal) !== normalizarTexto(datosCuentame.primerNombre);
+            const sMal = normalizarTexto(sNombreReal) !== normalizarTexto(datosCuentame.segundoNombre);
+            if (pMal && sMal) obs.push("NOMBRES MAL DIGITADOS");
+            else if (pMal) obs.push("PRIMER NOMBRE MAL DIGITADO");
+            else if (sMal) obs.push("SEGUNDO NOMBRE MAL DIGITADO");
+        }
+        if (apellidosMal) {
+            const pMal = normalizarTexto(pApellidoReal) !== normalizarTexto(datosCuentame.primerApellido);
+            const sMal = normalizarTexto(sApellidoReal) !== normalizarTexto(datosCuentame.segundoApellido);
+            if (pMal && sMal) obs.push("APELLIDOS MAL DIGITADOS");
+            else if (pMal) obs.push("PRIMER APELLIDO MAL DIGITADO");
+            else if (sMal) obs.push("SEGUNDO APELLIDO MAL DIGITADO");
+        }
+    }
+
+    if (datosCuentame.fechaNacimiento && normalizarTexto(fechaNacReal) !== normalizarTexto(datosCuentame.fechaNacimiento)) {
+        obs.push("FECHA DE NACIMIENTO MAL DIGITADA");
+    }
+
+    if (datosCuentame.sexo && normalizarTexto(sexoReal) !== normalizarTexto(datosCuentame.sexo)) {
+        obs.push("SEXO MAL DIGITADO");
+    }
+
+    if (datosCuentame.municipio && normalizarTexto(muniNacReal) !== normalizarTexto(datosCuentame.municipio)) {
+        obs.push("MUNICIPIO DE NACIMIENTO MAL DIGITADO");
+    }
+
+    return obs.join(" - ") || "DATOS ACTUALIZADOS";
+}
+
 async function generarTicketExcelLimpio({
     mapTiposInversos,
     tipoDocReal,
@@ -555,34 +696,7 @@ async function main() {
             }
             if (!frame) frame = page;
 
-            const datosCuentame = {
-                tipoDoc: await frame.locator('select[id*="ddlTipoDocumento"] option:checked, select[id*="TipoDocumento"] option:checked').innerText().catch(()=>''),
-                numDoc: await frame.locator('input[type="text"][id*="txtIdentificacion"]').inputValue().catch(()=>''),
-                primerNombre: await frame.locator('input[type="text"][id*="txtPrimerNombre"]').inputValue().catch(()=>''),
-                segundoNombre: await frame.locator('input[type="text"][id*="txtSegundoNombre"]').inputValue().catch(()=>''),
-                primerApellido: await frame.locator('input[type="text"][id*="txtPrimerApellido"]').inputValue().catch(()=>''),
-                segundoApellido: await frame.locator('input[type="text"][id*="txtSegundoApellido"]').inputValue().catch(()=>''),
-                fechaNacimiento: await frame.locator('input[type="text"][id*="txtFechaNacimiento"]').inputValue().catch(()=>''),
-                sexo: await frame.locator('select[id*="ddlSexo"] option:checked').innerText().catch(()=>''),
-                pais: await frame.locator('select[id*="ddlPaisNacimiento"] option:checked, select[id*="ddlPais"] option:checked').innerText().catch(()=>'COLOMBIA'),
-                departamento: await frame.locator('select[id*="ddlDepartamentoNacimiento"] option:checked, select[id*="ddlDepartamento"] option:checked').innerText().catch(()=>''),
-                municipio: await frame.locator('select[id*="ddlMunicipioNacimiento"] option:checked, select[id*="ddlMunicipio"] option:checked').innerText().catch(()=>'')
-            };
-
-            const mapTipoDoc = (tipoFull) => {
-                const t = tipoFull.toUpperCase();
-                if (t.includes('REGISTRO CIVIL')) return 'RC';
-                if (t.includes('TARJETA DE IDENTIDAD')) return 'TI';
-                if (t.includes('CEDULA DE CIUDADANIA')) return 'CC';
-                if (t.includes('CEDULA DE EXTRANJERIA')) return 'CE';
-                if (t.includes('PASAPORTE')) return 'PA';
-                if (t.includes('SIN DOCUMENTO')) return 'SD';
-                if (t.includes('ACTA DE NACIMIENTO')) return 'AN';
-                if (t.includes('PROTECCI')) return 'PPT';
-                return 'CC'; // Default
-            };
-
-            datosCuentame.tipoDocCod = mapTipoDoc(datosCuentame.tipoDoc);
+            const datosCuentame = await extraerDatosPersonaDeFormulario(frame);
             
             console.log(c.verde('  ✅ Datos extraidos de Cuentame:'));
             console.log(c.gris(`     - Nombre: ${datosCuentame.primerNombre} ${datosCuentame.segundoNombre} ${datosCuentame.primerApellido} ${datosCuentame.segundoApellido}`));
@@ -609,39 +723,25 @@ async function main() {
             const pApellidoReal = ask('Primer Apellido', datosCuentame.primerApellido);
             const sApellidoReal = ask('Segundo Apellido', datosCuentame.segundoApellido);
             const fechaNacReal = ask('Fecha de Nacimiento (DD/MM/AAAA)', datosCuentame.fechaNacimiento);
-            const sexoReal = ask('Sexo (HOMBRE/MUJER)', datosCuentame.sexo.toUpperCase());
+            const sexoReal = ask('Sexo (HOMBRE/MUJER)', (datosCuentame.sexo || 'MUJER').toUpperCase());
             const deptoNacReal = ask('Departamento de Nacimiento', (datosCuentame.departamento || 'BOGOTA D.C.').trim());
             const muniNacReal = ask('Municipio de Nacimiento', (datosCuentame.municipio || 'BOGOTA D.C.').trim());
             
             // Generar observacion automatica
-            const obs = [];
-            const nombresMal = (pNombreReal !== datosCuentame.primerNombre) || (sNombreReal !== datosCuentame.segundoNombre);
-            const apellidosMal = (pApellidoReal !== datosCuentame.primerApellido) || (sApellidoReal !== datosCuentame.segundoApellido);
-            
-            if (nombresMal && apellidosMal) {
-                obs.push("DATOS DE NOMBRES Y APELLIDOS MAL DIGITADOS");
-            } else {
-                if (nombresMal) {
-                    if (pNombreReal !== datosCuentame.primerNombre && sNombreReal !== datosCuentame.segundoNombre) obs.push("NOMBRES MAL DIGITADOS");
-                    else if (pNombreReal !== datosCuentame.primerNombre) obs.push("PRIMER NOMBRE MAL DIGITADO");
-                    else if (sNombreReal !== datosCuentame.segundoNombre) obs.push("SEGUNDO NOMBRE MAL DIGITADO");
-                }
-                if (apellidosMal) {
-                    if (pApellidoReal !== datosCuentame.primerApellido && sApellidoReal !== datosCuentame.segundoApellido) obs.push("APELLIDOS MAL DIGITADOS");
-                    else if (pApellidoReal !== datosCuentame.primerApellido) obs.push("PRIMER APELLIDO MAL DIGITADO");
-                    else if (sApellidoReal !== datosCuentame.segundoApellido) obs.push("SEGUNDO APELLIDO MAL DIGITADO");
-                }
-            }
-            
-            if (mapTiposInversos[tipoDocReal] !== datosCuentame.tipoDocCod) obs.push("TIPO DE DOCUMENTO MAL DIGITADO");
-            if (numDocReal !== datosCuentame.numDoc) obs.push("NUMERO DE DOCUMENTO MAL DIGITADO");
-            if (fechaNacReal !== datosCuentame.fechaNacimiento) obs.push("FECHA DE NACIMIENTO MAL DIGITADA");
-            if (sexoReal !== datosCuentame.sexo.toUpperCase()) obs.push("SEXO MAL DIGITADO");
-            if (deptoNacReal.toUpperCase() !== (datosCuentame.departamento || '').toUpperCase().trim() || muniNacReal.toUpperCase() !== (datosCuentame.municipio || '').toUpperCase().trim()) {
-                obs.push("MUNICIPIO DE NACIMIENTO MAL DIGITADO");
-            }
+            const observacion = generarObservacionTicket({
+                mapTiposInversos,
+                tipoDocReal,
+                numDocReal,
+                pNombreReal,
+                sNombreReal,
+                pApellidoReal,
+                sApellidoReal,
+                fechaNacReal,
+                sexoReal,
+                muniNacReal,
+                datosCuentame
+            });
 
-            const observacion = obs.join(" - ") || "DATOS ACTUALIZADOS";
             console.log(c.amarillo(`\n  📝 Observacion generada: ${observacion}`));
 
             // Escribir en Excel Limpio
@@ -729,34 +829,7 @@ async function main() {
 
             console.log(c.amarillo('  ⏳ Extrayendo datos del Acudiente de Cuentame...'));
             
-            const mapTipoDoc = (tipoFull) => {
-                const t = (tipoFull || '').toUpperCase();
-                if (t.includes('REGISTRO CIVIL')) return 'RC';
-                if (t.includes('TARJETA DE IDENTIDAD')) return 'TI';
-                if (t.includes('CEDULA DE CIUDADANIA')) return 'CC';
-                if (t.includes('CEDULA DE EXTRANJERIA')) return 'CE';
-                if (t.includes('PASAPORTE')) return 'PA';
-                if (t.includes('SIN DOCUMENTO')) return 'SD';
-                if (t.includes('ACTA DE NACIMIENTO')) return 'AN';
-                if (t.includes('PROTECCI')) return 'PPT';
-                return 'CC'; // Default
-            };
-
-            const datosCuentame = {
-                tipoDoc: await frame.locator('select[id*="TipoDocumento"] option:checked, select[id*="ddlTipoDocumento"] option:checked').last().innerText({timeout: 1000}).catch(()=>''),
-                numDoc: await frame.locator('input[type="text"][id*="txtIdentificacion"]').last().inputValue({timeout: 1000}).catch(()=>''),
-                primerNombre: await frame.locator('input[type="text"][id*="txtPrimerNombre"]').last().inputValue({timeout: 1000}).catch(()=>''),
-                segundoNombre: await frame.locator('input[type="text"][id*="txtSegundoNombre"]').last().inputValue({timeout: 1000}).catch(()=>''),
-                primerApellido: await frame.locator('input[type="text"][id*="txtPrimerApellido"]').last().inputValue({timeout: 1000}).catch(()=>''),
-                segundoApellido: await frame.locator('input[type="text"][id*="txtSegundoApellido"]').last().inputValue({timeout: 1000}).catch(()=>''),
-                fechaNacimiento: await frame.locator('input[type="text"][id*="txtFechaNacimiento"]').last().inputValue({timeout: 1000}).catch(()=>''),
-                sexo: await frame.locator('select[id*="ddlSexo"] option:checked').last().innerText({timeout: 1000}).catch(()=>''),
-                pais: await frame.locator('select[id*="ddlPaisNacimiento"] option:checked, select[id*="ddlPais"] option:checked').last().innerText({timeout: 1000}).catch(()=>'COLOMBIA'),
-                departamento: await frame.locator('select[id*="ddlDepartamentoNacimiento"] option:checked, select[id*="ddlDepartamento"] option:checked').last().innerText({timeout: 1000}).catch(()=>''),
-                municipio: await frame.locator('select[id*="ddlMunicipioNacimiento"] option:checked, select[id*="ddlMunicipio"] option:checked').last().innerText({timeout: 1000}).catch(()=>'')
-            };
-
-            datosCuentame.tipoDocCod = mapTipoDoc(datosCuentame.tipoDoc);
+            const datosCuentame = await extraerDatosPersonaDeFormulario(frame);
             
             console.log(c.verde('  ✅ Datos extraidos del Acudiente en Cuentame:'));
             console.log(c.gris(`     - Nombre: ${datosCuentame.primerNombre} ${datosCuentame.segundoNombre} ${datosCuentame.primerApellido} ${datosCuentame.segundoApellido}`));
@@ -783,39 +856,25 @@ async function main() {
             const pApellidoReal = ask('Primer Apellido', datosCuentame.primerApellido);
             const sApellidoReal = ask('Segundo Apellido', datosCuentame.segundoApellido);
             const fechaNacReal = ask('Fecha de Nacimiento (DD/MM/AAAA)', datosCuentame.fechaNacimiento);
-            const sexoReal = ask('Sexo (HOMBRE/MUJER)', datosCuentame.sexo.toUpperCase());
+            const sexoReal = ask('Sexo (HOMBRE/MUJER)', (datosCuentame.sexo || 'MUJER').toUpperCase());
             const deptoNacReal = ask('Departamento de Nacimiento', (datosCuentame.departamento || 'BOGOTA D.C.').trim());
             const muniNacReal = ask('Municipio de Nacimiento', (datosCuentame.municipio || 'BOGOTA D.C.').trim());
             
             // Generar observacion automatica
-            const obs = [];
-            const nombresMal = (pNombreReal !== datosCuentame.primerNombre) || (sNombreReal !== datosCuentame.segundoNombre);
-            const apellidosMal = (pApellidoReal !== datosCuentame.primerApellido) || (sApellidoReal !== datosCuentame.segundoApellido);
-            
-            if (nombresMal && apellidosMal) {
-                obs.push("DATOS DE NOMBRES Y APELLIDOS MAL DIGITADOS");
-            } else {
-                if (nombresMal) {
-                    if (pNombreReal !== datosCuentame.primerNombre && sNombreReal !== datosCuentame.segundoNombre) obs.push("NOMBRES MAL DIGITADOS");
-                    else if (pNombreReal !== datosCuentame.primerNombre) obs.push("PRIMER NOMBRE MAL DIGITADO");
-                    else if (sNombreReal !== datosCuentame.segundoNombre) obs.push("SEGUNDO NOMBRE MAL DIGITADO");
-                }
-                if (apellidosMal) {
-                    if (pApellidoReal !== datosCuentame.primerApellido && sApellidoReal !== datosCuentame.segundoApellido) obs.push("APELLIDOS MAL DIGITADOS");
-                    else if (pApellidoReal !== datosCuentame.primerApellido) obs.push("PRIMER APELLIDO MAL DIGITADO");
-                    else if (sApellidoReal !== datosCuentame.segundoApellido) obs.push("SEGUNDO APELLIDO MAL DIGITADO");
-                }
-            }
-            
-            if (mapTiposInversos[tipoDocReal] !== datosCuentame.tipoDocCod) obs.push("TIPO DE DOCUMENTO MAL DIGITADO");
-            if (numDocReal !== datosCuentame.numDoc) obs.push("NUMERO DE DOCUMENTO MAL DIGITADO");
-            if (fechaNacReal !== datosCuentame.fechaNacimiento) obs.push("FECHA DE NACIMIENTO MAL DIGITADA");
-            if (sexoReal !== datosCuentame.sexo.toUpperCase()) obs.push("SEXO MAL DIGITADO");
-            if (deptoNacReal.toUpperCase() !== (datosCuentame.departamento || '').toUpperCase().trim() || muniNacReal.toUpperCase() !== (datosCuentame.municipio || '').toUpperCase().trim()) {
-                obs.push("MUNICIPIO DE NACIMIENTO MAL DIGITADO");
-            }
+            const observacion = generarObservacionTicket({
+                mapTiposInversos,
+                tipoDocReal,
+                numDocReal,
+                pNombreReal,
+                sNombreReal,
+                pApellidoReal,
+                sApellidoReal,
+                fechaNacReal,
+                sexoReal,
+                muniNacReal,
+                datosCuentame
+            });
 
-            const observacion = obs.join(" - ") || "DATOS ACTUALIZADOS";
             console.log(c.amarillo(`\n  📝 Observacion generada: ${observacion}`));
 
             // Escribir en Excel Limpio
