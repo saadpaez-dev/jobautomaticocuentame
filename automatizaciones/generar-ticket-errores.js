@@ -267,9 +267,9 @@ async function generarTicketExcelLimpio({
     row.getCell(22).value = (datosCuentame.departamento || 'BOGOTA D.C.').toUpperCase(); // V: Depto Sistema
     row.getCell(23).value = (datosCuentame.municipio || 'BOGOTA, D.C.').toUpperCase(); // W: Municipio Sistema
 
-    // 3. Clase de Novedad & Observaciones - Cols X (24) & AB (28)
-    row.getCell(24).value = 'Error en Diligenciamiento de Datos Basicos'; // X
-    row.getCell(28).value = observacion; // AB
+    // 3. Clase de Novedad & Observaciones - Cols X (24) & AA (27)
+    row.getCell(24).value = 'Error en Diligenciamiento de Datos Basicos'; // X: Clase de Novedad
+    row.getCell(27).value = observacion; // AA: Observacion (Columna naranja)
 
     row.commit();
 
