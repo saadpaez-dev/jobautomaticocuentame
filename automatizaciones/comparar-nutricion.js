@@ -341,7 +341,7 @@ async function generarReporteExcelFaltantes(faltantes, totalActivos, totalNutric
     return pathReportes;
 }
 
-function pedirRutaReporte(mensaje, filtroKeyword) {
+function pedirParejaReportes() {
     const reportesDir = path.join(__dirname, '..', 'reportes');
     let archivos = [];
     if (fs.existsSync(reportesDir)) {
@@ -351,47 +351,65 @@ function pedirRutaReporte(mensaje, filtroKeyword) {
     if (archivos.length === 0) {
         console.log(c.rojo('\n  ❌ No se encontraron archivos de reportes en la carpeta "reportes".'));
         console.log(c.amarillo('     Primero descarga los reportes desde la Opcion 2 de AutoTrabajo.\n'));
-        console.log(c.gris('     • O puedes arrastrar manualmente un archivo Excel aqui:'));
-        const inputManual = readline.question(c.negrita('\n  > Ruta del archivo Excel: ')).trim();
-        return inputManual ? resolverRutaConEspeciales(inputManual) : null;
+        return null;
     }
 
-    // Ordenar archivos para colocar los mas relevantes (coincidentes con filtroKeyword) de primeros
-    archivos.sort((a, b) => {
-        const matchA = filtroKeyword && a.toLowerCase().includes(filtroKeyword.toLowerCase());
-        const matchB = filtroKeyword && b.toLowerCase().includes(filtroKeyword.toLowerCase());
-        if (matchA && !matchB) return -1;
-        if (!matchA && matchB) return 1;
-        return a.localeCompare(b);
-    });
+    let idxActivosDef = archivos.findIndex(f => f.toLowerCase().includes('beneficiario') || f.toLowerCase().includes('activo'));
+    let idxNutricionDef = archivos.findIndex(f => f.toLowerCase().includes('nutricion') || f.toLowerCase().includes('peso'));
 
-    console.log(c.cyan(`\n  📂 Archivos disponibles en "reportes":`));
+    if (idxActivosDef === -1) idxActivosDef = 0;
+    if (idxNutricionDef === -1) idxNutricionDef = archivos.length > 1 ? 1 : 0;
+
+    const sugerenciaStr = `${idxActivosDef + 1},${idxNutricionDef + 1}`;
+
+    console.log(c.cyan(`\n  📂 Archivos de reportes disponibles en "reportes":`));
     archivos.forEach((nombre, i) => {
-        const esRecomendado = (i === 0 && filtroKeyword && nombre.toLowerCase().includes(filtroKeyword.toLowerCase()));
-        const tagRecomendado = esRecomendado ? c.verde(' ⭐ [Presiona ENTER para usar este]') : '';
-        console.log(`  ${i + 1}. ${nombre}${tagRecomendado}`);
+        let tag = '';
+        if (i === idxActivosDef) tag += c.verde(' [Activos]');
+        if (i === idxNutricionDef) tag += c.cyan(' [Nutricion]');
+        console.log(`  ${i + 1}. ${nombre}${tag}`);
     });
 
-    console.log(c.cyan(`\n  📥 ${mensaje}`));
-    console.log(c.gris('     • Presiona ENTER para seleccionar la opcion [1] por defecto.'));
-    console.log(c.gris(`     • O escribe un numero (1-${archivos.length}) / arrastra la ruta.`));
+    console.log(c.cyan(`\n  💡 Seleccion por comas:`));
+    console.log(c.gris('     • Ingresa los 2 numeros separados por coma (ejemplo: 1,2)'));
+    console.log(c.gris('       - 1er numero = Reporte de BENEFICIARIOS ACTIVOS'));
+    console.log(c.gris('       - 2do numero = Reporte de SEGUIMIENTO NUTRICIONAL'));
+    console.log(c.verde(`     • O presiona ENTER para usar la pareja recomendada [${sugerenciaStr}]`));
 
-    const inputRaw = readline.question(c.negrita('\n  > Selecciona opcion (o presiona ENTER) [Default 1]: ')).trim();
+    const inputRaw = readline.question(c.negrita(`\n  > Ingresa seleccion (ej: 1,2 o ENTER) [Default ${sugerenciaStr}]: `)).trim();
+    if (inputRaw.toLowerCase() === '0') return null;
 
-    if (inputRaw === '') {
-        console.log(c.verde(`  ✅ Seleccionado automaticamente [1]: ${archivos[0]}`));
-        return path.join(reportesDir, archivos[0]);
-    }
+    let numActivos = idxActivosDef + 1;
+    let numNutricion = idxNutricionDef + 1;
 
-    if (/^\d+$/.test(inputRaw)) {
-        const idx = parseInt(inputRaw, 10);
-        if (idx > 0 && idx <= archivos.length) {
-            console.log(c.verde(`  ✅ Seleccionado [${idx}]: ${archivos[idx - 1]}`));
-            return path.join(reportesDir, archivos[idx - 1]);
+    if (inputRaw !== '') {
+        const partes = inputRaw.split(/[,;\s]+/).map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
+        if (partes.length >= 2) {
+            numActivos = partes[0];
+            numNutricion = partes[1];
+        } else if (partes.length === 1) {
+            numActivos = partes[0];
+        } else {
+            const ruta = resolverRutaConEspeciales(inputRaw);
+            return { rutaActivos: ruta, rutaNutricion: null };
         }
     }
 
-    return resolverRutaConEspeciales(inputRaw);
+    if (numActivos < 1 || numActivos > archivos.length || numNutricion < 1 || numNutricion > archivos.length) {
+        console.log(c.rojo('\n  ❌ Numeros de seleccion fuera de rango.'));
+        return null;
+    }
+
+    const archivoActivos = archivos[numActivos - 1];
+    const archivoNutricion = archivos[numNutricion - 1];
+
+    console.log(c.verde(`\n  ✅ Beneficiarios Activos: ${archivoActivos}`));
+    console.log(c.verde(`  ✅ Seguimiento Nutricional: ${archivoNutricion}`));
+
+    return {
+        rutaActivos: path.join(reportesDir, archivoActivos),
+        rutaNutricion: path.join(reportesDir, archivoNutricion)
+    };
 }
 
 async function main() {
@@ -405,31 +423,23 @@ async function main() {
 
     try {
         while (true) {
-            console.log(c.amarillo('  Pasos para la comparacion:'));
-            console.log(c.gris('  1. Elige el Reporte de BENEFICIARIOS ACTIVOS descargado de Cuentame.'));
-            console.log(c.gris('  2. Elige el Reporte de SEGUIMIENTO NUTRICIONAL descargado de Cuentame.\n'));
-
-            // 1. Reporte de Beneficiarios Activos
-            const rutaActivos = pedirRutaReporte('Paso 1: Selecciona el Reporte de BENEFICIARIOS ACTIVOS', 'Beneficiarios');
-            if (!rutaActivos) {
+            const pareja = pedirParejaReportes();
+            if (!pareja || !pareja.rutaActivos) {
                 console.log(c.amarillo('\n  👋 Volviendo al panel principal...'));
                 break;
             }
 
-            if (!fs.existsSync(rutaActivos)) {
-                console.log(c.rojo(`  ❌ No se encontro el archivo: ${rutaActivos}\n`));
-                continue;
-            }
+            let rutaActivos = pareja.rutaActivos;
+            let rutaNutricion = pareja.rutaNutricion;
 
-            // 2. Reporte de Nutricion
-            const rutaNutricion = pedirRutaReporte('Paso 2: Selecciona el Reporte de SEGUIMIENTO NUTRICIONAL', 'Nutricion');
             if (!rutaNutricion) {
-                console.log(c.amarillo('\n  👋 Volviendo al panel principal...'));
-                break;
+                const seg = pedirParejaReportes();
+                if (!seg) break;
+                rutaNutricion = seg.rutaActivos;
             }
 
-            if (!fs.existsSync(rutaNutricion)) {
-                console.log(c.rojo(`  ❌ No se encontro el archivo: ${rutaNutricion}\n`));
+            if (!fs.existsSync(rutaActivos) || !fs.existsSync(rutaNutricion)) {
+                console.log(c.rojo(`  ❌ Uno de los archivos no existe en disco. Intenta nuevamente.\n`));
                 continue;
             }
 
