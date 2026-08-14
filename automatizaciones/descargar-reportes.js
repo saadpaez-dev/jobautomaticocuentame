@@ -282,12 +282,36 @@ async function main() {
                     let targetIdx = -1;
                     if (valueOrText !== null && valueOrText !== undefined && valueOrText !== '') {
                         const searchVal = removeAccents(String(valueOrText));
+                        
+                        // 1. Coincidencia exacta
                         for (let i = 0; i < select.options.length; i++) {
                             const optText = removeAccents(select.options[i].text);
                             const optVal = removeAccents(select.options[i].value);
-                            if (optText === searchVal || optVal === searchVal || optText.includes(searchVal) || searchVal.includes(optText)) {
+                            if (optText === searchVal || optVal === searchVal) {
                                 targetIdx = i;
                                 break;
+                            }
+                        }
+
+                        // 2. Coincidencia parcial (opcion contiene valor buscado)
+                        if (targetIdx === -1) {
+                            for (let i = 0; i < select.options.length; i++) {
+                                const optText = removeAccents(select.options[i].text);
+                                if (optText.includes(searchVal)) {
+                                    targetIdx = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 3. Coincidencia inversa (valor buscado contiene opcion)
+                        if (targetIdx === -1) {
+                            for (let i = 0; i < select.options.length; i++) {
+                                const optText = removeAccents(select.options[i].text);
+                                if (optText.length >= 4 && searchVal.includes(optText) && !optText.includes('SELECT') && !optText.includes('SELECCION')) {
+                                    targetIdx = i;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -581,29 +605,37 @@ async function main() {
 
             console.log(c.amarillo('  ⏳ Aplicando filtros en pantalla de reporte...'));
             
-            // 1. Direccion / Area Misional
-            await seleccionarSSRSByLabel('Direccion', 'Direccion de Primera Infancia') || await seleccionarSSRSByLabel('Area Misional', 'Direccion de Primera Infancia');
+            // 1. Area Misional
+            await seleccionarSSRSByLabel('Area Misional', 'Dirección de Primera Infancia');
+            await mainPage.waitForTimeout(1000);
             
             // 2. Regional
             await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
+            await mainPage.waitForTimeout(1000);
 
             // 3. Centro Zonal
             await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
+            await mainPage.waitForTimeout(1000);
 
             // 4. Municipio
             await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
+            await mainPage.waitForTimeout(800);
             
             // 5. Ano de Toma
-            await seleccionarSSRSByLabel('Ano de Toma', '2026') || await seleccionarSSRSByLabel('Ano', '2026');
+            await seleccionarSSRSByLabel('Ano de Toma', '2026') || await seleccionarSSRSByLabel('Año de Toma', '2026');
+            await mainPage.waitForTimeout(800);
             
             // 6. Entidad Contratista
             await seleccionarSSRSMultiByLabel('Entidad Contratista', asc.nombreCorto) || await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
+            await mainPage.waitForTimeout(800);
             
             // 7. Periodo Toma
             await seleccionarSSRSByLabel('Periodo Toma', 'Mensual');
+            await mainPage.waitForTimeout(800);
 
-            // 8. Mes Toma
-            await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma) || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
+            // 8. Toma (Mes)
+            await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma) || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
+            await mainPage.waitForTimeout(800);
             
             // 9. TODAS LAS TOMAS
             await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO');
