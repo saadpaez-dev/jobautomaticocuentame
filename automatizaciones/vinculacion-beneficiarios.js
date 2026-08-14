@@ -280,115 +280,79 @@ async function main() {
             // Tipo de beneficiario (Auto-select)
             const selectTipoBenef = currentFrame.locator('select[id*="Beneficiario"], select').filter({ hasText: 'NINO O NINA' }).first();
             const waitForAndSelect = async (selectLocator, textToMatch = null) => {
-                if (await selectLocator.count() === 0) return null;
-                let opts = [];
+                if (!selectLocator || await selectLocator.count() === 0) return null;
+                
+                const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[,.]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+
                 let match = null;
-                const removeAccents = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[,.]/g, "").replace(/\s+/g, " ").trim();
+                let opts = [];
 
-                for(let i=0; i<20; i++) { // Esperar hasta 10 segundos
-                    const isEnabled = await selectLocator.evaluate(s => !s.disabled).catch(()=>false);
-                    if (isEnabled) {
-                        const raw = await selectLocator.evaluate(s => Array.from(s.options).map(o => ({ v: o.value, t: o.text }))).catch(()=>[]);
-                        opts = raw.filter(o => o.v && o.v !== "0" && o.v !== "-1" && !o.t.toUpperCase().includes('SELECCIONE'));
+                for (let i = 0; i < 15; i++) {
+                    const res = await selectLocator.evaluate(s => {
+                        s.disabled = false; // Force enable
+                        return Array.from(s.options).map(o => ({ v: o.value, t: o.text }));
+                    }).catch(() => []);
+
+                    opts = res.filter(o => o.v && o.v !== "0" && o.v !== "-1" && !removeAccents(o.t).includes('SELECCIONE'));
+
+                    if (textToMatch) {
+                        const cleanTarget = removeAccents(textToMatch);
+                        // 1. Exact match by text or value
+                        match = opts.find(o => removeAccents(o.t) === cleanTarget || o.v === cleanTarget);
+                        // 2. Partial match (includes)
+                        if (!match) match = opts.find(o => removeAccents(o.t).includes(cleanTarget) || o.v.includes(cleanTarget));
+                        // 3. Fallback to first available option
+                        if (!match && opts.length > 0) match = opts[0];
                         
-                        if (textToMatch) {
-                            const cleanTarget = removeAccents(textToMatch.toUpperCase());
-                            
-                            // 1. Priorizar coincidencia EXACTA
-                            match = opts.find(o => removeAccents(o.t.toUpperCase()) === cleanTarget || o.v === cleanTarget);
-                            
-                            // 2. Si no hay coincidencia exacta, usar coincidencia parcial (includes)
-                            if (!match) {
-                                match = opts.find(o => removeAccents(o.t.toUpperCase()).includes(cleanTarget) || o.v.includes(cleanTarget));
-                            }
-                            
-                            // 3. Fallback inteligente si no hay coincidencia parcial pero hay opciones validas en el select
-                            if (!match && opts.length > 0) {
-                                console.log(c.amarillo(`  ℹ️ Contrato/Opcion "${textToMatch}" no tiene coincidencia exacta. Seleccionando la opcion disponible: "${opts[0].t}"`));
-                                match = opts[0];
-                            }
-                            
-                            if (match) break; 
-                        } else if (opts.length > 0) {
-                            match = opts[0];
-                            break;
-                        }
+                        if (match) break;
+                    } else if (opts.length > 0) {
+                        match = opts[0];
+                        break;
                     }
-                    await page.waitForTimeout(200);
-                }
-                
-                if (textToMatch && !match) {
-                    console.log(`  ⚠️ No se encontro la opcion "${textToMatch}" tras esperar.`);
-                    console.log(`     Opciones disponibles: ${opts.map(o => o.t).join(' | ')}`);
-                    return opts;
+
+                    await page.waitForTimeout(150);
                 }
 
-                if (opts.length === 0) return opts;
-                
-                if (textToMatch && match) {
-                    const currentVal = await selectLocator.inputValue().catch(()=>null);
-                    if (currentVal !== match.v) {
-                        const hasPostback = await selectLocator.evaluate(el => {
-                            const oc = el.getAttribute('onchange');
-                            return oc && oc.includes('doPostBack');
-                        }).catch(() => false);
-
-                        let postPromise = null;
-                        if (hasPostback) {
-                            postPromise = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 8000 }).catch(() => {});
-                        }
-                        
-                        await selectLocator.selectOption(match.v, { force: true }).catch(e => console.log(c.rojo(`  ❌ Error selectOption: ${e.message}`)));
-                        await selectLocator.evaluate(el => {
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                        }).catch(() => {});
-                        
-                        if (postPromise) {
-                            await postPromise;
-                            await page.waitForTimeout(500); // Margen extra de seguridad tras POST
-                        } else {
-                            await page.waitForTimeout(200); // Ligero respiro si no hay POST
-                        }
+                if (!match) {
+                    if (textToMatch) {
+                        console.log(c.amarillo(`  ⚠️ No se encontro la opcion "${textToMatch}".`));
                     }
                     return opts;
                 }
-                
-                if (opts.length === 1 && !textToMatch) {
-                    const currentVal = await selectLocator.inputValue().catch(()=>null);
-                    if (currentVal !== opts[0].v) {
-                        await selectLocator.selectOption(opts[0].v).catch(()=>{});
-                        await selectLocator.evaluate(el => el.dispatchEvent(new Event('change', { bubbles: true }))).catch(() => {});
-                        await page.waitForTimeout(3000);
+
+                // Perform selection and trigger ASP.NET postback
+                await selectLocator.evaluate((el, targetValue) => {
+                    el.disabled = false;
+                    el.value = targetValue;
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (typeof __doPostBack === 'function') {
+                        try { __doPostBack(el.name, ''); } catch(e) {}
                     }
-                    return opts;
-                }
+                }, match.v).catch(() => {});
+
+                await page.waitForTimeout(500); // 500ms respiro para que ASP.NET cargue dependientes
                 return opts;
             };
-            // Area misional: Direccion de Primera Infancia
-            const selectArea = currentFrame.locator('select').filter({ hasText: 'Primera Infancia' }).first();
-            if (await selectArea.count() > 0) {
-                await selectArea.selectOption({ label: 'Direccion de Primera Infancia' }).catch(()=>{});
-                await page.waitForTimeout(500);
-            }
 
-            // Vigencia
+            // 1. Area misional (Direccion de Primera Infancia)
+            const selectArea = currentFrame.locator('select[id*="AreaMisional"], select[id*="ddlAreaMisional"], select').first();
+            await waitForAndSelect(selectArea, 'Primera Infancia');
+
+            // 2. Vigencia (2024 / Actual)
             let vigenciaStr = ascSeleccionada.vigenciaContrato || new Date().getFullYear().toString();
-            const selectVigencia = currentFrame.locator('select').filter({ hasText: vigenciaStr }).first();
-            if (await selectVigencia.count() > 0) {
-                await selectVigencia.selectOption({ label: vigenciaStr }).catch(()=>{});
-                await page.waitForTimeout(500);
-            }
+            const selectVigencia = currentFrame.locator('select[id*="Vigencia"], select[id*="ddlVigencia"]').first();
+            await waitForAndSelect(selectVigencia, vigenciaStr);
 
-            // Regional
-            const selectRegional = currentFrame.locator('select[id*="ddlRegional"], select[id*="Regional"]').first();
+            // 3. Regional (Bogota D.C.)
+            const selectRegional = currentFrame.locator('select[id*="Regional"], select[id*="ddlRegional"]').first();
             await waitForAndSelect(selectRegional, 'Bogota D.C.');
 
-            // Contrato
-            const selectContrato = currentFrame.locator('select[id*="ddlContrato"], select[id*="Contrato"]').first();
+            // 4. Contrato (11027252024)
+            const selectContrato = currentFrame.locator('select[id*="Contrato"], select[id*="ddlContrato"]').first();
             await waitForAndSelect(selectContrato, ascSeleccionada.numeroContrato);
 
-            // Servicio
-            const selectServicio = currentFrame.locator('select[id*="ddlServicio"], select[id*="Servicio"]').first();
+            // 5. Servicio
+            const selectServicio = currentFrame.locator('select[id*="Servicio"], select[id*="ddlServicio"]').first();
             const servOpts = await waitForAndSelect(selectServicio);
             if (servOpts && servOpts.length > 1) {
                 let esAgrupado = false;
@@ -407,10 +371,10 @@ async function main() {
                 
                 let matchInd = null;
                 if (esAgrupado) {
-                    matchInd = servOpts.find(o => o.t.toUpperCase().includes("JARDIN COMUNITARIO") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                    matchInd = servOpts.find(o => o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
                 } else {
                     matchInd = servOpts.find(o => o.t.toUpperCase().includes("HCB FAMI") || o.t.toUpperCase().includes("BIENVENIR"));
-                    if (!matchInd) matchInd = servOpts.find(o => !o.t.toUpperCase().includes("JARDIN COMUNITARIO") && !o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                    if (!matchInd) matchInd = servOpts.find(o => !o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
                 }
                 
                 if (!matchInd) matchInd = servOpts.find(o => o.t.includes(jardinSeleccionado.codigo));
@@ -420,8 +384,8 @@ async function main() {
                 }
             }
 
-            // Seleccionar UDS Automaticamente
-            const selectUDS = currentFrame.locator('select[id*="ddlUDS"], select[id*="Uds"]').first();
+            // 6. Seleccionar UDS Automaticamente
+            const selectUDS = currentFrame.locator('select[id*="UDS"], select[id*="ddlUDS"]').first();
             await waitForAndSelect(selectUDS, jardinSeleccionado.codigo);
 
             await waitForAndSelect(selectTipoBenef, 'NINO O NINA ENTRE 6 MESES Y 5 ANOS Y 11 MESES');
