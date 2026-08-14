@@ -341,29 +341,49 @@ async function generarReporteExcelFaltantes(faltantes, totalActivos, totalNutric
     return pathReportes;
 }
 
-function pedirRutaReporte(mensaje) {
-    const docsDir = path.join(__dirname, '..', 'Docs');
-    let archivos = [];
-    if (fs.existsSync(docsDir)) {
-        archivos = fs.readdirSync(docsDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
+function pedirRutaReporte(mensaje, filtroSugerido) {
+    const reportesDir = path.join(__dirname, '..', 'reportes');
+    const docsDir = path.join(__dirname, '..', 'docs');
+    
+    let archivosReportes = [];
+    if (fs.existsSync(reportesDir)) {
+        archivosReportes = fs.readdirSync(reportesDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
     }
 
-    if (archivos.length > 0) {
-        console.log(c.cyan(`\n  Archivos disponibles en "Docs":`));
-        archivos.forEach((a, i) => console.log(`  ${i + 1}. ${a}`));
+    let archivosDocs = [];
+    if (fs.existsSync(docsDir)) {
+        archivosDocs = fs.readdirSync(docsDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
+    }
+
+    // Combinar archivos (priorizando reportes)
+    const listaArchivos = [
+        ...archivosReportes.map(f => ({ nombre: f, dir: reportesDir, origen: 'reportes' })),
+        ...archivosDocs.map(f => ({ nombre: f, dir: docsDir, origen: 'docs' }))
+    ];
+
+    if (listaArchivos.length > 0) {
+        console.log(c.cyan(`\n  📂 Archivos disponibles en "reportes" y "docs":`));
+        listaArchivos.forEach((item, i) => {
+            const esSugerido = filtroSugerido && item.nombre.toLowerCase().includes(filtroSugerido.toLowerCase());
+            const tagSugerido = esSugerido ? c.verde(' ⭐ (Recomendado)') : '';
+            console.log(`  ${i + 1}. [${item.origen}] ${item.nombre}${tagSugerido}`);
+        });
     }
 
     console.log(c.cyan(`\n  📥 ${mensaje}`));
     console.log(c.gris('     • Puedes arrastrar el archivo Excel descargado de Cuentame aqui.'));
-    console.log(c.gris('     • O escribe un numero (1-N) para elegir de "Docs".'));
+    if (listaArchivos.length > 0) {
+        console.log(c.gris(`     • O escribe un numero (1-${listaArchivos.length}) para elegir de la lista.`));
+    }
 
     const inputRaw = readline.question(c.negrita('\n  > Ruta del archivo Excel: ')).trim();
     if (!inputRaw) return null;
 
-    if (/^\d+$/.test(inputRaw) && archivos.length > 0) {
+    if (/^\d+$/.test(inputRaw) && listaArchivos.length > 0) {
         const idx = parseInt(inputRaw, 10);
-        if (idx > 0 && idx <= archivos.length) {
-            return path.join(docsDir, archivos[idx - 1]);
+        if (idx > 0 && idx <= listaArchivos.length) {
+            const item = listaArchivos[idx - 1];
+            return path.join(item.dir, item.nombre);
         }
     }
 
@@ -382,11 +402,11 @@ async function main() {
     try {
         while (true) {
             console.log(c.amarillo('  Pasos para la comparacion:'));
-            console.log(c.gris('  1. Arrastra el Reporte de BENEFICIARIOS ACTIVOS descargado de Cuentame.'));
-            console.log(c.gris('  2. Arrastra el Reporte de SEGUIMIENTO NUTRICIONAL descargado de Cuentame.\n'));
+            console.log(c.gris('  1. Elige el Reporte de BENEFICIARIOS ACTIVOS descargado de Cuentame.'));
+            console.log(c.gris('  2. Elige el Reporte de SEGUIMIENTO NUTRICIONAL descargado de Cuentame.\n'));
 
             // 1. Reporte de Beneficiarios Activos
-            const rutaActivos = pedirRutaReporte('Paso 1: Arrastra el Reporte de BENEFICIARIOS ACTIVOS');
+            const rutaActivos = pedirRutaReporte('Paso 1: Selecciona el Reporte de BENEFICIARIOS ACTIVOS', 'Beneficiarios');
             if (!rutaActivos) {
                 console.log(c.amarillo('\n  👋 Volviendo al panel principal...'));
                 break;
@@ -398,7 +418,7 @@ async function main() {
             }
 
             // 2. Reporte de Nutricion
-            const rutaNutricion = pedirRutaReporte('Paso 2: Arrastra el Reporte de SEGUIMIENTO NUTRICIONAL');
+            const rutaNutricion = pedirRutaReporte('Paso 2: Selecciona el Reporte de SEGUIMIENTO NUTRICIONAL', 'Nutricion');
             if (!rutaNutricion) {
                 console.log(c.amarillo('\n  👋 Volviendo al panel principal...'));
                 break;
