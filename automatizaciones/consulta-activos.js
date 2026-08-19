@@ -114,17 +114,41 @@ async function main() {
     const rootMenu = menuFrame || page;
     
     try {
-        const childMenu = rootMenu.locator('a:has-text("Informacion beneficiario")').first();
-        if (await childMenu.count() > 0) {
-            // En vez de lidiar con menus colapsados, disparamos el clic directamente por JS
-            // Esto ignorara si el padre esta cerrado o si esta oculto visualmente.
-            await childMenu.evaluate(node => node.click());
-            await page.waitForTimeout(4000);
-        } else {
-            console.log(c.amarillo('  ⚠️ No se encontro el enlace de Informacion beneficiario en el menu.'));
+        let result = await rootMenu.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('a'));
+            
+            // Si "Informacion beneficiario" ya esta visible, hacerle clic directamente
+            const target = links.find(a => a.innerText && a.innerText.toLowerCase().includes('informacion beneficiario'));
+            if (target) {
+                target.click();
+                return 'TARGET_CLICKED';
+            }
+
+            // Si no, buscar el enlace exacto "Rub online" para expandirlo
+            const rubLink = links.find(a => a.innerText && a.innerText.trim().toLowerCase().includes('rub online'));
+            if (rubLink) {
+                rubLink.click();
+                return 'RUB_EXPANDED';
+            }
+            return 'NOT_FOUND';
+        }).catch(() => 'ERROR');
+
+        console.log(c.gris(`  ℹ️ Estado del menu: ${result}`));
+
+        if (result === 'RUB_EXPANDED') {
+            await page.waitForTimeout(1500); // Esperar a que el sub-menu se expanda
+            // Ahora hacer clic en "Informacion beneficiario"
+            await rootMenu.evaluate(() => {
+                const links = Array.from(document.querySelectorAll('a'));
+                const target = links.find(a => a.innerText && a.innerText.toLowerCase().includes('informacion beneficiario'));
+                if (target) target.click();
+            }).catch(() => {});
         }
-    } catch(e) {
-        console.log(c.rojo(`  ❌ Error al intentar acceder a Informacion beneficiario: ${e.message}`));
+        
+        await page.waitForTimeout(3000);
+        console.log(c.verde('  ✅ Clic en "Informacion beneficiario" enviado.'));
+    } catch (err) {
+        console.log(c.rojo(`  ❌ Error al intentar acceder a Informacion beneficiario: ${err.message}`));
     }
     // (La obtencion del frame se hara dentro del bucle para asegurar que este listo)
     
