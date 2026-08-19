@@ -279,7 +279,7 @@ async function main() {
             console.log(c.cyan('\n  --- Datos del Beneficiario ---'));
             
             // Tipo de beneficiario (Auto-select)
-            const selectTipoBenef = currentFrame.locator('select[id*="Beneficiario"], select').filter({ hasText: 'NINO O NINA' }).first();
+            const selectTipoBenef = currentFrame.locator('select[id*="TipoBeneficiario"], select[id*="Beneficiario"]').first();
             const waitForAndSelect = async (selectLocator, textToMatch = null) => {
                 if (!selectLocator || await selectLocator.count() === 0) return null;
                 
@@ -288,7 +288,7 @@ async function main() {
                 let match = null;
                 let opts = [];
 
-                for (let i = 0; i < 15; i++) {
+                for (let i = 0; i < 40; i++) {
                     const res = await selectLocator.evaluate(s => {
                         s.disabled = false; // Force enable
                         return Array.from(s.options).map(o => ({ v: o.value, t: o.text }));
@@ -331,7 +331,7 @@ async function main() {
                     }
                 }, match.v).catch(() => {});
 
-                await page.waitForTimeout(500); // 500ms respiro para que ASP.NET cargue dependientes
+                await page.waitForTimeout(1000); // 1000ms respiro para que ASP.NET cargue dependientes
                 return opts;
             };
 
