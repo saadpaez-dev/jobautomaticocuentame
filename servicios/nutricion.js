@@ -440,11 +440,12 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             
             await safeFillRadio('carnet de crecimiento y desarrollo', 'No', 1);
             await page.waitForTimeout(200);
-            
-            await safeFillRadio('Antecedente de prematurez', 'No', 1);
         } else {
             console.log(c.gris('    ℹ️ Nino con historial: Omitiendo modificacion de "Fecha de verificacion del esquema de vacunacion".'));
         }
+
+        // 1.1 Antecedente de prematurez: Cuentame a veces lo habilita de la nada, siempre debe ser "No".
+        await safeFillRadio('Antecedente de prematurez', 'No', 1);
 
         // 3. Situaciones adicionales
         await safeFillSelect('desnutricion aguda moderada o severa', 'NO TIENE DESNUTRICI');
