@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { leerJardines } = require('../servicios/excel-reader');
-const { loginYLlegarARoles, obtenerNavegador } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, obtenerNavegador, validarYCambiarAsociacion, verificarConexionOCaida } = require('../servicios/autenticacion');
 const { seleccionarUnidad } = require('../servicios/lupa-unidad');
 
 // ─────────────────────────────────────────────────────────────
@@ -103,20 +103,53 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   const { hoy, observaciones } = config;
   const { tema, procesarTodosNinos } = opcionesProcesamiento;
 
-  const menuDestino = page.locator('text="Seguimiento formacion a padres/cuidadores"').first();
-  const submenuVisible = await menuDestino.isVisible();
-  
-  if (!submenuVisible) {
-    console.log('  👉 Desplegando menu "Rub online"...');
-    await page.locator('text="Rub online"').first().click();
-    await menuDestino.waitFor({ state: 'visible', timeout: 5000 });
+  await verificarConexionOCaida(page);
+  await validarYCambiarAsociacion(page, jardin);
+
+  // Ir al MasterPrincipal si no lo estamos
+  if (!page.url().includes('MasterPrincipal')) {
+      await page.goto(URL_FORMACION, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1000);
   }
 
-  console.log('  👉 Clic en "Seguimiento formacion a padres/cuidadores"...');
-  await Promise.all([
-    page.waitForLoadState('networkidle'),
-    menuDestino.click()
-  ]);
+  // Identificar el frame del menu
+  let rootMenu = page.frame({ name: 'frameMenu' }) || page.frame({ name: 'Opciones' }) || page;
+  
+  // Buscar opciones de menu de manera robusta
+  const findMenuOption = async (textMatch) => {
+      let loc = rootMenu.locator(`a:has-text("${textMatch}")`).first();
+      if (await loc.count() > 0) return loc;
+      loc = rootMenu.locator(`text="${textMatch}"`).first();
+      if (await loc.count() > 0) return loc;
+      return null;
+  };
+
+  const menuDestino = await findMenuOption('Seguimiento formacion a padres');
+  
+  if (menuDestino) {
+      const submenuVisible = await menuDestino.isVisible();
+      if (!submenuVisible) {
+          console.log('  👉 Desplegando menu "Rub online"...');
+          const rubOnline = await findMenuOption('Rub online');
+          if (rubOnline) await rubOnline.click();
+          await page.waitForTimeout(1000);
+      }
+      
+      console.log('  👉 Clic en "Seguimiento formacion a padres/cuidadores"...');
+      await Promise.all([
+          page.waitForLoadState('networkidle').catch(()=>{}),
+          menuDestino.click().catch(()=>{})
+      ]);
+      await page.waitForTimeout(1500);
+  } else {
+      // Intento JS nativo
+      await rootMenu.evaluate(() => {
+          const links = Array.from(document.querySelectorAll('a'));
+          const target = links.find(l => l.innerText.includes('Seguimiento formacion a padres'));
+          if (target) target.click();
+      }).catch(()=>{});
+      await page.waitForTimeout(1500);
+  }
   await page.waitForTimeout(1500);
 
   const frame = page.frameLocator('iframe').last();
