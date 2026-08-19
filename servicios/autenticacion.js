@@ -402,7 +402,7 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     if (!targetNombre) return true;
 
     const targetClean = removeAccents(targetNombre);
-    const pageUrl = page.url();
+    let pageUrl = page.url();
     const pageText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
 
     const esLoginO2FA = pageText.includes('Iniciar Sesion') || 
@@ -419,6 +419,15 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
         return true;
     }
 
+    // Si el script anterior dejo el navegador atrapado en una vista de reporte puro, 
+    // regresamos al layout MasterPrincipal ANTES de validar la cabecera.
+    if (pageUrl.toLowerCase().includes('list.aspx') || pageUrl.toLowerCase().includes('reportviewer')) {
+        console.log(c.amarillo(`  🔄 Detectada vista de reporte. Devolviendo al menu principal de Cuentame (MasterPrincipal)...`));
+        await page.goto('https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(1500);
+        pageUrl = page.url();
+    }
+
     // Extraer texto de la cabecera donde Cuentame muestra la asociacion activa
     const headerText = await page.evaluate(() => {
         const cab = document.querySelector('#CabeceraPrincipal, div.ui-layout-north, table#CabeceraPrincipal');
@@ -430,6 +439,14 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     // Si la cabecera contiene la asociacion deseada, la sesion es perfecta!
     if (headerClean.includes(targetClean)) {
         console.log(c.verde(`  ✅ Sesion activa confirmada para la asociacion "${targetNombre}". Preservando sesion.`));
+        
+        // Garantizar que la pagina este en el layout principal si todavia no lo esta
+        if (!pageUrl.toLowerCase().includes('masterprincipal.aspx') && !pageUrl.toLowerCase().includes('defaultf.aspx')) {
+             console.log(c.amarillo(`  🔄 Refrescando el layout al menu principal (MasterPrincipal)...`));
+             await page.goto('https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+             await page.waitForTimeout(1000);
+        }
+        
         return true;
     }
 
