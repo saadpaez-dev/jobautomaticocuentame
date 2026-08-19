@@ -516,14 +516,43 @@ async function obtenerNavegador() {
         
         return { browser, context, page: cuentamePage, isCDP: true };
     } catch (e) {
-        console.log(c.gris('  ℹ️ No se detecto navegador en Modo Humano. Abriendo Bot Automatico...'));
-        const browser = await chromium.launch({
-            headless: false,
-            slowMo: 100,
-            args: ['--start-maximized', '--disable-blink-features=AutomationControlled']
-        });
-        const context = await browser.newContext({ viewport: null });
-        const page = await context.newPage();
-        return { browser, context, page, isCDP: false };
+        console.log(c.amarillo('  ⚠️ No se detecto el navegador en Modo Humano (Puerto 9222).'));
+        console.log(c.cyan('  🚀 Lanzando Google Chrome (Navegador_Bot) automaticamente...'));
+        
+        const { execSync } = require('child_process');
+        try {
+            // Lanza Chrome usando el mismo perfil y puerto del archivo .bat
+            const comando = `start chrome.exe --remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --exclude-switches=enable-automation --user-data-dir="%LOCALAPPDATA%\\Google\\Chrome\\User Data Bot"`;
+            execSync(comando, { stdio: 'ignore' });
+            
+            console.log(c.amarillo('  ⏳ Esperando 4 segundos a que Chrome inicie...'));
+            await new Promise(resolve => setTimeout(resolve, 4000));
+            
+            console.log(c.cyan('  🔌 Reintentando conexion al Puerto 9222...'));
+            const browser = await chromium.connectOverCDP('http://localhost:9222');
+            console.log(c.verde('  ✅ Conectado exitosamente!'));
+            
+            const context = browser.contexts()[0];
+            let cuentamePage = null;
+            for (const page of context.pages()) {
+                if (page.url().includes('rubonline.icbf.gov.co')) {
+                    cuentamePage = page;
+                    break;
+                }
+            }
+            if (!cuentamePage) {
+                cuentamePage = await context.newPage();
+                await cuentamePage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx');
+            } else {
+                await cuentamePage.bringToFront();
+            }
+            
+            return { browser, context, page: cuentamePage, isCDP: true };
+        } catch (errLauncher) {
+            console.log(c.rojo('\n  ❌ ERROR FATAL: No se pudo conectar ni lanzar Chrome automaticamente.'));
+            console.log(c.rojo('  Asegurate de que Chrome no este abierto en segundo plano (Revisa el Administrador de Tareas)'));
+            console.log(c.rojo('  o ejecuta manualmente "Navegador_Bot.bat" y vuelve a intentarlo.\n'));
+            process.exit(1);
+        }
     }
 }
