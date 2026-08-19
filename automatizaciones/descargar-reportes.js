@@ -243,6 +243,51 @@ async function main() {
         // Funcion helper que busca un select en SSRS a partir de su label (texto) y lo llena
         const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
             try {
+                const removeAccentsStr = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").trim().toUpperCase();
+                const targetLabel = removeAccentsStr(labelText);
+
+                // 1. Esperar a que la etiqueta y el select existan y tengan opciones cargadas (> 1)
+                let listo = false;
+                let intentos = 0;
+                while (intentos < 20) {
+                    listo = await reportFrame.evaluate(({ targetLabel }) => {
+                        const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").trim().toUpperCase();
+                        const allElements = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
+                        let matchedTd = null;
+
+                        for (const el of allElements) {
+                            const txt = removeAccents(el.innerText);
+                            if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
+                                if (el.innerText.length < 100) {
+                                    matchedTd = el.closest('td') || el;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!matchedTd) return false;
+
+                        let select = matchedTd.querySelector('select');
+                        if (!select && matchedTd.nextElementSibling) {
+                            select = matchedTd.nextElementSibling.querySelector('select') || (matchedTd.nextElementSibling.tagName === 'SELECT' ? matchedTd.nextElementSibling : null);
+                        }
+                        if (!select && matchedTd.parentElement) {
+                            select = matchedTd.parentElement.querySelector('select');
+                        }
+                        if (!select) {
+                            const tr = matchedTd.closest('tr');
+                            if (tr) select = tr.querySelector('select');
+                        }
+
+                        if (!select) return false;
+                        return !select.disabled && select.options && select.options.length > 1;
+                    }, { targetLabel }).catch(() => false);
+
+                    if (listo) break;
+                    await mainPage.waitForTimeout(500);
+                    intentos++;
+                }
+
                 const exito = await reportFrame.evaluate(({ labelText, valueOrText }) => {
                     const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").trim().toUpperCase();
                     const targetLabel = removeAccents(labelText);
@@ -279,14 +324,20 @@ async function main() {
                     select.disabled = false;
                     select.classList.remove('aspNetDisabled');
 
+                    if (!select.options || select.options.length === 0) {
+                        return { ok: false, reason: 'El select no tiene opciones cargadas aun' };
+                    }
+
                     let targetIdx = -1;
                     if (valueOrText !== null && valueOrText !== undefined && valueOrText !== '') {
                         const searchVal = removeAccents(String(valueOrText));
                         
                         // 1. Coincidencia exacta
                         for (let i = 0; i < select.options.length; i++) {
-                            const optText = removeAccents(select.options[i].text);
-                            const optVal = removeAccents(select.options[i].value);
+                            const opt = select.options[i];
+                            if (!opt) continue;
+                            const optText = removeAccents(opt.text || opt.innerText);
+                            const optVal = removeAccents(opt.value);
                             if (optText === searchVal || optVal === searchVal) {
                                 targetIdx = i;
                                 break;
@@ -296,7 +347,9 @@ async function main() {
                         // 2. Coincidencia parcial (opcion contiene valor buscado)
                         if (targetIdx === -1) {
                             for (let i = 0; i < select.options.length; i++) {
-                                const optText = removeAccents(select.options[i].text);
+                                const opt = select.options[i];
+                                if (!opt) continue;
+                                const optText = removeAccents(opt.text || opt.innerText);
                                 if (optText.includes(searchVal)) {
                                     targetIdx = i;
                                     break;
@@ -307,7 +360,9 @@ async function main() {
                         // 3. Coincidencia inversa (valor buscado contiene opcion)
                         if (targetIdx === -1) {
                             for (let i = 0; i < select.options.length; i++) {
-                                const optText = removeAccents(select.options[i].text);
+                                const opt = select.options[i];
+                                if (!opt) continue;
+                                const optText = removeAccents(opt.text || opt.innerText);
                                 if (optText.length >= 4 && searchVal.includes(optText) && !optText.includes('SELECT') && !optText.includes('SELECCION')) {
                                     targetIdx = i;
                                     break;
@@ -330,7 +385,7 @@ async function main() {
 
                 if (exito && exito.ok) {
                     console.log(c.verde(`    ✅ [Filtro] "${labelText}" -> ${exito.textSelected}`));
-                    await reportPage.waitForTimeout(400);
+                    await mainPage.waitForTimeout(600);
                     return true;
                 } else {
                     console.log(c.amarillo(`    ⚠️ [Filtro] "${labelText}": ${exito ? exito.reason : 'No seleccionado'}`));
