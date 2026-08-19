@@ -5,6 +5,7 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const path = require('path');
+const fs = require('fs');
 const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, verificarConexionOCaida, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
@@ -665,8 +666,27 @@ async function main() {
                 // Foto (SE HACE SIEMPRE, exista o no)
                 console.log(c.amarillo(`  ⏳ Validando/Cargando foto de perfil (${sexo})...`));
                 const inputFile = currentFrame.locator('input[type="file"]').first();
-                const photoName = sexo === 'Mujer' ? 'nina.jpg' : 'nino.jpg';
-                const photoPath = path.join('C:\\Dev\\jobautomatico\\docs', photoName);
+                
+                let photoPath = '';
+                const baseDocsPath = path.join('C:\\Dev\\jobautomatico\\docs');
+                if (sexo === 'Mujer') {
+                    const pathsMujer = [
+                        path.join(baseDocsPath, 'niña.jpg'),
+                        path.join(baseDocsPath, 'nina.jpg'),
+                        path.join(baseDocsPath, 'niña.png'),
+                        path.join(baseDocsPath, 'nina.png')
+                    ];
+                    photoPath = pathsMujer.find(p => fs.existsSync(p)) || pathsMujer[0];
+                } else {
+                    const pathsHombre = [
+                        path.join(baseDocsPath, 'niño.jpg'),
+                        path.join(baseDocsPath, 'nino.jpg'),
+                        path.join(baseDocsPath, 'niño.png'),
+                        path.join(baseDocsPath, 'nino.png')
+                    ];
+                    photoPath = pathsHombre.find(p => fs.existsSync(p)) || pathsHombre[0];
+                }
+                const photoName = path.basename(photoPath);
                 
                 if (await inputFile.count() > 0) {
                     try {
