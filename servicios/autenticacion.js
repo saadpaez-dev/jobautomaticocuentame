@@ -33,13 +33,15 @@ async function loginYLlegarARoles(page, credenciales) {
 
   const currentUrl = page.url();
   const pageText = await page.evaluate(() => document.body.innerText).catch(() => '');
+  const pageTextClean = removeAccents(pageText);
   
-  const esLoginO2FA = pageText.includes('Iniciar Sesion') || 
-                      pageText.includes('Ingrese su codigo') || 
-                      pageText.includes('Se ha enviado un codigo') || 
-                      pageText.includes('Olvidaste tu Contrasena?');
+  const esLoginO2FA = pageTextClean.includes('INICIAR SESION') || 
+                      pageTextClean.includes('INGRESE SU CODIGO') || 
+                      pageTextClean.includes('SE HA ENVIADO UN CODIGO') || 
+                      pageTextClean.includes('OLVIDASTE TU CONTRASEÑA') ||
+                      pageTextClean.includes('OLVIDASTE TU CONTRASENA');
 
-  if (!esLoginO2FA && (currentUrl.includes('Roles.aspx') || currentUrl.includes('MasterPrincipal') || currentUrl.includes('General') || pageText.includes('Seleccione la entidad'))) {
+  if (!esLoginO2FA && (currentUrl.includes('Roles.aspx') || currentUrl.includes('MasterPrincipal') || currentUrl.includes('General') || pageTextClean.includes('SELECCIONE LA ENTIDAD'))) {
       console.log('  ✅ Ya se detecto una sesion activa en Cuentame. Omitiendo inicio de sesion.');
       return;
   }
@@ -149,7 +151,8 @@ async function loginYLlegarARoles(page, credenciales) {
 
   // Verificar si pide seleccion de asociacion/entidad
   const contenidoFinal = await page.content();
-  if (contenidoFinal.includes('Seleccione la entidad')) {
+  const contenidoFinalClean = removeAccents(contenidoFinal);
+  if (contenidoFinalClean.includes('SELECCIONE LA ENTIDAD')) {
     const rolesUrl = page.url();
     console.log(`  🔗 [DEBUG] URL de Roles detectada: ${rolesUrl}`);
     return rolesUrl; // Retornamos la URL de roles para poder duplicar pestanas
@@ -165,23 +168,25 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
   const nombreLargo = typeof ascInput === 'string' ? '' : (ascInput.nombreLargo || '');
 
   let contenidoFinal = await page.content();
+  let contenidoFinalClean = removeAccents(contenidoFinal);
 
   // Si la pagina actual no esta en la pantalla de seleccion de entidad (DefaultF.aspx),
   // forzar la navegacion a DefaultF.aspx para elegir la nueva asociacion limpia
-  if (!contenidoFinal.includes('Seleccione la entidad')) {
+  if (!contenidoFinalClean.includes('SELECCIONE LA ENTIDAD')) {
       console.log(c.amarillo('  ⏳ Navegando a la pantalla de seleccion de asociacion (DefaultF.aspx)...'));
       try {
           await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
           await page.waitForTimeout(1500);
       } catch(e) {}
       contenidoFinal = await page.content();
+      contenidoFinalClean = removeAccents(contenidoFinal);
   }
 
   let intentos = 0;
   const MAX_INTENTOS = 3;
 
   while (intentos < MAX_INTENTOS) {
-      if (contenidoFinal.includes('Seleccione la entidad')) {
+      if (contenidoFinalClean.includes('SELECCIONE LA ENTIDAD')) {
         if (intentos === 0) console.log('  🏢 Seleccionando entidad (asociacion)...');
         
         // Esperar a que el select este visible y habilitado
@@ -238,6 +243,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
             await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
             await page.waitForTimeout(2000);
             contenidoFinal = await page.content();
+            contenidoFinalClean = removeAccents(contenidoFinal);
             continue;
         }
         
@@ -359,12 +365,14 @@ async function verificarConexionOCaida(page) {
 
         // Verificar si la URL nos mando al Login o fuera del sistema
         const urlActual = page.url();
-        if (urlActual.includes('DefaultF.aspx') || urlActual.includes('Login')) return true;
+        const pageText = await page.evaluate(() => document.body ? document.body.innerText.substring(0, 2000) : '').catch(() => '');
+        const pageTextClean = removeAccents(pageText);
 
-        const pageText = await page.evaluate(() => document.body.innerText.substring(0, 2000)).catch(() => '');
-        
+        if (urlActual.includes('DefaultF.aspx') && pageTextClean.includes('INICIAR SESION')) return true;
+        if (urlActual.includes('Login')) return true;
+
         // Falso positivo: URL correcta pero contenido de Login
-        if (pageText.includes('Olvidaste tu Contrasena?') || pageText.includes('Iniciar Sesion')) return true;
+        if (pageTextClean.includes('OLVIDASTE TU CONTRASE') || pageTextClean.includes('INICIAR SESION')) return true;
         
         // Error de servidor
         if (pageText.includes('Server Error in') || pageText.includes('Runtime Error')) {
@@ -404,17 +412,19 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     const targetClean = removeAccents(targetNombre);
     let pageUrl = page.url();
     const pageText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+    const pageTextClean = removeAccents(pageText);
 
-    const esLoginO2FA = pageText.includes('Iniciar Sesion') || 
-                        pageText.includes('Ingrese su codigo') || 
-                        pageText.includes('Se ha enviado un codigo') || 
-                        pageText.includes('Olvidaste tu Contrasena?');
+    const esLoginO2FA = pageTextClean.includes('INICIAR SESION') || 
+                        pageTextClean.includes('INGRESE SU CODIGO') || 
+                        pageTextClean.includes('SE HA ENVIADO UN CODIGO') || 
+                        pageTextClean.includes('OLVIDASTE TU CONTRASEÑA') ||
+                        pageTextClean.includes('OLVIDASTE TU CONTRASENA');
 
     if (esLoginO2FA) {
         return false;
     }
 
-    if (pageUrl.includes('DefaultF.aspx')) {
+    if (pageUrl.includes('DefaultF.aspx') && pageTextClean.includes('SELECCIONE LA ENTIDAD')) {
         await seleccionarRolYEntrar(page, asociacionObj);
         return true;
     }
@@ -453,13 +463,21 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     console.log(c.amarillo(`  🔄 Cambiando a la asociacion "${targetNombre}"...`));
     try {
         await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(2000);
+        
+        // Verificar si nos boto al login al intentar ir a DefaultF.aspx
+        const newPageText = removeAccents(await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => ''));
+        if (newPageText.includes('INICIAR SESION') || newPageText.includes('OLVIDASTE TU CONTRASE')) {
+            console.log(c.rojo(`  ❌ La sesion expiro. Se requiere iniciar sesion nuevamente.`));
+            return false;
+        }
+
         await seleccionarRolYEntrar(page, asociacionObj);
+        return true;
     } catch(e) {
         console.log(c.rojo(`  ❌ Error al cambiar asociacion: ${e.message}`));
+        return false;
     }
-
-    return true;
 }
 
 module.exports = {
