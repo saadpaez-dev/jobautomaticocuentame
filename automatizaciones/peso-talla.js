@@ -1481,7 +1481,9 @@ async function main() {
                               console.log(c.amarillo('\n  ⚠️ Al ser una toma NUEVA, el sistema de Cuentame exige Regimen y EPS.'));
                               const tieneEps = readline.question(c.negrita('  > Tienes el nombre del regimen y EPS? (1 = Si, 2 = No / Aleatorio): '));
                               if (tieneEps.trim() === '1') {
-                                  regimenInput = readline.question(c.negrita('  > Regimen (ej. contributivo, subsidiado): '));
+                                  const opcionesRegimen = ['CONTRIBUTIVO', 'SUBSIDIADO'];
+                                  const idxReg = readline.keyInSelect(opcionesRegimen, c.negrita('  > Selecciona el Regimen: '), { cancel: false });
+                                  regimenInput = opcionesRegimen[idxReg];
                                   epsInput = readline.question(c.negrita('  > EPS (ej. suramericana, capital salud): '));
                               }
                           }
