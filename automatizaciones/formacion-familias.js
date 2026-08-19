@@ -294,6 +294,8 @@ async function main() {
         break;
     }
 
+    let asociacionSeleccionada = null;
+
     if (alcanceIdx === 0) {
         jardinesAProcesar = jardines;
     } else {
@@ -301,7 +303,7 @@ async function main() {
         const ascIdx = readline.keyInSelect(asociacionesNames, c.negrita('  > Escoja la asociacion: '), { cancel: 'Cancelar' });
         if (ascIdx === -1) continue;
 
-        const asociacionSeleccionada = asociacionesNames[ascIdx];
+        asociacionSeleccionada = asociacionesNames[ascIdx];
         const jardinesAsoc = porAsociacion[asociacionSeleccionada];
 
         const opcionesJardin = ['TODOS los jardines de esta asociacion', 'Seleccionar UN jardin especifico'];
@@ -318,10 +320,23 @@ async function main() {
         }
     }
 
-    console.log();
-    const temaIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita('  > Escoja el TEMA DE FORMACION para esta tarea: '), { cancel: 'Cancelar tarea' });
-    if (temaIdx === -1) continue;
-    const temaSeleccionado = TEMAS_FORMACION[temaIdx];
+    const temasPorAsociacion = {};
+    if (alcanceIdx === 0) {
+        console.log(c.cyan('\n  📋 Ha elegido Procesar TODAS las asociaciones.'));
+        console.log(c.gris('  A continuacion, escoja el TEMA DE FORMACION para CADA una:'));
+        const asociacionesNames = Object.keys(porAsociacion);
+        for (const asc of asociacionesNames) {
+            console.log(c.amarillo(`\n  Asociacion: ${asc}`));
+            const tIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita(`  > TEMA para ${asc}: `), { cancel: false });
+            temasPorAsociacion[asc] = TEMAS_FORMACION[tIdx];
+        }
+        console.log(c.verde('\n  ✅ Temas seleccionados correctamente.'));
+    } else {
+        console.log();
+        const temaIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita('  > Escoja el TEMA DE FORMACION para esta tarea: '), { cancel: 'Cancelar tarea' });
+        if (temaIdx === -1) continue;
+        temasPorAsociacion[asociacionSeleccionada] = TEMAS_FORMACION[temaIdx];
+    }
 
     console.log();
     const opcionesNinos = ['Aplicar a TODOS los ninos del jardin', 'Seleccionar ninos ESPECIFICOS (manual)'];
@@ -331,7 +346,6 @@ async function main() {
     const procesarTodosNinos = (ninosIdx === 0);
 
     const opcionesProcesamiento = {
-        tema: temaSeleccionado,
         procesarTodosNinos: procesarTodosNinos
     };
 
@@ -389,6 +403,10 @@ async function main() {
 
     for (let i = 0; i < jardinesAProcesar.length; i++) {
         const jardin = jardinesAProcesar[i];
+        
+        // Asignar el tema especifico de la asociacion
+        opcionesProcesamiento.tema = temasPorAsociacion[jardin.asociacion] || TEMAS_FORMACION[0];
+
         const progreso = `[${String(i + 1).padStart(2, '0')}/${jardinesAProcesar.length}]`;
         process.stdout.write(`${c.gris(progreso)} ${c.negrita(jardin.nombre)} ${c.gris(`(${jardin.asociacion})`)} -> `);
 
@@ -396,7 +414,7 @@ async function main() {
             const { exitoso, cantidadBenef } = await registrarFormacion(page, jardin, config, opcionesProcesamiento);
 
             if (exitoso) {
-                console.log(c.verde(`✅ ${cantidadBenef} beneficiarios registrados`));
+                console.log(c.verde(`✅ ${cantidadBenef} beneficiarios registrados (${c.cyan(opcionesProcesamiento.tema.substring(0, 30))}...)`));
                 exitososActual.push({ ...jardin, beneficiarios: cantidadBenef });
                 exitososTotales.push({ ...jardin, beneficiarios: cantidadBenef });
             } else {
