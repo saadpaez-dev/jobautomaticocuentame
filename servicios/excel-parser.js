@@ -49,9 +49,7 @@ function esFechaMasReciente(fechaNueva, fechaExistente) {
     return false;
 }
 
-function obtenerUltimaToma(fila) {
-    // Las tomas inician en el indice 7 (Toma 1) y avanzan cada 12 columnas (7, 19, 31, 43...)
-    const iniciosToma = [7, 19, 31, 43];
+function obtenerUltimaToma(fila, iniciosToma = [7, 19, 31, 43]) {
     let ultimaTomaValida = null;
 
     for (const inicio of iniciosToma) {
@@ -172,6 +170,28 @@ function parsearExcel(filePath) {
             }
         }
 
+        // Procesar cabeceras para detectar en que columnas inician las tomas
+        let iniciosToma = [7, 19, 31, 43]; // Default fallback
+        let foundInicios = [];
+        
+        // Buscar en las cabeceras (filas 8 a 15) para detectar inicios exactos de "FECHA DE LA TOMA"
+        for (let r = 8; r <= 15; r++) {
+            if (!data[r]) continue;
+            for (let c = 0; c < data[r].length; c++) {
+                const cellVal = String(data[r][c] || '').toUpperCase().trim();
+                if (cellVal.includes('FECHA DE LA TOMA') || cellVal === 'FECHA TOMA') {
+                    if (!foundInicios.includes(c)) {
+                        foundInicios.push(c);
+                    }
+                }
+            }
+        }
+
+        if (foundInicios.length > 0) {
+            iniciosToma = foundInicios.sort((a, b) => a - b);
+            console.log(`  🔍 Columnas de TOMA detectadas dinamicamente en los indices: [${iniciosToma.join(', ')}]`);
+        }
+
         // Procesar ninos desde la fila 16 (indice 15) en adelante
         let ninosEnHoja = 0;
         for (let i = 15; i < data.length; i++) {
@@ -182,12 +202,21 @@ function parsearExcel(filePath) {
             const nombres = String(row[2]).trim();
             const apellidos = String(row[3] || '').trim();
             
-            if (String(row[7]).toLowerCase().includes('retirad') || String(row[19]).toLowerCase().includes('retirad')) {
+            // Verificar si el nino esta retirado comprobando la primera columna de CADA toma
+            let estaRetirado = false;
+            for (const inicio of iniciosToma) {
+                if (String(row[inicio]).toLowerCase().includes('retirad')) {
+                    estaRetirado = true;
+                    break;
+                }
+            }
+
+            if (estaRetirado) {
                 console.log(`\x1b[33m  ⚠️ [Hoja: "${sheetName}"] Se omite a ${nombres} ${apellidos} porque esta RETIRADO(A).\x1b[0m`);
                 continue;
             }
 
-            const ultimaToma = obtenerUltimaToma(row);
+            const ultimaToma = obtenerUltimaToma(row, iniciosToma);
             
             if (ultimaToma) {
                 if (!ninosMap.has(documento)) {
