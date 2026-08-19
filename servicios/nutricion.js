@@ -500,6 +500,19 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             await page.waitForTimeout(200);
         }
 
+        // A3. Antecedente de Prematurez (Siempre No) - Fuera de hasHistory porque a veces Cuentame lo requiere de repente
+        try {
+            const prematurezNo = f.locator('input[id*="rbAntecedentePrematurez_1"]').first();
+            if (await prematurezNo.count() > 0 && await prematurezNo.isVisible() && !await prematurezNo.isDisabled()) {
+                const isChecked = await prematurezNo.isChecked();
+                if (!isChecked) {
+                    await prematurezNo.click({ timeout: 1500 });
+                    console.log(c.verde('    ✅ [Opcion] Forzado (modo seguro): Antecedente de prematurez = No'));
+                }
+            }
+        } catch(e) {}
+        await page.waitForTimeout(200);
+
         // B. Perimetro Braquial (Sincronizar fecha siempre con Fecha de valoracion antropometrica para evitar errores de validacion)
         try {
             const numPb = parseFloat(String(datos.perimetro || '').replace(',', '.'));
