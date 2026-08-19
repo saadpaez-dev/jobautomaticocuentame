@@ -152,21 +152,23 @@ async function main() {
             "PERMISO POR PROTECCION TEMPORAL",
             "PERMISO ESPECIAL DE PERMANENCIA",
             "PARTIDA O ACTA DE NACIMIENTO",
-            "TARJETA DE IDENTIDAD",
-            "CEDULA DE CIUDADANIA",
-            "CEDULA DE EXTRANJERIA",
-            "PASAPORTE",
-            "TARJETA DE MOVILIDAD FRONTERIZA",
-            "VISA",
-            "SIN DOCUMENTO"
+            "SIN DOCUMENTO",
+            "Volver al menu principal (Start)"
         ];
         console.log();
-        const idxDoc = readline.keyInSelect(opcionesDoc, c.negrita('  > Selecciona el Tipo de Documento: '));
+        const idxDoc = readline.keyInSelect(opcionesDoc, c.negrita('  > Selecciona el Tipo de Documento: '), { cancel: 'Atras' });
+        
         if (idxDoc === -1) {
-            console.log(c.amarillo('  Busqueda cancelada.'));
+            console.log(c.amarillo('  Volviendo a la solicitud de documento...'));
             continue;
         }
+
         const tipoDocId = opcionesDoc[idxDoc];
+
+        if (tipoDocId === "Volver al menu principal (Start)") {
+            salirModulo = true;
+            break;
+        }
 
         console.log(c.gris(`  Buscando beneficiario con documento: ${tipoDocId} - ${documento}...`));
         
