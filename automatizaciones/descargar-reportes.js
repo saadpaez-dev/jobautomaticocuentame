@@ -477,7 +477,7 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                             if (selectAllLabel) {
                                 let chk = document.getElementById(selectAllLabel.htmlFor);
                                 if (!chk) chk = selectAllLabel.querySelector('input[type="checkbox"]') || selectAllLabel.previousElementSibling;
-                                if (chk && chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
+                                if (chk && chk.checked) { if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } else if (typeof selectAllLabel !== 'undefined') { selectAllLabel.scrollIntoView({block:'center'}); selectAllLabel.click(); } await delay(600); }
                             }
                         }
                         
@@ -487,7 +487,7 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                             if (label) {
                                 let chk = document.getElementById(label.htmlFor);
                                 if (!chk) chk = label.querySelector('input[type="checkbox"]') || label.previousElementSibling;
-                                if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
+                                if (chk && !chk.checked) { if (typeof matchedLabel !== 'undefined') { matchedLabel.scrollIntoView({block:'center'}); matchedLabel.click(); } else if (typeof label !== 'undefined') { label.scrollIntoView({block:'center'}); label.click(); } else if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } await delay(600); }
                             }
                         }
                     }, valores);
@@ -559,7 +559,7 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                             const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
                             if (selectAll) {
                                 let chk = document.getElementById(selectAll.htmlFor) || selectAll.querySelector('input[type="checkbox"]');
-                                if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
+                                if (chk && !chk.checked) { if (typeof matchedLabel !== 'undefined') { matchedLabel.scrollIntoView({block:'center'}); matchedLabel.click(); } else if (typeof label !== 'undefined') { label.scrollIntoView({block:'center'}); label.click(); } else if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } await delay(600); }
                             }
                         } else {
                             const vals = String(valueOrText).split(',').map(v => removeAccents(v));
@@ -568,7 +568,7 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                                 const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
                                 if (selectAll) {
                                     let chk = document.getElementById(selectAll.htmlFor) || selectAll.querySelector('input[type="checkbox"]');
-                                    if (chk && chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
+                                    if (chk && chk.checked) { if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } else if (typeof selectAllLabel !== 'undefined') { selectAllLabel.scrollIntoView({block:'center'}); selectAllLabel.click(); } await delay(600); }
                                 }
                             }
 
@@ -579,7 +579,7 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                                 });
                                 if (matchedLabel) {
                                     let chk = document.getElementById(matchedLabel.htmlFor) || matchedLabel.querySelector('input[type="checkbox"]');
-                                    if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
+                                    if (chk && !chk.checked) { if (typeof matchedLabel !== 'undefined') { matchedLabel.scrollIntoView({block:'center'}); matchedLabel.click(); } else if (typeof label !== 'undefined') { label.scrollIntoView({block:'center'}); label.click(); } else if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } await delay(600); }
                                 }
                             }
                         }
