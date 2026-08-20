@@ -198,7 +198,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             
             console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
-            await workPage.waitForTimeout(2500);
+            await workPage.waitForTimeout(1200);
 
             let contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             if (!contentFrame) throw new Error('No se encontro el frameContent.');
@@ -328,7 +328,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     console.log(c.amarillo(`\n    ▶ Procesando UDS [${u+1}/${udsOptionsFiltradas.length}]: ${uds.text}`));
                     
                     await udsLocator.selectOption(uds.value);
-                    await workPage.waitForTimeout(1500);
+                    await workPage.waitForTimeout(800);
 
                     console.log('    👉 Buscando (clic en la lupa)...');
                     const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
@@ -338,18 +338,18 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                          const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
                          if (await genericBtn.count() > 0) await genericBtn.click();
                     }
-                    await workPage.waitForTimeout(1500);
+                    await workPage.waitForTimeout(800);
 
                     console.log('    👉 Habilitando edicion (clic en el lapiz)...');
                     const lapiz = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
                     if (await lapiz.count() > 0 && await lapiz.isVisible()) {
                         await lapiz.click();
-                        await workPage.waitForTimeout(1500);
+                        await workPage.waitForTimeout(800);
                     } else {
                         const genericEdit = contentFrame.locator('a:has(img[src*="edit.png"]):visible, input[type="image"]:visible, img[src*="edit"]:visible, img[src*="lapiz"]:visible').first();
                         if (await genericEdit.count() > 0) {
                             await genericEdit.click();
-                            await workPage.waitForTimeout(1500);
+                            await workPage.waitForTimeout(800);
                         }
                     }
 
@@ -391,7 +391,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                          const genericSave = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
                          if (await genericSave.count() > 0) await genericSave.click();
                     }
-                    await workPage.waitForTimeout(1500); 
+                    await workPage.waitForTimeout(800); 
                     console.log(c.verde('    ✅ Guardado exitoso.'));
 
                     const isUltimoServicio = (sIdx === serviciosFiltrados.length - 1);
@@ -404,7 +404,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
                     console.log(c.gris('    🔄 Recargando pagina para desbloquear filtros de la siguiente UDS...'));
                     await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
-                    await workPage.waitForTimeout(1500);
+                    await workPage.waitForTimeout(800);
                     contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
                     
                     // Volver a llenar los filtros para la siguiente UDS
@@ -419,7 +419,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     const servicioLocator2 = contentFrame.locator(`select[id*="Servicio"]`).first();
                     if (await servicioLocator2.count() > 0) {
                         await servicioLocator2.selectOption(serv.value, { timeout: 5000 });
-                        await workPage.waitForTimeout(1500);
+                        await workPage.waitForTimeout(800);
                     }
 
                 } // fin loop UDS
@@ -490,7 +490,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             
             console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
-            await workPage.waitForTimeout(2500);
+            await workPage.waitForTimeout(1200);
 
             let contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
 
@@ -648,11 +648,11 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             
             const servLoc = contentFrame.locator(`select[id*="Servicio"]`).first();
             await servLoc.selectOption(elegida.servicio.value);
-            await workPage.waitForTimeout(1500);
+            await workPage.waitForTimeout(800);
 
             const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
             await uLoc.selectOption(elegida.uds.value);
-            await workPage.waitForTimeout(1500);
+            await workPage.waitForTimeout(800);
 
             const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
             if (await lupa.count() > 0 && await lupa.isVisible()) await lupa.click();
@@ -660,7 +660,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                  const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
                  if (await genericBtn.count() > 0) await genericBtn.click();
             }
-            await workPage.waitForTimeout(1500);
+            await workPage.waitForTimeout(800);
 
             // Llamar a la funcion unificada
             await modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown);
@@ -763,7 +763,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         const lapizNuevo = contentFrame.locator('a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Editar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i]').first();
         if (await lapizNuevo.count() > 0 && await lapizNuevo.isVisible()) {
             await lapizNuevo.click();
-            await workPage.waitForTimeout(1500);
+            await workPage.waitForTimeout(800);
             contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             
             // Re-vincular los locators de las filas de los ninos seleccionados porque el DOM cambio
@@ -822,13 +822,13 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
                  const genericSave2 = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible, img[src*="guardar"]:visible').last();
                  if (await genericSave2.count() > 0) await genericSave2.click();
             }
-            await workPage.waitForTimeout(1500);
+            await workPage.waitForTimeout(800);
             console.log(c.verde('    ✅ Guardado exitoso.'));
             // Cuando guarda, normalmente la pagina vuelve al modo solo lectura.
             // Recargamos los filtros para que pueda seleccionar otro jardin correctamente
             console.log(c.gris('    🔄 Recargando pagina para desbloquear filtros (equivalente a Volver)...'));
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
-            await workPage.waitForTimeout(1500);
+            await workPage.waitForTimeout(800);
             contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             
             // Volver a llenar los filtros base
@@ -847,7 +847,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
             
             console.log(c.gris('    🔄 Recargando pagina para restaurar el estado original...'));
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
-            await workPage.waitForTimeout(1500);
+            await workPage.waitForTimeout(800);
             contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
             
             await selectDropdown('Direcciones', 'Primera Infancia');

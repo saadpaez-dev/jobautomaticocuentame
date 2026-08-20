@@ -190,7 +190,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   } else {
       await dropdownTema.selectOption({ label: tema }, { timeout: 10000 }).catch(e => {});
   }
-  await page.waitForTimeout(1000); // Reducido a peticion del usuario
+  await page.waitForTimeout(800); // Reducido a peticion del usuario
 
   let cantidadBenef = 0;
 
@@ -273,7 +273,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
 
   console.log('  \x1b[33m% Haciendo clic en Guardar...\x1b[0m');
   await frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click();
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(800);
   await page.waitForLoadState('domcontentloaded').catch(() => {});
   
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');

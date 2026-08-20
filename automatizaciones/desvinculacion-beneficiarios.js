@@ -134,7 +134,7 @@ async function main() {
             } else {
                 console.log(c.rojo('  ⚠️ No se encontro el menu Beneficiario.'));
             }
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(1500);
         } catch(e) {
             console.log(c.rojo(`  ❌ Error al intentar acceder a Beneficiario: ${e.message}`));
         }
@@ -194,7 +194,7 @@ async function main() {
             const btnDesvincular = contentFrame.locator('img[src*="delete.gif"], a[id*="btnDesvincular"]').first();
             if (await btnDesvincular.count() > 0) {
                 await btnDesvincular.click();
-                await page.waitForTimeout(2500); // Esperar a que cargue la interfaz de desvinculacion
+                await page.waitForTimeout(1200); // Esperar a que cargue la interfaz de desvinculacion
             }
 
             // --- LLENAR FILTROS (Misma logica robusta) ---
@@ -204,7 +204,7 @@ async function main() {
             const selectArea = contentFrame.locator('select').filter({ hasText: 'Primera Infancia' }).first();
             if (await selectArea.count() > 0) {
                 await selectArea.selectOption({ label: 'Direccion de Primera Infancia' }).catch(()=>{});
-                await page.waitForTimeout(1000);
+                await page.waitForTimeout(800);
             }
 
             // Vigencia: Usar la del Excel, si no, el ano actual
@@ -214,7 +214,7 @@ async function main() {
             const selectVigencia = contentFrame.locator('select').filter({ hasText: vigenciaStr }).first();
             if (await selectVigencia.count() > 0) {
                 await selectVigencia.selectOption({ label: vigenciaStr }).catch(()=>{});
-                await page.waitForTimeout(1500);
+                await page.waitForTimeout(800);
             }
 
             // Funcion auxiliar robusta
@@ -268,7 +268,7 @@ async function main() {
                 
                 if (opts.length === 1) {
                     await selectLocator.selectOption(opts[0].v).catch(()=>{});
-                    await page.waitForTimeout(1500);
+                    await page.waitForTimeout(800);
                     return opts;
                 }
                 return opts;
@@ -316,11 +316,11 @@ async function main() {
 
                 if (matchInd) {
                     await selectServicio.selectOption(matchInd.v).catch(()=>{});
-                    await page.waitForTimeout(1500);
+                    await page.waitForTimeout(800);
                     console.log(c.verde(`  ✅ Servicio seleccionado automaticamente (${esAgrupado ? 'Agrupado' : 'Individual'}): ${matchInd.t}`));
                 } else if (jardinSeleccionado.manualServicioV && servOpts.some(s => s.v === jardinSeleccionado.manualServicioV)) {
                     await selectServicio.selectOption(jardinSeleccionado.manualServicioV).catch(()=>{});
-                    await page.waitForTimeout(1500);
+                    await page.waitForTimeout(800);
                     console.log(c.verde(`  ✅ Servicio seleccionado automaticamente (recordado): ${jardinSeleccionado.manualServicioT}`));
                 } else {
                     console.log(c.cyan('\n  --- SELECCIONA EL SERVICIO ---'));
@@ -335,7 +335,7 @@ async function main() {
                     jardinSeleccionado.manualServicioT = servOpts[sIdx].t;
                     
                     await selectServicio.selectOption(servOpts[sIdx].v).catch(()=>{});
-                    await page.waitForTimeout(1500);
+                    await page.waitForTimeout(800);
                     console.log(c.verde(`  ✅ Servicio seleccionado: ${servOpts[sIdx].t}`));
                 }
             } else if (servOpts && servOpts.length === 1) {
@@ -453,7 +453,7 @@ async function main() {
                     el.dispatchEvent(new Event('change', { bubbles: true }));
                     el.blur();
                 }, globalFechaRetiro);
-                await page.waitForTimeout(1500); // Esperar posible UpdatePanel
+                await page.waitForTimeout(800); // Esperar posible UpdatePanel
             }
             
             // Ingresar motivo de retiro
@@ -472,7 +472,7 @@ async function main() {
                 const match = opts.find(o => o.t.toUpperCase().includes(globalMotivoId.toUpperCase()));
                 if (match) {
                     await selectMotivo.selectOption(match.v).catch(()=>{});
-                    await page.waitForTimeout(1000);
+                    await page.waitForTimeout(800);
                 }
             }
             
@@ -481,7 +481,7 @@ async function main() {
             const btnConsultarBeneficiario = contentFrame.locator('input[type="submit"][value*="Consultar beneficiario"], input[id*="btnBuscar"]').first();
             if (await btnConsultarBeneficiario.count() > 0) {
                 await btnConsultarBeneficiario.click();
-                await page.waitForTimeout(3000); // Esperar a que la tabla de ninos se llene
+                await page.waitForTimeout(1500); // Esperar a que la tabla de ninos se llene
             }
 
             // --- Buscar beneficiario en la tabla y marcar su checkbox ---

@@ -123,7 +123,7 @@ async function main() {
       }
 
       try {
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(800);
         
         const esMismaAsoc = await validarYCambiarAsociacion(page, ascSeleccionada);
         if (!esMismaAsoc || await verificarConexionOCaida(page)) {
@@ -172,7 +172,7 @@ async function main() {
                 } else {
                     console.log(c.rojo('  ⚠️ No se encontro el menu Beneficiario.'));
                 }
-                await page.waitForTimeout(3000);
+                await page.waitForTimeout(1500);
             } catch(e) {
                 console.log(c.rojo(`  ❌ Error al intentar acceder a Beneficiario: ${e.message}`));
             }
@@ -340,7 +340,7 @@ async function main() {
                     }
                 }, match.v).catch(() => {});
 
-                await page.waitForTimeout(1000); // 1000ms respiro para que ASP.NET cargue dependientes
+                await page.waitForTimeout(800); // 1000ms respiro para que ASP.NET cargue dependientes
                 return opts;
             };
 
@@ -828,11 +828,11 @@ async function main() {
                     console.log(c.amarillo('  ⏳ Validando Partida de Nacimiento (Lupa)...'));
                     if (await imgLupa.count() > 0) {
                         await imgLupa.click();
-                        await page.waitForTimeout(3000); 
+                        await page.waitForTimeout(1500); 
                     }
                     
                     // Esperar a que el UpdatePanel responda (Check verde o campo de error)
-                    await page.waitForTimeout(2000); // 2 segundos para el postback inicial
+                    await page.waitForTimeout(800); // 2 segundos para el postback inicial
                 }
 
                 console.log(c.amarillo('\n  ⏳ Ejecutando Guardar automaticamente...'));
@@ -871,7 +871,7 @@ async function main() {
                             const tabDatosGeo = currentFrame.locator('a[id*="tbnDatosGeo_tab"], span:has-text("Datos de Ubicacion")').first();
                             if (await tabDatosGeo.count() > 0) {
                                 await tabDatosGeo.click();
-                                await page.waitForTimeout(2500); // Esperar que renderice la pestana
+                                await page.waitForTimeout(1200); // Esperar que renderice la pestana
                                 
                                 console.log(c.gris('     - Llenando valores fijos predeterminados (modo humano para evitar colision de UpdatePanel)...'));
 
@@ -1014,7 +1014,7 @@ async function main() {
                                             const postResponsable = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                                             await chkResponsable.check();
                                             await postResponsable;
-                                            await page.waitForTimeout(1000);
+                                            await page.waitForTimeout(800);
                                         }
                                     }
 
@@ -1061,7 +1061,7 @@ async function main() {
                                     await btnLupaMadre.click();
                                     console.log(c.amarillo(`  ⏳ Buscando a ${labelJefe} en el sistema...`));
                                     await postPromiseMadre;
-                                    await page.waitForTimeout(1000); // Esperar renderizado del UpdatePanel
+                                    await page.waitForTimeout(800); // Esperar renderizado del UpdatePanel
 
                                     // Verificar si es nueva
                                     const txtPrimerNombreMadre = currentFrame.locator('input[type="text"]:visible[id*="txtPrimerNombre"]').first();
@@ -1125,7 +1125,7 @@ async function main() {
                                             el.dispatchEvent(new Event('change', { bubbles: true }));
                                         }).catch(() => {});
                                         await postP;
-                                        await page.waitForTimeout(1000);
+                                        await page.waitForTimeout(800);
                                     };
 
                                     // --- AUTOCOMPLETAR CAMPOS REQUERIDOS EN CUENTAME ---
@@ -1180,7 +1180,7 @@ async function main() {
                                         const postAgregar = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                                         await btnAgregarMadre.click();
                                         await postAgregar;
-                                        await page.waitForTimeout(2000); // Dar tiempo a que la grilla se actualice
+                                        await page.waitForTimeout(800); // Dar tiempo a que la grilla se actualice
                                     } else {
                                         console.log(c.rojo('  ⚠️ No se encontro el boton Agregar Persona.'));
                                     }
@@ -1202,7 +1202,7 @@ async function main() {
                                         await btnDetalleNino.click();
                                         console.log(c.amarillo('  ⏳ Cargando detalle del nino...'));
                                         await postDetalle;
-                                        await page.waitForTimeout(2000); // Esperar que el form superior se llene con los datos del nino
+                                        await page.waitForTimeout(800); // Esperar que el form superior se llene con los datos del nino
 
                                         const selParentescoJefeNino = currentFrame.locator('select:visible[id*="ddlParentescoJefe"], select:visible[id*="Parentesco"]').first();
                                         await selParentescoJefeNino.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
@@ -1214,7 +1214,7 @@ async function main() {
                                             const postActualizar = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                                             await btnActualizarNino.click();
                                             await postActualizar;
-                                            await page.waitForTimeout(1500);
+                                            await page.waitForTimeout(800);
                                         }
 
                                         console.log(c.rojo('\n  🚨 VALIDA TODO EL CONTENIDO PARA EVITAR ERRORES DE DIGITACION.'));
@@ -1235,7 +1235,7 @@ async function main() {
                                         const btnNuevo = currentFrame.locator('a[id*="btnNuevo"], img[alt="Nuevo"]').first();
                                         if (await btnNuevo.count() > 0) {
                                             await btnNuevo.click();
-                                            await page.waitForTimeout(2000);
+                                            await page.waitForTimeout(800);
                                         }
 
                                     } else {

@@ -55,7 +55,7 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
     popup.waitForLoadState('networkidle'),
     botonBuscar.click()
   ]);
-  await popup.waitForTimeout(1000); // Pausa para renderizado de ASP.NET
+  await popup.waitForTimeout(800); // Pausa para renderizado de ASP.NET
   
   // Esperar a que la tabla de resultados cargue despues de la busqueda
   console.log('  👉 Esperando resultados de busqueda en la lupa...');
@@ -78,7 +78,7 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
       popup.waitForLoadState('networkidle'),
       linkPagina.click()
     ]);
-    await popup.waitForTimeout(1000); // Pausa para renderizado de ASP.NET
+    await popup.waitForTimeout(800); // Pausa para renderizado de ASP.NET
     
     encontrado = await buscarYSeleccionar2026(popup);
     paginaSiguiente++;

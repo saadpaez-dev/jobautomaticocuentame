@@ -585,7 +585,7 @@ async function main() {
             } else {
                 console.log(c.rojo('  ⚠️ No se encontro el menu Beneficiario.'));
             }
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(1500);
         } catch(e) {
             console.log(c.rojo(`  ❌ Error al intentar acceder a Beneficiario: ${e.message}`));
         }
@@ -676,7 +676,7 @@ async function main() {
         const postPromise = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
         await btnBuscar.click();
         await postPromise;
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(800);
     }
 
     // Buscar la fila con "Activo" en la tabla y dar click en Detalle (Lupa) SIEMPRE
@@ -696,7 +696,7 @@ async function main() {
                 const postDetalle = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                 await btnDetalle.click();
                 await postDetalle;
-                await page.waitForTimeout(2000);
+                await page.waitForTimeout(800);
             }
             break;
         }
@@ -721,7 +721,7 @@ async function main() {
             console.log(c.amarillo('\n  ⏳ Extrayendo datos del Beneficiario de Cuentame...'));
             
             // Re-evaluar currentFrame porque pudo cambiar al cargar el detalle
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(800);
             let frame = page.frame({ name: 'frameContent' });
             if (!frame) {
                 for (const f of page.frames()) {
@@ -811,7 +811,7 @@ async function main() {
             // Error del Acudiente
             console.log(c.amarillo('\n  ⏳ Habilitando edicion (clic en Lapiz superior)...'));
             
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(800);
             let frame = page.frame({ name: 'frameContent' });
             if (!frame) frame = page;
 
@@ -820,14 +820,14 @@ async function main() {
                 const postEditarTop = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                 await btnEditarTop.click();
                 await postEditarTop;
-                await page.waitForTimeout(2000);
+                await page.waitForTimeout(800);
             }
 
             console.log(c.amarillo('  ⏳ Accediendo a la pestana "Grupo Familiar"...'));
             const btnGrupoFamiliar = frame.locator('a[id*="grupofamiliar_tab"], span:has-text("Grupo Familiar")').first();
             if (await btnGrupoFamiliar.count() > 0) {
                 await btnGrupoFamiliar.click();
-                await page.waitForTimeout(2000);
+                await page.waitForTimeout(800);
             }
 
             console.log(c.amarillo(`  ⏳ Buscando al familiar "Responsable" (marcado con 'S') en la tabla del grupo familiar...`));
@@ -852,7 +852,7 @@ async function main() {
                             const postFam = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                             await btnDetalleFam.click();
                             await postFam;
-                            await page.waitForTimeout(2000);
+                            await page.waitForTimeout(800);
                         }
                         break;
                     }

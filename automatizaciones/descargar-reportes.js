@@ -495,7 +495,7 @@ async function main() {
                 }
                 
                 await reportFrame.locator('body').click();
-                await reportPage.waitForTimeout(1500); 
+                await reportPage.waitForTimeout(800); 
             } catch (e) {
                 try {
                     const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
@@ -598,11 +598,11 @@ async function main() {
         const obtenerReportFrame = async (targetPage) => {
             let frame = targetPage;
             try {
-                await targetPage.waitForTimeout(2000);
+                await targetPage.waitForTimeout(800);
                 const iframeLoc = targetPage.locator('iframe[name="frameContent"], frame[name="frameContent"]').first();
                 if (await iframeLoc.count() > 0) {
                     await iframeLoc.waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
-                    await targetPage.waitForTimeout(2000);
+                    await targetPage.waitForTimeout(800);
                     frame = targetPage.frame({ name: 'frameContent' }) || targetPage;
                 }
             } catch(e) {}
@@ -656,15 +656,15 @@ async function main() {
             
             // 1. Area Misional
             await seleccionarSSRSByLabel('Area Misional', 'Dirección de Primera Infancia');
-            await mainPage.waitForTimeout(1000);
+            await mainPage.waitForTimeout(800);
             
             // 2. Regional
             await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
-            await mainPage.waitForTimeout(1000);
+            await mainPage.waitForTimeout(800);
 
             // 3. Centro Zonal
             await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
-            await mainPage.waitForTimeout(1000);
+            await mainPage.waitForTimeout(800);
 
             // 4. Municipio
             await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
@@ -724,7 +724,7 @@ async function main() {
             }
             
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
-            await reportPage.waitForTimeout(2500);
+            await reportPage.waitForTimeout(1200);
             reportFrame = reportPage.frame({ name: 'frameContent' }) || reportPage;
 
             console.log('  ⏳ Esperando filtros SSRS...');
@@ -773,7 +773,7 @@ async function main() {
         }
 
 
-        await reportPage.waitForTimeout(1500);
+        await reportPage.waitForTimeout(800);
         console.log('    👉 Generando reporte...');
         
         await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00').click();
@@ -792,7 +792,7 @@ async function main() {
 
         if (await exportBtn.count() > 0) {
             await exportBtn.click({ force: true }).catch(() => exportBtn.evaluate(el => el.click()).catch(() => {}));
-            await reportPage.waitForTimeout(1000);
+            await reportPage.waitForTimeout(800);
             
             const excelOption = reportFrame.locator('a:has-text("Excel"), a[title*="Excel" i]').first();
             if (await excelOption.count() > 0) {
@@ -870,7 +870,7 @@ async function main() {
         if (prepararExcel) {
             console.log('    ⚙️ Preparando reporte en Excel (limpieza, orden y filtros)...');
             // Darle tiempo al sistema a actualizar la UI tras el postback
-            await reportPage.waitForTimeout(2500); 
+            await reportPage.waitForTimeout(1200); 
             const { execSync } = require('child_process');
             try {
                 const psScript = path.join(__dirname, 'preparar_excel.ps1');
@@ -889,7 +889,7 @@ async function main() {
         } else if (reportPage === mainPage && i < ascValidas.length - 1 && rolesUrl) {
             console.log('  🔄 Volviendo a la seleccion de roles para la siguiente asociacion...');
             await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-            await mainPage.waitForTimeout(1500);
+            await mainPage.waitForTimeout(800);
         }
       }
   }

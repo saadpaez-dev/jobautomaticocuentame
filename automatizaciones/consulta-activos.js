@@ -145,7 +145,7 @@ async function main() {
         console.log(c.gris(`  ℹ️ Estado del menu: ${result}`));
 
         if (result === 'RUB_EXPANDED') {
-            await page.waitForTimeout(1500); // Esperar a que el sub-menu se expanda
+            await page.waitForTimeout(800); // Esperar a que el sub-menu se expanda
             // Ahora hacer clic en "Informacion beneficiario"
             await rootMenu.evaluate(() => {
                 const links = Array.from(document.querySelectorAll('a'));
@@ -154,7 +154,7 @@ async function main() {
             }).catch(() => {});
         }
         
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(1500);
         console.log(c.verde('  ✅ Clic en "Informacion beneficiario" enviado.'));
     } catch (err) {
         console.log(c.rojo(`  ❌ Error al intentar acceder a Informacion beneficiario: ${err.message}`));

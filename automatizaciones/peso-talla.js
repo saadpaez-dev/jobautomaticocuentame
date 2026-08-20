@@ -162,7 +162,7 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
                 content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                 linkSiguiente.evaluate(node => node.click())
             ]);
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(800);
         } catch(e) {
             return null;
         }
@@ -380,7 +380,7 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
         const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
         if (await childMenu.count() > 0) {
             await childMenu.evaluate(node => node.click());
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(1500);
         }
         let updatedFrame = page.frame({ name: 'frameContent' }) || page;
         lupaLocator = updatedFrame.locator('input[id*="cphCont_btnFiltrar"], input[name*="btnFiltrar"], input[src*="lupa"]').first();
@@ -436,7 +436,7 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
         await popup.waitForEvent('close', { timeout: 10000 });
     } catch (e) {}
 
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1500);
     return true;
 }
 
@@ -769,7 +769,7 @@ async function main() {
           console.log(c.amarillo(`  🏢 Entrando con la asociacion ${ascSeleccionada.nombreCorto}...`));
           await seleccionarRolYEntrar(page, ascSeleccionada);
           console.log(c.amarillo('  ⏳ Esperando a que cargue el menu de Cuentame...'));
-          await page.waitForTimeout(3000); 
+          await page.waitForTimeout(1500); 
       } else {
           console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
           loggedIn = true;
@@ -815,7 +815,7 @@ async function main() {
           console.log(c.gris(`  ℹ️ Estado del menu: ${result}`));
 
           if (result === 'RUB_EXPANDED') {
-              await page.waitForTimeout(1500); // Esperar a que el sub-menu se expanda
+              await page.waitForTimeout(800); // Esperar a que el sub-menu se expanda
               // Ahora hacer clic en "Seguimiento nutricional"
               await rootMenu.evaluate(() => {
                   const links = Array.from(document.querySelectorAll('a'));
@@ -824,7 +824,7 @@ async function main() {
               }).catch(() => {});
           }
           
-          await page.waitForTimeout(3000);
+          await page.waitForTimeout(1500);
           console.log(c.verde('  ✅ Clic en "Seguimiento nutricional" enviado.'));
       } catch (err) {
           console.log(c.rojo(`  ❌ Error al intentar acceder a Seguimiento nutricional: ${err.message}`));
@@ -848,7 +848,7 @@ async function main() {
       // =========================================================================
       
       // Esperamos a que la grilla de ninos termine de cargar en la pagina principal
-      await page.waitForTimeout(2500);
+      await page.waitForTimeout(1200);
       
       // Refrescar rootContent
       let currentContentFrame = page.frame({ name: 'frameContent' });
@@ -939,12 +939,12 @@ async function main() {
                               ascSeleccionada = match.ascSeleccionada;
                               console.log(c.amarillo(`  🏢 Cambiando de Asociacion a: ${ascSeleccionada.nombreCorto}...`));
                               await seleccionarRolYEntrar(page, ascSeleccionada);
-                              await page.waitForTimeout(3000);
+                              await page.waitForTimeout(1500);
                               const rootMenu = page.frame({ name: 'frameMenu' }) || page;
                               const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
                               if (await childMenu.count() > 0) {
                                   await childMenu.evaluate(node => node.click());
-                                  await page.waitForTimeout(3000);
+                                  await page.waitForTimeout(1500);
                               }
                           }
 
@@ -1180,7 +1180,7 @@ async function main() {
               
               while (true) {
                   console.log(c.amarillo('\n  ⏳ Extrayendo historial de tomas del nino...'));
-                  await page.waitForTimeout(2500); // Esperar a que cargue la tabla del nino
+                  await page.waitForTimeout(1200); // Esperar a que cargue la tabla del nino
                   
                   // Localizar la tabla de tomas (Seguimiento nutricion Unidad de servicio Actual)
                   const tablaTomas = content.locator('table:has(tr:has-text("Fecha Toma"))').last();
@@ -1321,7 +1321,7 @@ async function main() {
                                           content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                           btnBuscar.evaluate(node => node.click())
                                       ]);
-                                      await page.waitForTimeout(1500);
+                                      await page.waitForTimeout(800);
                                   }
                               } catch(e) {}
                               break; // Salir de la Fase 3 del nino actual y pasar al siguiente
@@ -1469,7 +1469,7 @@ async function main() {
                           perimetro: ninoInfo.perimetro ? String(ninoInfo.perimetro).trim().replace(',', '.') : ''
                       };
                       console.log(c.amarillo(`  📥 Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro}`));
-                      await page.waitForTimeout(1500);
+                      await page.waitForTimeout(800);
                   } else {
                       let regimenInput = null;
                       let epsInput = null;
@@ -1562,12 +1562,12 @@ async function main() {
                               console.log(c.amarillo('  ⚠️  Ventana emergente de confirmacion detectada → haciendo clic en Aceptar...'));
                               clickAceptarRealizado = true;
                               await btnAceptarPage.click().catch(() => btnAceptarPage.evaluate(n => n.click()));
-                              await page.waitForTimeout(1500);
+                              await page.waitForTimeout(800);
                           } else if (await btnAceptarFrame.isVisible().catch(() => false)) {
                               console.log(c.amarillo('  ⚠️  Ventana emergente de confirmacion detectada en formulario → haciendo clic en Aceptar...'));
                               clickAceptarRealizado = true;
                               await btnAceptarFrame.click().catch(() => btnAceptarFrame.evaluate(n => n.click()));
-                              await page.waitForTimeout(1500);
+                              await page.waitForTimeout(800);
                           }
                       }
 
@@ -1697,7 +1697,7 @@ async function main() {
                           if (await btnGuardarRetry.count() > 0) {
                               console.log(c.amarillo('  ⏳ Reintentando guardado...'));
                               await btnGuardarRetry.click({ timeout: 3000 }).catch(() => btnGuardarRetry.evaluate(node => node.click()));
-                              await page.waitForTimeout(2000);
+                              await page.waitForTimeout(800);
 
                               const currentFrameRetry = page.frame({ name: 'frameContent' }) || page;
                               const txtBodyRetry = await currentFrameRetry.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
@@ -1751,7 +1751,7 @@ async function main() {
                                   activeContent.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                   btnBuscar.evaluate(node => node.click())
                               ]);
-                              await page.waitForTimeout(1500); // Esperar a que cargue la grilla de ninos de la UDS
+                              await page.waitForTimeout(800); // Esperar a que cargue la grilla de ninos de la UDS
                           } else {
                               const rootMenu = page.frame({ name: 'frameMenu' }) || page;
                               const childMenu = rootMenu.locator('a:has-text("Seguimiento nutricional")').first();
@@ -1760,7 +1760,7 @@ async function main() {
                                       page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                       childMenu.evaluate(node => node.click())
                                   ]);
-                                  await page.waitForTimeout(2000);
+                                  await page.waitForTimeout(800);
                               } else {
                                   await rootMenu.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
                                   await page.waitForTimeout(4000);
@@ -1841,7 +1841,7 @@ async function main() {
                           console.log(c.rojo(`  ❌ Error al recargar UDS: ${e.message}`));
                       }
                       
-                      await page.waitForTimeout(1500);
+                      await page.waitForTimeout(800);
                       break; // Sale de Fase 3 y regresa a Fase 2 (seleccion de nino)
                   } else if (respNavPost === '2') {
                       jardinSeleccionado = null;
@@ -1852,10 +1852,10 @@ async function main() {
                           const childMenu2 = rootMenu2.locator('a:has-text("Seguimiento nutricional")').first();
                           if (await childMenu2.count() > 0) {
                               await childMenu2.evaluate(node => node.click());
-                              await page.waitForTimeout(2500);
+                              await page.waitForTimeout(1200);
                           } else {
                               await page.goto('https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx', { waitUntil: 'networkidle', timeout: 20000 });
-                              await page.waitForTimeout(1500);
+                              await page.waitForTimeout(800);
                           }
                           console.log(c.verde('  ✅ Listo. Selecciona el nuevo jardin desde los filtros.'));
                       } catch(e) {

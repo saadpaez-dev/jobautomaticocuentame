@@ -118,7 +118,7 @@ async function loginYLlegarARoles(page, credenciales) {
         }
         console.log(c.rojo(`  ❌ Credenciales incorrectas. Intento ${intentoActual} de ${MAX_INTENTOS}.`));
         console.log(c.amarillo(`  ⚠️  CUIDADO: ${MAX_INTENTOS - intentoActual} intento(s) restante(s) antes del bloqueo.`));
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(800);
         continue; // Reintentar
       }
 
@@ -146,7 +146,7 @@ async function loginYLlegarARoles(page, credenciales) {
       page.locator('input[value*="Verificar" i], button:has-text("Verificar"), input[type="submit"][value*="Verificar" i]').first().click()
     ]);
     // Darle tiempo extra a ASP.NET para asimilar el 2FA
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1500);
   }
 
   // Verificar si pide seleccion de asociacion/entidad
@@ -176,7 +176,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
       console.log(c.amarillo('  ⏳ Navegando a la pantalla de seleccion de asociacion (DefaultF.aspx)...'));
       try {
           await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
-          await page.waitForTimeout(1500);
+          await page.waitForTimeout(800);
       } catch(e) {}
       contenidoFinal = await page.content();
       contenidoFinalClean = removeAccents(contenidoFinal);
@@ -233,7 +233,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
         }
         
         // Darle tiempo al servidor si el dropdown tiene AutoPostBack
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(1500);
         
         // --- VERIFICAR ERROR DE SERVIDOR DESPUES DEL POSTBACK ---
         let errorServidor = await page.evaluate(() => document.body.innerText.includes('Server Error in'));
@@ -241,7 +241,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
             intentos++;
             console.log(c.rojo(`  ❌ Cuentame arrojo un Server Error 500. Reintentando (${intentos}/${MAX_INTENTOS})...`));
             await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
-            await page.waitForTimeout(2000);
+            await page.waitForTimeout(800);
             contenidoFinal = await page.content();
             contenidoFinalClean = removeAccents(contenidoFinal);
             continue;
@@ -279,7 +279,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
                 intentos++;
                 console.log(c.rojo(`  ❌ Server Error 500 al presionar Continuar. Reintentando (${intentos}/${MAX_INTENTOS})...`));
                 await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
-                await page.waitForTimeout(2000);
+                await page.waitForTimeout(800);
                 contenidoFinal = await page.content();
                 continue;
             }
@@ -434,7 +434,7 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     if (pageUrl.toLowerCase().includes('list.aspx') || pageUrl.toLowerCase().includes('reportviewer')) {
         console.log(c.amarillo(`  🔄 Detectada vista de reporte. Devolviendo al menu principal de Cuentame (MasterPrincipal)...`));
         await page.goto('https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(800);
         pageUrl = page.url();
     }
 
@@ -454,7 +454,7 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
         if (!pageUrl.toLowerCase().includes('masterprincipal.aspx') && !pageUrl.toLowerCase().includes('defaultf.aspx')) {
              console.log(c.amarillo(`  🔄 Refrescando el layout al menu principal (MasterPrincipal)...`));
              await page.goto('https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-             await page.waitForTimeout(1000);
+             await page.waitForTimeout(800);
         }
         
         return true;
@@ -463,7 +463,7 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     console.log(c.amarillo(`  🔄 Cambiando a la asociacion "${targetNombre}"...`));
     try {
         await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(800);
         
         // Verificar si nos boto al login al intentar ir a DefaultF.aspx
         const newPageText = removeAccents(await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => ''));

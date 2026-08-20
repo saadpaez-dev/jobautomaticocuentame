@@ -165,7 +165,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 console.log(c.rojo('  ❌ No se encontro el campo de Regimen en el formulario.'));
             }
             
-            await content.waitForTimeout(2000); // Esperar a que carguen las EPS o re-renderice
+            await content.waitForTimeout(800); // Esperar a que carguen las EPS o re-renderice
             
             const selectsEps = await content.locator('select').all();
             let selectEps;
@@ -214,7 +214,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
             }
             
-            await content.waitForTimeout(3000); // Dar un respiro a la pagina post-EPS
+            await content.waitForTimeout(1500); // Dar un respiro a la pagina post-EPS
         }
         // -------------------------------------------------------------
 
