@@ -35,7 +35,7 @@ async function loginYLlegarARoles(page, credenciales) {
   const pageText = await page.evaluate(() => document.body.innerText).catch(() => '');
   const pageTextClean = removeAccents(pageText);
   
-  const esLoginO2FA = pageTextClean.includes('INICIAR SESION') || 
+  const esLoginO2FA = (pageTextClean.includes('INICIAR SESION') && !pageTextClean.includes('SELECCIONE LA ENTIDAD')) || 
                       pageTextClean.includes('INGRESE SU CODIGO') || 
                       pageTextClean.includes('SE HA ENVIADO UN CODIGO') || 
                       pageTextClean.includes('OLVIDASTE TU CONTRASEÑA') ||
@@ -309,7 +309,7 @@ async function verificarLoginExitoso(page) {
   }
 
   // Verificar falso positivo por Server.Transfer de ASP.NET (URL de MasterPrincipal pero contenido de Login)
-  if (pageText.toLowerCase().includes('iniciar sesion') || pageText.toLowerCase().includes('contrasena') && pageText.toLowerCase().includes('usuario')) {
+  if ((pageText.toLowerCase().includes('iniciar sesion') && !pageText.toLowerCase().includes('seleccione la entidad')) || pageText.toLowerCase().includes('contrasena') && pageText.toLowerCase().includes('usuario')) {
     throw new Error(`❌ Login fallido: La sesion expiro o Cuentame te redirigio al Login internamente.\n  URL Actual: ${urlActual}`);
   }
 
@@ -368,11 +368,11 @@ async function verificarConexionOCaida(page) {
         const pageText = await page.evaluate(() => document.body ? document.body.innerText.substring(0, 2000) : '').catch(() => '');
         const pageTextClean = removeAccents(pageText);
 
-        if (urlActual.includes('DefaultF.aspx') && pageTextClean.includes('INICIAR SESION')) return true;
+        if (urlActual.includes('DefaultF.aspx') && (pageTextClean.includes('INICIAR SESION') && !pageTextClean.includes('SELECCIONE LA ENTIDAD'))) return true;
         if (urlActual.includes('Login')) return true;
 
         // Falso positivo: URL correcta pero contenido de Login
-        if (pageTextClean.includes('OLVIDASTE TU CONTRASE') || pageTextClean.includes('INICIAR SESION')) return true;
+        if (pageTextClean.includes('OLVIDASTE TU CONTRASE') || (pageTextClean.includes('INICIAR SESION') && !pageTextClean.includes('SELECCIONE LA ENTIDAD'))) return true;
         
         // Error de servidor
         if (pageText.includes('Server Error in') || pageText.includes('Runtime Error')) {
@@ -414,19 +414,19 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     const pageText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
     const pageTextClean = removeAccents(pageText);
 
-    const esLoginO2FA = pageTextClean.includes('INICIAR SESION') || 
+    if (pageUrl.includes('DefaultF.aspx') && pageTextClean.includes('SELECCIONE LA ENTIDAD')) {
+        await seleccionarRolYEntrar(page, asociacionObj);
+        return true;
+    }
+
+    const esLoginO2FA = (pageTextClean.includes('INICIAR SESION') && !pageTextClean.includes('SELECCIONE LA ENTIDAD')) || 
                         pageTextClean.includes('INGRESE SU CODIGO') || 
                         pageTextClean.includes('SE HA ENVIADO UN CODIGO') || 
-                        pageTextClean.includes('OLVIDASTE TU CONTRASEÑA') ||
+                        pageTextClean.includes('OLVIDASTE TU CONTRASE') ||
                         pageTextClean.includes('OLVIDASTE TU CONTRASENA');
 
     if (esLoginO2FA) {
         return false;
-    }
-
-    if (pageUrl.includes('DefaultF.aspx') && pageTextClean.includes('SELECCIONE LA ENTIDAD')) {
-        await seleccionarRolYEntrar(page, asociacionObj);
-        return true;
     }
 
     // Si el script anterior dejo el navegador atrapado en una vista de reporte puro, 
@@ -467,7 +467,7 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
         
         // Verificar si nos boto al login al intentar ir a DefaultF.aspx
         const newPageText = removeAccents(await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => ''));
-        if (newPageText.includes('INICIAR SESION') || newPageText.includes('OLVIDASTE TU CONTRASE')) {
+        if ((newPageText.includes('INICIAR SESION') && !newPageText.includes('SELECCIONE LA ENTIDAD')) || newPageText.includes('OLVIDASTE TU CONTRASE')) {
             console.log(c.rojo(`  ❌ La sesion expiro. Se requiere iniciar sesion nuevamente.`));
             return false;
         }
