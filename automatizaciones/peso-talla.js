@@ -800,10 +800,14 @@ async function main() {
               }
 
               // Si no, buscar el enlace exacto "Rub online" (el <a> que tiene la flechita > Rub online)
-              const rubLink = links.find(a => a.innerText && a.innerText.trim().toLowerCase().includes('rub online'));
+              const rubLink = links.find(a => a.innerText && a.innerText.trim() === 'Rub online' && a.classList.contains('desplegable'));
               if (rubLink) {
-                  rubLink.click();
-                  return 'RUB_EXPANDED';
+                  const li = rubLink.closest('li');
+                  const ul = li ? li.querySelector('ul') : null;
+                  if (!ul || ul.style.display === 'none' || ul.style.display === '') {
+                      rubLink.click();
+                      return 'RUB_EXPANDED';
+                  }
               }
               return 'NOT_FOUND';
           }).catch(() => 'ERROR');

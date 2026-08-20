@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { leerJardines } = require('../servicios/excel-reader');
-const { loginYLlegarARoles, obtenerNavegador, validarYCambiarAsociacion, verificarConexionOCaida } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, obtenerNavegador, validarYCambiarAsociacion, verificarConexionOCaida, expandirMenu } = require('../servicios/autenticacion');
 const { seleccionarUnidad } = require('../servicios/lupa-unidad');
 
 // ─────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   const { tema, procesarTodosNinos } = opcionesProcesamiento;
 
   await verificarConexionOCaida(page);
-  await validarYCambiarAsociacion(page, jardin);
+  await validarYCambiarAsociacion(page, jardin.asociacion);
 
   // Ir al MasterPrincipal si no lo estamos
   if (!page.url().includes('MasterPrincipal')) {
@@ -127,15 +127,10 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   const menuDestino = await findMenuOption('Seguimiento formacion a padres');
   
   if (menuDestino) {
-      const submenuVisible = await menuDestino.isVisible();
-      if (!submenuVisible) {
-          console.log('  👉 Desplegando menu "Rub online"...');
-          const rubOnline = await findMenuOption('Rub online');
-          if (rubOnline) await rubOnline.click();
-          await page.waitForTimeout(1000);
-      }
+      console.log('\x1b[33m% Desplegando menus "Rub online" y "Beneficiario"...\x1b[0m');
+      await expandirMenu(page, ['Rub online', 'Beneficiario']);
       
-      console.log('  👉 Clic en "Seguimiento formacion a padres/cuidadores"...');
+      console.log('\x1b[33m% Clic en "Seguimiento formacion a padres/cuidadores"...\x1b[0m');
       await Promise.all([
           page.waitForLoadState('networkidle').catch(()=>{}),
           menuDestino.click().catch(()=>{})
@@ -143,6 +138,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
       await page.waitForTimeout(1500);
   } else {
       // Intento JS nativo
+      await expandirMenu(page, ['Rub online', 'Beneficiario']);
       await rootMenu.evaluate(() => {
           const links = Array.from(document.querySelectorAll('a'));
           const target = links.find(l => l.innerText.includes('Seguimiento formacion a padres'));

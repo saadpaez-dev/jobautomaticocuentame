@@ -51,7 +51,7 @@ async function main() {
 
   let salirModulo = false;
 
-  let ascSeleccionada = null;
+  let ascSeleccionada = process.env.ASOCIACION_ACTIVA ? JSON.parse(process.env.ASOCIACION_ACTIVA) : null;
 
   while (true) {
       if (salirModulo) break;
@@ -88,16 +88,25 @@ async function main() {
 
       console.log(c.cyan('\n  Jardines de la asociacion:'));
       jardinesAsociacion.forEach((j, i) => console.log(`  ${i + 1}. ${j.nombre} ${j.codigo ? '('+j.codigo+')' : ''}`));
-      console.log(`  ${c.rojo('0')}. Volver a asociacion`);
+      
+      if (!process.env.ASOCIACION_ACTIVA) {
+          console.log(`  ${c.rojo('0')}. Volver a asociacion`);
+      } else {
+          console.log(`  ${c.rojo('0')}. Volver al menu principal`);
+      }
 
       let idxJardin = -1;
       while (idxJardin < 0 || idxJardin > jardinesAsociacion.length) {
-          const res = readline.question(c.negrita('\n  > Selecciona el Jardin: '));
+          const res = readline.question(c.negrita('\n  > Selecciona el jardin: '));
           idxJardin = parseInt(res, 10);
           if (isNaN(idxJardin)) idxJardin = -1;
       }
 
       if (idxJardin === 0) {
+          if (process.env.ASOCIACION_ACTIVA) {
+              salirModulo = true;
+              break;
+          }
           ascSeleccionada = null;
           continue; // volver a seleccionar asociacion
       }

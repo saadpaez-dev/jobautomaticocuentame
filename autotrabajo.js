@@ -41,10 +41,10 @@ function runScript(scriptName) {
     }
 }
 
-async function iniciarBraveAutomatico() {
+async function iniciarEdgeAutomatico() {
     return new Promise((resolve) => {
         const http = require('http');
-        const req = http.get('http://localhost:9222/json/version', (res) => {
+        const req = http.get('http://localhost:9333/json/version', (res) => {
             if (res.statusCode === 200) {
                 resolve(true); // Ya esta corriendo
             } else {
@@ -72,22 +72,22 @@ async function main() {
     const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
     console.log(c.amarillo('\n  🔍 Verificando si el navegador esta abierto...'));
-    const navegadorAbierto = await iniciarBraveAutomatico();
+    const navegadorAbierto = await iniciarEdgeAutomatico();
 
     if (!navegadorAbierto) {
-        console.log(c.cyan('  🚀 Abriendo Brave automaticamente en Modo Humano...'));
+        console.log(c.cyan('  🚀 Abriendo Microsoft Edge automaticamente en Modo Humano...'));
         // Anadimos banderas para evitar que restaure pestanas viejas o muestre el globo de "restaurar sesion"
-        const comandoBrave = `start brave.exe --remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --user-data-dir="%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data Bot" https://rubonline.icbf.gov.co`;
-        exec(comandoBrave);
+        const comandoEdge = `start msedge.exe --remote-debugging-port=9333 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --user-data-dir="%LOCALAPPDATA%\\Microsoft\\Edge\\User Data Bot" https://rubonline.icbf.gov.co`;
+        exec(comandoEdge);
         // Esperar a que el navegador abra completamente
-        console.log(c.gris('  ⏳ Esperando a que Brave inicie (5 segundos)...'));
+        console.log(c.gris('  ⏳ Esperando a que Edge inicie (5 segundos)...'));
         await new Promise(r => setTimeout(r, 5000));
     }
 
     // Conectar al navegador via CDP y hacer login automatico
     try {
-        console.log(c.cyan('  🔗 Conectando al navegador y verificando sesion en Cuentame...'));
-        const browser = await chromium.connectOverCDP('http://localhost:9222');
+        console.log(c.cyan('  🔌 Conectando al navegador y verificando sesion en Cuentame...'));
+        const browser = await chromium.connectOverCDP('http://localhost:9333');
         const context = browser.contexts()[0];
         
         // Buscar pestana de Cuentame o crear una nueva
@@ -139,66 +139,105 @@ async function main() {
         console.log(c.gris('  (Continua de todas formas, cada modulo manejara su propia sesion)\n'));
     }
 
+    const { leerJardines } = require('./servicios/excel-reader');
+    const RUTA_EXCEL = process.env.RUTA_EXCEL || 'C:\\GENERAL_BOTS.xlsx';
+    let porAsociacion;
+    try {
+        const datos = leerJardines(RUTA_EXCEL);
+        porAsociacion = datos.porAsociacion;
+    } catch (e) {
+        console.log(c.rojo(`  ❌ Error leyendo Excel de asociaciones: ${e.message}`));
+        porAsociacion = {};
+    }
+    
+    let asociaciones = Object.values(porAsociacion);
+
     while (true) {
         banner();
         
-        console.log(c.amarillo('  Selecciona la herramienta que deseas ejecutar:\n'));
-        
-        const opciones = [
-            { nombre: 'Consulta de Activos', archivo: 'consulta-activos.js' },
-            { nombre: 'Descargar Reportes', archivo: 'descargar-reportes.js' },
-            { nombre: 'Llenar Asistencia Mensual', archivo: 'llenar-asistencia.js' },
-            { nombre: 'Seguimiento Nutricional (Peso y Talla)', archivo: 'peso-talla.js' },
-            { nombre: 'Comparar Activos vs Nutricion (Faltantes)', archivo: 'comparar-nutricion.js' },
-            { nombre: 'Pre-llenar Formatos para Madres (Peso y Talla)', archivo: 'prellenar-formatos.js' },
-            { nombre: 'Estimar Peso y Talla Ideal a Fecha de Hoy (Cols U, V, W)', archivo: 'estimar-peso-talla.js' },
-            { nombre: 'Formacion a Familias', archivo: 'formacion-familias.js' },
-            { nombre: 'Generar Cuentas de Cobro', archivo: 'generar-cuentas-cobro.js' },
-            { nombre: 'Vinculacion Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },
-            { nombre: 'Desvinculacion Beneficiarios', archivo: 'desvinculacion-beneficiarios.js' },
-            { nombre: 'Generar Ticket de Errores de Digitacion', archivo: 'generar-ticket-errores.js' }
-        ];
-        
-        opciones.forEach((opc, index) => {
-            console.log(`  ${c.cyan(index + 1)}. ${opc.nombre}`);
+        console.log(c.amarillo('  Selecciona la asociacion con la que vas a trabajar:\n'));
+        asociaciones.forEach((asc, idx) => {
+            console.log(`  ${c.cyan(idx + 1)}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
         });
         console.log(`\n  ${c.rojo('0')}. Salir de AutoTrabajo`);
-        console.log(`  ${c.rojo('X')}. 🔴 Cerrar Trabajo (cierra Brave + terminal)`);
+        console.log(`  ${c.rojo('X')}. 🔴 Cerrar Trabajo (cierra Edge + terminal)`);
         
-        const respuestaRaw = readline.question(c.negrita('\n  > Ingresa tu opcion: '));
-        const respuesta = respuestaRaw ? respuestaRaw.trim() : '';
+        const ascResRaw = readline.question(c.negrita('\n  > Ingresa el numero de la asociacion: '));
+        const ascRes = ascResRaw ? ascResRaw.trim() : '';
 
-        if (respuesta === '0') {
+        if (ascRes === '0') {
             console.log(c.verde('\n  👋 Hasta luego! Cerrando AutoTrabajo.\n'));
             break;
-        } else if (respuesta.toUpperCase() === 'X') {
-            console.log(c.rojo('\n  🔴 Cerrando Brave y finalizando sesion de trabajo...'));
+        } else if (ascRes.toUpperCase() === 'X') {
+            console.log(c.rojo('\n  🔴 Cerrando Edge y finalizando sesion de trabajo...'));
             try {
                 const { exec } = require('child_process');
-                // Cerrar Brave
-                exec('taskkill /IM brave.exe /F', (err) => {
-                    if (err) console.log(c.amarillo('  ⚠️ No se pudo cerrar Brave (puede que ya este cerrado).'));
-                    else console.log(c.verde('  ✅ Brave cerrado.'));
+                exec('taskkill /IM msedge.exe /F', (err) => {
+                    if (err) console.log(c.amarillo('  ⚠️ No se pudo cerrar Edge (puede que ya este cerrado).'));
+                    else console.log(c.verde('  ✅ Edge cerrado.'));
                 });
                 await new Promise(r => setTimeout(r, 1500));
-            } catch(e) {
-                console.log(c.amarillo(`  ⚠️ Error cerrando navegador: ${e.message}`));
-            }
+            } catch(e) {}
             console.log(c.verde('  👋 Trabajo finalizado! Cerrando terminal...\n'));
             setTimeout(() => process.exit(0), 1000);
             break;
-        } else if (/^\d+$/.test(respuesta)) {
-            const opcionInt = parseInt(respuesta, 10);
-            if (opcionInt >= 1 && opcionInt <= opciones.length) {
-                const opcSeleccionada = opciones[opcionInt - 1];
-                runScript(opcSeleccionada.archivo);
+        }
+
+        const ascInt = parseInt(ascRes, 10);
+        if (isNaN(ascInt) || ascInt < 1 || ascInt > asociaciones.length) {
+            console.log(c.rojo(`\n  ❌ Opcion "${ascRes}" invalida. Intentalo de nuevo.`));
+            readline.question(c.gris('  Presiona ENTER para continuar...'));
+            continue;
+        }
+
+        const asociacionElegida = asociaciones[ascInt - 1];
+        // Guardar globalmente la asociacion (en string)
+        process.env.ASOCIACION_ACTIVA = JSON.stringify(asociacionElegida);
+        
+        // --- LOOP DEL MENU DE HERRAMIENTAS ---
+        while (true) {
+            banner();
+            console.log(c.verde(`  ✅ Asociacion Activa: ${asociacionElegida.nombreCorto}`));
+            console.log(c.amarillo('\n  Selecciona la herramienta que deseas ejecutar:\n'));
+            
+            const opciones = [
+                { nombre: 'Consulta de Activos', archivo: 'consulta-activos.js' },
+                { nombre: 'Descargar Reportes', archivo: 'descargar-reportes.js' },
+                { nombre: 'Llenar Asistencia Mensual', archivo: 'llenar-asistencia.js' },
+                { nombre: 'Seguimiento Nutricional (Peso y Talla)', archivo: 'peso-talla.js' },
+                { nombre: 'Comparar Activos vs Nutricion (Faltantes)', archivo: 'comparar-nutricion.js' },
+                { nombre: 'Pre-llenar Formatos para Madres (Peso y Talla)', archivo: 'prellenar-formatos.js' },
+                { nombre: 'Estimar Peso y Talla Ideal a Fecha de Hoy (Cols U, V, W)', archivo: 'estimar-peso-talla.js' },
+                { nombre: 'Formacion a Familias', archivo: 'formacion-familias.js' },
+                { nombre: 'Generar Cuentas de Cobro', archivo: 'generar-cuentas-cobro.js' },
+                { nombre: 'Vinculacion Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },
+                { nombre: 'Desvinculacion Beneficiarios', archivo: 'desvinculacion-beneficiarios.js' },
+                { nombre: 'Generar Ticket de Errores de Digitacion', archivo: 'generar-ticket-errores.js' }
+            ];
+            
+            opciones.forEach((opc, index) => {
+                console.log(`  ${c.cyan(index + 1)}. ${opc.nombre}`);
+            });
+            console.log(`\n  ${c.rojo('0')}. Cambiar de Asociacion`);
+            
+            const respuestaRaw = readline.question(c.negrita('\n  > Ingresa tu opcion: '));
+            const respuesta = respuestaRaw ? respuestaRaw.trim() : '';
+
+            if (respuesta === '0') {
+                break; // rompe el loop de herramientas y vuelve a preguntar la asociacion
+            } else if (/^\d+$/.test(respuesta)) {
+                const opcionInt = parseInt(respuesta, 10);
+                if (opcionInt >= 1 && opcionInt <= opciones.length) {
+                    const opcSeleccionada = opciones[opcionInt - 1];
+                    runScript(opcSeleccionada.archivo);
+                } else {
+                    console.log(c.rojo(`\n  ❌ Opcion "${respuesta}" fuera de rango (1-${opciones.length}). Intentalo de nuevo.`));
+                    readline.question(c.gris('  Presiona ENTER para continuar...'));
+                }
             } else {
-                console.log(c.rojo(`\n  ❌ Opcion "${respuesta}" fuera de rango (1-${opciones.length}). Intentalo de nuevo.`));
+                console.log(c.rojo('\n  ❌ Opcion invalida. Intentalo de nuevo.'));
                 readline.question(c.gris('  Presiona ENTER para continuar...'));
             }
-        } else {
-            console.log(c.rojo('\n  ❌ Opcion invalida. Intentalo de nuevo.'));
-            readline.question(c.gris('  Presiona ENTER para continuar...'));
         }
     }
 }

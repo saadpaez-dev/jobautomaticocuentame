@@ -56,22 +56,27 @@ async function main() {
 
   while (true) {
       if (salirModulo) break;
-      asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
-      console.log(`  ${c.rojo('0')}. Volver al menu principal`);
+      
+      let ascSeleccionada;
+      if (process.env.ASOCIACION_ACTIVA) {
+          ascSeleccionada = JSON.parse(process.env.ASOCIACION_ACTIVA);
+      } else {
+          asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
+          console.log(`  ${c.rojo('0')}. Volver al menu principal`);
 
-      let idxAsociacion = -1;
-      while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
-        const res = readline.question(c.negrita('\n  > Selecciona la asociacion (0 para salir): '));
-        idxAsociacion = parseInt(res, 10);
-        if (isNaN(idxAsociacion)) idxAsociacion = -1;
+          let idxAsociacion = -1;
+          while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
+            const res = readline.question(c.negrita('\n  > Selecciona la asociacion (0 para salir): '));
+            idxAsociacion = parseInt(res, 10);
+            if (isNaN(idxAsociacion)) idxAsociacion = -1;
+          }
+
+          if (idxAsociacion === 0) {
+            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
+            break;
+          }
+          ascSeleccionada = asociaciones[idxAsociacion - 1];
       }
-
-      if (idxAsociacion === 0) {
-        console.log(c.verde('\n  👋 Volviendo al menu principal...'));
-        break;
-      }
-
-      const ascSeleccionada = asociaciones[idxAsociacion - 1];
 
       if (!browser) {
           console.log(c.cyan('\n  🌐 Conectando al navegador existente (CDP)...\n'));
@@ -125,10 +130,14 @@ async function main() {
             }
 
             // Si no, buscar el enlace exacto "Rub online" para expandirlo
-            const rubLink = links.find(a => a.innerText && a.innerText.trim().toLowerCase().includes('rub online'));
+            const rubLink = links.find(a => a.innerText && a.innerText.trim() === 'Rub online' && a.classList.contains('desplegable'));
             if (rubLink) {
-                rubLink.click();
-                return 'RUB_EXPANDED';
+                const li = rubLink.closest('li');
+                const ul = li ? li.querySelector('ul') : null;
+                if (!ul || ul.style.display === 'none' || ul.style.display === '') {
+                    rubLink.click();
+                    return 'RUB_EXPANDED';
+                }
             }
             return 'NOT_FOUND';
         }).catch(() => 'ERROR');
@@ -468,7 +477,9 @@ async function main() {
             }
 
             console.log(c.cyan('\n------------------------------------------------------'));
-            console.log(c.amarillo('  [0] Volver a seleccion de asociacion'));
+            if (!process.env.ASOCIACION_ACTIVA) {
+                console.log(c.amarillo('  [0] Volver a seleccion de asociacion'));
+            }
             console.log(c.rojo('  [M] Volver al menu principal (npm start)'));
 
         } catch (e) {
@@ -482,6 +493,7 @@ async function main() {
     console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
   }
   
+  if (process.env.ASOCIACION_ACTIVA || salirModulo) break;
   } // End of outer while(true) (asociacion loop)
 
   console.log(c.verde('\n  👋 Modulo finalizado.\n'));

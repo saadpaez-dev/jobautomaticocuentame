@@ -388,7 +388,7 @@ async function verificarConexionOCaida(page) {
 }
 
 /**
- * Intenta conectarse a un navegador existente en modo depuracion (puerto 9222).
+ * Intenta conectarse a un navegador existente en modo depuracion (puerto 9333).
  * Si no lo encuentra, lanza un navegador nuevo en modo Bot Automatico.
  */
 function removeAccents(str) {
@@ -480,18 +480,38 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     }
 }
 
+async function expandirMenu(page, menuTexts) {
+    let menuFrame = page.frame({ name: 'frameMenu' }) || page.frames().find(f => f.name() === 'frameMenu') || page;
+    
+    for (const text of menuTexts) {
+        await menuFrame.evaluate((textToExpand) => {
+            const links = Array.from(document.querySelectorAll('a'));
+            const link = links.find(a => a.innerText && a.innerText.trim() === textToExpand && a.classList.contains('desplegable'));
+            if (link) {
+                const li = link.closest('li');
+                const ul = li ? li.querySelector('ul') : null;
+                if (!ul || ul.style.display === 'none' || ul.style.display === '') {
+                    link.click();
+                }
+            }
+        }, text).catch(() => {});
+        await page.waitForTimeout(800);
+    }
+}
+
 module.exports = {
   loginYLlegarARoles,
   seleccionarRolYEntrar,
   obtenerNavegador,
   verificarConexionOCaida,
-  validarYCambiarAsociacion
+  validarYCambiarAsociacion,
+  expandirMenu
 };
 
 async function obtenerNavegador() {
     try {
-        console.log(c.cyan('\n  🔍 Buscando navegador en Modo Humano (Puerto 9222)...'));
-        const browser = await chromium.connectOverCDP('http://localhost:9222');
+        console.log(c.cyan('\n  🔍 Buscando navegador en Modo Humano (Puerto 9333)...'));
+        const browser = await chromium.connectOverCDP('http://localhost:9333');
         console.log(c.verde('  ✅ Conectado al navegador del usuario exitosamente.'));
         
         const context = browser.contexts()[0];
@@ -516,20 +536,20 @@ async function obtenerNavegador() {
         
         return { browser, context, page: cuentamePage, isCDP: true };
     } catch (e) {
-        console.log(c.amarillo('  ⚠️ No se detecto el navegador en Modo Humano (Puerto 9222).'));
-        console.log(c.cyan('  🚀 Lanzando Google Chrome (Navegador_Bot) automaticamente...'));
+        console.log(c.amarillo('  ⚠️ No se detecto el navegador en Modo Humano (Puerto 9333).'));
+        console.log(c.cyan('  🚀 Lanzando Microsoft Edge (Navegador_Bot) automaticamente...'));
         
         const { execSync } = require('child_process');
         try {
-            // Lanza Chrome usando el mismo perfil y puerto del archivo .bat
-            const comando = `start chrome.exe --remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --exclude-switches=enable-automation --user-data-dir="%LOCALAPPDATA%\\Google\\Chrome\\User Data Bot"`;
+            // Lanza Edge usando el mismo perfil y puerto
+            const comando = `start msedge.exe --remote-debugging-port=9333 --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --exclude-switches=enable-automation --user-data-dir="%LOCALAPPDATA%\\Microsoft\\Edge\\User Data Bot"`;
             execSync(comando, { stdio: 'ignore' });
             
-            console.log(c.amarillo('  ⏳ Esperando 4 segundos a que Chrome inicie...'));
+            console.log(c.amarillo('  ⏳ Esperando 4 segundos a que Edge inicie...'));
             await new Promise(resolve => setTimeout(resolve, 4000));
             
-            console.log(c.cyan('  🔌 Reintentando conexion al Puerto 9222...'));
-            const browser = await chromium.connectOverCDP('http://localhost:9222');
+            console.log(c.cyan('  🔌 Reintentando conexion al Puerto 9333...'));
+            const browser = await chromium.connectOverCDP('http://localhost:9333');
             console.log(c.verde('  ✅ Conectado exitosamente!'));
             
             const context = browser.contexts()[0];
@@ -549,9 +569,9 @@ async function obtenerNavegador() {
             
             return { browser, context, page: cuentamePage, isCDP: true };
         } catch (errLauncher) {
-            console.log(c.rojo('\n  ❌ ERROR FATAL: No se pudo conectar ni lanzar Chrome automaticamente.'));
-            console.log(c.rojo('  Asegurate de que Chrome no este abierto en segundo plano (Revisa el Administrador de Tareas)'));
-            console.log(c.rojo('  o ejecuta manualmente "Navegador_Bot.bat" y vuelve a intentarlo.\n'));
+            console.log(c.rojo('\n  ❌ ERROR FATAL: No se pudo conectar ni lanzar Edge automaticamente.'));
+            console.log(c.rojo('  Asegurate de que Edge no este abierto en segundo plano usando el puerto 9333.'));
+            console.log(c.rojo('  o ejecuta manualmente tu acceso directo y vuelve a intentarlo.\n'));
             process.exit(1);
         }
     }

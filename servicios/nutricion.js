@@ -429,6 +429,20 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 }
             }, datos.fecha);
         } catch(e) {}
+        
+        // Extraer mes de la fecha y llenar el campo Toma o Mes
+        if (datos.fecha) {
+            const partesFecha = String(datos.fecha).trim().split('/');
+            if (partesFecha.length === 3) {
+                const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                const mesIndex = parseInt(partesFecha[1], 10) - 1;
+                if (mesIndex >= 0 && mesIndex < 12) {
+                    const nombreMes = mesesNombres[mesIndex];
+                    await safeFillSelect('Toma', nombreMes);
+                    await safeFillSelect('Mes', nombreMes);
+                }
+            }
+        }
 
         if (!hasHistory) {
             // 1. Vacunacion y Desarrollo (SOLO PARA REGISTROS NUEVOS)

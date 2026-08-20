@@ -481,27 +481,32 @@ async function main() {
     console.log(c.cyan('   🎫 TICKET PARA ERRORES DE DIGITACION'));
     console.log(c.cyan('======================================================\n'));
 
-    console.log(c.gris('Selecciona una asociacion para iniciar el proceso.'));
-    asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
-    console.log(`  ${c.rojo('0')}. Volver al menu principal`);
+    let ascSeleccionada;
+    if (process.env.ASOCIACION_ACTIVA) {
+        ascSeleccionada = JSON.parse(process.env.ASOCIACION_ACTIVA);
+    } else {
+        console.log(c.gris('Selecciona una asociacion para iniciar el proceso.'));
+        asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
+        console.log(`  ${c.rojo('0')}. Volver al menu principal`);
 
-    let idxAsociacion = -1;
-    while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
-        const res = readline.question(c.negrita('\n  > Selecciona la asociacion: '));
-        idxAsociacion = parseInt(res, 10);
-        if (isNaN(idxAsociacion)) idxAsociacion = -1;
-    }
+        let idxAsociacion = -1;
+        while (idxAsociacion < 0 || idxAsociacion > asociaciones.length) {
+            const res = readline.question(c.negrita('\n  > Selecciona la asociacion: '));
+            idxAsociacion = parseInt(res, 10);
+            if (isNaN(idxAsociacion)) idxAsociacion = -1;
+        }
 
-    if (idxAsociacion === 0) {
-        console.log(c.verde('\n  👋 Volviendo al menu principal...'));
-        return;
+        if (idxAsociacion === 0) {
+            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
+            return;
+        }
+        ascSeleccionada = asociaciones[idxAsociacion - 1];
     }
-    const ascSeleccionada = asociaciones[idxAsociacion - 1];
 
     console.log(c.amarillo('\n  Conectando al navegador...'));
     let browser;
     try {
-        browser = await chromium.connectOverCDP('http://localhost:9222');
+        browser = await chromium.connectOverCDP('http://localhost:9333');
     } catch (e) {
         console.log(c.rojo(`  ❌ Error al conectar al navegador: ${e.message}`));
         return;
@@ -564,9 +569,10 @@ async function main() {
             }
         }
         const rootMenu = menuFrame || page;
-
-        try {
-            const links = await rootMenu.locator('a:text-is("Beneficiario")').all();
+          
+          try {
+              await expandirMenu(page, ['Rub online']);
+              const links = await rootMenu.locator('a:text-is("Beneficiario")').all();
             if (links.length >= 2) {
                 await links[1].evaluate(n => n.click());
             } else if (links.length === 1) {

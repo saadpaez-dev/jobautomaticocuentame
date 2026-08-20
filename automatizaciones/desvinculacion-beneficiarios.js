@@ -48,7 +48,7 @@ async function main() {
   let loggedIn = false;
 
   let salirModulo = false;
-  let ascSeleccionada = null;
+  let ascSeleccionada = process.env.ASOCIACION_ACTIVA ? JSON.parse(process.env.ASOCIACION_ACTIVA) : null;
   let jardinSeleccionado = null;
   let globalFechaRetiro = null;
   let globalMotivoId = null;
@@ -556,17 +556,19 @@ async function main() {
             console.log(c.cyan('\n  Que deseas hacer ahora?'));
             console.log(`  ${c.cyan('1')}. Hacer otro retiro (mismos filtros)`);
             console.log(`  ${c.cyan('2')}. Cambiar de jardin (mantiene Fecha y Motivo)`);
-            console.log(`  ${c.cyan('3')}. Cambiar de asociacion`);
+            if (!process.env.ASOCIACION_ACTIVA) {
+                console.log(`  ${c.cyan('3')}. Cambiar de asociacion`);
+            }
             console.log(`  ${c.rojo('0')}. Volver al menu principal`);
             
             const reqSalir = readline.question(c.negrita('  > Opcion: ')).trim();
-            if (reqSalir === '0') {
+            if (reqSalir === '0' || (process.env.ASOCIACION_ACTIVA && reqSalir === '3')) {
                 salirModulo = true;
                 bucleRetiro = false;
             } else if (reqSalir === '2') {
                 jardinSeleccionado = null;
                 // No rompemos bucleRetiro para que pida el jardin y siga en esta pantalla
-            } else if (reqSalir === '3') {
+            } else if (reqSalir === '3' && !process.env.ASOCIACION_ACTIVA) {
                 ascSeleccionada = null;
                 jardinSeleccionado = null;
                 bucleRetiro = false;
@@ -575,9 +577,13 @@ async function main() {
       } catch (err) {
           console.error(c.rojo(`\n❌ Error en el proceso: ${err.message}`));
           console.error(err.stack);
-          const recargar = readline.question(c.amarillo('\nDeseas volver a seleccionar asociacion? (s/n): ')).toLowerCase();
-          if (recargar !== 's') {
+          if (process.env.ASOCIACION_ACTIVA) {
               salirModulo = true;
+          } else {
+              const recargar = readline.question(c.amarillo('\nDeseas volver a seleccionar asociacion? (s/n): ')).toLowerCase();
+              if (recargar !== 's') {
+                  salirModulo = true;
+              }
           }
       }
   }

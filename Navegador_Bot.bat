@@ -3,7 +3,7 @@ title Lanzador de Navegador para el Bot
 color 0B
 
 echo =======================================================
-echo    Lanzador de Navegador en Modo Depuracion (Puerto 9222)
+echo    Lanzador de Navegador en Modo Depuracion (Puerto 9333)
 echo =======================================================
 echo.
 echo Para que el bot pueda leer tu navegador, debes cerrarlo
@@ -17,7 +17,7 @@ echo.
 set /p navChoice="Ingresa 1, 2 o 3: "
 
 REM Flags anti-deteccion: ocultan que el navegador es controlado por un bot
-set FLAGS=--remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --exclude-switches=enable-automation --disable-features=ChromeWhatsNew --disable-extensions-except --disable-infobars
+set FLAGS=--remote-debugging-port=9333 --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --exclude-switches=enable-automation --disable-features=ChromeWhatsNew --disable-extensions-except --disable-infobars
 
 if "%navChoice%"=="1" (
     echo Iniciando Google Chrome...
