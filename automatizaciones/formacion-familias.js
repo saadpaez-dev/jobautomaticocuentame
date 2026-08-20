@@ -107,7 +107,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
 
   // Ir al MasterPrincipal si no lo estamos
   if (!page.url().includes('MasterPrincipal')) {
-      await page.goto(URL_FORMACION, { waitUntil: 'networkidle' });
+      await page.goto(URL_FORMACION, { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(1000);
   }
 
@@ -131,7 +131,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
 
   console.log('  👉 Clic en el boton Nuevo (+)...');
   await Promise.all([
-    page.waitForLoadState('networkidle'),
+    page.waitForLoadState('domcontentloaded'),
     frame.locator('#btnNuevo, input[type="image"][src*="nuevo"], input[type="image"][title*="Nuevo"]').first().click()
   ]);
   await page.waitForTimeout(1500);
@@ -147,21 +147,28 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
 
   const campoFechaFormacion = frame.locator('input[id*="FechaFormacion"], input[name*="FechaFormacion"]').first();
   await campoFechaFormacion.click({ position: { x: 5, y: 5 } });
+  await campoFechaFormacion.clear().catch(() => {});
   const numerosFecha = hoy.replace(/\//g, '');
-  await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 10 });
+  await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 100 });
   await campoFechaFormacion.press('Tab');
+  await page.waitForTimeout(1000);
 
   const campoHoras = frame.locator('input[id*="Horas"], input[name*="Horas"]').first();
+  await campoHoras.clear().catch(() => {});
   await campoHoras.fill(HORAS_FORMACION);
-
-  const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
-  await dropdownTema.selectOption({ label: tema });
+  await page.waitForTimeout(1000);
 
   const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
-  await dropdownEncuentro.selectOption({ label: TIPO_ENCUENTRO });
+  await dropdownEncuentro.selectOption({ label: TIPO_ENCUENTRO }, { timeout: 10000 }).catch(e => console.log('    [Info] Tipo de Encuentro select timeout/detach (PostBack)'));
+  await page.waitForTimeout(1500);
 
   const campoObs = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
   await campoObs.fill(observaciones);
+  await page.waitForTimeout(1000);
+
+  const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
+  await dropdownTema.selectOption({ label: tema }, { timeout: 10000 }).catch(e => console.log('    [Info] Tema select timeout/detach (PostBack)'));
+  await page.waitForTimeout(3000); // Wait longer because Tema usually triggers an AutoPostBack
 
   let cantidadBenef = 0;
 
@@ -242,13 +249,11 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     cantidadBenef = cantidadSeleccionada;
   }
 
-  console.log('  👉 Haciendo clic en Guardar...');
-  await Promise.all([
-    page.waitForLoadState('networkidle'),
-    frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click()
-  ]);
-  await page.waitForTimeout(1500);
-
+  console.log('  \x1b[33m% Haciendo clic en Guardar...\x1b[0m');
+  await frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click();
+  await page.waitForTimeout(4000);
+  await page.waitForLoadState('domcontentloaded').catch(() => {});
+  
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');
   const exitoso = contenidoFrame.includes('beneficiarios han sido ingresados') ||
                   contenidoFrame.includes('registrado') ||
@@ -396,7 +401,7 @@ async function main() {
           const elegida = validas[Math.floor(Math.random() * validas.length)];
           await page.locator('select').selectOption(elegida);
           await Promise.all([
-            page.waitForLoadState('networkidle'),
+            page.waitForLoadState('domcontentloaded'),
             page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
           ]);
           await page.waitForTimeout(1500);
@@ -436,7 +441,7 @@ async function main() {
             fallidosActual.push({ ...jardin, error: mensaje });
             fallidosTotales.push({ ...jardin, error: mensaje });
 
-            await page.goto(URL_FORMACION, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+            await page.goto(URL_FORMACION, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
             await page.waitForTimeout(1500);
         }
         await page.waitForTimeout(1500);
