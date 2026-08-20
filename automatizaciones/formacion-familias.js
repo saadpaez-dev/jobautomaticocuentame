@@ -160,13 +160,11 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   await page.waitForTimeout(1000);
 
   const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
-  const valEncuentro = await frame.evaluate((lbl) => {
+  const valEncuentro = await dropdownEncuentro.evaluate((select, lbl) => {
       const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      const select = document.querySelector('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]');
-      if (!select) return null;
       const targetOpt = Array.from(select.options).find(o => normalize(o.text).includes(normalize(lbl).trim()));
       return targetOpt ? targetOpt.value : null;
-  }, TIPO_ENCUENTRO);
+  }, TIPO_ENCUENTRO).catch(() => null);
   
   if (valEncuentro) {
       await dropdownEncuentro.selectOption({ value: valEncuentro }, { timeout: 10000 }).catch(e => console.log('    [Info] Tipo de Encuentro select timeout/detach (PostBack)'));
@@ -180,15 +178,12 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   await page.waitForTimeout(1000);
 
   const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
-  const valTema = await frame.evaluate((lbl) => {
+  const valTema = await dropdownTema.evaluate((select, lbl) => {
       const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      const select = document.querySelector('select[id*="Tema"], select[name*="Tema"]');
-      if (!select) return null;
-      // Match first 20 characters to avoid exact match failures due to long strings or punctuation
       const targetTxt = normalize(lbl).substring(0, 20).trim();
       const targetOpt = Array.from(select.options).find(o => normalize(o.text).includes(targetTxt));
       return targetOpt ? targetOpt.value : null;
-  }, tema);
+  }, tema).catch(() => null);
 
   if (valTema) {
       await dropdownTema.selectOption({ value: valTema }, { timeout: 10000 }).catch(e => console.log('    [Info] Tema select timeout/detach (PostBack)'));
