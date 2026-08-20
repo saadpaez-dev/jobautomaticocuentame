@@ -108,7 +108,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   // Ir al MasterPrincipal si no lo estamos
   if (!page.url().includes('MasterPrincipal')) {
       await page.goto(URL_FORMACION, { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(800);
   }
 
   // Identificar el frame del menu
@@ -124,8 +124,8 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
       const target = links.find(l => normalize(l.innerText).includes('seguimiento formacion a padres'));
       if (target) target.click();
   }).catch(()=>{});
-  await page.waitForTimeout(1500);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(800);
+  await page.waitForTimeout(800);
 
   const frame = page.frameLocator('iframe').last();
 
@@ -134,11 +134,11 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     page.waitForLoadState('domcontentloaded'),
     frame.locator('#btnNuevo, input[type="image"][src*="nuevo"], input[type="image"][title*="Nuevo"]').first().click()
   ]);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(800);
 
   console.log(`  👉 Buscando UDS: ${jardin.nombre}...`);
   await seleccionarUnidad(page, frame, jardin.codigo);
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(800);
 
   console.log('  👉 Esperando a que cargue el resto de campos (Observaciones, Beneficiarios)...');
   const campoObsParaVerificar = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
@@ -152,12 +152,12 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   const numerosFecha = hoy.replace(/\//g, '');
   await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 100 });
   await campoFechaFormacion.press('Tab');
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(800);
 
   const campoHoras = frame.locator('input[id*="Horas"], input[name*="Horas"]').first();
   await campoHoras.clear().catch(() => {});
   await campoHoras.fill(HORAS_FORMACION);
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(800);
 
   const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
   const valEncuentro = await dropdownEncuentro.evaluate((select, lbl) => {
@@ -171,11 +171,11 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   } else {
       await dropdownEncuentro.selectOption({ label: TIPO_ENCUENTRO }, { timeout: 10000 }).catch(e => {});
   }
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(800);
 
   const campoObs = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
   await campoObs.fill(observaciones);
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(800);
 
   const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
   const valTema = await dropdownTema.evaluate((select, lbl) => {
@@ -190,7 +190,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   } else {
       await dropdownTema.selectOption({ label: tema }, { timeout: 10000 }).catch(e => {});
   }
-  await page.waitForTimeout(3000); // Wait longer because Tema usually triggers an AutoPostBack
+  await page.waitForTimeout(1000); // Reducido a peticion del usuario
 
   let cantidadBenef = 0;
 
@@ -199,7 +199,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     const estaChecked = await checkboxTodos.isChecked().catch(() => false);
     if (!estaChecked) {
       await checkboxTodos.click();
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(800);
     }
     cantidadBenef = 'TODOS';
   } else {
@@ -273,7 +273,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
 
   console.log('  \x1b[33m% Haciendo clic en Guardar...\x1b[0m');
   await frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click();
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(2000);
   await page.waitForLoadState('domcontentloaded').catch(() => {});
   
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');
@@ -426,7 +426,7 @@ async function main() {
             page.waitForLoadState('domcontentloaded'),
             page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
           ]);
-          await page.waitForTimeout(1500);
+          await page.waitForTimeout(800);
         }
       }
     }
@@ -464,9 +464,9 @@ async function main() {
             fallidosTotales.push({ ...jardin, error: mensaje });
 
             await page.goto(URL_FORMACION, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(800);
         }
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(800);
     }
 
     if (fallidosActual.length > 0) {
