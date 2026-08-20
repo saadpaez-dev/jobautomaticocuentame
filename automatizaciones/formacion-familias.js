@@ -138,6 +138,7 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
 
   console.log(`  👉 Buscando UDS: ${jardin.nombre}...`);
   await seleccionarUnidad(page, frame, jardin.codigo);
+  await page.waitForTimeout(2000);
 
   console.log('  👉 Esperando a que cargue el resto de campos (Observaciones, Beneficiarios)...');
   const campoObsParaVerificar = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
@@ -159,7 +160,19 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   await page.waitForTimeout(1000);
 
   const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
-  await dropdownEncuentro.selectOption({ label: TIPO_ENCUENTRO }, { timeout: 10000 }).catch(e => console.log('    [Info] Tipo de Encuentro select timeout/detach (PostBack)'));
+  const valEncuentro = await frame.evaluate((lbl) => {
+      const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const select = document.querySelector('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]');
+      if (!select) return null;
+      const targetOpt = Array.from(select.options).find(o => normalize(o.text).includes(normalize(lbl).trim()));
+      return targetOpt ? targetOpt.value : null;
+  }, TIPO_ENCUENTRO);
+  
+  if (valEncuentro) {
+      await dropdownEncuentro.selectOption({ value: valEncuentro }, { timeout: 10000 }).catch(e => console.log('    [Info] Tipo de Encuentro select timeout/detach (PostBack)'));
+  } else {
+      await dropdownEncuentro.selectOption({ label: TIPO_ENCUENTRO }, { timeout: 10000 }).catch(e => {});
+  }
   await page.waitForTimeout(1500);
 
   const campoObs = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
@@ -167,7 +180,21 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   await page.waitForTimeout(1000);
 
   const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
-  await dropdownTema.selectOption({ label: tema }, { timeout: 10000 }).catch(e => console.log('    [Info] Tema select timeout/detach (PostBack)'));
+  const valTema = await frame.evaluate((lbl) => {
+      const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const select = document.querySelector('select[id*="Tema"], select[name*="Tema"]');
+      if (!select) return null;
+      // Match first 20 characters to avoid exact match failures due to long strings or punctuation
+      const targetTxt = normalize(lbl).substring(0, 20).trim();
+      const targetOpt = Array.from(select.options).find(o => normalize(o.text).includes(targetTxt));
+      return targetOpt ? targetOpt.value : null;
+  }, tema);
+
+  if (valTema) {
+      await dropdownTema.selectOption({ value: valTema }, { timeout: 10000 }).catch(e => console.log('    [Info] Tema select timeout/detach (PostBack)'));
+  } else {
+      await dropdownTema.selectOption({ label: tema }, { timeout: 10000 }).catch(e => {});
+  }
   await page.waitForTimeout(3000); // Wait longer because Tema usually triggers an AutoPostBack
 
   let cantidadBenef = 0;
