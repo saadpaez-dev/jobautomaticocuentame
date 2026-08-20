@@ -315,37 +315,64 @@ async function main() {
     console.log(c.negrita(c.cyan('  ======================================================\n')));
 
     let jardinesAProcesar = [];
-
-    const opcionesAlcance = ['Procesar TODAS las asociaciones', 'Seleccionar UNA asociacion especifica'];
-    const alcanceIdx = readline.keyInSelect(opcionesAlcance, c.negrita('  > Escoja el alcance de esta ejecucion: '), { cancel: 'Salir' });
-
-    if (alcanceIdx === -1) {
-        break;
-    }
-
     let asociacionSeleccionada = null;
-
-    if (alcanceIdx === 0) {
-        jardinesAProcesar = jardines;
-    } else {
-        const asociacionesNames = Object.keys(porAsociacion);
-        const ascIdx = readline.keyInSelect(asociacionesNames, c.negrita('  > Escoja la asociacion: '), { cancel: 'Cancelar' });
-        if (ascIdx === -1) continue;
-
-        asociacionSeleccionada = asociacionesNames[ascIdx];
+    let alcanceIdx = -1;
+    
+    if (process.env.ASOCIACION_ACTIVA) {
+        const asocActiva = JSON.parse(process.env.ASOCIACION_ACTIVA);
+        asociacionSeleccionada = asocActiva.nombreCorto || asocActiva.nombre;
         const jardinesAsoc = porAsociacion[asociacionSeleccionada];
-
+        
+        if (!jardinesAsoc) {
+            console.log(c.rojo(`  X No se encontraron jardines para la asociacion ${asociacionSeleccionada} en el Excel.`));
+            break;
+        }
+        
+        console.log(c.amarillo(`\n  > Asociacion activa: ${asociacionSeleccionada}`));
         const opcionesJardin = ['TODOS los jardines de esta asociacion', 'Seleccionar UN jardin especifico'];
         const jardIdx = readline.keyInSelect(opcionesJardin, c.negrita(`  > Alcance para ${asociacionSeleccionada}: `), { cancel: 'Atras' });
-        if (jardIdx === -1) continue;
+        
+        if (jardIdx === -1) break;
 
         if (jardIdx === 0) {
             jardinesAProcesar = jardinesAsoc.jardines;
         } else {
             const jardinesNames = jardinesAsoc.jardines.map(j => `${j.nombre} (${j.codigo})`);
             const jIdx = readline.keyInSelect(jardinesNames, c.negrita('  > Escoja el jardin: '), { cancel: 'Atras' });
-            if (jIdx === -1) continue;
+            if (jIdx === -1) break;
             jardinesAProcesar = [jardinesAsoc.jardines[jIdx]];
+        }
+        alcanceIdx = 1;
+    } else {
+        const opcionesAlcance = ['Procesar TODAS las asociaciones', 'Seleccionar UNA asociacion especifica'];
+        alcanceIdx = readline.keyInSelect(opcionesAlcance, c.negrita('  > Escoja el alcance de esta ejecucion: '), { cancel: 'Salir' });
+
+        if (alcanceIdx === -1) {
+            break;
+        }
+
+        if (alcanceIdx === 0) {
+            jardinesAProcesar = jardines;
+        } else {
+            const asociacionesNames = Object.keys(porAsociacion);
+            const ascIdx = readline.keyInSelect(asociacionesNames, c.negrita('  > Escoja la asociacion: '), { cancel: 'Cancelar' });
+            if (ascIdx === -1) continue;
+
+            asociacionSeleccionada = asociacionesNames[ascIdx];
+            const jardinesAsoc = porAsociacion[asociacionSeleccionada];
+
+            const opcionesJardin = ['TODOS los jardines de esta asociacion', 'Seleccionar UN jardin especifico'];
+            const jardIdx = readline.keyInSelect(opcionesJardin, c.negrita(`  > Alcance para ${asociacionSeleccionada}: `), { cancel: 'Atras' });
+            if (jardIdx === -1) continue;
+
+            if (jardIdx === 0) {
+                jardinesAProcesar = jardinesAsoc.jardines;
+            } else {
+                const jardinesNames = jardinesAsoc.jardines.map(j => `${j.nombre} (${j.codigo})`);
+                const jIdx = readline.keyInSelect(jardinesNames, c.negrita('  > Escoja el jardin: '), { cancel: 'Atras' });
+                if (jIdx === -1) continue;
+                jardinesAProcesar = [jardinesAsoc.jardines[jIdx]];
+            }
         }
     }
 
@@ -363,7 +390,10 @@ async function main() {
     } else {
         console.log();
         const temaIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita('  > Escoja el TEMA DE FORMACION para esta tarea: '), { cancel: 'Cancelar tarea' });
-        if (temaIdx === -1) continue;
+        if (temaIdx === -1) {
+            if (process.env.ASOCIACION_ACTIVA) break;
+            continue;
+        }
         temasPorAsociacion[asociacionSeleccionada] = TEMAS_FORMACION[temaIdx];
     }
 
@@ -469,6 +499,10 @@ async function main() {
 
     console.log(c.verde(`\n  ✅ Tarea finalizada. Exitosos: ${exitososActual.length} | Fallidos: ${fallidosActual.length}\n`));
     
+    if (process.env.ASOCIACION_ACTIVA) {
+        break;
+    }
+
     const continuar = readline.keyInYN(c.negrita('  Desea iniciar OTRA tarea de Formacion a Familias?'));
     if (!continuar) {
         break;
