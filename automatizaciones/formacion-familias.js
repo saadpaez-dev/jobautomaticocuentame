@@ -104,7 +104,6 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   const { tema, procesarTodosNinos } = opcionesProcesamiento;
 
   await verificarConexionOCaida(page);
-  await validarYCambiarAsociacion(page, jardin.asociacion);
 
   // Ir al MasterPrincipal si no lo estamos
   if (!page.url().includes('MasterPrincipal')) {
@@ -115,37 +114,17 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   // Identificar el frame del menu
   let rootMenu = page.frame({ name: 'frameMenu' }) || page.frame({ name: 'Opciones' }) || page;
   
-  // Buscar opciones de menu de manera robusta
-  const findMenuOption = async (textMatch) => {
-      let loc = rootMenu.locator(`a:has-text("${textMatch}")`).first();
-      if (await loc.count() > 0) return loc;
-      loc = rootMenu.locator(`text="${textMatch}"`).first();
-      if (await loc.count() > 0) return loc;
-      return null;
-  };
-
-  const menuDestino = await findMenuOption('Seguimiento formacion a padres');
+  console.log('  \x1b[33m% Desplegando menus "Rub online" y "Beneficiario"...\x1b[0m');
+  await expandirMenu(page, ['Rub online', 'Beneficiario']);
   
-  if (menuDestino) {
-      console.log('\x1b[33m% Desplegando menus "Rub online" y "Beneficiario"...\x1b[0m');
-      await expandirMenu(page, ['Rub online', 'Beneficiario']);
-      
-      console.log('\x1b[33m% Clic en "Seguimiento formacion a padres/cuidadores"...\x1b[0m');
-      await Promise.all([
-          page.waitForLoadState('networkidle').catch(()=>{}),
-          menuDestino.click().catch(()=>{})
-      ]);
-      await page.waitForTimeout(1500);
-  } else {
-      // Intento JS nativo
-      await expandirMenu(page, ['Rub online', 'Beneficiario']);
-      await rootMenu.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a'));
-          const target = links.find(l => l.innerText.includes('Seguimiento formacion a padres'));
-          if (target) target.click();
-      }).catch(()=>{});
-      await page.waitForTimeout(1500);
-  }
+  console.log('  \x1b[33m% Clic en "Seguimiento formacion a padres/cuidadores"...\x1b[0m');
+  await rootMenu.evaluate(() => {
+      const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const links = Array.from(document.querySelectorAll('a'));
+      const target = links.find(l => normalize(l.innerText).includes('seguimiento formacion a padres'));
+      if (target) target.click();
+  }).catch(()=>{});
+  await page.waitForTimeout(1500);
   await page.waitForTimeout(1500);
 
   const frame = page.frameLocator('iframe').last();
@@ -315,64 +294,37 @@ async function main() {
     console.log(c.negrita(c.cyan('  ======================================================\n')));
 
     let jardinesAProcesar = [];
+
+    const opcionesAlcance = ['Procesar TODAS las asociaciones', 'Seleccionar UNA asociacion especifica'];
+    const alcanceIdx = readline.keyInSelect(opcionesAlcance, c.negrita('  > Escoja el alcance de esta ejecucion: '), { cancel: 'Salir' });
+
+    if (alcanceIdx === -1) {
+        break;
+    }
+
     let asociacionSeleccionada = null;
-    let alcanceIdx = -1;
-    
-    if (process.env.ASOCIACION_ACTIVA) {
-        const asocActiva = JSON.parse(process.env.ASOCIACION_ACTIVA);
-        asociacionSeleccionada = asocActiva.nombreCorto || asocActiva.nombre;
+
+    if (alcanceIdx === 0) {
+        jardinesAProcesar = jardines;
+    } else {
+        const asociacionesNames = Object.keys(porAsociacion);
+        const ascIdx = readline.keyInSelect(asociacionesNames, c.negrita('  > Escoja la asociacion: '), { cancel: 'Cancelar' });
+        if (ascIdx === -1) continue;
+
+        asociacionSeleccionada = asociacionesNames[ascIdx];
         const jardinesAsoc = porAsociacion[asociacionSeleccionada];
-        
-        if (!jardinesAsoc) {
-            console.log(c.rojo(`  X No se encontraron jardines para la asociacion ${asociacionSeleccionada} en el Excel.`));
-            break;
-        }
-        
-        console.log(c.amarillo(`\n  > Asociacion activa: ${asociacionSeleccionada}`));
+
         const opcionesJardin = ['TODOS los jardines de esta asociacion', 'Seleccionar UN jardin especifico'];
         const jardIdx = readline.keyInSelect(opcionesJardin, c.negrita(`  > Alcance para ${asociacionSeleccionada}: `), { cancel: 'Atras' });
-        
-        if (jardIdx === -1) break;
+        if (jardIdx === -1) continue;
 
         if (jardIdx === 0) {
             jardinesAProcesar = jardinesAsoc.jardines;
         } else {
             const jardinesNames = jardinesAsoc.jardines.map(j => `${j.nombre} (${j.codigo})`);
             const jIdx = readline.keyInSelect(jardinesNames, c.negrita('  > Escoja el jardin: '), { cancel: 'Atras' });
-            if (jIdx === -1) break;
+            if (jIdx === -1) continue;
             jardinesAProcesar = [jardinesAsoc.jardines[jIdx]];
-        }
-        alcanceIdx = 1;
-    } else {
-        const opcionesAlcance = ['Procesar TODAS las asociaciones', 'Seleccionar UNA asociacion especifica'];
-        alcanceIdx = readline.keyInSelect(opcionesAlcance, c.negrita('  > Escoja el alcance de esta ejecucion: '), { cancel: 'Salir' });
-
-        if (alcanceIdx === -1) {
-            break;
-        }
-
-        if (alcanceIdx === 0) {
-            jardinesAProcesar = jardines;
-        } else {
-            const asociacionesNames = Object.keys(porAsociacion);
-            const ascIdx = readline.keyInSelect(asociacionesNames, c.negrita('  > Escoja la asociacion: '), { cancel: 'Cancelar' });
-            if (ascIdx === -1) continue;
-
-            asociacionSeleccionada = asociacionesNames[ascIdx];
-            const jardinesAsoc = porAsociacion[asociacionSeleccionada];
-
-            const opcionesJardin = ['TODOS los jardines de esta asociacion', 'Seleccionar UN jardin especifico'];
-            const jardIdx = readline.keyInSelect(opcionesJardin, c.negrita(`  > Alcance para ${asociacionSeleccionada}: `), { cancel: 'Atras' });
-            if (jardIdx === -1) continue;
-
-            if (jardIdx === 0) {
-                jardinesAProcesar = jardinesAsoc.jardines;
-            } else {
-                const jardinesNames = jardinesAsoc.jardines.map(j => `${j.nombre} (${j.codigo})`);
-                const jIdx = readline.keyInSelect(jardinesNames, c.negrita('  > Escoja el jardin: '), { cancel: 'Atras' });
-                if (jIdx === -1) continue;
-                jardinesAProcesar = [jardinesAsoc.jardines[jIdx]];
-            }
         }
     }
 
@@ -390,10 +342,7 @@ async function main() {
     } else {
         console.log();
         const temaIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita('  > Escoja el TEMA DE FORMACION para esta tarea: '), { cancel: 'Cancelar tarea' });
-        if (temaIdx === -1) {
-            if (process.env.ASOCIACION_ACTIVA) break;
-            continue;
-        }
+        if (temaIdx === -1) continue;
         temasPorAsociacion[asociacionSeleccionada] = TEMAS_FORMACION[temaIdx];
     }
 
@@ -499,10 +448,6 @@ async function main() {
 
     console.log(c.verde(`\n  ✅ Tarea finalizada. Exitosos: ${exitososActual.length} | Fallidos: ${fallidosActual.length}\n`));
     
-    if (process.env.ASOCIACION_ACTIVA) {
-        break;
-    }
-
     const continuar = readline.keyInYN(c.negrita('  Desea iniciar OTRA tarea de Formacion a Familias?'));
     if (!continuar) {
         break;
