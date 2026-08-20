@@ -467,7 +467,8 @@ async function main() {
                 } else {
                     const valores = valueOrText.split(',').map(v => v.trim());
                     
-                    await divDropdown.evaluate((div, vals) => {
+                    await divDropdown.evaluate(async (div, vals) => {
+const delay = ms => new Promise(res => setTimeout(res, ms));
                         const labels = Array.from(div.querySelectorAll('label'));
                         
                         // Si no es (Select All), desmarcar (Select All) si esta marcado
@@ -476,7 +477,7 @@ async function main() {
                             if (selectAllLabel) {
                                 let chk = document.getElementById(selectAllLabel.htmlFor);
                                 if (!chk) chk = selectAllLabel.querySelector('input[type="checkbox"]') || selectAllLabel.previousElementSibling;
-                                if (chk && chk.checked) chk.click();
+                                if (chk && chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
                             }
                         }
                         
@@ -486,7 +487,7 @@ async function main() {
                             if (label) {
                                 let chk = document.getElementById(label.htmlFor);
                                 if (!chk) chk = label.querySelector('input[type="checkbox"]') || label.previousElementSibling;
-                                if (chk && !chk.checked) chk.click();
+                                if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
                             }
                         }
                     }, valores);
@@ -546,8 +547,9 @@ async function main() {
                 if (okClicked) {
                     await mainPage.waitForTimeout(600);
                     
-                    await reportFrame.evaluate(({ valueOrText }) => {
+                    await reportFrame.evaluate(async ({ valueOrText }) => {
                         const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+                        const delay = ms => new Promise(res => setTimeout(res, ms));
                         const openDropdown = document.querySelector('div[id*="divDropDown"][style*="visible"], div[id*="divDropDown"]:not([style*="display: none"])');
                         if (!openDropdown) return;
 
@@ -557,7 +559,7 @@ async function main() {
                             const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
                             if (selectAll) {
                                 let chk = document.getElementById(selectAll.htmlFor) || selectAll.querySelector('input[type="checkbox"]');
-                                if (chk && !chk.checked) chk.click();
+                                if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
                             }
                         } else {
                             const vals = String(valueOrText).split(',').map(v => removeAccents(v));
@@ -566,7 +568,7 @@ async function main() {
                                 const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
                                 if (selectAll) {
                                     let chk = document.getElementById(selectAll.htmlFor) || selectAll.querySelector('input[type="checkbox"]');
-                                    if (chk && chk.checked) chk.click();
+                                    if (chk && chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
                                 }
                             }
 
@@ -577,7 +579,7 @@ async function main() {
                                 });
                                 if (matchedLabel) {
                                     let chk = document.getElementById(matchedLabel.htmlFor) || matchedLabel.querySelector('input[type="checkbox"]');
-                                    if (chk && !chk.checked) chk.click();
+                                    if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(400); }
                                 }
                             }
                         }
