@@ -288,7 +288,17 @@ async function main() {
             console.log(c.cyan('\n  --- Datos del Beneficiario ---'));
             
             // Tipo de beneficiario (Auto-select)
-            const selectTipoBenef = currentFrame.locator('select[id*="TipoBeneficiario"], select[id*="Beneficiario"]').first();
+            let selectTipoBenef = currentFrame.locator('select[id*="TipoBeneficiario"], select[id*="ddlTipoBeneficiario"]').first();
+            if (await selectTipoBenef.count() === 0) {
+                const id = await currentFrame.evaluate(() => {
+                    const lbl = Array.from(document.querySelectorAll('label, span, td')).find(el => el.innerText.toLowerCase().includes('tipo de beneficiario'));
+                    if (lbl && lbl.htmlFor) return lbl.htmlFor;
+                    if (lbl && lbl.nextElementSibling && lbl.nextElementSibling.tagName === 'SELECT') return lbl.nextElementSibling.id;
+                    const selects = document.querySelectorAll('select');
+                    return selects.length > 6 ? selects[6].id : null;
+                });
+                if (id) selectTipoBenef = currentFrame.locator(select[id=""]);
+            }
             const waitForAndSelect = async (selectLocator, textToMatch = null) => {
                 if (!selectLocator || await selectLocator.count() === 0) return null;
                 
@@ -322,7 +332,7 @@ async function main() {
 
                     await page.waitForTimeout(400);
                 }
-                if (!match && opts && opts.length > 0 && textToMatch) { console.log(c.amarillo('  ⚠️ Forzando fallback a: ' + opts[0].t)); match = opts[0]; }
+                if (!match && opts && opts.length > 0 && textToMatch) { console.log(c.amarillo('  ⚠️ Forzando fallback a: ' + opts[0].t + ' (Opciones vistas: ' + opts.map(o=>o.t).join(', ') + ')')); match = opts[0]; }
 
                 if (!match) {
                     if (textToMatch) {
@@ -346,7 +356,17 @@ async function main() {
             };
 
             // 1. Area misional (Direccion de Primera Infancia)
-            let selectArea = currentFrame.locator('select[id*="AreaMisional"]').first(); if (await selectArea.count() === 0) selectArea = currentFrame.locator('select').nth(0);
+            let selectArea = currentFrame.locator('select[id*="AreaMisional"], select[id*="ddlAreaMisional"]').first();
+            if (await selectArea.count() === 0) {
+                const id = await currentFrame.evaluate(() => {
+                    const lbl = Array.from(document.querySelectorAll('label, span, td')).find(el => el.innerText.toLowerCase().includes('misional'));
+                    if (lbl && lbl.htmlFor) return lbl.htmlFor;
+                    if (lbl && lbl.nextElementSibling && lbl.nextElementSibling.tagName === 'SELECT') return lbl.nextElementSibling.id;
+                    const selects = document.querySelectorAll('select');
+                    return selects.length > 0 ? selects[0].id : null;
+                });
+                if (id) selectArea = currentFrame.locator(select[id=""]);
+            }
             await waitForAndSelect(selectArea, 'Primera Infancia');
 
             // 2. Vigencia (2024 / Actual)
@@ -396,7 +416,17 @@ async function main() {
             }
 
             // 6. Seleccionar UDS Automaticamente
-            const selectUDS = currentFrame.locator('select[id*="UDS"], select[id*="ddlUDS"]').first();
+            let selectUDS = currentFrame.locator('select[id*="UDS"], select[id*="ddlUDS"]').first();
+            if (await selectUDS.count() === 0) {
+                const id = await currentFrame.evaluate(() => {
+                    const lbl = Array.from(document.querySelectorAll('label, span, td')).find(el => el.innerText.toLowerCase().includes('uds'));
+                    if (lbl && lbl.htmlFor) return lbl.htmlFor;
+                    if (lbl && lbl.nextElementSibling && lbl.nextElementSibling.tagName === 'SELECT') return lbl.nextElementSibling.id;
+                    const selects = document.querySelectorAll('select');
+                    return selects.length > 5 ? selects[5].id : null;
+                });
+                if (id) selectUDS = currentFrame.locator(select[id=""]);
+            }
             await waitForAndSelect(selectUDS, jardinSeleccionado.codigo);
 
             await waitForAndSelect(selectTipoBenef, 'NINO O NINA ENTRE 6 MESES Y 5 ANOS Y 11 MESES');
