@@ -647,7 +647,7 @@ if (!chk) chk = matchedLabel;
             await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
             await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
             await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
-            await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
+            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato) || await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
             await seleccionarSSRSByLabel('Ano de atencion', '2026');
             
             console.log('    👉 Marcando casilla NULL en Codigo de la UDS...');
