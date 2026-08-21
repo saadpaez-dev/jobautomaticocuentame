@@ -229,7 +229,7 @@ async function main() {
               console.log(c.amarillo(`  🔄 Cambiando a la asociacion "${asc.nombreCorto}"...`));
               try {
                   await mainPage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-                  await mainPage.waitForTimeout(2000);
+                  await mainPage.waitForTimeout(800);
               } catch (e) {}
           }
 
@@ -390,7 +390,7 @@ async function main() {
 
                 if (exito && exito.ok) {
                     console.log(c.verde(`    ✅ [Filtro] "${labelText}" -> ${exito.textSelected}`));
-                    await mainPage.waitForTimeout(3500);
+                    await mainPage.waitForTimeout(600);
                     return true;
                 } else {
                     console.log(c.amarillo(`    ⚠️ [Filtro] "${labelText}": ${exito ? exito.reason : 'No seleccionado'}`));
@@ -549,7 +549,7 @@ if (!chk) chk = label;
                 }, { targetLabel });
 
                 if (okClicked) {
-                    await mainPage.waitForTimeout(3500);
+                    await mainPage.waitForTimeout(600);
                     
                     await reportFrame.evaluate(async ({ valueOrText }) => {
                         const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
@@ -655,7 +655,7 @@ if (!chk) chk = matchedLabel;
                 const chkLocator = reportFrame.locator('input[id*="ctl17_cbNull"], input[id*="cbNull"]').first();
                 if (await chkLocator.count() > 0 && !(await chkLocator.isChecked().catch(() => false))) {
                     await chkLocator.check().catch(() => chkLocator.evaluate(n => n.checked = true));
-                    await mainPage.waitForTimeout(3500);
+                    await mainPage.waitForTimeout(600);
                 }
             } catch(e) {}
         } else if (opcionReporte === 2) {
@@ -671,35 +671,35 @@ if (!chk) chk = matchedLabel;
             
             // 1. Area Misional
             await seleccionarSSRSByLabel('Area Misional', 'Dirección de Primera Infancia');
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
             
             // 2. Regional
             await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
 
             // 3. Centro Zonal
             await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
 
             // 4. Municipio
             await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
             
             // 5. Ano de Toma
             await seleccionarSSRSByLabel('Ano de Toma', '2026') || await seleccionarSSRSByLabel('Año de Toma', '2026');
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
             
             // 6. Entidad Contratista
             await seleccionarSSRSMultiByLabel('Entidad Contratista', asc.nombreCorto) || await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
             
             // 7. Periodo Toma
             await seleccionarSSRSByLabel('Periodo Toma', 'Mensual');
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
 
             // 8. Toma (Mes)
             await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma) || await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma);
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
             
             // 9. TODAS LAS TOMAS
             await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO');
@@ -904,7 +904,7 @@ if (!chk) chk = matchedLabel;
         } else if (reportPage === mainPage && i < ascValidas.length - 1 && rolesUrl) {
             console.log('  🔄 Volviendo a la seleccion de roles para la siguiente asociacion...');
             await mainPage.goto(rolesUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-            await mainPage.waitForTimeout(2000);
+            await mainPage.waitForTimeout(800);
         }
       }
   }
