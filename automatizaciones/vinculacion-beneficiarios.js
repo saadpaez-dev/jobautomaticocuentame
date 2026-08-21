@@ -297,7 +297,7 @@ async function main() {
                     const selects = document.querySelectorAll('select');
                     return selects.length > 6 ? selects[6].id : null;
                 });
-                if (id) selectTipoBenef = currentFrame.locator(select[id=""]);
+                if (id) selectTipoBenef = currentFrame.locator(`select[id="${id}"]`);
             }
             const waitForAndSelect = async (selectLocator, textToMatch = null) => {
                 if (!selectLocator || await selectLocator.count() === 0) return null;
@@ -365,7 +365,7 @@ async function main() {
                     const selects = document.querySelectorAll('select');
                     return selects.length > 0 ? selects[0].id : null;
                 });
-                if (id) selectArea = currentFrame.locator(select[id=""]);
+                if (id) selectArea = currentFrame.locator(`select[id="${id}"]`);
             }
             await waitForAndSelect(selectArea, 'Primera Infancia');
 
@@ -425,7 +425,7 @@ async function main() {
                     const selects = document.querySelectorAll('select');
                     return selects.length > 5 ? selects[5].id : null;
                 });
-                if (id) selectUDS = currentFrame.locator(select[id=""]);
+                if (id) selectUDS = currentFrame.locator(`select[id="${id}"]`);
             }
             await waitForAndSelect(selectUDS, jardinSeleccionado.codigo);
 
