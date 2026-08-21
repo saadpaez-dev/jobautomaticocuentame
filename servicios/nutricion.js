@@ -343,9 +343,15 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                         for (let i = 0; i < radios.length; i++) {
                             const r = radios[i];
                             if (r.disabled) continue;
-                            const nextText = r.nextSibling ? (r.nextSibling.textContent || '') : '';
-                            const parentText = r.parentElement ? r.parentElement.innerText : '';
-                            if (normalize(nextText).includes(normChoice) || normalize(parentText).includes(normChoice) || (r.value && normalize(r.value).includes(normChoice))) {
+                            let lblText = r.nextSibling ? (r.nextSibling.textContent || '') : '';
+                            if (r.parentElement && r.parentElement.tagName === 'LABEL') {
+                                lblText += ' ' + r.parentElement.innerText;
+                            }
+                            if (r.id) {
+                                const extLabel = document.querySelector('label[for="' + r.id + '"]');
+                                if (extLabel) lblText += ' ' + extLabel.innerText;
+                            }
+                            if (normalize(lblText).includes(normChoice) || (r.value && normalize(r.value).includes(normChoice))) {
                                 r.click();
                                 clicked = true;
                                 break;
