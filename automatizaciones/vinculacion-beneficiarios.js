@@ -664,7 +664,7 @@ async function main() {
             const pApellido = datosNino.pApellido;
             const sApellido = datosNino.sApellido;
             const fechaNac = datosNino.fechaNac;
-            const sexo = datosNino.sexo;
+            let sexo = datosNino.sexo;
 
             let continuarLlenado = true;
             
