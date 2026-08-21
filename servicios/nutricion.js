@@ -458,7 +458,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             await safeFillText('esquema de vacunacion', datos.fecha);
             await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
             
-            await safeFillRadio('carnet de crecimiento y desarrollo', 'No', 1);
+            await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
             await page.waitForTimeout(200);
         } else {
             console.log(c.gris('    ℹ️ Nino con historial: Omitiendo modificacion de "Fecha de verificacion del esquema de vacunacion".'));
