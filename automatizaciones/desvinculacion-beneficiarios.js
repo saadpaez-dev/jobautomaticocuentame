@@ -200,24 +200,6 @@ async function main() {
             // --- LLENAR FILTROS (Misma logica robusta) ---
             console.log(c.amarillo(`  ⏳ Llenando filtros de Contrato para ${ascSeleccionada.nombreCorto}...`));
             
-            // Area misional: Direccion de Primera Infancia
-            const selectArea = contentFrame.locator('select').filter({ hasText: 'Primera Infancia' }).first();
-            if (await selectArea.count() > 0) {
-                await selectArea.selectOption({ label: 'Direccion de Primera Infancia' }).catch(()=>{});
-                await page.waitForTimeout(800);
-            }
-
-            // Vigencia: Usar la del Excel, si no, el ano actual
-            let vigenciaStr = ascSeleccionada.vigenciaContrato || new Date().getFullYear().toString();
-            if (!vigenciaStr) vigenciaStr = new Date().getFullYear().toString();
-
-            const selectVigencia = contentFrame.locator('select').filter({ hasText: vigenciaStr }).first();
-            if (await selectVigencia.count() > 0) {
-                await selectVigencia.selectOption({ label: vigenciaStr }).catch(()=>{});
-                await page.waitForTimeout(800);
-            }
-
-            // Funcion auxiliar robusta
             const waitForAndSelect = async (selectLocator, textToMatch = null) => {
                 if (await selectLocator.count() === 0) return null;
                 let opts = [];
@@ -274,7 +256,19 @@ async function main() {
                 return opts;
             };
 
-            // Seleccionar Regional
+let selectArea = contentFrame.locator('select[id*="AreaMisional"]').first();
+            if (await selectArea.count() === 0) selectArea = contentFrame.locator('select').nth(0);
+            await waitForAndSelect(selectArea, 'Primera Infancia');
+            
+            let vigenciaStr = ascSeleccionada.vigenciaContrato || new Date().getFullYear().toString();
+            if (!vigenciaStr) vigenciaStr = new Date().getFullYear().toString();
+            
+            let selectVigencia = contentFrame.locator('select[id*="Vigencia"]').first();
+            if (await selectVigencia.count() === 0) selectVigencia = contentFrame.locator('select').nth(2);
+            await waitForAndSelect(selectVigencia, vigenciaStr);
+
+            // Funcion auxiliar robusta
+                        // Seleccionar Regional
             const selectRegional = contentFrame.locator('select[id*="ddlRegional"], select[id*="Regional"]').first();
             await waitForAndSelect(selectRegional, 'Bogota D.C.');
 
