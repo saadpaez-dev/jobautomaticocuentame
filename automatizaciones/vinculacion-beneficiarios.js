@@ -463,7 +463,8 @@ async function main() {
 
             let paso = docRecuperacion ? 2 : 0; // Si recuperamos doc, empezamos en Primer Nombre
 
-            while (paso >= 0 && paso <= 7) {
+            // === FASE 1: PREGUNTAR DOCUMENTO ===
+            while (paso >= 0 && paso <= 1) {
                 if (paso === 0) {
                     console.log(c.cyan('  --- TIPO DE DOCUMENTO ---'));
                     opcionesDoc.forEach((m, i) => console.log(`  ${i + 1}. ${m}`));
@@ -488,28 +489,99 @@ async function main() {
                     } else {
                         if (res !== '') datosNino.docNum = res;
                         if (!datosNino.docNum) {
-                            console.log(c.rojo('  âŒ El numero de documento es obligatorio.'));
+                            console.log(c.rojo('  ❌ El numero de documento es obligatorio.'));
                         } else {
                             docRecuperacion = { idxDoc: datosNino.idxDoc, docNum: datosNino.docNum };
                             paso++;
                         }
                     }
-                } else if (paso === 2) {
+                }
+            }
+
+            const tipoDocId = opcionesDoc[datosNino.idxDoc];
+            const docNum = datosNino.docNum;
+
+            let ninoExiste = false;
+            let textInputs = [];
+            let inputPNombre = null, inputSNombre = null, inputPApellido = null, inputSApellido = null, inputFechaNac = null;
+
+            // === FASE 2: BUSCAR EN CUENTAME (LUPA) ===
+            // Solo si NO es Partida o Acta de Nacimiento (Opcion 6 -> indice 5)
+            if (datosNino.idxDoc !== 5) {
+                const selectTipoDoc = currentFrame.locator('select').filter({ hasText: 'REGISTRO CIVIL' }).first();
+                if (await selectTipoDoc.count() > 0) {
+                    await selectTipoDoc.selectOption({ label: tipoDocId }).catch(()=>{});
+                    await page.waitForTimeout(500);
+                }
+
+                const inputDoc = currentFrame.locator('input[type="text"]').first(); 
+                const btnLupa = currentFrame.locator('input[type="image"][src*="icoPagBuscar"], input[id*="btnBuscar"]').first();
+                
+                if (await inputDoc.count() > 0) {
+                    await inputDoc.fill(docNum);
+                }
+
+                console.log(c.amarillo('  🔍 Validando Documento en Cuéntame (Lupa)...'));
+                if (await btnLupa.count() > 0) {
+                    const postPromise = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 5000 }).catch(() => {});
+                    await btnLupa.click();
+                    await postPromise;
+                    await page.waitForTimeout(500);
+                }
+
+                textInputs = await currentFrame.locator('input[type="text"]').all();
+                
+                let docIndex = await currentFrame.evaluate((docNumVal) => {
+                    const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
+                    for (let i = 0; i < inputs.length; i++) {
+                        const val = (inputs[i].value || '').replace(/\D/g, '');
+                        const cleanDocNum = docNumVal.replace(/\D/g, '');
+                        if (val.length >= 6 && (val === cleanDocNum || cleanDocNum.startsWith(val))) {
+                            return i;
+                        }
+                    }
+                    return -1;
+                }, docNum);
+
+                if (docIndex !== -1 && docIndex + 5 < textInputs.length) {
+                    inputPNombre = textInputs[docIndex + 1];
+                    inputSNombre = textInputs[docIndex + 2];
+                    inputPApellido = textInputs[docIndex + 3];
+                    inputSApellido = textInputs[docIndex + 4];
+                    inputFechaNac = textInputs[docIndex + 5];
+                }
+
+                if (inputPNombre) {
+                    const valPNombre = await inputPNombre.inputValue().catch(()=>'');
+                    if (valPNombre && valPNombre.trim() !== '') {
+                        ninoExiste = true;
+                        datosNino.pNombre = await inputPNombre.inputValue();
+                        datosNino.sNombre = await inputSNombre.inputValue();
+                        datosNino.pApellido = await inputPApellido.inputValue();
+                        datosNino.sApellido = await inputSApellido.inputValue();
+                        datosNino.fechaNac = await inputFechaNac.inputValue();
+                        console.log(c.verde(`  ✅ ¡El niño(a) ya está creado en el sistema!`));
+                        console.log(c.cyan(`     Datos recuperados: ${datosNino.pNombre} ${datosNino.sNombre} ${datosNino.pApellido} ${datosNino.sApellido}`.replace(/\s+/g, ' ')));
+                        paso = 8; // Saltar preguntas manuales
+                    }
+                }
+            }
+
+            // === FASE 3: PREGUNTAR RESTO DE DATOS SI NO EXISTE O SI ES PARTIDA ===
+            while (paso >= 2 && paso <= 7) {
+                if (paso === 2) {
                     const hint = datosNino.pNombre ? ` [actual: ${datosNino.pNombre}]` : '';
                     const res = readline.question(c.negrita(`  > Primer Nombre${hint}: `)).trim().toUpperCase();
                     if (isGoBack(res)) {
-                        paso--;
+                        console.log(c.amarillo('  ⚠️ El documento ya fue validado. Si necesitas cambiarlo, reinicia el modulo (Ctrl+C).'));
+                        // Mantenemos paso = 2
                     } else {
                         if (res !== '') datosNino.pNombre = res;
-                        if (!datosNino.pNombre) {
-                            console.log(c.rojo('  âŒ El primer nombre es obligatorio.'));
-                        } else {
-                            paso++;
-                        }
+                        paso++;
                     }
                 } else if (paso === 3) {
                     const hint = datosNino.sNombre ? ` [actual: ${datosNino.sNombre}]` : '';
-                    const res = readline.question(c.negrita(`  > Segundo Nombre${hint} (Vacio para omitir): `)).trim().toUpperCase();
+                    const res = readline.question(c.negrita(`  > Segundo Nombre${hint}: `)).trim().toUpperCase();
                     if (isGoBack(res)) {
                         paso--;
                     } else {
@@ -523,15 +595,11 @@ async function main() {
                         paso--;
                     } else {
                         if (res !== '') datosNino.pApellido = res;
-                        if (!datosNino.pApellido) {
-                            console.log(c.rojo('  âŒ El primer apellido es obligatorio.'));
-                        } else {
-                            paso++;
-                        }
+                        paso++;
                     }
                 } else if (paso === 5) {
                     const hint = datosNino.sApellido ? ` [actual: ${datosNino.sApellido}]` : '';
-                    const res = readline.question(c.negrita(`  > Segundo Apellido${hint} (Vacio para omitir): `)).trim().toUpperCase();
+                    const res = readline.question(c.negrita(`  > Segundo Apellido${hint}: `)).trim().toUpperCase();
                     if (isGoBack(res)) {
                         paso--;
                     } else {
@@ -565,7 +633,7 @@ async function main() {
                         };
 
                         if (!esValida(valProbada)) {
-                            console.log(c.rojo('  âŒ Formato de fecha no valido. Debe tener el formato DD/MM/YYYY (ej: 19/04/2021 o 19042021).'));
+                            console.log(c.rojo('  ❌ Formato de fecha no valido. Debe tener el formato DD/MM/YYYY (ej: 19/04/2021 o 19042021).'));
                         } else {
                             if (/^\d{8}$/.test(valProbada)) {
                                 datosNino.fechaNac = `${valProbada.substring(0,2)}/${valProbada.substring(2,4)}/${valProbada.substring(4,8)}`;
@@ -591,8 +659,6 @@ async function main() {
                 }
             }
 
-            const tipoDocId = opcionesDoc[datosNino.idxDoc];
-            const docNum = datosNino.docNum;
             const pNombre = datosNino.pNombre;
             const sNombre = datosNino.sNombre;
             const pApellido = datosNino.pApellido;
@@ -600,70 +666,43 @@ async function main() {
             const fechaNac = datosNino.fechaNac;
             const sexo = datosNino.sexo;
 
-            const selectTipoDoc = currentFrame.locator('select').filter({ hasText: 'REGISTRO CIVIL' }).first();
-            if (await selectTipoDoc.count() > 0) {
-                await selectTipoDoc.selectOption({ label: tipoDocId }).catch(()=>{});
-                await page.waitForTimeout(500);
-            }
-
-            // Numero de documento
-            const inputDoc = currentFrame.locator('input[type="text"]').first(); 
-            const btnLupa = currentFrame.locator('input[type="image"][src*="icoPagBuscar"], input[id*="btnBuscar"]').first();
-            
-            if (await inputDoc.count() > 0) {
-                await inputDoc.fill(docNum);
-            }
-
             let continuarLlenado = true;
-            let ninoExiste = false;
-            let textInputs = [];
-
-            // Damos click en la lupa para validar el documento
-            console.log(c.amarillo('  â³ Validando Documento (Lupa)...'));
-            if (await btnLupa.count() > 0) {
-                const postPromise = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 5000 }).catch(() => {});
-                await btnLupa.click();
-                await postPromise;
-                await page.waitForTimeout(500);
-            }
-
-            textInputs = await currentFrame.locator('input[type="text"]').all();
             
-            let docIndex = await currentFrame.evaluate((docNumVal) => {
-                const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
-                for (let i = 0; i < inputs.length; i++) {
-                    const val = (inputs[i].value || '').replace(/\D/g, '');
-                    const cleanDocNum = docNumVal.replace(/\D/g, '');
-                    if (val.length >= 6 && (val === cleanDocNum || cleanDocNum.startsWith(val))) {
-                        return i;
+            if (datosNino.idxDoc === 5) {
+                // Si es Partida o Acta, la Fase 2 se omitio, por lo que tenemos que llenar el Tipo/Num doc AHORA.
+                const selectTipoDoc = currentFrame.locator('select').filter({ hasText: 'REGISTRO CIVIL' }).first();
+                if (await selectTipoDoc.count() > 0) {
+                    await selectTipoDoc.selectOption({ label: tipoDocId }).catch(()=>{});
+                    await page.waitForTimeout(500);
+                }
+
+                const inputDoc = currentFrame.locator('input[type="text"]').first();
+                if (await inputDoc.count() > 0) {
+                    await inputDoc.fill(docNum);
+                }
+                
+                // NO PRESIONAMOS LA LUPA PORQUE ESTA BLOQUEADO O NO APLICA (Segun requerimiento)
+                textInputs = await currentFrame.locator('input[type="text"]').all();
+                let docIndex = await currentFrame.evaluate((docNumVal) => {
+                    const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
+                    for (let i = 0; i < inputs.length; i++) {
+                        const val = (inputs[i].value || '').replace(/\D/g, '');
+                        const cleanDocNum = docNumVal.replace(/\D/g, '');
+                        if (val.length >= 6 && (val === cleanDocNum || cleanDocNum.startsWith(val))) {
+                            return i;
+                        }
                     }
-                }
-                return -1;
-            }, docNum);
+                    return -1;
+                }, docNum);
 
-            let inputPNombre = null, inputSNombre = null, inputPApellido = null, inputSApellido = null, inputFechaNac = null;
-            if (docIndex !== -1 && docIndex + 5 < textInputs.length) {
-                inputPNombre = textInputs[docIndex + 1];
-                inputSNombre = textInputs[docIndex + 2];
-                inputPApellido = textInputs[docIndex + 3];
-                inputSApellido = textInputs[docIndex + 4];
-                inputFechaNac = textInputs[docIndex + 5];
-            }
-
-            // Verificar si se autocompletaron los datos (Escenario 1)
-            if (inputPNombre) {
-                const valPNombre = await inputPNombre.inputValue().catch(()=>'');
-                if (valPNombre && valPNombre.trim() !== '') {
-                    ninoExiste = true;
-                    const pN = await inputPNombre.inputValue();
-                    const sN = await inputSNombre.inputValue();
-                    const pA = await inputPApellido.inputValue();
-                    const sA = await inputSApellido.inputValue();
-                    console.log(c.verde(`  âœ… El nino ya esta creado en el sistema!`));
-                    console.log(c.cyan(`     Datos recuperados: ${pN} ${sN} ${pA} ${sA}`.replace(/\s+/g, ' ')));
+                if (docIndex !== -1 && docIndex + 5 < textInputs.length) {
+                    inputPNombre = textInputs[docIndex + 1];
+                    inputSNombre = textInputs[docIndex + 2];
+                    inputPApellido = textInputs[docIndex + 3];
+                    inputSApellido = textInputs[docIndex + 4];
+                    inputFechaNac = textInputs[docIndex + 5];
                 }
             }
-
             if (continuarLlenado) {
                 if (!ninoExiste) {
                     if (inputPNombre) {
