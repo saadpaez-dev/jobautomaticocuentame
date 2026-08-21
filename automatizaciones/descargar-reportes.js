@@ -476,8 +476,10 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                             const selectAllLabel = labels.find(l => l.innerText.includes('(Select All)'));
                             if (selectAllLabel) {
                                 let chk = document.getElementById(selectAllLabel.htmlFor);
-                                if (!chk) chk = selectAllLabel.querySelector('input[type="checkbox"]') || selectAllLabel.previousElementSibling;
-                                if (chk && chk.checked) { if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } else if (typeof selectAllLabel !== 'undefined') { selectAllLabel.scrollIntoView({block:'center'}); selectAllLabel.click(); } await delay(600); }
+if (!chk) chk = selectAllLabel.querySelector('input[type="checkbox"]');
+if (!chk && selectAllLabel.previousElementSibling && selectAllLabel.previousElementSibling.type === 'checkbox') chk = selectAllLabel.previousElementSibling;
+if (!chk) chk = selectAllLabel;
+                                if (chk && chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
                             }
                         }
                         
@@ -486,8 +488,10 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                             const label = labels.find(l => l.innerText.toUpperCase().includes(val.toUpperCase()));
                             if (label) {
                                 let chk = document.getElementById(label.htmlFor);
-                                if (!chk) chk = label.querySelector('input[type="checkbox"]') || label.previousElementSibling;
-                                if (chk && !chk.checked) { if (typeof matchedLabel !== 'undefined') { matchedLabel.scrollIntoView({block:'center'}); matchedLabel.click(); } else if (typeof label !== 'undefined') { label.scrollIntoView({block:'center'}); label.click(); } else if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } await delay(600); }
+if (!chk) chk = label.querySelector('input[type="checkbox"]');
+if (!chk && label.previousElementSibling && label.previousElementSibling.type === 'checkbox') chk = label.previousElementSibling;
+if (!chk) chk = label;
+                                if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
                             }
                         }
                     }, valores);
@@ -558,8 +562,11 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                         if (valueOrText === '(Select All)' || valueOrText === '(Check All)') {
                             const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
                             if (selectAll) {
-                                let chk = document.getElementById(selectAll.htmlFor) || selectAll.querySelector('input[type="checkbox"]');
-                                if (chk && !chk.checked) { if (typeof matchedLabel !== 'undefined') { matchedLabel.scrollIntoView({block:'center'}); matchedLabel.click(); } else if (typeof label !== 'undefined') { label.scrollIntoView({block:'center'}); label.click(); } else if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } await delay(600); }
+                                let chk = document.getElementById(selectAll.htmlFor);
+if (!chk) chk = selectAll.querySelector('input[type="checkbox"]');
+if (!chk && selectAll.previousElementSibling && selectAll.previousElementSibling.type === 'checkbox') chk = selectAll.previousElementSibling;
+if (!chk) chk = selectAll;
+                                if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
                             }
                         } else {
                             const vals = String(valueOrText).split(',').map(v => removeAccents(v));
@@ -567,8 +574,11 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                             if (!vals.includes('SELECT ALL')) {
                                 const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
                                 if (selectAll) {
-                                    let chk = document.getElementById(selectAll.htmlFor) || selectAll.querySelector('input[type="checkbox"]');
-                                    if (chk && chk.checked) { if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } else if (typeof selectAllLabel !== 'undefined') { selectAllLabel.scrollIntoView({block:'center'}); selectAllLabel.click(); } await delay(600); }
+                                    let chk = document.getElementById(selectAll.htmlFor);
+if (!chk) chk = selectAll.querySelector('input[type="checkbox"]');
+if (!chk && selectAll.previousElementSibling && selectAll.previousElementSibling.type === 'checkbox') chk = selectAll.previousElementSibling;
+if (!chk) chk = selectAll;
+                                    if (chk && chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
                                 }
                             }
 
@@ -578,8 +588,11 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
                                     return txt.includes(val) || val.includes(txt);
                                 });
                                 if (matchedLabel) {
-                                    let chk = document.getElementById(matchedLabel.htmlFor) || matchedLabel.querySelector('input[type="checkbox"]');
-                                    if (chk && !chk.checked) { if (typeof matchedLabel !== 'undefined') { matchedLabel.scrollIntoView({block:'center'}); matchedLabel.click(); } else if (typeof label !== 'undefined') { label.scrollIntoView({block:'center'}); label.click(); } else if (typeof selectAll !== 'undefined') { selectAll.scrollIntoView({block:'center'}); selectAll.click(); } await delay(600); }
+                                    let chk = document.getElementById(matchedLabel.htmlFor);
+if (!chk) chk = matchedLabel.querySelector('input[type="checkbox"]');
+if (!chk && matchedLabel.previousElementSibling && matchedLabel.previousElementSibling.type === 'checkbox') chk = matchedLabel.previousElementSibling;
+if (!chk) chk = matchedLabel;
+                                    if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
                                 }
                             }
                         }
