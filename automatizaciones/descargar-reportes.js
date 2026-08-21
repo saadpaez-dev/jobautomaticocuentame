@@ -452,7 +452,7 @@ async function main() {
             try {
                 const btn = reportFrame.locator(`#${id}_ddDropDownButton`);
                 await btn.waitFor({ state: 'visible', timeout: 5000 });
-                await btn.click({ timeout: 15000 });
+                await btn.click({ force: true, timeout: 5000 }).catch(() => btn.evaluate(b => b.click()));
                 
                 const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
                 await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
@@ -698,7 +698,7 @@ if (!chk) chk = matchedLabel;
             await mainPage.waitForTimeout(2000);
 
             // 8. Toma (Mes)
-            await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma) || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
+            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma) || await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma);
             await mainPage.waitForTimeout(2000);
             
             // 9. TODAS LAS TOMAS
