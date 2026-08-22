@@ -1,4 +1,4 @@
-/**
+﻿/**
  * consulta-activos.js
  * Script interactivo para consultar si un beneficiario se encuentra vinculado o desvinculado,
  * y en que Unidad de Servicio esta.
@@ -27,7 +27,7 @@ async function main() {
   const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
   if (!USUARIO || !PASSWORD) {
-    console.error(c.rojo('\n❌ Faltan credenciales en el archivo .env\n'));
+    console.error(c.rojo('\nâŒ Faltan credenciales en el archivo .env\n'));
     process.exit(1);
   }
 
@@ -37,12 +37,12 @@ async function main() {
   const asociaciones = Object.values(porAsociacion);
 
   if (asociaciones.length === 0) {
-    console.log(c.rojo('❌ No se encontraron asociaciones en el Excel.'));
+    console.log(c.rojo('âŒ No se encontraron asociaciones en el Excel.'));
     return;
   }
 
   console.log(c.cyan('\n======================================================'));
-  console.log(c.cyan('   🔍 CONSULTA DE BENEFICIARIOS (ACTIVOS/INACTIVOS)'));
+  console.log(c.cyan('   ðŸ” CONSULTA DE BENEFICIARIOS (ACTIVOS/INACTIVOS)'));
   console.log(c.cyan('======================================================\n'));
   console.log(c.gris('Selecciona una asociacion cualquiera para poder ingresar al sistema de Cuentame.'));
   console.log(c.gris('Nota: La busqueda de beneficiarios es global en el sistema.'));
@@ -57,7 +57,7 @@ async function main() {
   while (true) {
       if (salirModulo) break;
       
-      let ascSeleccionada;
+      let ascSeleccionada = process.env.ASOCIACION_ACTIVA ? JSON.parse(process.env.ASOCIACION_ACTIVA) : null;
       if (process.env.ASOCIACION_ACTIVA) {
           ascSeleccionada = JSON.parse(process.env.ASOCIACION_ACTIVA);
       } else {
@@ -72,14 +72,14 @@ async function main() {
           }
 
           if (idxAsociacion === 0) {
-            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
+            console.log(c.verde('\n  ðŸ‘‹ Volviendo al menu principal...'));
             break;
           }
           ascSeleccionada = asociaciones[idxAsociacion - 1];
       }
 
       if (!browser) {
-          console.log(c.cyan('\n  🌐 Conectando al navegador existente (CDP)...\n'));
+          console.log(c.cyan('\n  ðŸŒ Conectando al navegador existente (CDP)...\n'));
           const navData = await obtenerNavegador();
           browser = navData.browser;
           context = navData.context;
@@ -89,7 +89,7 @@ async function main() {
       try {
         const mismaAsociacion = await validarYCambiarAsociacion(page, ascSeleccionada);
         if (!mismaAsociacion) {
-            console.log(c.amarillo('  🔐 Verificando inicio de sesion en Cuentame...'));
+            console.log(c.amarillo('  ðŸ” Verificando inicio de sesion en Cuentame...'));
             await loginYLlegarARoles(page, {
               usuario: USUARIO,
               password: PASSWORD,
@@ -97,15 +97,15 @@ async function main() {
               gmailAppPassword: GMAIL_APP_PASSWORD
             });
             loggedIn = true;
-            console.log(c.amarillo(`  🏢 Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
+            console.log(c.amarillo(`  ðŸ¢ Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
             await seleccionarRolYEntrar(page, ascSeleccionada);
         } else {
-            console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
+            console.log(c.verde(`  âœ… Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
             loggedIn = true;
         }
 
         // Navegar a Informacion del Beneficiario
-    console.log(c.cyan('  🚀 Navegando al modulo de Informacion del Beneficiario...'));
+    console.log(c.cyan('  ðŸš€ Navegando al modulo de Informacion del Beneficiario...'));
     
     let menuFrame = page.frame({ name: 'frameMenu' });
     if (!menuFrame) {
@@ -142,7 +142,7 @@ async function main() {
             return 'NOT_FOUND';
         }).catch(() => 'ERROR');
 
-        console.log(c.gris(`  ℹ️ Estado del menu: ${result}`));
+        console.log(c.gris(`  â„¹ï¸ Estado del menu: ${result}`));
 
         if (result === 'RUB_EXPANDED') {
             await page.waitForTimeout(800); // Esperar a que el sub-menu se expanda
@@ -155,9 +155,9 @@ async function main() {
         }
         
         await page.waitForTimeout(1500);
-        console.log(c.verde('  ✅ Clic en "Informacion beneficiario" enviado.'));
+        console.log(c.verde('  âœ… Clic en "Informacion beneficiario" enviado.'));
     } catch (err) {
-        console.log(c.rojo(`  ❌ Error al intentar acceder a Informacion beneficiario: ${err.message}`));
+        console.log(c.rojo(`  âŒ Error al intentar acceder a Informacion beneficiario: ${err.message}`));
     }
     // (La obtencion del frame se hara dentro del bucle para asegurar que este listo)
     
@@ -288,9 +288,9 @@ async function main() {
             if (registros.length === 0) {
                 const sinDatos = frame.locator('text="No se encontraron datos"').first();
                 if (await sinDatos.count() > 0 && await sinDatos.isVisible()) {
-                    console.log(c.rojo(`  ❌ El sistema reporta: No se encontraron datos para el documento ${documento}.`));
+                    console.log(c.rojo(`  âŒ El sistema reporta: No se encontraron datos para el documento ${documento}.`));
                 } else {
-                    console.log(c.rojo('  ❌ No se encontro ninguna tabla de resultados. Revisa si la pagina mostro un error.'));
+                    console.log(c.rojo('  âŒ No se encontro ninguna tabla de resultados. Revisa si la pagina mostro un error.'));
                 }
                 // No hace nada especial, simplemente vuelve al top del loop
                 continue;
@@ -307,7 +307,7 @@ async function main() {
             });
 
             const masReciente = registros[0];
-            console.log(c.verde(`\n  ✅ Beneficiario encontrado: ${c.cyan(masReciente.nombre)}`));
+            console.log(c.verde(`\n  âœ… Beneficiario encontrado: ${c.cyan(masReciente.nombre)}`));
             console.log(`    Ultimo registro: ${masReciente.fechaAtencion}`);
             console.log(`    Estado actual: ${c.negrita(masReciente.estado)}`);
             console.log(`    Asociacion (Entidad): ${masReciente.entidad}`);
@@ -319,7 +319,7 @@ async function main() {
 
             if (estadoMayus === 'VINCULADO') {
                 if (!esMismaAsociacion) {
-                    console.log(c.rojo(`  ⚠️ El nino se encuentra VINCULADO pero en OTRA asociacion (${masReciente.entidad}).`));
+                    console.log(c.rojo(`  âš ï¸ El nino se encuentra VINCULADO pero en OTRA asociacion (${masReciente.entidad}).`));
                     const resp = readline.question('  Deseas guardar esta novedad en el Excel oficial de ICBF? (s/n) o [M] para menu principal: ').toLowerCase();
                     if (resp === 'm') {
                         salirModulo = true;
@@ -327,7 +327,7 @@ async function main() {
                     }
                     if (resp === 's' || resp === 'si') {
                         // Guardar en el formato de excel f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx
-                        console.log(c.amarillo('  ⏳ Guardando en el formato de desvinculacion...'));
+                        console.log(c.amarillo('  â³ Guardando en el formato de desvinculacion...'));
                         const formatoPath = path.join(__dirname, '..', 'docs', 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx');
                         const workbook = new ExcelJS.Workbook();
                         await workbook.xlsx.readFile(formatoPath);
@@ -386,7 +386,7 @@ async function main() {
                             
                             await workbook.xlsx.writeFile(childExcelPath);
                             
-                            console.log(c.verde(`  ✅ Novedad guardada exitosamente en el Excel (solo para este nino).`));
+                            console.log(c.verde(`  âœ… Novedad guardada exitosamente en el Excel (solo para este nino).`));
                             
                             const armarCorreo = readline.question('  Desea armar el correo para envio a la regional? (s/n) o [M] para menu principal: ').toLowerCase();
                             if (armarCorreo === 'm') {
@@ -394,7 +394,7 @@ async function main() {
                                 break;
                             }
                             if (armarCorreo === 's' || armarCorreo === 'si') {
-                                console.log(c.amarillo('  ⏳ Generando borrador del correo (.eml)...'));
+                                console.log(c.amarillo('  â³ Generando borrador del correo (.eml)...'));
                                 const nodemailer = require('nodemailer');
                                 const MailComposer = require('nodemailer/lib/mail-composer');
                                 
@@ -415,7 +415,7 @@ async function main() {
 </p>`;
 
                                 const { procesarDocumentos } = require('../servicios/verificador-docs');
-                                console.log(c.cyan('\n  ⏳ Verificando y clasificando documentos de soporte...'));
+                                console.log(c.cyan('\n  â³ Verificando y clasificando documentos de soporte...'));
                                 const docsClasificados = await procesarDocumentos(documento);
                                 
                                 const fs = require('fs');
@@ -437,7 +437,7 @@ async function main() {
                                     attachments.push({ filename: 'RC.pdf', path: path.join(docsDir, 'RC.pdf') });
                                     attachments.push({ filename: 'CARTA.pdf', path: path.join(docsDir, 'CARTA.pdf') });
                                 } else {
-                                    console.log(c.amarillo(`  ⚠️ El borrador del correo se creara SOLO con el Excel, ya que los documentos de soporte estan incompletos.`));
+                                    console.log(c.amarillo(`  âš ï¸ El borrador del correo se creara SOLO con el Excel, ya que los documentos de soporte estan incompletos.`));
                                 }
 
                                 const mail = new MailComposer({
@@ -455,25 +455,25 @@ async function main() {
                                 const gmailPass = process.env.GMAIL_APP_PASSWORD;
                                 
                                 if (!gmailUser || !gmailPass) {
-                                    console.log(c.rojo('  ❌ No se encontraron GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
+                                    console.log(c.rojo('  âŒ No se encontraron GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
                                 } else {
                                     const messageBuffer = await mail.compile().build();
                                     await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
-                                    console.log(c.verde(`  ✅ Borrador de correo subido exitosamente a la carpeta Borradores de tu Gmail.`));
+                                    console.log(c.verde(`  âœ… Borrador de correo subido exitosamente a la carpeta Borradores de tu Gmail.`));
                                     console.log(c.verde(`     (Revisa la carpeta "Borradores" en tu correo, alli estara listo con el Excel adjunto).`));
                                 }
                             }
                         } else {
-                            console.log(c.rojo('  ❌ No se encontro la hoja "FORMATO" en el archivo de Excel.'));
+                            console.log(c.rojo('  âŒ No se encontro la hoja "FORMATO" en el archivo de Excel.'));
                         }
                     }
                 } else {
-                    console.log(c.verde(`  ✅ El nino se encuentra VINCULADO correctamente en tu asociacion.`));
+                    console.log(c.verde(`  âœ… El nino se encuentra VINCULADO correctamente en tu asociacion.`));
                 }
             } else if (estadoMayus === 'DESVINCULADO') {
-                console.log(c.amarillo(`  👉 El nino se encuentra DESVINCULADO. (Procede a la tarea 5 para vincularlo).`));
+                console.log(c.amarillo(`  ðŸ‘‰ El nino se encuentra DESVINCULADO. (Procede a la tarea 5 para vincularlo).`));
             } else {
-                console.log(c.gris(`  ℹ️ Estado desconocido: ${masReciente.estado}.`));
+                console.log(c.gris(`  â„¹ï¸ Estado desconocido: ${masReciente.estado}.`));
             }
 
             console.log(c.cyan('\n------------------------------------------------------'));
@@ -483,20 +483,20 @@ async function main() {
             console.log(c.rojo('  [M] Volver al menu principal (npm start)'));
 
         } catch (e) {
-            console.log(c.rojo(`  ❌ Error durante la busqueda: ${e.message}`));
+            console.log(c.rojo(`  âŒ Error durante la busqueda: ${e.message}`));
         }
     } // fin loop de documentos
 
     if (salirModulo) break; // propagar salida al loop externo
 
   } catch (err) {
-    console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
+    console.error(c.rojo(`\n  âŒ Error en el proceso: ${err.message}`));
   }
   
   if (process.env.ASOCIACION_ACTIVA || salirModulo) break;
   } // End of outer while(true) (asociacion loop)
 
-  console.log(c.verde('\n  👋 Modulo finalizado.\n'));
+  console.log(c.verde('\n  ðŸ‘‹ Modulo finalizado.\n'));
   if (browser) await browser.close().catch(() => {});
   process.exit(0);
 }

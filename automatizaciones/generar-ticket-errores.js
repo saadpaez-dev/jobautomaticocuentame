@@ -1,4 +1,4 @@
-const { chromium } = require('playwright');
+﻿const { chromium } = require('playwright');
 const readline = require('readline-sync');
 const c = {
     verde: (t) => `\x1b[32m${t}\x1b[0m`,
@@ -25,7 +25,7 @@ async function convertirImagenOConplanarPdf(rutaInput, rutaSalidaPdf) {
     }
 
     if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.bmp') || lower.endsWith('.webp')) {
-        console.log(c.cyan(`  🖼️  Convirtiendo imagen (${path.basename(rutaInput)}) a documento PDF...`));
+        console.log(c.cyan(`  ðŸ–¼ï¸  Convirtiendo imagen (${path.basename(rutaInput)}) a documento PDF...`));
         const pdfDoc = await PDFDocument.create();
         const imageBytes = fs.readFileSync(rutaInput);
         let image;
@@ -46,7 +46,7 @@ async function convertirImagenOConplanarPdf(rutaInput, rutaSalidaPdf) {
 
         const pdfBytes = await pdfDoc.save();
         fs.writeFileSync(rutaSalidaPdf, pdfBytes);
-        console.log(c.verde(`  ✅ Documento de soporte convertido a PDF: ${path.basename(rutaSalidaPdf)}`));
+        console.log(c.verde(`  âœ… Documento de soporte convertido a PDF: ${path.basename(rutaSalidaPdf)}`));
         return rutaSalidaPdf;
     }
 
@@ -287,13 +287,13 @@ async function generarTicketExcelLimpio({
 }
 
 async function procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPath }) {
-    console.log(c.cyan('\n  📧 GENERACION DE CORREO Y ADJUNTOS'));
+    console.log(c.cyan('\n  ðŸ“§ GENERACION DE CORREO Y ADJUNTOS'));
     const armarCorreoResp = readline.question(c.negrita('  > Deseas armar/enviar el correo de ticket a la Regional? (s/n) [por defecto s]: ')).trim().toLowerCase();
 
     if (armarCorreoResp === 's' || armarCorreoResp === 'si' || armarCorreoResp === '') {
-        console.log(c.cyan('\n  📄 Documento de Soporte Fisico (Registro Civil, TI o Cedula):'));
-        console.log(c.gris('     • Puedes arrastrar un PDF o una Imagen (.jpg, .jpeg, .png).'));
-        console.log(c.gris('     • Si es una imagen, se convertira AUTOMATICAMENTE a PDF.\n'));
+        console.log(c.cyan('\n  ðŸ“„ Documento de Soporte Fisico (Registro Civil, TI o Cedula):'));
+        console.log(c.gris('     â€¢ Puedes arrastrar un PDF o una Imagen (.jpg, .jpeg, .png).'));
+        console.log(c.gris('     â€¢ Si es una imagen, se convertira AUTOMATICAMENTE a PDF.\n'));
 
         const docInputRaw = readline.question(c.negrita('  > Arrastra el documento de soporte (o 0 para omitir adjunto): ')).trim();
         const docInput = docInputRaw.replace(/^["']|["']$/g, '');
@@ -309,10 +309,10 @@ async function procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPat
                 try {
                     rutaPdfAdjunto = await convertirImagenOConplanarPdf(resolvedDoc, tempPdfPath);
                 } catch (e) {
-                    console.log(c.rojo(`  ❌ Error procesando el archivo de soporte: ${e.message}`));
+                    console.log(c.rojo(`  âŒ Error procesando el archivo de soporte: ${e.message}`));
                 }
             } else {
-                console.log(c.amarillo(`  ⚠️ No se encontro el archivo: ${docInput}`));
+                console.log(c.amarillo(`  âš ï¸ No se encontro el archivo: ${docInput}`));
             }
         }
 
@@ -349,7 +349,7 @@ async function procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPat
         const asuntoCorreo = 'Edicion de Datos Primera Infancia';
         const destinatario = 'Mis.Aplicaciones@icbf.gov.co';
 
-        console.log(c.cyan('\n  ✉️  Opciones de envio:'));
+        console.log(c.cyan('\n  âœ‰ï¸  Opciones de envio:'));
         console.log('  1. Enviar correo DIRECTAMENTE via SMTP');
         console.log('  2. Guardar BORRADOR en Gmail (para revisar antes de enviar)');
         const modoEnvio = readline.question(c.negrita('  > Selecciona (1 o 2) [por defecto 2]: ')).trim();
@@ -367,7 +367,7 @@ async function procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPat
         });
 
         if (modoEnvio === '1') {
-            console.log(c.amarillo('  ⏳ Enviando correo directamente...'));
+            console.log(c.amarillo('  â³ Enviando correo directamente...'));
             try {
                 const { enviarCorreo } = require('../servicios/gmail-sender');
                 await enviarCorreo(gmailUser, gmailPass, {
@@ -376,12 +376,12 @@ async function procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPat
                     html: cuerpoCorreoHtml,
                     attachments: attachments
                 });
-                console.log(c.verde(`  🎉 ¡Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
+                console.log(c.verde(`  ðŸŽ‰ Â¡Correo enviado exitosamente a ${destinatario} con los adjuntos!`));
             } catch (err) {
-                console.log(c.rojo(`  ❌ Error al enviar correo via SMTP: ${err.message}`));
+                console.log(c.rojo(`  âŒ Error al enviar correo via SMTP: ${err.message}`));
             }
         } else {
-            console.log(c.amarillo('  ⏳ Guardando borrador en Gmail...'));
+            console.log(c.amarillo('  â³ Guardando borrador en Gmail...'));
             const scratchDir = path.join(__dirname, '..', 'scratch');
             if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
             const localEmlPath = path.join(scratchDir, `Borrador_Ticket_${numDocReal}.eml`);
@@ -392,10 +392,10 @@ async function procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPat
 
                 const { guardarEnBorradores } = require('../servicios/gmail-draft');
                 await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
-                console.log(c.verde(`  🎉 ¡Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
+                console.log(c.verde(`  ðŸŽ‰ Â¡Borrador guardado exitosamente en tu carpeta "Borradores" de Gmail!`));
             } catch (err) {
-                console.log(c.amarillo(`  ⚠️ No se pudo subir el borrador a la API de Gmail (${err.message}).`));
-                console.log(c.verde(`  ✅ Se guardo la copia local del borrador (.eml) en:`));
+                console.log(c.amarillo(`  âš ï¸ No se pudo subir el borrador a la API de Gmail (${err.message}).`));
+                console.log(c.verde(`  âœ… Se guardo la copia local del borrador (.eml) en:`));
                 console.log(c.cyan(`     ${localEmlPath}`));
                 console.log(c.gris(`     (Puedes abrir este archivo .eml para enviarlo directamente desde tu cliente de correo).`));
             }
@@ -464,7 +464,7 @@ async function main() {
     const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
     if (!USUARIO || !PASSWORD) {
-        console.error(c.rojo('\n❌ Faltan credenciales en el archivo .env\n'));
+        console.error(c.rojo('\nâŒ Faltan credenciales en el archivo .env\n'));
         process.exit(1);
     }
 
@@ -473,15 +473,15 @@ async function main() {
     const asociaciones = Object.values(porAsociacion);
 
     if (asociaciones.length === 0) {
-        console.log(c.rojo('❌ No se encontraron asociaciones en el Excel.'));
+        console.log(c.rojo('âŒ No se encontraron asociaciones en el Excel.'));
         return;
     }
 
     console.log(c.cyan('\n======================================================'));
-    console.log(c.cyan('   🎫 TICKET PARA ERRORES DE DIGITACION'));
+    console.log(c.cyan('   ðŸŽ« TICKET PARA ERRORES DE DIGITACION'));
     console.log(c.cyan('======================================================\n'));
 
-    let ascSeleccionada;
+    let ascSeleccionada = process.env.ASOCIACION_ACTIVA ? JSON.parse(process.env.ASOCIACION_ACTIVA) : null;
     if (process.env.ASOCIACION_ACTIVA) {
         ascSeleccionada = JSON.parse(process.env.ASOCIACION_ACTIVA);
     } else {
@@ -497,7 +497,7 @@ async function main() {
         }
 
         if (idxAsociacion === 0) {
-            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
+            console.log(c.verde('\n  ðŸ‘‹ Volviendo al menu principal...'));
             return;
         }
         ascSeleccionada = asociaciones[idxAsociacion - 1];
@@ -508,7 +508,7 @@ async function main() {
     try {
         browser = await chromium.connectOverCDP('http://localhost:9333');
     } catch (e) {
-        console.log(c.rojo(`  ❌ Error al conectar al navegador: ${e.message}`));
+        console.log(c.rojo(`  âŒ Error al conectar al navegador: ${e.message}`));
         return;
     }
     const context = browser.contexts()[0];
@@ -516,18 +516,18 @@ async function main() {
     
     // Verificacion inicial de sesion
     if (await verificarConexionOCaida(page)) {
-        console.log(c.amarillo('  ⚠️ La sesion inicial expiro o se perdio.'));
-        console.log(c.amarillo('  ⏳ Iniciando sesion automaticamente (2FA)...'));
+        console.log(c.amarillo('  âš ï¸ La sesion inicial expiro o se perdio.'));
+        console.log(c.amarillo('  â³ Iniciando sesion automaticamente (2FA)...'));
         await loginYLlegarARoles(page, {
             usuario: USUARIO,
             password: PASSWORD,
             gmailUser: GMAIL_USER,
             gmailAppPassword: GMAIL_APP_PASSWORD
         });
-        console.log(c.verde('  ✅ Login inicial restaurado exitosamente.'));
+        console.log(c.verde('  âœ… Login inicial restaurado exitosamente.'));
     }
 
-    console.log(c.amarillo('  ⏳ Seleccionando el rol / asociacion...'));
+    console.log(c.amarillo('  â³ Seleccionando el rol / asociacion...'));
     await seleccionarRolYEntrar(page, ascSeleccionada);
     
     // Bucle interactivo para ingresar varios tickets
@@ -545,20 +545,20 @@ async function main() {
 
         // Verificar si la sesion se cayo antes de continuar
         if (await verificarConexionOCaida(page)) {
-            console.log(c.amarillo('  ⚠️ La sesion de Cuentame expiro o se perdio.'));
-            console.log(c.amarillo('  ⏳ Intentando iniciar sesion automaticamente (2FA)...'));
+            console.log(c.amarillo('  âš ï¸ La sesion de Cuentame expiro o se perdio.'));
+            console.log(c.amarillo('  â³ Intentando iniciar sesion automaticamente (2FA)...'));
             await loginYLlegarARoles(page, {
                 usuario: USUARIO,
                 password: PASSWORD,
                 gmailUser: GMAIL_USER,
                 gmailAppPassword: GMAIL_APP_PASSWORD
             });
-            console.log(c.verde('  ✅ Login restaurado exitosamente. Seleccionando asociacion nuevamente...'));
+            console.log(c.verde('  âœ… Login restaurado exitosamente. Seleccionando asociacion nuevamente...'));
             await seleccionarRolYEntrar(page, ascSeleccionada);
         }
 
         // Navegar al menu de Beneficiario
-        console.log(c.amarillo('  ⏳ Entrando al menu "Beneficiario" > "Beneficiario"...'));
+        console.log(c.amarillo('  â³ Entrando al menu "Beneficiario" > "Beneficiario"...'));
         let menuFrame = page.frame({ name: 'frameMenu' });
         if (!menuFrame) {
             for (const f of page.frames()) {
@@ -583,11 +583,11 @@ async function main() {
                     await nuevosLinks[1].evaluate(n => n.click());
                 }
             } else {
-                console.log(c.rojo('  ⚠️ No se encontro el menu Beneficiario.'));
+                console.log(c.rojo('  âš ï¸ No se encontro el menu Beneficiario.'));
             }
             await page.waitForTimeout(1500);
         } catch(e) {
-            console.log(c.rojo(`  ❌ Error al intentar acceder a Beneficiario: ${e.message}`));
+            console.log(c.rojo(`  âŒ Error al intentar acceder a Beneficiario: ${e.message}`));
         }
         
         // Cambiar al frame principal
@@ -634,7 +634,7 @@ async function main() {
     }
 
     // Llenar datos de busqueda
-    console.log(c.amarillo('  ⏳ Buscando beneficiario en Cuentame...'));
+    console.log(c.amarillo('  â³ Buscando beneficiario en Cuentame...'));
     const selTipoDoc = currentFrame.locator('select:visible[id*="TipoDocumento"], select:visible[id*="ddlTipoDocumento"]').first();
     await waitForAndSelect(selTipoDoc, valTipoDoc, page);
     
@@ -680,7 +680,7 @@ async function main() {
     }
 
     // Buscar la fila con "Activo" en la tabla y dar click en Detalle (Lupa) SIEMPRE
-    console.log(c.amarillo('  ⏳ Buscando estado Activo en los resultados...'));
+    console.log(c.amarillo('  â³ Buscando estado Activo en los resultados...'));
     const rows = currentFrame.locator('table[id*="gvBeneficiario"] tbody tr.rowA, table[id*="gvBeneficiario"] tbody tr.rowB, table[id*="gvBeneficiario"] tr');
     const rowsCount = await rows.count();
     let filaEncontrada = false;
@@ -690,7 +690,7 @@ async function main() {
         const text = await row.innerText();
         if (text.includes('Activo')) {
             filaEncontrada = true;
-            console.log(c.verde('  ✅ Beneficiario Activo encontrado. Abriendo detalle (Lupa)...'));
+            console.log(c.verde('  âœ… Beneficiario Activo encontrado. Abriendo detalle (Lupa)...'));
             const btnDetalle = row.locator('input[type="image"][title*="Detalle"], img[title*="Detalle"]').first();
             if (await btnDetalle.count() > 0) {
                 const postDetalle = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
@@ -703,7 +703,7 @@ async function main() {
     }
 
     if (!filaEncontrada) {
-        console.log(c.rojo('  ⚠️ No se encontro ningun registro "Activo" en la tabla.'));
+        console.log(c.rojo('  âš ï¸ No se encontro ningun registro "Activo" en la tabla.'));
         continue;
     }
 
@@ -718,7 +718,7 @@ async function main() {
 
         if (tipoError === '1') {
             // Error del Beneficiario (Nino/Nina)
-            console.log(c.amarillo('\n  ⏳ Extrayendo datos del Beneficiario de Cuentame...'));
+            console.log(c.amarillo('\n  â³ Extrayendo datos del Beneficiario de Cuentame...'));
             
             // Re-evaluar currentFrame porque pudo cambiar al cargar el detalle
             await page.waitForTimeout(800);
@@ -735,7 +735,7 @@ async function main() {
 
             const datosCuentame = await extraerDatosPersonaDeFormulario(frame);
             
-            console.log(c.verde('  ✅ Datos extraidos de Cuentame:'));
+            console.log(c.verde('  âœ… Datos extraidos de Cuentame:'));
             console.log(c.gris(`     - Nombre: ${datosCuentame.primerNombre} ${datosCuentame.segundoNombre} ${datosCuentame.primerApellido} ${datosCuentame.segundoApellido}`));
             console.log(c.gris(`     - Documento: ${datosCuentame.tipoDocCod} ${datosCuentame.numDoc}`));
             console.log(c.gris(`     - Nacimiento: ${datosCuentame.fechaNacimiento}, Sexo: ${datosCuentame.sexo}`));
@@ -779,10 +779,10 @@ async function main() {
                 datosCuentame
             });
 
-            console.log(c.amarillo(`\n  📝 Observacion generada: ${observacion}`));
+            console.log(c.amarillo(`\n  ðŸ“ Observacion generada: ${observacion}`));
 
             // Escribir en Excel Limpio
-            console.log(c.amarillo('\n  ⏳ Guardando ticket en formato Excel...'));
+            console.log(c.amarillo('\n  â³ Guardando ticket en formato Excel...'));
             let singleExcelPath = null;
             try {
                 singleExcelPath = await generarTicketExcelLimpio({
@@ -800,16 +800,16 @@ async function main() {
                     datosCuentame,
                     observacion
                 });
-                console.log(c.verde(`  ✅ Ticket de Beneficiario guardado exitosamente en el Excel.`));
+                console.log(c.verde(`  âœ… Ticket de Beneficiario guardado exitosamente en el Excel.`));
             } catch (err) {
-                console.log(c.rojo(`  ❌ Error escribiendo el Excel: ${err.message}`));
+                console.log(c.rojo(`  âŒ Error escribiendo el Excel: ${err.message}`));
             }
 
             // Procesar envio/borrador de correo
             await procesarEnvioCorreoTicket({ ascSeleccionada, numDocReal, excelPath: singleExcelPath });
         } else {
             // Error del Acudiente
-            console.log(c.amarillo('\n  ⏳ Habilitando edicion (clic en Lapiz superior)...'));
+            console.log(c.amarillo('\n  â³ Habilitando edicion (clic en Lapiz superior)...'));
             
             await page.waitForTimeout(800);
             let frame = page.frame({ name: 'frameContent' });
@@ -823,14 +823,14 @@ async function main() {
                 await page.waitForTimeout(800);
             }
 
-            console.log(c.amarillo('  ⏳ Accediendo a la pestana "Grupo Familiar"...'));
+            console.log(c.amarillo('  â³ Accediendo a la pestana "Grupo Familiar"...'));
             const btnGrupoFamiliar = frame.locator('a[id*="grupofamiliar_tab"], span:has-text("Grupo Familiar")').first();
             if (await btnGrupoFamiliar.count() > 0) {
                 await btnGrupoFamiliar.click();
                 await page.waitForTimeout(800);
             }
 
-            console.log(c.amarillo(`  ⏳ Buscando al familiar "Responsable" (marcado con 'S') en la tabla del grupo familiar...`));
+            console.log(c.amarillo(`  â³ Buscando al familiar "Responsable" (marcado con 'S') en la tabla del grupo familiar...`));
             
             // Buscar en la tabla GwvGrupoFamiliar
             const rowsFamiliar = frame.locator('table[id*="GwvGrupoFamiliar"] tbody tr.rowA, table[id*="GwvGrupoFamiliar"] tbody tr.rowB, table[id*="GwvGrupoFamiliar"] tr');
@@ -846,7 +846,7 @@ async function main() {
                     if (textoResponsable.trim() === 'S') {
                         familiarEncontrado = true;
                         const nombreFamiliar = await tds.nth(3).innerText().catch(() => 'Responsable');
-                        console.log(c.verde(`  ✅ Familiar responsable encontrad@ (${nombreFamiliar.trim()}). Abriendo detalle (info)...`));
+                        console.log(c.verde(`  âœ… Familiar responsable encontrad@ (${nombreFamiliar.trim()}). Abriendo detalle (info)...`));
                         const btnDetalleFam = row.locator('input[type="image"][title*="Detalle"], img[title*="Detalle"]').first();
                         if (await btnDetalleFam.count() > 0) {
                             const postFam = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
@@ -860,15 +860,15 @@ async function main() {
             }
 
             if (!familiarEncontrado) {
-                console.log(c.rojo(`  ⚠️ No se encontro ningun familiar marcado como Responsable ('S') en el grupo familiar.`));
+                console.log(c.rojo(`  âš ï¸ No se encontro ningun familiar marcado como Responsable ('S') en el grupo familiar.`));
                 continue;
             }
 
-            console.log(c.amarillo('  ⏳ Extrayendo datos del Acudiente de Cuentame...'));
+            console.log(c.amarillo('  â³ Extrayendo datos del Acudiente de Cuentame...'));
             
             const datosCuentame = await extraerDatosPersonaDeFormulario(frame, true);
             
-            console.log(c.verde('  ✅ Datos extraidos del Acudiente en Cuentame:'));
+            console.log(c.verde('  âœ… Datos extraidos del Acudiente en Cuentame:'));
             console.log(c.gris(`     - Nombre: ${datosCuentame.primerNombre} ${datosCuentame.segundoNombre} ${datosCuentame.primerApellido} ${datosCuentame.segundoApellido}`));
             console.log(c.gris(`     - Documento: ${datosCuentame.tipoDocCod} ${datosCuentame.numDoc}`));
             console.log(c.gris(`     - Nacimiento: ${datosCuentame.fechaNacimiento}, Sexo: ${datosCuentame.sexo}`));
@@ -912,10 +912,10 @@ async function main() {
                 datosCuentame
             });
 
-            console.log(c.amarillo(`\n  📝 Observacion generada: ${observacion}`));
+            console.log(c.amarillo(`\n  ðŸ“ Observacion generada: ${observacion}`));
 
             // Escribir en Excel Limpio
-            console.log(c.amarillo('\n  ⏳ Guardando ticket en formato Excel...'));
+            console.log(c.amarillo('\n  â³ Guardando ticket en formato Excel...'));
             let singleExcelPath = null;
             try {
                 singleExcelPath = await generarTicketExcelLimpio({
@@ -933,9 +933,9 @@ async function main() {
                     datosCuentame,
                     observacion
                 });
-                console.log(c.verde(`  ✅ Ticket de Acudiente guardado exitosamente en el Excel.`));
+                console.log(c.verde(`  âœ… Ticket de Acudiente guardado exitosamente en el Excel.`));
             } catch (err) {
-                console.log(c.rojo(`  ❌ Error escribiendo el Excel: ${err.message}`));
+                console.log(c.rojo(`  âŒ Error escribiendo el Excel: ${err.message}`));
             }
 
             // Procesar envio/borrador de correo
@@ -948,5 +948,5 @@ async function main() {
 }
 
 main().catch(err => {
-    console.error(c.rojo(`\n  ❌ Error critico: ${err.message}`));
+    console.error(c.rojo(`\n  âŒ Error critico: ${err.message}`));
 });
