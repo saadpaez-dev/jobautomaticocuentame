@@ -1112,9 +1112,19 @@ async function main() {
                                     // Intentar autocompletar "No se autorreconoce en ninguno de los anteriores" si es posible
                                     const selEtnia = currentFrame.locator('select:visible[id*="Etnico"], select:visible[id*="Etnia"], select:visible[id*="Pertenencia"]').first();
                                     if (await selEtnia.count() > 0) {
-                                        await waitForAndSelect(selEtnia, "NO SE AUTORRECONOCE EN NINGUNO DE LOS ANTERIORES");
+                                        const valActual = await selEtnia.evaluate(el => {
+                                            const sel = el.options[el.selectedIndex];
+                                            return sel ? (sel.text || sel.innerText || '') : '';
+                                        }).catch(() => '');
+                                        
+                                        if (valActual.toUpperCase().includes('NO SE AUTORRECONOCE')) {
+                                            console.log(c.verde('     ✅ Pertenencia etnica ya esta configurada en "NO SE AUTORRECONOCE EN NINGUNO DE LOS ANTERIORES".'));
+                                        } else {
+                                            console.log(c.gris('     - Seleccionando Grupo Etnico: NO SE AUTORRECONOCE EN NINGUNO DE LOS ANTERIORES...'));
+                                            await waitForAndSelect(selEtnia, "NO SE AUTORRECONOCE EN NINGUNO DE LOS ANTERIORES");
+                                        }
                                     } else {
-                                        console.log(c.rojo('  âš ï¸ No se encontro la lista de Grupo Etnico.'));
+                                        console.log(c.rojo('  ⚠️ No se encontro la lista de Grupo Etnico.'));
                                     }
                                 }
 
