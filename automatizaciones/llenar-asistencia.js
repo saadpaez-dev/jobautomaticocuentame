@@ -708,7 +708,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 await selectDropdown('Estado', 'Todos');
                 await mainPage.waitForTimeout(400);
 
-                // 1. Seleccionar Servicio (requerido para habilitar el dropdown de UDS)
+                // 1. Seleccionar Servicio (requerido para habilitar el dropdown de UDS - 2026)
                 const servicioLocator = contentFrame.locator('select[id*="Servicio"]').first();
                 if (await servicioLocator.count() > 0) {
                     const servOpts = await servicioLocator.evaluate(s => {
@@ -717,23 +717,21 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                             .map(o => ({ value: o.value, text: o.text }));
                     });
 
-                    let chosenServ = null;
                     const jModalidad = (jGrupo.jardin.modalidad || '').toUpperCase();
-
-                    if (servOpts.length === 1) {
-                        chosenServ = servOpts[0];
-                    } else if (servOpts.length > 1) {
-                        chosenServ = servOpts.find(o => {
-                            const txtNorm = removeAccentsStr(o.text);
-                            const modNorm = removeAccentsStr(jModalidad);
-                            return txtNorm.includes(modNorm) || modNorm.includes(txtNorm) ||
-                                   (modNorm.includes('JARDIN') && txtNorm.includes('JARDIN')) ||
-                                   (modNorm.includes('HCB') && txtNorm.includes('HCB'));
-                        }) || servOpts[0];
+                    const tipoServ = (jModalidad.includes('JARDIN') || jModalidad.includes('AGRUPADO')) ? 'Agrupado' : 'Individual';
+                    
+                    let servValidos = filtrarServiciosPorAsociacion(servOpts, asc.nombreCorto, tipoServ);
+                    if (servValidos.length === 0) {
+                        servValidos = servOpts.filter(o => o.text.includes("2026"));
+                    }
+                    if (servValidos.length === 0) {
+                        servValidos = servOpts;
                     }
 
+                    const chosenServ = servValidos[0];
+
                     if (chosenServ) {
-                        console.log(c.gris(`    [Filtro] Seleccionando Servicio: ${chosenServ.text}`));
+                        console.log(c.gris(`    [Filtro] Seleccionando Servicio (2026): ${chosenServ.text}`));
                         await servicioLocator.selectOption(chosenServ.value, { timeout: 5000 });
                         await mainPage.waitForTimeout(600); // Esperar postback de ASP.NET para actualizar UDS
                     }
