@@ -958,7 +958,7 @@ async function main() {
                                 await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Comuna"], select[id*="tbnDatosGeo"][id*="Localidad"]').first(), "LOCALIDAD USAQUEN");
                                 
                                 let barrioDefecto = "";
-                                const nombreAsc = ascSeleccionada.nombreCorto.toUpperCase();
+                const nombreAsc = ascSeleccionada.nombreCorto.toUpperCase();
                                 if (nombreAsc.includes("VERBENAL")) barrioDefecto = "EL VERBENAL";
                                 else if (nombreAsc.includes("CANAIMA")) barrioDefecto = "CANAIMA";
                                 else if (nombreAsc.includes("BRISAS")) barrioDefecto = "CHAPARRAL";
@@ -971,80 +971,122 @@ async function main() {
                                     console.log(c.gris(`     - Seleccionando Barrio para ${ascSeleccionada.nombreCorto}: ${barrioDefecto}`));
                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Barrio"]').first(), barrioDefecto);
                                 } else {
-                                    console.log(c.amarillo(`  âš ï¸ No se determino Barrio automatico para la asociacion ${ascSeleccionada.nombreCorto}.`));
+                                    console.log(c.amarillo(`  ⚠️ No se determino Barrio automatico para la asociacion ${ascSeleccionada.nombreCorto}.`));
                                 }
 
-                                console.log(c.amarillo('\n  ðŸ  Por favor, ingresa los Datos de Direccion de Residencia:'));
-                                const direccionCompleta = readline.question('  > Direccion Completa (Ej: cr 7 c 181 a 39 o calle 45 sur 12 80): ').trim();
-                                
-                                // Parser inteligente de direccion
-                                const tokens = direccionCompleta.toUpperCase().replace(/-/g, ' ').split(/\s+/).filter(t => t);
-                                let dirTipoVia='', dirNumVia='', dirLetra='', dirBis='', dirSentido='', dirNumSec='', dirLetraSec='', dirPlaca='', dirSentido2='';
-                                
-                                if (tokens.length > 0) {
-                                    const t = tokens.shift();
-                                    if (['C','CL','CALLE'].includes(t)) dirTipoVia = 'CALLE';
-                                    else if (['K','KR','CRA','CR','CARRERA'].includes(t)) dirTipoVia = 'CARRERA';
-                                    else if (['D','DG','DIAG','DIAGONAL'].includes(t)) dirTipoVia = 'DIAGONAL';
-                                    else if (['T','TV','TRANS','TRANSVERSAL'].includes(t)) dirTipoVia = 'TRANSVERSAL';
-                                    else if (['AV','AVENIDA'].includes(t)) dirTipoVia = 'AVENIDA';
-                                    else if (['AC','AVENIDA CALLE'].includes(t)) dirTipoVia = 'AVENIDA CALLE';
-                                    else if (['AK','AVENIDA CARRERA'].includes(t)) dirTipoVia = 'AVENIDA CARRERA';
-                                    else dirTipoVia = t;
-                                }
-                                if (tokens.length > 0) dirNumVia = tokens.shift();
-                                if (tokens.length > 0 && /^[A-Z]$/.test(tokens[0])) dirLetra = tokens.shift();
-                                if (tokens.length > 0 && tokens[0] === 'BIS') {
-                                    dirBis = tokens.shift();
-                                    if (tokens.length > 0 && /^[A-Z]$/.test(tokens[0])) dirLetra = tokens.shift();
-                                }
-                                if (tokens.length > 0 && ['SUR','NORTE','ESTE','OESTE','S','N','E','O'].includes(tokens[0])) {
-                                    const s = tokens.shift();
-                                    dirSentido = s==='S'?'SUR':s==='N'?'NORTE':s==='E'?'ESTE':s==='O'?'OESTE':s;
-                                }
-                                if (tokens.length > 0 && ['#','NO','N'].includes(tokens[0])) tokens.shift();
-                                if (tokens.length > 0) dirNumSec = tokens.shift();
-                                if (tokens.length > 0 && /^[A-Z]$/.test(tokens[0])) dirLetraSec = tokens.shift();
-                                if (tokens.length > 0) dirPlaca = tokens.shift();
-                                if (tokens.length > 0 && ['SUR','NORTE','ESTE','OESTE','S','N','E','O'].includes(tokens[0])) {
-                                    const s = tokens.shift();
-                                    dirSentido2 = s==='S'?'SUR':s==='N'?'NORTE':s==='E'?'ESTE':s==='O'?'OESTE':s;
-                                }
-                                
-                                console.log(c.cyan(`     ðŸ“ Parseado: [${dirTipoVia}] [${dirNumVia}] [${dirLetra}] [${dirBis}] [${dirSentido}] # [${dirNumSec}] [${dirLetraSec}] - [${dirPlaca}] [${dirSentido2}]`.replace(/ \[\]/g, '')));
-                                
-                                const telefono = readline.question('  > Numero de Telefono: ').trim();
+                                 // Extraer direccion y telefono pre-existentes si la persona ya fue creada previamente
+                                 let existingAddress = '';
+                                 let existingPhone = '';
 
-                                console.log(c.gris('     - Ingresando Direccion de Residencia y Telefono...'));
-                                
-                                const fillText = async (locator, value) => {
-                                    if (value && await locator.count() > 0) {
-                                        await locator.evaluate((el, val) => {
-                                            el.value = val;
-                                            el.dispatchEvent(new Event('input', { bubbles: true }));
-                                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                                            el.blur();
-                                        }, value).catch(() => {});
-                                        await page.waitForTimeout(500);
-                                    }
-                                };
+                                 try {
+                                     const inputDirActual = currentFrame.locator('input[id*="txtDireccionResidencia"], input[id*="txtDireccion"], input[id*="DireccionResidencia"]').first();
+                                     if (await inputDirActual.count() > 0) {
+                                         existingAddress = await inputDirActual.inputValue().catch(() => '');
+                                     }
+                                     const inputTelActual = currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtTelefono"], input[id*="tbnDatosGeo"][id*="Telefono"], input[id*="txtTelefono"]').first();
+                                     if (await inputTelActual.count() > 0) {
+                                         existingPhone = await inputTelActual.inputValue().catch(() => '');
+                                     }
+                                 } catch (e) {}
 
-                                if (dirTipoVia) await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="ddlVia"]').first(), dirTipoVia);
-                                await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtNombreVia"]').first(), dirNumVia);
-                                if (dirLetra) await waitForAndSelect(currentFrame.locator('select[id$="txtDireccionResidencia_ddlLetra"]').first(), dirLetra);
-                                if (dirBis) await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="ddlBis"]').first(), dirBis);
-                                if (dirSentido) await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="ddlSentido"]:not([id*="2"])').first(), dirSentido);
-                                await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtNumero"]').first(), dirNumSec);
-                                if (dirLetraSec) await waitForAndSelect(currentFrame.locator('select[id$="txtDireccionResidencia_ddlLetra2"]').first(), dirLetraSec);
-                                await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtPlaca"]').first(), dirPlaca);
-                                if (dirSentido2) await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="ddlSentido2"]').first(), dirSentido2);
-                                
-                                await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtTelefono"], input[id*="tbnDatosGeo"][id*="Telefono"]').first(), telefono);
+                                 let conservarDireccion = false;
 
-                                console.log(c.verde(`  âœ… Pestana "Datos de Ubicacion" llenada automaticamente.`));
+                                 if (existingAddress.trim() || existingPhone.trim()) {
+                                     console.log(c.cyan(`\n  📍 Datos de ubicacion pre-existentes registrados en Cuentame:`));
+                                     if (existingAddress.trim()) console.log(c.verde(`     • Direccion registrada: ${existingAddress.trim()}`));
+                                     if (existingPhone.trim())   console.log(c.verde(`     • Telefono registrado : ${existingPhone.trim()}`));
+                                     
+                                     const respConservar = readline.question(c.negrita('\n  > Desea conservar esta direccion y telefono? (s/n) [por defecto s]: ')).trim().toLowerCase();
+                                     if (respConservar === '' || respConservar === 's' || respConservar === 'si') {
+                                         conservarDireccion = true;
+                                         console.log(c.verde('  ✅ Se conservaran la direccion y telefono registrados.'));
+                                     } else {
+                                         console.log(c.amarillo('  🧹 Limpiando direccion y telefono anteriores para ingresar los nuevos datos...'));
+                                         const btnLimpiar = currentFrame.locator('a[id*="btnLimpiar"], input[value*="Limpiar"], button:has-text("Limpiar"), a:has-text("Limpiar")').first();
+                                         if (await btnLimpiar.count() > 0) {
+                                             await btnLimpiar.click().catch(() => {});
+                                             await page.waitForTimeout(600);
+                                         }
+                                         const inputTelActual = currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtTelefono"], input[id*="tbnDatosGeo"][id*="Telefono"], input[id*="txtTelefono"]').first();
+                                         if (await inputTelActual.count() > 0) {
+                                             await inputTelActual.evaluate(el => { el.value = ''; }).catch(() => {});
+                                         }
+                                     }
+                                 }
+
+                                 if (!conservarDireccion) {
+                                     console.log(c.amarillo('\n  🏠 Por favor, ingresa los Datos de Direccion de Residencia:'));
+                                     const direccionCompleta = readline.question('  > Direccion Completa (Ej: cr 7 c 181 a 39 o calle 45 sur 12 80): ').trim();
+                                     
+                                     // Parser inteligente de direccion
+                                     const tokens = direccionCompleta.toUpperCase().replace(/-/g, ' ').split(/\s+/).filter(t => t);
+                                     let dirTipoVia='', dirNumVia='', dirLetra='', dirBis='', dirSentido='', dirNumSec='', dirLetraSec='', dirPlaca='', dirSentido2='';
+                                     
+                                     if (tokens.length > 0) {
+                                         const t = tokens.shift();
+                                         if (['C','CL','CALLE'].includes(t)) dirTipoVia = 'CALLE';
+                                         else if (['K','KR','CRA','CR','CARRERA'].includes(t)) dirTipoVia = 'CARRERA';
+                                         else if (['D','DG','DIAG','DIAGONAL'].includes(t)) dirTipoVia = 'DIAGONAL';
+                                         else if (['T','TV','TRANS','TRANSVERSAL'].includes(t)) dirTipoVia = 'TRANSVERSAL';
+                                         else if (['AV','AVENIDA'].includes(t)) dirTipoVia = 'AVENIDA';
+                                         else if (['AC','AVENIDA CALLE'].includes(t)) dirTipoVia = 'AVENIDA CALLE';
+                                         else if (['AK','AVENIDA CARRERA'].includes(t)) dirTipoVia = 'AVENIDA CARRERA';
+                                         else dirTipoVia = t;
+                                     }
+                                     if (tokens.length > 0) dirNumVia = tokens.shift();
+                                     if (tokens.length > 0 && /^[A-Z]$/.test(tokens[0])) dirLetra = tokens.shift();
+                                     if (tokens.length > 0 && tokens[0] === 'BIS') {
+                                         dirBis = tokens.shift();
+                                         if (tokens.length > 0 && /^[A-Z]$/.test(tokens[0])) dirLetra = tokens.shift();
+                                     }
+                                     if (tokens.length > 0 && ['SUR','NORTE','ESTE','OESTE','S','N','E','O'].includes(tokens[0])) {
+                                         const s = tokens.shift();
+                                         dirSentido = s==='S'?'SUR':s==='N'?'NORTE':s==='E'?'ESTE':s==='O'?'OESTE':s;
+                                     }
+                                     if (tokens.length > 0 && ['#','NO','N'].includes(tokens[0])) tokens.shift();
+                                     if (tokens.length > 0) dirNumSec = tokens.shift();
+                                     if (tokens.length > 0 && /^[A-Z]$/.test(tokens[0])) dirLetraSec = tokens.shift();
+                                     if (tokens.length > 0) dirPlaca = tokens.shift();
+                                     if (tokens.length > 0 && ['SUR','NORTE','ESTE','OESTE','S','N','E','O'].includes(tokens[0])) {
+                                         const s = tokens.shift();
+                                         dirSentido2 = s==='S'?'SUR':s==='N'?'NORTE':s==='E'?'ESTE':s==='O'?'OESTE':s;
+                                     }
+                                     
+                                     console.log(c.cyan(`     📌 Parseado: [${dirTipoVia}] [${dirNumVia}] [${dirLetra}] [${dirBis}] [${dirSentido}] # [${dirNumSec}] [${dirLetraSec}] - [${dirPlaca}] [${dirSentido2}]`.replace(/ \[\]/g, '')));
+                                     
+                                     const telefono = readline.question('  > Numero de Telefono: ').trim();
+
+                                     console.log(c.gris('     - Ingresando Direccion de Residencia y Telefono...'));
+                                     
+                                     const fillText = async (locator, value) => {
+                                         if (value && await locator.count() > 0) {
+                                             await locator.evaluate((el, val) => {
+                                                 el.value = val;
+                                                 el.dispatchEvent(new Event('input', { bubbles: true }));
+                                                 el.dispatchEvent(new Event('change', { bubbles: true }));
+                                                 el.blur();
+                                             }, value).catch(() => {});
+                                             await page.waitForTimeout(500);
+                                         }
+                                     };
+
+                                     if (dirTipoVia) await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="ddlVia"]').first(), dirTipoVia);
+                                     await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtNombreVia"]').first(), dirNumVia);
+                                     if (dirLetra) await waitForAndSelect(currentFrame.locator('select[id$="txtDireccionResidencia_ddlLetra"]').first(), dirLetra);
+                                     if (dirBis) await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="ddlBis"]').first(), dirBis);
+                                     if (dirSentido) await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="ddlSentido"]:not([id*="2"])').first(), dirSentido);
+                                     await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtNumero"]').first(), dirNumSec);
+                                     if (dirLetraSec) await waitForAndSelect(currentFrame.locator('select[id$="txtDireccionResidencia_ddlLetra2"]').first(), dirLetraSec);
+                                     await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtPlaca"]').first(), dirPlaca);
+                                     if (dirSentido2) await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="ddlSentido2"]').first(), dirSentido2);
+                                     
+                                     await fillText(currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtTelefono"], input[id*="tbnDatosGeo"][id*="Telefono"]').first(), telefono);
+                                 }
+                                
+                                console.log(c.verde(`  ✅ Pestana "Datos de Ubicacion" llenada automaticamente.`));
                                 
                                 // --- PESTANA PERTENENCIA ETNICA ---
-                                console.log(c.amarillo('\n  â³ Procediendo a pestana Pertenencia Etnica...'));
+                                console.log(c.amarillo('\n  â ³ Procediendo a pestana Pertenencia Etnica...'));
                                 const tabEtnica = currentFrame.locator('.ajax__tab_tab:has-text("Etnica"), .ajax__tab_tab:has-text("Etnica"), .ajax__tab_tab:has-text("Pertenencia")').first();
                                 if (await tabEtnica.count() > 0) {
                                     await tabEtnica.click().catch(() => {});
