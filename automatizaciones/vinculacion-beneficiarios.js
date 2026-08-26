@@ -1,4 +1,4 @@
-﻿/**
+/**
  * vinculacion-beneficiarios.js
  * Script para registrar nuevos beneficiarios en Cuentame.
  */
@@ -743,27 +743,25 @@ async function main() {
                 }
 
                 // Foto (SE HACE SIEMPRE, exista o no)
-                console.log(c.amarillo(`  â³ Validando/Cargando foto de perfil (${sexo})...`));
+                console.log(c.amarillo(`  ⏳ Validando/Cargando foto de perfil (${sexo})...`));
                 const inputFile = currentFrame.locator('input[type="file"]').first();
                 
                 let photoPath = '';
-                const baseDocsPath = path.join('C:\\Dev\\jobautomatico\\docs');
-                if (sexo === 'Mujer') {
-                    const pathsMujer = [
-                        path.join(baseDocsPath, 'niÃ±a.jpg'),
-                        path.join(baseDocsPath, 'nina.jpg'),
-                        path.join(baseDocsPath, 'niÃ±a.png'),
-                        path.join(baseDocsPath, 'nina.png')
-                    ];
-                    photoPath = pathsMujer.find(p => fs.existsSync(p)) || pathsMujer[0];
-                } else {
-                    const pathsHombre = [
-                        path.join(baseDocsPath, 'niÃ±o.jpg'),
-                        path.join(baseDocsPath, 'nino.jpg'),
-                        path.join(baseDocsPath, 'niÃ±o.png'),
-                        path.join(baseDocsPath, 'nino.png')
-                    ];
-                    photoPath = pathsHombre.find(p => fs.existsSync(p)) || pathsHombre[0];
+                const baseDocsPath = path.join(__dirname, '..', 'docs');
+                const esMujer = (sexo || '').toString().toLowerCase() === 'mujer' || (sexo || '').toString() === '2';
+                
+                if (fs.existsSync(baseDocsPath)) {
+                    const filesInDocs = fs.readdirSync(baseDocsPath);
+                    const pattern = esMujer ? /^ni[ñn]a/i : /^ni[ñn]o/i;
+                    const matchedFile = filesInDocs.find(f => pattern.test(f) && /\.(jpg|jpeg|png)$/i.test(f));
+                    if (matchedFile) {
+                        photoPath = path.join(baseDocsPath, matchedFile);
+                    }
+                }
+                
+                if (!photoPath) {
+                    const fallbackName = esMujer ? 'nina.jpg' : 'nino.jpg';
+                    photoPath = path.join(baseDocsPath, fallbackName);
                 }
                 const photoName = path.basename(photoPath);
                 
