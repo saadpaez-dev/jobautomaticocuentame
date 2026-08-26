@@ -1020,13 +1020,13 @@ async function main() {
                                          console.log(c.amarillo('  🧹 Limpiando direccion y telefono anteriores para ingresar los nuevos datos...'));
                                          const btnLimpiar = currentFrame.locator('a[id*="btnLimpiar"], input[value*="Limpiar"], button:has-text("Limpiar"), a:has-text("Limpiar")').first();
                                          if (await btnLimpiar.count() > 0) {
-                                             await btnLimpiar.click().catch(() => {});
-                                             await page.waitForTimeout(600);
+                                             await btnLimpiar.evaluate(el => el.click()).catch(() => {});
                                          }
-                                         const inputTelActual = currentFrame.locator('input[id*="tbnDatosGeo"][id*="txtTelefono"], input[id*="tbnDatosGeo"][id*="Telefono"], input[id*="txtTelefono"]').first();
-                                         if (await inputTelActual.count() > 0) {
-                                             await inputTelActual.evaluate(el => { el.value = ''; }).catch(() => {});
-                                         }
+                                         await currentFrame.evaluate(() => {
+                                             const inputs = document.querySelectorAll('input[id*="Direccion"], input[id*="Telefono"], input[id*="txtDireccion"], input[id*="txtTelefono"]');
+                                             inputs.forEach(inp => { inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); });
+                                         }).catch(() => {});
+                                         await page.waitForTimeout(100);
                                      }
                                  }
 
