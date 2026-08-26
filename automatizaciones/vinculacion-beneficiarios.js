@@ -1108,9 +1108,62 @@ async function main() {
                                 if (await tabFam.count() > 0) {
                                     await tabFam.click().catch(() => {});
                                     await page.waitForTimeout(300);
-                                    currentFrame = page.frame({ name: 'frameContent' }) || page;
-                                    
-                                    // 1. Preguntar quien es el Jefe del Grupo Familiar
+                                     currentFrame = page.frame({ name: 'frameContent' }) || page;
+                                     
+                                     // 1. Escanear la tabla para detectar si ya hay un Responsable registrado (con 'S')
+                                     let responsableExistente = await currentFrame.evaluate(() => {
+                                         const table = document.querySelector('table[id*="GwvGrupoFamiliar"], table[id*="grupofamiliar"]');
+                                         if (!table) return null;
+                                         const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+                                         for (let idx = 0; idx < rows.length; idx++) {
+                                             const row = rows[idx];
+                                             const cells = Array.from(row.querySelectorAll('td')).map(td => (td.innerText || '').trim());
+                                             const esResp = cells.some(c => c === 'S' || c === 'Si' || c === 'SI');
+                                             if (esResp) {
+                                                 return {
+                                                     idx,
+                                                     tipoDoc: cells[0] || '',
+                                                     numDoc: cells[1] || '',
+                                                     nombre: cells[2] || '',
+                                                     parentescoJefe: cells[3] || '',
+                                                     parentescoBen: cells[4] || ''
+                                                 };
+                                             }
+                                         }
+                                         return null;
+                                     }).catch(() => null);
+
+                                     let conservarResponsable = false;
+
+                                     if (responsableExistente) {
+                                         console.log(c.cyan(`\n  👨‍👩‍👧 Responsable pre-existente registrado en Cuentame:`));
+                                         console.log(c.verde(`     • Nombre: ${responsableExistente.nombre}`));
+                                         console.log(c.verde(`     • Documento: ${responsableExistente.tipoDoc} ${responsableExistente.numDoc}`));
+                                         console.log(c.verde(`     • Parentesco: ${responsableExistente.parentescoBen || responsableExistente.parentescoJefe}`));
+                                         
+                                         const respResp = readline.question(c.negrita('\n  > Este dato del Responsable es correcto? (s/n) [por defecto s]: ')).trim().toLowerCase();
+                                         if (respResp === '' || respResp === 's' || respResp === 'si') {
+                                             conservarResponsable = true;
+                                             console.log(c.verde('  ✅ Se conservara el Responsable registrado. Omitiendo ingreso de nuevo Acudiente.'));
+                                         } else {
+                                             console.log(c.amarillo('  🔴 El Responsable actual es incorrecto. Eliminando registro (boton rojo -)...'));
+                                             const btnsEliminar = currentFrame.locator('input[type="image"][id*="btnEliminar"], input[type="image"][src*="delete"]');
+                                             const countBtn = await btnsEliminar.count();
+                                             if (countBtn > 0) {
+                                                 const btnIdx = Math.min(responsableExistente.idx, countBtn - 1);
+                                                 const postEliminar = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
+                                                 await btnsEliminar.nth(btnIdx).click().catch(() => {});
+                                                 await postEliminar;
+                                                 await page.waitForTimeout(1200); // Esperar que refresque la tabla desvaneciendo el registro
+                                                 console.log(c.verde('  ✅ Registro de Responsable eliminado correctamente.'));
+                                             } else {
+                                                 console.log(c.rojo('  ⚠️ No se ubico el boton de eliminar (rojo -) en la tabla.'));
+                                             }
+                                         }
+                                     }
+
+                                     if (!conservarResponsable) {
+                                         // 1. Preguntar quien es el Jefe del Grupo Familiar
                                     let tipoJefe = '';
                                     while(tipoJefe !== '1' && tipoJefe !== '2') {
                                         tipoJefe = readline.question(c.cyan('\n  > Quien es el Jefe del Grupo Familiar? (1 = MADRE, 2 = PADRE): ')).trim();
@@ -1292,17 +1345,18 @@ async function main() {
                                     const btnAgregarMadre = currentFrame.locator('a:visible:has-text("Agregar Persona"), a:visible[id*="btnAgregarPersona"], a[id*="LblAgregarPersona"]').first();
                                     await btnAgregarMadre.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
                                     if (await btnAgregarMadre.count() > 0) {
-                                        console.log(c.amarillo(`  â³ Agregando a ${labelJefe} al grupo familiar...`));
+                                        console.log(c.amarillo(`  â ³ Agregando a ${labelJefe} al grupo familiar...`));
                                         const postAgregar = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                                         await btnAgregarMadre.click();
                                         await postAgregar;
                                         await page.waitForTimeout(800); // Dar tiempo a que la grilla se actualice
                                     } else {
-                                        console.log(c.rojo('  âš ï¸ No se encontro el boton Agregar Persona.'));
+                                        console.log(c.rojo('  âš ï¸  No se encontro el boton Agregar Persona.'));
                                     }
+                                } // fin if (!conservarResponsable)
 
                                     // 2. Actualizar Nino (REGISTRO CIVIL)
-                                    console.log(c.amarillo('\n  â³ Buscando al nino en la tabla de Familia/Responsables...'));
+                                    console.log(c.amarillo('\n  â ³ Buscando al nino en la tabla de Familia/Responsables...'));
                                     
                                     // Buscar la fila por numero de documento o tipo de documento
                                     let btnDetalleNino = currentFrame.locator(`tr:visible:has-text("${docNum}") input[type="image"][title*="Detalle"]`).first();
