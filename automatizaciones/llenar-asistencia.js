@@ -662,65 +662,136 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 console.log(`  ${idx + 1}. ${n.nombreCompleto} (${n.tipoDoc}: ${n.documento} - ${n.edad} anos)`);
             });
 
-            const respNino = readline.question(c.negrita('\n  > Ingrese el Numero (ej: 1), Nombre, Apellido o 0 (o Vacio para cambiar de Jardin): ')).trim();
+            const respNino = readline.question(c.negrita('\n  > Ingrese Numero(s) (ej: 1,2,7), Nombres/Apellidos (ej: amy, anay) o 0 (o Vacio para cambiar de Jardin): ')).trim();
             if (!respNino) break;
 
             let ninosSeleccionados = [];
-            const numNino = parseInt(respNino, 10);
-
-            if (respNino === '0' || respNino.toUpperCase() === 'TODOS') {
-                ninosSeleccionados = ninosLocal;
-            } else if (!isNaN(numNino) && numNino >= 1 && numNino <= ninosLocal.length) {
-                ninosSeleccionados = [ninosLocal[numNino - 1]];
-            } else {
-                const qName = removeAccentsStr(respNino);
-                ninosSeleccionados = ninosLocal.filter(n => removeAccentsStr(n.nombreCompleto).includes(qName) || n.documento.includes(qName));
-                if (ninosSeleccionados.length === 0) {
-                    console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${respNino}".`));
+            const partesInput = respNino.split(/[,;]+/);
+            
+            for (let itemRaw of partesInput) {
+                itemRaw = itemRaw.trim();
+                if (!itemRaw) continue;
+                
+                if (itemRaw === '0' || itemRaw.toUpperCase() === 'TODOS') {
+                    ninosSeleccionados = [...ninosLocal];
+                    break;
+                }
+                
+                if (itemRaw.includes('-')) {
+                    const [iniStr, finStr] = itemRaw.split('-');
+                    const ini = parseInt(iniStr, 10);
+                    const fin = parseInt(finStr, 10);
+                    if (!isNaN(ini) && !isNaN(fin) && ini <= fin) {
+                        for (let i = ini; i <= fin; i++) {
+                            if (i >= 1 && i <= ninosLocal.length) {
+                                ninosSeleccionados.push(ninosLocal[i - 1]);
+                            }
+                        }
+                    }
                     continue;
                 }
-                if (ninosSeleccionados.length > 1) {
-                    console.log(c.amarillo(`\n  ⚠️ Se encontraron ${ninosSeleccionados.length} ninos que coinciden con "${respNino}":`));
-                    const opcionesCoincidentes = ninosSeleccionados.map(n => `${n.nombreCompleto} (Doc: ${n.documento})`);
-                    opcionesCoincidentes.unshift('🌟 TODOS los ninos coincidentes');
-                    
-                    const subIdx = readline.keyInSelect(opcionesCoincidentes, c.negrita('  > Escoja el nino especifico: '), { cancel: 'Cancelar seleccion' });
-                    if (subIdx === -1) continue;
-                    if (subIdx > 0) {
-                        ninosSeleccionados = [ninosSeleccionados[subIdx - 1]];
+
+                const num = parseInt(itemRaw, 10);
+                if (!isNaN(num) && num >= 1 && num <= ninosLocal.length) {
+                    ninosSeleccionados.push(ninosLocal[num - 1]);
+                } else {
+                    const qName = removeAccentsStr(itemRaw);
+                    const enco = ninosLocal.filter(n => removeAccentsStr(n.nombreCompleto).includes(qName) || n.documento.includes(qName));
+                    if (enco.length === 1) {
+                        ninosSeleccionados.push(enco[0]);
+                    } else if (enco.length > 1) {
+                        console.log(c.amarillo(`\n  ⚠️ Se encontraron ${enco.length} ninos que coinciden con "${itemRaw}":`));
+                        const opcionesCoincidentes = enco.map(n => `${n.nombreCompleto} (Doc: ${n.documento})`);
+                        opcionesCoincidentes.unshift('🌟 TODOS los ninos coincidentes');
+                        
+                        const subIdx = readline.keyInSelect(opcionesCoincidentes, c.negrita('  > Escoja el nino especifico: '), { cancel: 'Omitir este nino' });
+                        if (subIdx > 0) {
+                            ninosSeleccionados.push(enco[subIdx - 1]);
+                        } else if (subIdx === 0) {
+                            ninosSeleccionados.push(...enco);
+                        }
+                    } else {
+                        console.log(c.rojo(`  ❌ No se encontro ningun nino para "${itemRaw}".`));
                     }
                 }
             }
 
+            // Eliminar duplicados si los hay
+            const ninosUnicos = [];
+            const docsVistos = new Set();
+            for (const n of ninosSeleccionados) {
+                if (!docsVistos.has(n.documento)) {
+                    docsVistos.add(n.documento);
+                    ninosUnicos.push(n);
+                }
+            }
+            ninosSeleccionados = ninosUnicos;
+
+            if (ninosSeleccionados.length === 0) {
+                console.log(c.rojo('  ❌ No se selecciono ningun nino valido. Intenta nuevamente.'));
+                continue;
+            }
+
             // 4. Seleccionar Accion
-            console.log(c.cyan(`\n  🎯 Nino(s) seleccionado(s): ${ninosSeleccionados.map(n => n.nombreCompleto).join(', ')}`));
+            console.log(c.cyan(`\n  🎯 Nino(s) seleccionado(s) (${ninosSeleccionados.length}):`));
+            ninosSeleccionados.forEach((n, idx) => console.log(`     ${idx + 1}. ${n.nombreCompleto}`));
+
             const acciones = [
                 'Marcar ASISTENCIAS (poner checks [X])',
                 'Marcar INASISTENCIAS (quitar checks [ ])'
             ];
-            const accionIdx = readline.keyInSelect(acciones, c.negrita(`  > Accion a aplicar: `), { cancel: 'Cancelar' });
+            const accionIdx = readline.keyInSelect(acciones, c.negrita(`  > Accion a aplicar a estos ninos: `), { cancel: 'Cancelar' });
             if (accionIdx === -1) continue;
 
             const tipoAccion = accionIdx === 0 ? 'ASISTENCIA' : 'INASISTENCIA';
 
-            // 5. Seleccionar Dias por Semanas y Dias de Semana (1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie)
-            const dias = pedirDiasPorSemanaYDiaSemana(mesAtencion, 2026, tipoAccion);
-            if (!dias || dias.length === 0) {
-                console.log(c.rojo('  ⚠️ No se configuraron dias validos. Intenta nuevamente.'));
-                continue;
+            // 5. Seleccionar Dias (Mismos dias para todos vs Configurar nino por nino)
+            let mismosDiasParaTodos = true;
+            if (ninosSeleccionados.length > 1) {
+                const respIgual = readline.question(c.negrita('\n  > Deseas aplicar los MISMOS dias/semanas a TODOS estos ninos? (s/n) [por defecto n = configurar uno por uno]: ')).trim().toLowerCase();
+                mismosDiasParaTodos = respIgual === 's' || respIgual === 'si' || respIgual === 'y';
             }
 
-            // Agregar a tareas preparadas
-            for (const nino of ninosSeleccionados) {
-                tareasPreparadas.push({
-                    asociacion: baseAsc,
-                    jardin: jardinElegido,
-                    nino: nino,
-                    tipoAccion: tipoAccion,
-                    dias: dias,
-                    mesAtencion: mesAtencion
-                });
-                console.log(c.verde(`  ➕ [LOTE] ${tipoAccion} -> ${nino.nombreCompleto} (${jardinElegido.nombreUds}) | Dias: [${dias.join(', ')}]`));
+            if (mismosDiasParaTodos) {
+                const dias = pedirDiasPorSemanaYDiaSemana(mesAtencion, 2026, tipoAccion);
+                if (!dias || dias.length === 0) {
+                    console.log(c.rojo('  ⚠️ No se configuraron dias validos. Intenta nuevamente.'));
+                    continue;
+                }
+                for (const nino of ninosSeleccionados) {
+                    tareasPreparadas.push({
+                        asociacion: baseAsc,
+                        jardin: jardinElegido,
+                        nino: nino,
+                        tipoAccion: tipoAccion,
+                        dias: dias,
+                        mesAtencion: mesAtencion
+                    });
+                    console.log(c.verde(`  ➕ [LOTE] ${tipoAccion} -> ${nino.nombreCompleto} (${jardinElegido.nombreUds}) | Dias: [${dias.join(', ')}]`));
+                }
+            } else {
+                // Configurar niño por niño
+                for (let i = 0; i < ninosSeleccionados.length; i++) {
+                    const nino = ninosSeleccionados[i];
+                    console.log(c.cyan(`\n  ======================================================`));
+                    console.log(c.cyan(`  👤 Configurando ${tipoAccion} [${i + 1}/${ninosSeleccionados.length}]: ${nino.nombreCompleto}`));
+                    console.log(c.cyan(`  ======================================================`));
+
+                    const dias = pedirDiasPorSemanaYDiaSemana(mesAtencion, 2026, `${tipoAccion} para ${nino.nombreCompleto}`);
+                    if (dias && dias.length > 0) {
+                        tareasPreparadas.push({
+                            asociacion: baseAsc,
+                            jardin: jardinElegido,
+                            nino: nino,
+                            tipoAccion: tipoAccion,
+                            dias: dias,
+                            mesAtencion: mesAtencion
+                        });
+                        console.log(c.verde(`  ➕ [LOTE] ${tipoAccion} -> ${nino.nombreCompleto} (${jardinElegido.nombreUds}) | Dias: [${dias.join(', ')}]`));
+                    } else {
+                        console.log(c.amarillo(`  ⚠️ Omitido ${nino.nombreCompleto} (sin dias configurados).`));
+                    }
+                }
             }
 
             const mas = readline.question(c.negrita('\n  > Deseas agregar otra tarea en este mismo jardin? (s/n) [por defecto s]: ')).trim();
