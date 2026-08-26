@@ -927,6 +927,15 @@ if (!chk) chk = matchedLabel;
       }
   }
 
+  if (opcionReporte === 1) {
+      try {
+          const { consolidarBaseDatos } = require('../servicios/bd-beneficiarios');
+          consolidarBaseDatos();
+      } catch (eCons) {
+          console.log(c.amarillo(`  ⚠️ No se pudo consolidar la Base de Datos Master: ${eCons.message}`));
+      }
+  }
+
   console.log(c.verde('\n  ✅ Descargas de reportes completadas con exito.'));
   console.log(c.cyan('\n======================================================'));
   console.log(c.cyan('  📋 ¿Qué deseas hacer ahora?'));

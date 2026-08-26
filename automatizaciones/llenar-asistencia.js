@@ -684,8 +684,18 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 }
 
 async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown) {
+    const { obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
+    const ninosLocal = obtenerNinosDeJardin(asc.nombreCorto, elegida.uds.text);
+
     while (true) {
-        console.log(c.cyan('\n    Leyendo lista de ninos...'));
+        if (ninosLocal && ninosLocal.length > 0) {
+            console.log(c.cyan(`\n    📂 [Base de Datos Master Local] Beneficiarios Activos en ${elegida.uds.text} (${ninosLocal.length}):`));
+            ninosLocal.forEach((n, idx) => {
+                console.log(`      ${idx + 1}. ${n.nombreCompleto} (${n.tipoDoc}: ${n.documento} - ${n.edad} anos)`);
+            });
+        }
+
+        console.log(c.cyan('\n    Leyendo lista de ninos en Cuentame...'));
         contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
 
         const filasNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
@@ -700,22 +710,25 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
         }
 
         if (listaNinos.length === 0) {
-            console.log(c.rojo('    ⚠️ No se encontraron ninos activos en la tabla.'));
+            console.log(c.rojo('    ⚠️ No se encontraron ninos activos en la tabla de Cuentame.'));
             break; 
         }
 
-        console.log(c.cyan('\n    --- Lista de Ninos Activos ---'));
-        listaNinos.forEach(n => console.log(`      - ${n.nombre}`));
+        console.log(c.cyan('\n    --- Lista de Ninos Activos en Plataforma ---'));
+        listaNinos.forEach((n, idx) => console.log(`      ${idx + 1}. ${n.nombre}`));
 
-        const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre, apellido o "TODOS"\n    > (Deje vacio para CAMBIAR DE JARDIN): ')).trim();
+        const seleccionNina = readline.question(c.negrita('\n    > Ingrese el NUMERO de la opcion (ej: 1), nombre, apellido o "TODOS"\n    > (Deje vacio para CAMBIAR DE JARDIN): ')).trim();
         if (!seleccionNina) break;
 
-        const nombreBuscado = seleccionNina.toUpperCase();
         let ninosAfectados = [];
+        const numSel = parseInt(seleccionNina, 10);
 
-        if (nombreBuscado === 'TODOS') {
+        if (seleccionNina.toUpperCase() === 'TODOS') {
             ninosAfectados = listaNinos;
+        } else if (!isNaN(numSel) && numSel >= 1 && numSel <= listaNinos.length) {
+            ninosAfectados = [listaNinos[numSel - 1]];
         } else {
+            const nombreBuscado = seleccionNina.toUpperCase();
             ninosAfectados = listaNinos.filter(n => n.nombre.toUpperCase().includes(nombreBuscado));
             if (ninosAfectados.length === 0) {
                 console.log(c.rojo(`    ⚠️ No se encontro ningun nino con "${seleccionNina}"`));
@@ -724,7 +737,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
             if (ninosAfectados.length > 1) {
                 console.log(c.amarillo(`    ⚠️ Se encontraron varios ninos que coinciden:`));
                 ninosAfectados.forEach(n => console.log(`      - ${n.nombre}`));
-                console.log(c.amarillo(`    Por favor sea mas especifico.`));
+                console.log(c.amarillo(`    Por favor sea mas especifico o elija por numero.`));
                 continue;
             }
         }
