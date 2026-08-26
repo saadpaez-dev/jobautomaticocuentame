@@ -373,9 +373,13 @@ function pedirParejaReportes() {
     console.log(c.gris('       - 1er numero = Reporte de BENEFICIARIOS ACTIVOS'));
     console.log(c.gris('       - 2do numero = Reporte de SEGUIMIENTO NUTRICIONAL'));
     console.log(c.verde(`     • O presiona ENTER para usar la pareja recomendada [${sugerenciaStr}]`));
+    console.log(c.amarillo(`     • O ingresa 0 para Volver al menu principal`));
 
-    const inputRaw = readline.question(c.negrita(`\n  > Ingresa seleccion (ej: 1,2 o ENTER) [Default ${sugerenciaStr}]: `)).trim();
-    if (inputRaw.toLowerCase() === '0') return null;
+    const inputRaw = readline.question(c.negrita(`\n  > Ingresa seleccion (ej: 1,2 , 0 para Atras) [Default ${sugerenciaStr}]: `)).trim();
+    const rawUpper = inputRaw.toUpperCase();
+    if (rawUpper === '0' || rawUpper === 'ATRAS' || rawUpper === 'SALIR' || rawUpper === 'CANCELAR') {
+        return null;
+    }
 
     let numActivos = idxActivosDef + 1;
     let numNutricion = idxNutricionDef + 1;
@@ -504,8 +508,6 @@ async function main() {
         }
     } catch(err) {
         console.error(c.rojo(`\n  ❌ Error en el proceso: ${err.message}`));
-    } finally {
-        process.exit(0);
     }
 }
 
