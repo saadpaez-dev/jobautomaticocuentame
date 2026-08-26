@@ -225,16 +225,18 @@ async function main() {
           console.log(c.amarillo(`======================================================`));
           console.log(`    Contrato: ${asc.numeroContrato} (Vigencia: ${asc.vigenciaContrato})`);
           
-          if (i > 0) {
-              console.log(c.amarillo(`  🔄 Cambiando a la asociacion "${asc.nombreCorto}"...`));
-              try {
-                  await mainPage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-                  await mainPage.waitForTimeout(900);
-              } catch (e) {}
+          console.log(`  🏢 Validando y seleccionando entidad/asociacion: "${asc.nombreCorto}"...`);
+          const mismsAsc = await validarYCambiarAsociacion(mainPage, asc);
+          if (!mismsAsc) {
+              await loginYLlegarARoles(mainPage, {
+                  usuario: USUARIO,
+                  password: PASSWORD,
+                  gmailUser: GMAIL_USER,
+                  gmailAppPassword: GMAIL_APP_PASSWORD
+              });
+              await seleccionarRolYEntrar(mainPage, asc, false);
           }
-
-          console.log(`  🏢 Seleccionando entidad/asociacion: "${asc.nombreCorto}"...`);
-          reportPage = await seleccionarRolYEntrar(mainPage, asc, false);
+          reportPage = mainPage;
           console.log(c.verde(`  ✅ Asociacion "${asc.nombreCorto}" cargada e ingresada limpia en la plataforma.`));
       } catch (e) {
           console.log(c.rojo(`  ❌ Error al cambiar a la asociacion ${asc.nombreCorto}: ${e.message}`));
@@ -341,8 +343,10 @@ async function main() {
                         for (let i = 0; i < select.options.length; i++) {
                             const opt = select.options[i];
                             if (!opt) continue;
-                            const optText = removeAccents(opt.text || opt.innerText);
-                            const optVal = removeAccents(opt.value);
+                            const rawText = opt.text || opt.innerText || opt.textContent || '';
+                            const rawVal  = opt.value || '';
+                            const optText = removeAccents(rawText);
+                            const optVal  = removeAccents(rawVal);
                             if (optText === searchVal || optVal === searchVal) {
                                 targetIdx = i;
                                 break;
@@ -354,8 +358,9 @@ async function main() {
                             for (let i = 0; i < select.options.length; i++) {
                                 const opt = select.options[i];
                                 if (!opt) continue;
-                                const optText = removeAccents(opt.text || opt.innerText);
-                                if (optText.includes(searchVal)) {
+                                const rawText = opt.text || opt.innerText || opt.textContent || '';
+                                const optText = removeAccents(rawText);
+                                if (optText && optText.includes(searchVal)) {
                                     targetIdx = i;
                                     break;
                                 }
@@ -367,8 +372,9 @@ async function main() {
                             for (let i = 0; i < select.options.length; i++) {
                                 const opt = select.options[i];
                                 if (!opt) continue;
-                                const optText = removeAccents(opt.text || opt.innerText);
-                                if (optText.length >= 4 && searchVal.includes(optText) && !optText.includes('SELECT') && !optText.includes('SELECCION')) {
+                                const rawText = opt.text || opt.innerText || opt.textContent || '';
+                                const optText = removeAccents(rawText);
+                                if (optText && optText.length >= 4 && searchVal.includes(optText) && !optText.includes('SELECT') && !optText.includes('SELECCION')) {
                                     targetIdx = i;
                                     break;
                                 }
