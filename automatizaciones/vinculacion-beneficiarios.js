@@ -1309,9 +1309,6 @@ async function main() {
                                             await txtFechaNacM.press('Tab');
                                             await datePost;
                                         }
-                                    } else {
-                                        console.log(c.verde(`  âœ… ${labelJefe.toUpperCase()} ya existe en Cuentame: ${valNombre || 'REGISTRADA'}`));
-                                    }
 
                                     // --- PREGUNTAR / CONFIRMAR LUGAR DE NACIMIENTO DEL ACUDIENTE ---
                                     console.log(c.cyan(`\n  ðŸ“ LUGAR DE NACIMIENTO DE ${labelJefe.toUpperCase()}`));
@@ -1379,6 +1376,51 @@ async function main() {
                                         if (!vMuni || vMuni === '0' || vMuni.includes('Seleccione')) {
                                             console.log(c.verde(`    ðŸ‘‰ Seleccionando Municipio de Nacimiento (${valMuniM})...`));
                                             await waitForAndSelect(selMuniM, valMuniM);
+                                        }
+                                    } } else {
+                                        // === PERSONA EXISTENTE EN CUÉNTAME ===
+                                        const pNombreM  = await currentFrame.locator('input[type="text"]:visible[id*="txtPrimerNombre"]').first().inputValue().catch(() => '');
+                                        const sNombreM  = await currentFrame.locator('input[type="text"]:visible[id*="txtSegundoNombre"]').first().inputValue().catch(() => '');
+                                        const pApellM   = await currentFrame.locator('input[type="text"]:visible[id*="txtPrimerApellido"]').first().inputValue().catch(() => '');
+                                        const sApellM   = await currentFrame.locator('input[type="text"]:visible[id*="txtSegundoApellido"]').first().inputValue().catch(() => '');
+                                        const fechaNacM = await currentFrame.locator('input[type="text"]:visible[id*="FechaNacimiento"], input[type="text"]:visible[id*="txtFechaNacimiento"]').first().inputValue().catch(() => '');
+
+                                        const getSelectText = async (selector) => {
+                                            const loc = currentFrame.locator(selector).first();
+                                            if (await loc.count() > 0) {
+                                                return await loc.evaluate(el => {
+                                                    const sel = el.options[el.selectedIndex];
+                                                    return sel ? (sel.text || sel.innerText || '') : '';
+                                                }).catch(() => '');
+                                            }
+                                            return '';
+                                        };
+
+                                        const paisNacM  = await getSelectText('select:visible[id*="PaisNacimiento"], select:visible[id*="Pais"]');
+                                        const deptoNacM = await getSelectText('select:visible[id*="DepartamentoNacimiento"], select:visible[id*="DeptoNacimiento"]');
+                                        const muniNacM  = await getSelectText('select:visible[id*="MunicipioNacimiento"], select:visible[id*="MuniNacimiento"]');
+
+                                        const nombreCompletoM = [pNombreM, sNombreM, pApellM, sApellM].filter(Boolean).join(' ');
+                                        const lugarNacimientoM = [paisNacM, deptoNacM, muniNacM].filter(c => c && !c.includes('Seleccione')).join(' / ');
+
+                                        console.log(c.verde(`\n  ✅ ${labelJefe.toUpperCase()} ya existe registrada en Cuentame:`));
+                                        console.log(c.verde(`     • Nombre Completo : ${nombreCompletoM || valNombre || 'REGISTRADA'}`));
+                                        if (fechaNacM) console.log(c.verde(`     • Fecha Nacimiento: ${fechaNacM}`));
+                                        if (lugarNacimientoM) console.log(c.verde(`     • Lugar Nacimiento: ${lugarNacimientoM}`));
+
+                                        const respDatosJefe = readline.question(c.negrita(`\n  > Los datos cargados de ${labelJefe} son correctos? (s/n) [por defecto s]: `)).trim().toLowerCase();
+                                        if (respDatosJefe === 'n' || respDatosJefe === 'no') {
+                                            console.log(c.rojo(`\n  🚨 ERROR DE DIGITACION / DISCREPANCIA DETECTADA PARA ${labelJefe.toUpperCase()}`));
+                                            const registrarErr = readline.question(c.negrita('  > Desea registrar el Ticket de Error de Digitacion? (s/n) [por defecto s]: ')).trim().toLowerCase();
+                                            if (registrarErr === '' || registrarErr === 's' || registrarErr === 'si') {
+                                                const obsErr = readline.question(c.cyan('  > Ingrese observacion corta sobre el error (ej: Nombre en cedula es JHOELIS no JOELIS): ')).trim();
+                                                const logErrLine = `[${new Date().toLocaleString()}] Documento: ${docMadre} | Nombre Cuentame: ${nombreCompletoM} | Obs: ${obsErr || 'Error de digitacion'}\n`;
+                                                try {
+                                                    if (!fs.existsSync('docs')) fs.mkdirSync('docs', { recursive: true });
+                                                    fs.appendFileSync('docs/reportes_errores_digitacion.txt', logErrLine);
+                                                    console.log(c.verde('  ✅ Reporte de error guardado en docs/reportes_errores_digitacion.txt'));
+                                                } catch (e) {}
+                                            }
                                         }
                                     }
 
