@@ -14,6 +14,7 @@ const RUTA_MASTER_EXCEL = path.join(RUTA_BASE_DATOS_DIR, 'BD_MASTER_BENEFICIARIO
 const RUTA_MASTER_JSON = path.join(RUTA_BASE_DATOS_DIR, 'BD_MASTER_BENEFICIARIOS.json');
 
 const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+const cleanAscii = removeAccents;
 
 /**
  * Mapea el nombre del archivo o el nombre largo al nombre corto de la asociacion
@@ -68,26 +69,26 @@ function consolidarBaseDatos() {
                 const entidadContratista = r['Nombre de la Entidad Contratista'] || '';
                 const asociacionNorm = normalizarNombreAsociacion(entidadContratista, archivo);
 
-                const pNombre = String(r['Primer Nombre del beneficiario'] || '').trim();
-                const sNombre = String(r['Segundo Nombre del beneficiario'] || '').trim();
-                const pApell = String(r['Primer apellido del beneficiario'] || '').trim();
-                const sApell = String(r['Segundo apellido del beneficiario'] || '').trim();
+                const pNombre = cleanAscii(String(r['Primer Nombre del beneficiario'] || ''));
+                const sNombre = cleanAscii(String(r['Segundo Nombre del beneficiario'] || ''));
+                const pApell = cleanAscii(String(r['Primer apellido del beneficiario'] || ''));
+                const sApell = cleanAscii(String(r['Segundo apellido del beneficiario'] || ''));
                 const nombreCompleto = [pNombre, sNombre, pApell, sApell].filter(Boolean).join(' ');
 
-                const pNombreResp = String(r['Primer nombre del acudiente o responsable'] || '').trim();
-                const sNombreResp = String(r['Segundo nombre del acudiente o responsable'] || '').trim();
-                const pApellResp = String(r['Primer apellido del acudiente o responsable'] || '').trim();
-                const sApellResp = String(r['Segundo apellido del acudiente o responsable'] || '').trim();
+                const pNombreResp = cleanAscii(String(r['Primer nombre del acudiente o responsable'] || ''));
+                const sNombreResp = cleanAscii(String(r['Segundo nombre del acudiente o responsable'] || ''));
+                const pApellResp = cleanAscii(String(r['Primer apellido del acudiente o responsable'] || ''));
+                const sApellResp = cleanAscii(String(r['Segundo apellido del acudiente o responsable'] || ''));
                 const nombreCompletoResp = [pNombreResp, sNombreResp, pApellResp, sApellResp].filter(Boolean).join(' ');
 
                 const reg = {
                     asociacion: asociacionNorm,
-                    entidadContratista: entidadContratista,
+                    entidadContratista: cleanAscii(String(entidadContratista || '')),
                     numeroContrato: String(r['Número del Contrato'] || '').trim(),
                     codigoUds: String(r['Código de la unidad de servicio'] || '').trim(),
-                    nombreUds: String(r['Nombre de la unidad de servicio'] || '').trim(),
-                    modalidad: String(r['Modalidad'] || '').trim(),
-                    tipoBeneficiario: String(r['Nombre Tipo de beneficiario'] || '').trim(),
+                    nombreUds: cleanAscii(String(r['Nombre de la unidad de servicio'] || '')),
+                    modalidad: cleanAscii(String(r['Modalidad'] || '')),
+                    tipoBeneficiario: cleanAscii(String(r['Nombre Tipo de beneficiario'] || '')),
                     tipoDoc: String(r['Tipo de documento del beneficiario'] || '').trim(),
                     documento: String(r['Documento del beneficiario'] || '').trim(),
                     pNombre: pNombre,
@@ -98,9 +99,9 @@ function consolidarBaseDatos() {
                     fechaNacimiento: String(r['Fecha de nacimiento del beneficiario'] || '').trim(),
                     edad: r['Edad del beneficiario'] || '',
                     sexo: String(r['Sexo del beneficiario'] || '').trim(),
-                    direccion: String(r['Direccion de residencia del beneficiario'] || '').trim(),
+                    direccion: cleanAscii(String(r['Direccion de residencia del beneficiario'] || '')),
                     telefono: String(r['Teléfono del beneficiario'] || '').trim(),
-                    tipoResponsable: String(r['Tipo de responsable'] || '').trim(),
+                    tipoResponsable: cleanAscii(String(r['Tipo de responsable'] || '')),
                     tipoDocResp: String(r['Tipo de documento del acudiente o responsable'] || '').trim(),
                     documentoResp: String(r['Número de documento del acudiente o responsable'] || '').trim(),
                     nombreResp: nombreCompletoResp,

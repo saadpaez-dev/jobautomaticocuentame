@@ -454,20 +454,20 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
     }
 
     console.log(c.cyan('\n===================================================================='));
-    console.log(c.cyan('  ⚡ FASE 2: PRE-CONSULTA INTERACTIVA Y EDICIÓN EN LOTE (OFF-LINE)'));
+    console.log(c.cyan('  ⚡ FASE 2: PRE-CONSULTA INTERACTIVA Y EDICION EN LOTE (OFF-LINE)'));
     console.log(c.cyan('  (Configura todos los cambios de una vez sin esperar a la web)'));
     console.log(c.cyan('===================================================================='));
 
     while (true) {
-        // 1. Seleccionar Asociación (si no viene de la Suite Principal)
+        // 1. Seleccionar Asociacion (si no viene de la Suite Principal)
         if (!baseAsc) {
-            console.log(c.cyan('\n  📋 Selecciona la Asociación:'));
+            console.log(c.cyan('\n  📋 Selecciona la Asociacion:'));
             const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
-            const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Asociación: '), { cancel: tareasPreparadas.length > 0 ? 'Finalizar Selección y Procesar Lote' : 'Volver al Menú Principal' });
+            const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Asociacion: '), { cancel: tareasPreparadas.length > 0 ? 'Finalizar Seleccion y Procesar Lote' : 'Volver al Menu Principal' });
 
             if (ascIdx === -1) {
                 if (tareasPreparadas.length === 0) {
-                    console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+                    console.log(c.verde('\n  👋 Volviendo al menu principal...'));
                     return;
                 }
                 break;
@@ -475,10 +475,10 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
             baseAsc = asociaciones[ascIdx];
         } else {
-            console.log(c.verde(`\n  ✅ Asociación Activa: ${baseAsc.nombreCorto}`));
+            console.log(c.verde(`\n  ✅ Asociacion Activa: ${baseAsc.nombreCorto}`));
         }
 
-        // 2. Seleccionar Jardín (desde BD Master Local)
+        // 2. Seleccionar Jardin (desde BD Master Local)
         const jardinesLocal = obtenerJardinesDeAsociacion(baseAsc.nombreCorto);
         if (!jardinesLocal || jardinesLocal.length === 0) {
             console.log(c.rojo(`  ⚠️ No se encontraron jardines para ${baseAsc.nombreCorto} en la BD Local. Descarga primero el reporte de beneficiarios.`));
@@ -486,15 +486,15 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             continue;
         }
 
-        console.log(c.cyan(`\n  📋 Selecciona el Jardín / UDS en ${baseAsc.nombreCorto}:`));
-        const opcionesJardines = jardinesLocal.map(j => `${j.nombreUds} (${j.modalidad || 'HCB'} - ${j.totalNinos} niños)`);
-        const cancelText = asociacionForzada ? (tareasPreparadas.length > 0 ? 'Finalizar Selección y Procesar Lote' : 'Volver al Menú Principal') : 'Cambiar de Asociación';
-        const jIdx = readline.keyInSelect(opcionesJardines, c.negrita('  > Jardín: '), { cancel: cancelText });
+        console.log(c.cyan(`\n  📋 Selecciona el Jardin / UDS en ${baseAsc.nombreCorto}:`));
+        const opcionesJardines = jardinesLocal.map(j => `${j.nombreUds} (${j.modalidad || 'HCB'} - ${j.totalNinos} ninos)`);
+        const cancelText = asociacionForzada ? (tareasPreparadas.length > 0 ? 'Finalizar Seleccion y Procesar Lote' : 'Volver al Menu Principal') : 'Cambiar de Asociacion';
+        const jIdx = readline.keyInSelect(opcionesJardines, c.negrita('  > Jardin: '), { cancel: cancelText });
 
         if (jIdx === -1) {
             if (asociacionForzada) {
                 if (tareasPreparadas.length === 0) {
-                    console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+                    console.log(c.verde('\n  👋 Volviendo al menu principal...'));
                     return;
                 }
                 break;
@@ -506,21 +506,21 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
         const jardinElegido = jardinesLocal[jIdx];
 
-        // 3. Seleccionar Niño/Niña (desde BD Master Local)
+        // 3. Seleccionar Nino/Nina (desde BD Master Local)
         const ninosLocal = obtenerNinosDeJardin(baseAsc.nombreCorto, jardinElegido.nombreUds);
         if (!ninosLocal || ninosLocal.length === 0) {
-            console.log(c.rojo(`  ⚠️ No se encontraron niños registrados en ${jardinElegido.nombreUds}.`));
+            console.log(c.rojo(`  ⚠️ No se encontraron ninos registrados en ${jardinElegido.nombreUds}.`));
             continue;
         }
 
         while (true) {
             console.log(c.cyan(`\n  📂 Beneficiarios en ${jardinElegido.nombreUds} (${ninosLocal.length}):`));
-            console.log(c.amarillo('  0. 🌟 TODOS LOS NIÑOS DEL JARDÍN'));
+            console.log(c.amarillo('  0. 🌟 TODOS LOS NINOS DEL JARDIN'));
             ninosLocal.forEach((n, idx) => {
-                console.log(`  ${idx + 1}. ${n.nombreCompleto} (${n.tipoDoc}: ${n.documento} - ${n.edad} años)`);
+                console.log(`  ${idx + 1}. ${n.nombreCompleto} (${n.tipoDoc}: ${n.documento} - ${n.edad} anos)`);
             });
 
-            const respNino = readline.question(c.negrita('\n  > Ingrese el Número (ej: 1), Nombre, Apellido o 0 (o Vacío para cambiar de Jardín): ')).trim();
+            const respNino = readline.question(c.negrita('\n  > Ingrese el Numero (ej: 1), Nombre, Apellido o 0 (o Vacio para cambiar de Jardin): ')).trim();
             if (!respNino) break;
 
             let ninosSeleccionados = [];
@@ -534,24 +534,24 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 const qName = removeAccentsStr(respNino);
                 ninosSeleccionados = ninosLocal.filter(n => removeAccentsStr(n.nombreCompleto).includes(qName) || n.documento.includes(qName));
                 if (ninosSeleccionados.length === 0) {
-                    console.log(c.rojo(`  ❌ No se encontró ningún niño que coincida con "${respNino}".`));
+                    console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${respNino}".`));
                     continue;
                 }
             }
 
-            // 4. Seleccionar Acción
-            console.log(c.cyan(`\n  🎯 Niño(s) seleccionado(s): ${ninosSeleccionados.map(n => n.nombreCompleto).join(', ')}`));
+            // 4. Seleccionar Accion
+            console.log(c.cyan(`\n  🎯 Nino(s) seleccionado(s): ${ninosSeleccionados.map(n => n.nombreCompleto).join(', ')}`));
             const acciones = [
                 'Marcar ASISTENCIAS (poner checks [X])',
                 'Marcar INASISTENCIAS (quitar checks [ ])'
             ];
-            const accionIdx = readline.keyInSelect(acciones, c.negrita(`  > Acción a aplicar: `), { cancel: 'Cancelar' });
+            const accionIdx = readline.keyInSelect(acciones, c.negrita(`  > Accion a aplicar: `), { cancel: 'Cancelar' });
             if (accionIdx === -1) continue;
 
             const tipoAccion = accionIdx === 0 ? 'ASISTENCIA' : 'INASISTENCIA';
 
-            // 5. Seleccionar Días
-            const diasInput = readline.question(c.negrita('\n  > Ingrese los días. Ejemplo: 1,5,8 o 1-15: ')).trim();
+            // 5. Seleccionar Dias
+            const diasInput = readline.question(c.negrita('\n  > Ingrese los dias. Ejemplo: 1,5,8 o 1-15: ')).trim();
             if (!diasInput) continue;
 
             let dias = [];
@@ -572,7 +572,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             }
 
             if (dias.length === 0) {
-                console.log(c.rojo('  ❌ Días inválidos. Intenta nuevamente.'));
+                console.log(c.rojo('  ❌ Dias invalidos. Intenta nuevamente.'));
                 continue;
             }
 
@@ -586,33 +586,33 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     dias: dias,
                     mesAtencion: mesAtencion
                 });
-                console.log(c.verde(`  ➕ [LOTE] ${tipoAccion} -> ${nino.nombreCompleto} (${jardinElegido.nombreUds}) | Días: [${dias.join(', ')}]`));
+                console.log(c.verde(`  ➕ [LOTE] ${tipoAccion} -> ${nino.nombreCompleto} (${jardinElegido.nombreUds}) | Dias: [${dias.join(', ')}]`));
             }
 
-            const mas = readline.question(c.negrita('\n  > ¿Deseas agregar otra tarea en este mismo jardín? (s/n) [por defecto s]: ')).trim();
+            const mas = readline.question(c.negrita('\n  > Deseas agregar otra tarea en este mismo jardin? (s/n) [por defecto s]: ')).trim();
             if (mas.toLowerCase() === 'n') break;
         }
 
-        const continuarMas = readline.question(c.negrita('\n  > ¿Deseas agregar tareas en otro jardín o asociación? (s/n) [por defecto n]: ')).trim();
+        const continuarMas = readline.question(c.negrita('\n  > Deseas agregar tareas en otro jardin o asociacion? (s/n) [por defecto n]: ')).trim();
         if (continuarMas.toLowerCase() !== 's') break;
     }
 
     if (tareasPreparadas.length === 0) {
-        console.log(c.amarillo('\n  ⚠️ No se preparó ninguna tarea. Volviendo al menú principal...'));
+        console.log(c.amarillo('\n  ⚠️ No se me preparo ninguna tarea. Volviendo al menu principal...'));
         return;
     }
 
     // RESUMEN FINAL DEL LOTE
     console.log(c.cyan('\n===================================================================='));
-    console.log(c.cyan(`  📋 RESUMEN FINAL DEL LOTE A EJECUTAR EN CUÉNTAME (${tareasPreparadas.length} TAREAS):`));
+    console.log(c.cyan(`  📋 RESUMEN FINAL DEL LOTE A EJECUTAR EN CUENTAME (${tareasPreparadas.length} TAREAS):`));
     console.log(c.cyan('===================================================================='));
     tareasPreparadas.forEach((t, idx) => {
-        console.log(`  ${idx + 1}. [${t.asociacion.nombreCorto} | ${t.jardin.nombreUds}] ${t.tipoAccion}: ${t.nino.nombreCompleto} (Doc: ${t.nino.documento}) -> Días: [${t.dias.join(', ')}]`);
+        console.log(`  ${idx + 1}. [${t.asociacion.nombreCorto} | ${t.jardin.nombreUds}] ${t.tipoAccion}: ${t.nino.nombreCompleto} (Doc: ${t.nino.documento}) -> Dias: [${t.dias.join(', ')}]`);
     });
 
-    const confirm = readline.question(c.negrita('\n  > ¿Confirmar y ejecutar automáticamente en Cuéntame? (ENTER = Sí, n = Cancelar): ')).trim();
+    const confirm = readline.question(c.negrita('\n  > Confirmar y ejecutar automaticamente en Cuentame? (ENTER = Si, n = Cancelar): ')).trim();
     if (confirm.toLowerCase() === 'n') {
-        console.log(c.amarillo('  ⚠️ Operación cancelada por el usuario.'));
+        console.log(c.amarillo('  ⚠️ Operacion cancelada por el usuario.'));
         return;
     }
 
