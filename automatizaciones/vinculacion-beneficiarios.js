@@ -923,22 +923,28 @@ async function main() {
                         const pageText = await currentFrame.evaluate(() => document.body.innerText).catch(()=>'');
                         
                         if (pageText.toLowerCase().includes('temporalmente') || pageText.toLowerCase().includes('exito') || pageText.toLowerCase().includes('exito')) {
-                            console.log(c.cyan(`  ðŸ“Œ Resultado: Guardado exitoso detectado.`));
+                            console.log(c.cyan(`  📌 Resultado: Guardado exitoso detectado.`));
                             guardadoExitoso = true;
                         } else if (pageText.toLowerCase().includes('error') || pageText.toLowerCase().includes('excepcion')) {
-                            console.log(c.rojo(`  âš ï¸ Resultado: Posible error detectado en pantalla.`));
+                            console.log(c.rojo(`  ⚠️ Resultado: Posible error detectado en pantalla.`));
                             guardadoExitoso = false;
                         } else {
-                            console.log(c.cyan(`  ðŸ“Œ Resultado: Guardado ejecutado (sin mensaje explicito).`));
+                            console.log(c.cyan(`  📌 Resultado: Guardado ejecutado (sin mensaje explicito).`));
                         }
 
                         if (guardadoExitoso) {
-                            console.log(c.verde(`  âœ… Se ha completado el guardado de Datos Basicos.`));
-                            console.log(c.amarillo('\n  â³ Procediendo a llenar Datos de Ubicacion...'));
+                            console.log(c.verde(`  ✅ Se ha completado el guardado de Datos Basicos.`));
+                            console.log(c.amarillo('\n  ⏳ Procediendo a llenar Datos de Ubicacion...'));
                             
-                            const tabDatosGeo = currentFrame.locator('a[id*="tbnDatosGeo_tab"], span:has-text("Datos de Ubicacion")').first();
+                            // Esperar hasta 1 segundo maximo a que responda el DOM despues del PostBack del guardado
+                            await page.waitForTimeout(1000);
+                            currentFrame = page.frame({ name: 'frameContent' }) || page;
+                            
+                            const tabDatosGeo = currentFrame.locator('a[id*="tbnDatosGeo_tab"], span:has-text("Datos de Ubicacion"), span:has-text("Datos de Ubicación"), a:has-text("Datos de Ubicacion"), a:has-text("Datos de Ubicación"), .ajax__tab_tab:has-text("Ubicac")').first();
+                            await tabDatosGeo.waitFor({ state: 'visible', timeout: 4000 }).catch(() => {});
+
                             if (await tabDatosGeo.count() > 0) {
-                                await tabDatosGeo.click();
+                                await tabDatosGeo.click().catch(() => tabDatosGeo.evaluate(el => el.click()));
                                 await page.waitForTimeout(1200); // Esperar que renderice la pestana
                                 
                                 console.log(c.gris('     - Llenando valores fijos predeterminados (modo humano para evitar colision de UpdatePanel)...'));
