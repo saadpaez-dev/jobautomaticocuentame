@@ -353,28 +353,28 @@ async function main() {
                             }
                         }
 
-                        // 2. Coincidencia parcial (opcion contiene valor buscado)
+                        // 2. Coincidencia por inicio de texto (startsWith)
                         if (targetIdx === -1) {
                             for (let i = 0; i < select.options.length; i++) {
                                 const opt = select.options[i];
                                 if (!opt) continue;
                                 const rawText = opt.text || opt.innerText || opt.textContent || '';
                                 const optText = removeAccents(rawText);
-                                if (optText && optText.includes(searchVal)) {
+                                if (optText && optText.startsWith(searchVal)) {
                                     targetIdx = i;
                                     break;
                                 }
                             }
                         }
 
-                        // 3. Coincidencia inversa (valor buscado contiene opcion)
+                        // 3. Coincidencia por palabras clave o subcadena (includes)
                         if (targetIdx === -1) {
                             for (let i = 0; i < select.options.length; i++) {
                                 const opt = select.options[i];
                                 if (!opt) continue;
                                 const rawText = opt.text || opt.innerText || opt.textContent || '';
                                 const optText = removeAccents(rawText);
-                                if (optText && optText.length >= 4 && searchVal.includes(optText) && !optText.includes('SELECT') && !optText.includes('SELECCION')) {
+                                if (optText && optText.includes(searchVal) && !optText.includes('SELECT') && !optText.includes('SELECCION')) {
                                     targetIdx = i;
                                     break;
                                 }
@@ -636,6 +636,16 @@ if (!chk) chk = matchedLabel;
             return frame;
         };
 
+        const obtenerCentroZonal = (asoc) => {
+            if (!asoc) return 'CZ USAQUEN';
+            if (asoc.centroZonal) return asoc.centroZonal;
+            const name = (asoc.nombreCorto || asoc.nombreLargo || asoc.nombre || '').toUpperCase();
+            if (name.includes('BRISAS') || name.includes('BUENAVISTA') || name.includes('USME')) {
+                return 'CZ USME';
+            }
+            return 'CZ USAQUEN';
+        };
+
         if (opcionReporte === 1) {
             console.log('  🚀 Navegando a Reportes -> Beneficiarios vinculados...\n');
             await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1170', {
@@ -651,7 +661,7 @@ if (!chk) chk = matchedLabel;
             await seleccionarSSRSByLabel('Direccion', 'Direccion de Primera Infancia');
             await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato || '2024');
             await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
-            await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
+            await seleccionarSSRSByLabel('Centro Zonal', obtenerCentroZonal(asc));
             await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
             await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato) || await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
             await seleccionarSSRSByLabel('Ano de atencion', '2026');
@@ -684,7 +694,7 @@ if (!chk) chk = matchedLabel;
             await mainPage.waitForTimeout(900);
 
             // 3. Centro Zonal
-            await seleccionarSSRSByLabel('Centro Zonal', 'CZ USAQUEN');
+            await seleccionarSSRSByLabel('Centro Zonal', obtenerCentroZonal(asc));
             await mainPage.waitForTimeout(900);
 
             // 4. Municipio
@@ -759,7 +769,7 @@ if (!chk) chk = matchedLabel;
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue', asc.numeroContrato);
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue', '2026');
                     await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl13', '(Check All)');
-                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', 'CZ USAQUEN');
+                    await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', obtenerCentroZonal(asc));
                     await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', '(Select All)');
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl21_ddValue', mesAtencion);
                     await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl23_ddValue', 'Todos');
@@ -779,7 +789,7 @@ if (!chk) chk = matchedLabel;
                     await seleccionarSSRSByLabel('Direccion ICBF *', 'Direccion de Primera Infancia');
                     await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato);
                     await seleccionarSSRSByLabel('Regional UDS', 'Bogota D.C.');
-                    await seleccionarSSRSByLabel('Centro Zonal de la UDS', 'CZ USAQUEN');
+                    await seleccionarSSRSByLabel('Centro Zonal de la UDS', obtenerCentroZonal(asc));
                     await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
                     await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
                     
