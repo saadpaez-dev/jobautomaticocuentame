@@ -91,10 +91,10 @@ async function main() {
   
   while (true) {
       const fases = [
-        '(FASE 1) - Subida de asistencia General (Masiva)', 
-        '(FASE 2) - INASISTENCIA Y DIAS DE ASISTENCIA PENDIENTES POR LLENAR'
+        'Subida de RAM Masiva', 
+        'Asistencias/Inasistencias'
       ];
-      const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA FASE A EJECUTAR: '), { cancel: 'Volver al Menu Principal' });
+      const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA OPCION A EJECUTAR: '), { cancel: 'Volver al Menu Principal' });
       
       if (faseIndex === -1) break; // Volver al menu principal
       
@@ -126,10 +126,10 @@ async function iniciarNavegador() {
 }
 
 // ==========================================
-// FASE 1: LLENADO MASIVO
+// FASE 1: SUBIDA DE RAM MASIVA
 // ==========================================
 async function ejecutarFase1(asociaciones, mesAtencion) {
-    console.log(c.cyan('\n  📋 [FASE 1] SELECCIONA LA ASOCIACION PARA SUBIDA GENERAL:'));
+    console.log(c.cyan('\n  📋 [SUBIDA DE RAM MASIVA] SELECCIONA LA ASOCIACION PARA SUBIDA GENERAL:'));
     console.log(c.amarillo(`  T. 🌟 TODAS LAS ASOCIACIONES`));
     console.log(c.amarillo(`  0. Atras`));
     asociaciones.forEach((asc, idx) => {
@@ -163,6 +163,18 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     let diasIgnorarStr = readline.question(c.negrita('\n  > Dias a ignorar en todo el mes (separados por coma, ej: 20,25) o ENTER para ninguno: '));
     const diasIgnorar = diasIgnorarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 
+    // Configurar dias para marcar asistencia (por defecto HOY)
+    const diaHoy = new Date().getDate();
+    let diasMarcarStr = readline.question(c.negrita(`  > Dias para marcar asistencia por defecto (hoy) [ENTER por defecto = HOY (dia ${diaHoy})]: `)).trim();
+    
+    let diasAMarcar = null;
+    if (diasMarcarStr === '') {
+        diasAMarcar = [diaHoy];
+    } else if (diasMarcarStr.toUpperCase() !== 'TODOS' && diasMarcarStr.toUpperCase() !== 'ALL') {
+        diasAMarcar = diasMarcarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+        if (diasAMarcar.length === 0) diasAMarcar = [diaHoy];
+    }
+
     let finalAscAProcesar = [];
     for (let asc of ascAProcesar) {
         if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => asc.nombreCorto.toUpperCase().includes(x))) {
@@ -181,7 +193,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     }
     ascAProcesar = finalAscAProcesar;
 
-    console.log(c.verde(`\n  ✅ Iniciando Fase 1: ${ascAProcesar.length} Asociacion(es) | Ignorando dias: [${diasIgnorar.join(',') || 'Ninguno'}]`));
+    const descMarcar = diasAMarcar ? `[${diasAMarcar.join(',')}]` : 'TODOS los dias del mes';
+    console.log(c.verde(`\n  ✅ Iniciando Subida de RAM Masiva: ${ascAProcesar.length} Asociacion(es) | Dias a marcar: ${descMarcar} | Ignorando dias: [${diasIgnorar.join(',') || 'Ninguno'}]`));
 
     const { browser, context, mainPage } = await iniciarNavegador();
 
@@ -363,7 +376,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                         }
                     }
 
-                    console.log('    ✅ Marcando asistencia (Todo el mes excepto ignorados)...');
+                    const descDias = diasAMarcar ? `[${diasAMarcar.join(',')}]` : 'Todo el mes';
+                    console.log(`    ✅ Marcando asistencia (Dias: ${descDias} | Excepto ignorados)...`);
                     const rows = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
                     
                     let ninosActivos = 0;
@@ -376,7 +390,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                             const cells = await row.locator(':scope > td').all();
                             for (let cIdx = 3; cIdx < cells.length; cIdx++) {
                                 const dayNumber = cIdx - 2; 
-                                if (!diasIgnorar.includes(dayNumber)) {
+                                const debeMarcar = (!diasAMarcar || diasAMarcar.includes(dayNumber)) && !diasIgnorar.includes(dayNumber);
+                                if (debeMarcar) {
                                     const chk = cells[cIdx].locator('input[type="checkbox"]');
                                     if (await chk.count() > 0) {
                                         const isEnabled = await chk.isEnabled();
