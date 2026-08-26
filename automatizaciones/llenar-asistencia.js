@@ -456,6 +456,16 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
     const removeAccentsStr = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
 
     const tareasPreparadas = [];
+    let baseAsc = null;
+    let asociacionForzada = false;
+
+    if (process.env.ASOCIACION_ACTIVA) {
+        try {
+            const ascObj = JSON.parse(process.env.ASOCIACION_ACTIVA);
+            baseAsc = asociaciones.find(a => removeAccentsStr(a.nombreCorto) === removeAccentsStr(ascObj.nombreCorto)) || ascObj;
+            asociacionForzada = true;
+        } catch(e) {}
+    }
 
     console.log(c.cyan('\n===================================================================='));
     console.log(c.cyan('  ⚡ FASE 2: PRE-CONSULTA INTERACTIVA Y EDICIÓN EN LOTE (OFF-LINE)'));
@@ -463,33 +473,50 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
     console.log(c.cyan('===================================================================='));
 
     while (true) {
-        // 1. Seleccionar Asociación
-        console.log(c.cyan('\n  📋 Selecciona la Asociación:'));
-        const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
-        const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Asociación: '), { cancel: tareasPreparadas.length > 0 ? 'Finalizar Selección y Procesar Lote' : 'Volver al Menú Principal' });
+        // 1. Seleccionar Asociación (si no viene de la Suite Principal)
+        if (!baseAsc) {
+            console.log(c.cyan('\n  📋 Selecciona la Asociación:'));
+            const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
+            const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Asociación: '), { cancel: tareasPreparadas.length > 0 ? 'Finalizar Selección y Procesar Lote' : 'Volver al Menú Principal' });
 
-        if (ascIdx === -1) {
-            if (tareasPreparadas.length === 0) {
-                console.log(c.verde('\n  👋 Volviendo al menú principal...'));
-                return;
+            if (ascIdx === -1) {
+                if (tareasPreparadas.length === 0) {
+                    console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+                    return;
+                }
+                break;
             }
-            break; // Proceder a procesar las tareas ya preparadas
-        }
 
-        const baseAsc = asociaciones[ascIdx];
+            baseAsc = asociaciones[ascIdx];
+        } else {
+            console.log(c.verde(`\n  ✅ Asociación Activa: ${baseAsc.nombreCorto}`));
+        }
 
         // 2. Seleccionar Jardín (desde BD Master Local)
         const jardinesLocal = obtenerJardinesDeAsociacion(baseAsc.nombreCorto);
         if (!jardinesLocal || jardinesLocal.length === 0) {
             console.log(c.rojo(`  ⚠️ No se encontraron jardines para ${baseAsc.nombreCorto} en la BD Local. Descarga primero el reporte de beneficiarios.`));
+            baseAsc = null;
             continue;
         }
 
         console.log(c.cyan(`\n  📋 Selecciona el Jardín / UDS en ${baseAsc.nombreCorto}:`));
         const opcionesJardines = jardinesLocal.map(j => `${j.nombreUds} (${j.modalidad || 'HCB'} - ${j.totalNinos} niños)`);
-        const jIdx = readline.keyInSelect(opcionesJardines, c.negrita('  > Jardín: '), { cancel: 'Atrás' });
+        const cancelText = asociacionForzada ? (tareasPreparadas.length > 0 ? 'Finalizar Selección y Procesar Lote' : 'Volver al Menú Principal') : 'Cambiar de Asociación';
+        const jIdx = readline.keyInSelect(opcionesJardines, c.negrita('  > Jardín: '), { cancel: cancelText });
 
-        if (jIdx === -1) continue;
+        if (jIdx === -1) {
+            if (asociacionForzada) {
+                if (tareasPreparadas.length === 0) {
+                    console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+                    return;
+                }
+                break;
+            } else {
+                baseAsc = null;
+                continue;
+            }
+        }
 
         const jardinElegido = jardinesLocal[jIdx];
 
