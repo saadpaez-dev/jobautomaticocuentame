@@ -435,22 +435,8 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 }
 
 // ==========================================
-// FASE 2: LLENADO INDIVIDUAL / INASISTENCIAS
+// FASE 2: PRE-CONSULTA INTERACTIVA Y LOTE
 // ==========================================
-async function ejecutarFase2(asociaciones, mesAtencion) {
-    let browser, context, rolesPage;
-    let authDone = false;
-
-    while (true) {
-        console.log(c.cyan('\n  📋 [FASE 2] SELECCIONA *UNA SOLA* ASOCIACION:'));
-        const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
-        const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Escoja la asociacion: '), { cancel: 'Atras' });
-        
-        if (ascIdx === -1) {
-            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
-            break;
-        }
-
 async function ejecutarFase2(asociaciones, mesAtencion) {
     const { obtenerJardinesDeAsociacion, obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
     const removeAccentsStr = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
@@ -824,7 +810,6 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
     console.log(c.verde('\n  🎉 LOTE PROCESADO Y GUARDADO CON ÉXITO EN CUÉNTAME.'));
 }
-}
 
 async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown) {
     const { obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
@@ -1023,7 +1008,6 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
 
             break;
         }
-    }
     }
 }
 
