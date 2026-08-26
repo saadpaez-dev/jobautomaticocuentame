@@ -90,7 +90,9 @@ function configurarObservaciones() {
 
   console.log(c.amarillo('  📝 OBSERVACIONES (texto que se repite en los registros):'));
   console.log(c.gris(`     Por defecto: "${OBSERVACIONES_DEFAULT}"`));
-  const cambiarObs = readline.keyInYN('  Quieres cambiar el texto de observaciones?');
+  const respObs = readline.question(c.negrita('  Quieres cambiar el texto de observaciones? [Y/n]: ')).trim().toLowerCase();
+  const cambiarObs = respObs === '' || respObs === 'y' || respObs === 's' || respObs === 'si';
+  
   const observaciones = cambiarObs
     ? readline.question('  Escribe el nuevo texto de observaciones: ').trim() || OBSERVACIONES_DEFAULT
     : OBSERVACIONES_DEFAULT;
