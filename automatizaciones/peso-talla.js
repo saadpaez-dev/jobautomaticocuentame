@@ -1,4 +1,4 @@
-﻿/**
+/**
  * peso-talla.js
  * Script interactivo para el registro de toma de peso y talla.
  * Fase 1: Seleccion de Asociacion y Jardin (UDS), e ingreso al modulo correspondiente.
@@ -88,17 +88,14 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
         else noEncontrados++;
     });
 
-    console.log(c.verde('\n========================================================================================'));
-    console.log(c.verde('  ðŸ“Š RESUMEN FINAL DEL PROCESAMIENTO MASIVO:'));
-    console.log(c.verde('========================================================================================'));
-    console.log(c.verde(`  âœ… Cargados exitosamente: ${exitosos}`));
-    console.log(c.amarillo(`  âš ï¸ Omitidos (Toma ya existente): ${duplicados}`));
+    console.log(c.verde('\nRESUMEN FINAL DEL PROCESAMIENTO MASIVO:'));
+    console.log(c.verde(`Cargados exitosamente: ${exitosos}`));
+    console.log(c.amarillo(`Omitidos (Toma ya existente): ${duplicados}`));
     if (noEncontrados > 0) {
-        console.log(c.rojo(`  âŒ No encontrados / Con error: ${noEncontrados}`));
+        console.log(c.rojo(`No encontrados / Con error: ${noEncontrados}`));
     }
-    console.log(c.cyan(`\n  ðŸ“„ Reporte Excel generado exitosamente en:`));
-    console.log(c.negrita(`     "${rootFilePath}"`));
-    console.log(c.verde('========================================================================================\n'));
+    console.log(c.cyan(`\nReporte Excel generado exitosamente en:`));
+    console.log(c.negrita(`"${rootFilePath}"\n`));
 
     return rootFilePath;
 }
@@ -202,7 +199,7 @@ async function buscarYCambiarPaginaGrilla(content, page, targetDocOrName) {
                 if (!isMatch && targetNombre && calcularSimilitudTexto(nombreCompleto, targetNombre) >= 0.78) isMatch = true;
 
                 if (isMatch) {
-                    console.log(c.verde(`  âœ… Beneficiario encontrado en la pagina ${numSiguiente}!: ${nombreCompleto}`));
+                    console.log(c.verde(`  ✅ Beneficiario encontrado en la pagina ${numSiguiente}!: ${nombreCompleto}`));
                     return {
                         documento,
                         nombreCompleto,
@@ -397,9 +394,9 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
     ]);
 
     await popup.waitForLoadState('networkidle');
-    console.log(c.verde('  âœ… Ventana emergente Lupa abierta.'));
+    console.log(c.verde('  ✅ Ventana emergente Lupa abierta.'));
 
-    console.log(c.cyan(`  ðŸ“ Ingresando codigo de UDS: ${jardinSeleccionado.codigo}...`));
+    console.log(c.cyan(`  📍 Ingresando codigo de UDS: ${jardinSeleccionado.codigo}...`));
     await popup.locator('input[id*="txtCodigoUnidadServicio"], input[name*="CodigoUnidadServicio"]').first().fill(String(jardinSeleccionado.codigo));
 
     let ddlDepto = popup.locator('select[id*="ddlDepartamento"], select[name*="ddlDepartamento"]').first();
@@ -411,7 +408,7 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
 
     try {
         await ddlDepto.selectOption({ label: /BOGOT. D\.C\./i });
-        console.log(c.verde('    âœ… Departamento BOGOTA D.C. seleccionado.'));
+        console.log(c.verde('    ✅ Departamento BOGOTA D.C. seleccionado.'));
     } catch (err) {
         try {
             const options = await ddlDepto.locator('option').allInnerTexts();
@@ -426,7 +423,7 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
     try {
         const btnInfo = popup.locator('input[type="image"][id*="btnInfo"], input[src*="info.jpg"]').first();
         await btnInfo.waitFor({ state: 'visible', timeout: 15000 });
-        console.log(c.verde('  âœ… Resultado de UDS encontrado. Seleccionando...'));
+        console.log(c.verde('  ✅ Resultado de UDS encontrado. Seleccionando...'));
         await btnInfo.click();
     } catch (err) {
         console.log(c.rojo(`  âŒ Error: No se encontraron resultados en el popup para la UDS ${jardinSeleccionado.nombre}.`));
@@ -525,16 +522,16 @@ async function main() {
               archivosDocs.forEach((a, i) => console.log(`  ${i + 1}. ${a}`));
           }
 
-          console.log(c.cyan('\n  ðŸ“¥ SELECCION Y MULTI-CARGA DE ARCHIVOS EXCEL:'));
-          console.log(c.gris('     â€¢ Presiona ENTER (o escribe 0) para procesar TODOS los archivos de "Docs/peso y talla".'));
-          console.log(c.gris('     â€¢ O escribe el numero o lista de numeros (ej: 1, 3 o solo 2).'));
-          console.log(c.gris('     â€¢ O arrastra UNO o VARIOS archivos / CARPETA directamente a esta consola.\n'));
+          console.log(c.cyan('\n  📍¥ SELECCION Y MULTI-CARGA DE ARCHIVOS EXCEL:'));
+          console.log(c.gris('     • Presiona ENTER (o escribe 0) para procesar TODOS los archivos de "Docs/peso y talla".'));
+          console.log(c.gris('     • O escribe el numero o lista de numeros (ej: 1, 3 o solo 2).'));
+          console.log(c.gris('     • O arrastra UNO o VARIOS archivos / CARPETA directamente a esta consola.\n'));
 
           const inputRaw = readline.question(c.negrita('  > Ingresa tu opcion o arrastra los archivos aqui [0 = Todos]: ')).trim();
           
           if (archivosDocs.length > 0) {
               if (!inputRaw || inputRaw === '0' || inputRaw.toUpperCase() === 'TODOS') {
-                  console.log(c.verde(`  âœ… Seleccionados TODOS los ${archivosDocs.length} archivos de "Docs/peso y talla".`));
+                  console.log(c.verde(`  ✅ Seleccionados TODOS los ${archivosDocs.length} archivos de "Docs/peso y talla".`));
                   return archivosDocs.map(a => path.join(docsDir, a));
               }
 
@@ -544,7 +541,7 @@ async function main() {
               if (indicesValidos.length > 0 && indicesValidos.length === partesNumericas.length) {
                   const setIndices = Array.from(new Set(indicesValidos));
                   const seleccionados = setIndices.map(idx => path.join(docsDir, archivosDocs[idx - 1]));
-                  console.log(c.verde(`  âœ… Seleccionados ${seleccionados.length} archivo(s) especifico(s).`));
+                  console.log(c.verde(`  ✅ Seleccionados ${seleccionados.length} archivo(s) especifico(s).`));
                   return seleccionados;
               }
           }
@@ -572,11 +569,11 @@ async function main() {
               if (fs.existsSync(resolved)) {
                   const stat = fs.statSync(resolved);
                   if (stat.isDirectory()) {
-                      console.log(c.cyan(`\n  ðŸ“ Carpeta detectada: "${path.basename(resolved)}"`));
+                      console.log(c.cyan(`\n  📍 Carpeta detectada: "${path.basename(resolved)}"`));
                       const enCarpeta = fs.readdirSync(resolved)
                           .filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls')))
                           .map(f => path.join(resolved, f));
-                      console.log(c.verde(`     âœ… Encontrados ${enCarpeta.length} archivos Excel en la carpeta.`));
+                      console.log(c.verde(`     ✅ Encontrados ${enCarpeta.length} archivos Excel en la carpeta.`));
                       rutasValidadas.push(...enCarpeta);
                   } else if (stat.isFile() && !path.basename(resolved).startsWith('~') && (resolved.endsWith('.xlsx') || resolved.endsWith('.xls'))) {
                       rutasValidadas.push(resolved);
@@ -616,8 +613,8 @@ async function main() {
                   console.log(c.rojo(`  âŒ No se encontraron ninos validos en el primer Excel (${path.basename(fileP)}).`));
                   continue;
               }
-              console.log(c.verde(`\n  ðŸ“„ [1/${listaArchivosPendientes.length}] Leyendo Excel: ${path.basename(fileP)}`));
-              console.log(c.verde(`  âœ… Excel cargado exitosamente. Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+              console.log(c.verde(`\n  📄 [1/${listaArchivosPendientes.length}] Leyendo Excel: ${path.basename(fileP)}`));
+              console.log(c.verde(`  ✅ Excel cargado exitosamente. Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
               
               const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
               ascSeleccionada = match.ascSeleccionada;
@@ -629,7 +626,7 @@ async function main() {
                   console.log(c.amarillo(`  âš ï¸ No se encontro la UDS automaticamente. Se pedira seleccion manual.`));
               }
 
-              console.log(c.verde(`  âœ… Se encontraron ${ninosExcel.length} ninos listos para procesar.`));
+              console.log(c.verde(`  ✅ Se encontraron ${ninosExcel.length} ninos listos para procesar.`));
               modoExcel = respBenef.trim() === '1' ? 'MASIVO_NUEVO' : 'MASIVO_EDITAR';
           } catch(e) {
               console.log(c.rojo(`  âŒ Error leyendo Excel: ${e.message}`));
@@ -659,7 +656,7 @@ async function main() {
 
                   if (filtrados.length > 0) {
                       ninosExcel = filtrados;
-                      console.log(c.verde(`  âœ… Beneficiarios encontrados en Excel (${filtrados.length}):`));
+                      console.log(c.verde(`  ✅ Beneficiarios encontrados en Excel (${filtrados.length}):`));
                       filtrados.forEach((f, idx) => console.log(c.verde(`      ${idx+1}. ${f.nombreCompleto}`)));
                       modoExcel = 'INDIVIDUAL_EXCEL';
                       accionRapida = '1';
@@ -680,7 +677,7 @@ async function main() {
 
       if (!ascSeleccionada) {
           console.log(c.cyan('\n------------------------------------------------------'));
-          console.log(c.cyan('  ðŸ“‹ SELECCION DE ASOCIACION'));
+          console.log(c.cyan('  📍‹ SELECCION DE ASOCIACION'));
           console.log(c.cyan('------------------------------------------------------'));
           asociaciones.forEach((asc, i) => console.log(`  ${i + 1}. ${asc.nombreCorto}`));
           console.log(`  0. Salir`);
@@ -698,7 +695,7 @@ async function main() {
           }
           ascSeleccionada = asociaciones[idxAsociacion - 1];
       } else {
-          console.log(c.verde(`  âœ… Asociacion seleccionada: ${ascSeleccionada.nombreCorto}`));
+          console.log(c.verde(`  ✅ Asociacion seleccionada: ${ascSeleccionada.nombreCorto}`));
       }
 
       if (!jardinSeleccionado) {
@@ -709,7 +706,7 @@ async function main() {
           }
 
           console.log(c.cyan('\n------------------------------------------------------'));
-          console.log(c.cyan(`  ðŸ“‹ SELECCION DE JARDIN (UDS) - ${ascSeleccionada.nombreCorto}`));
+          console.log(c.cyan(`  📍‹ SELECCION DE JARDIN (UDS) - ${ascSeleccionada.nombreCorto}`));
           console.log(c.cyan('------------------------------------------------------'));
           jardines.forEach((jardin, i) => console.log(`  ${i + 1}. ${jardin.codigo} - ${jardin.nombre}`));
           console.log(`  0. Volver al menu principal`);
@@ -726,7 +723,7 @@ async function main() {
           }
           jardinSeleccionado = jardines[idxJardin - 1];
       } else {
-          console.log(c.verde(`  âœ… Jardin (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
+          console.log(c.verde(`  ✅ Jardin (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
       }
       
       if (respBenef.trim() === '3') {
@@ -738,7 +735,7 @@ async function main() {
               const respAccion = readline.question(c.negrita('  > Selecciona (1 o 2): '));
               if (respAccion.trim() === '1' || respAccion.trim() === '2') {
                   accionRapida = respAccion.trim();
-                  console.log(c.verde('  âœ… Perfecto, seleccionare automaticamente al nino en la grilla.'));
+                  console.log(c.verde('  ✅ Perfecto, seleccionare automaticamente al nino en la grilla.'));
               } else {
                   preFiltroBeneficiario = null;
               }
@@ -771,7 +768,7 @@ async function main() {
           console.log(c.amarillo('  â³ Esperando a que cargue el menu de Cuentame...'));
           await page.waitForTimeout(1500); 
       } else {
-          console.log(c.verde(`  âœ… Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
+          console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
           loggedIn = true;
       } 
       
@@ -825,7 +822,7 @@ async function main() {
           }
           
           await page.waitForTimeout(1500);
-          console.log(c.verde('  âœ… Clic en "Seguimiento nutricional" enviado.'));
+          console.log(c.verde('  ✅ Clic en "Seguimiento nutricional" enviado.'));
       } catch (err) {
           console.log(c.rojo(`  âŒ Error al intentar acceder a Seguimiento nutricional: ${err.message}`));
       }
@@ -868,7 +865,7 @@ async function main() {
 
       while (true) {
           console.log(c.cyan('\n------------------------------------------------------'));
-          console.log(c.cyan('  ðŸ“‹ SELECCION DE BENEFICIARIO (NINO)'));
+          console.log(c.cyan('  📍‹ SELECCION DE BENEFICIARIO (NINO)'));
           console.log(c.cyan('------------------------------------------------------'));
           
           console.log(c.amarillo('  â³ Extrayendo lista de ninos de la tabla...'));
@@ -913,7 +910,7 @@ async function main() {
               });
           }
 
-          console.log(c.verde(`  âœ… Se encontraron ${listaNinos.length} ninos en la UDS.`));
+          console.log(c.verde(`  ✅ Se encontraron ${listaNinos.length} ninos en la UDS.`));
           
           if (modoExcel && modoExcel.startsWith('MASIVO_')) {
               if (idxNinoExcelActual >= ninosExcel.length) {
@@ -924,14 +921,14 @@ async function main() {
                       idxArchivoActual++;
                       const proximoFile = listaArchivosPendientes[idxArchivoActual];
                       console.log(c.verde('\n========================================================================================'));
-                      console.log(c.verde(`  ðŸŽ‰ JARDIN PROCESADO EXITOSAMENTE. AVANZANDO AUTOMATICAMENTE AL ARCHIVO ${idxArchivoActual + 1} DE ${listaArchivosPendientes.length}:`));
-                      console.log(c.verde(`  ðŸ“„ ${path.basename(proximoFile)}`));
+                      console.log(c.verde(`  🎉‰ JARDIN PROCESADO EXITOSAMENTE. AVANZANDO AUTOMATICAMENTE AL ARCHIVO ${idxArchivoActual + 1} DE ${listaArchivosPendientes.length}:`));
+                      console.log(c.verde(`  📄 ${path.basename(proximoFile)}`));
                       console.log(c.verde('========================================================================================\n'));
 
                       try {
                           const parseResult = parsearExcel(proximoFile);
                           ninosExcel = parseResult.ninos;
-                          console.log(c.verde(`  âœ… Excel cargado exitosamente (${ninosExcel.length} ninos). Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+                          console.log(c.verde(`  ✅ Excel cargado exitosamente (${ninosExcel.length} ninos). Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
 
                           const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
 
@@ -964,24 +961,24 @@ async function main() {
 
                           continue; // Continua la ejecucion del loop procesando los ninos del NUEVO Jardin
                       } catch(e) {
-                          console.log(c.rojo(`  âŒ Error leyendo el siguiente Excel (${path.basename(proximoFile)}): ${e.message}`));
+                          console.log(c.rojo(`  ❌ Error leyendo el siguiente Excel (${path.basename(proximoFile)}): ${e.message}`));
                       }
                   }
 
                   const numTotalArchivos = listaArchivosPendientes ? listaArchivosPendientes.length : 1;
                   console.log(c.verde('\n========================================================================================'));
-                  console.log(c.verde(`  ðŸŽ‰ MULTI-PROCESAMIENTO COMPLETADO EXITOSAMENTE PARA LOS ${numTotalArchivos} ARCHIVO(S) EXCEL!`));
+                  console.log(c.verde(`  🎉 MULTI-PROCESAMIENTO COMPLETADO EXITOSAMENTE PARA LOS ${numTotalArchivos} ARCHIVO(S) EXCEL!`));
                   console.log(c.verde('========================================================================================'));
 
-                  console.log(c.cyan('\n  â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—'));
-                  console.log(c.cyan('  â•‘                Que deseas hacer a continuacion?                   â•‘'));
-                  console.log(c.cyan('  â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£'));
-                  console.log(c.cyan('  â•‘  1. Cargar mas archivos Excel / carpetas                           â•‘'));
-                  console.log(c.cyan('  â•‘  2. Cambiar de Jardin (UDS)                                        â•‘'));
-                  console.log(c.cyan('  â•‘  3. Cambiar de Asociacion                                          â•‘'));
-                  console.log(c.cyan('  â•‘  4. Volver al menu de opciones de Peso y Talla                     â•‘'));
-                  console.log(c.cyan('  â•‘  0. Volver al panel principal (AutoTrabajo / Start)               â•‘'));
-                  console.log(c.cyan('  â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•'));
+                  console.log(c.cyan('\n  ╔═════════════════════════════════════════════════════════════════════════════════════╗'));
+                  console.log(c.cyan('  ║                Que deseas hacer a continuacion?                   ║'));
+                  console.log(c.cyan('  ╠═════════════════════════════════════════════════════════════════════════════════════╣'));
+                  console.log(c.cyan('  ║  1. Cargar mas archivos Excel / carpetas                           ║'));
+                  console.log(c.cyan('  ║  2. Cambiar de Jardin (UDS)                                        ║'));
+                  console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
+                  console.log(c.cyan('  ║  4. Volver al menu de opciones de Peso y Talla                     ║'));
+                  console.log(c.cyan('  ║  0. Volver al panel principal (AutoTrabajo / Start)               ║'));
+                  console.log(c.cyan('  ╚═════════════════════════════════════════════════════════════════════════════════════╝'));
 
                   let opt = '';
                   while (!['0', '1', '2', '3', '4'].includes(opt.trim())) {
@@ -994,7 +991,7 @@ async function main() {
                       modoExcel = null;
                       break;
                   } else if (opt === '1') {
-                      console.log(c.cyan('\n  ðŸ“‚ MULTI-CARGA DE NUEVOS EXCEL'));
+                      console.log(c.cyan('\n  📍‚ MULTI-CARGA DE NUEVOS EXCEL'));
                       const rutas = obtenerRutasExcelMultiples();
                       if (rutas.length > 0) {
                           listaArchivosPendientes = rutas;
@@ -1008,7 +1005,7 @@ async function main() {
                                   modoExcel = null;
                                   break;
                               }
-                              console.log(c.verde(`  âœ… Nuevo Excel cargado exitosamente (${ninosExcel.length} ninos).`));
+                              console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} ninos).`));
                               console.log(c.verde(`  Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
 
                               modoExcel = 'MASIVO_NUEVO';
@@ -1105,7 +1102,7 @@ async function main() {
 
               if (coincidenciaModoExcel) {
                   ninoSeleccionado = coincidenciaModoExcel.nino;
-                  console.log(c.verde(`  âœ… Nino identificado en Cuentame (por ${coincidenciaModoExcel.metodo}): ${c.cyan(ninoSeleccionado.documento)} - ${ninoSeleccionado.nombreCompleto}`));
+                  console.log(c.verde(`  ✅ Nino identificado en Cuentame (por ${coincidenciaModoExcel.metodo}): ${c.cyan(ninoSeleccionado.documento)} - ${ninoSeleccionado.nombreCompleto}`));
               } else {
                   const resultados = listaNinos.filter(n => 
                       (busquedaNorm.length >= 3 && normalizarDoc(n.documento).includes(busquedaNorm)) || 
@@ -1149,12 +1146,12 @@ async function main() {
               console.log(c.rojo(`  âŒ No se encontro ningun nino que coincida con "${input}" en ninguna de las paginas de la UDS.`));
               preFiltroBeneficiario = null;
               if (modoExcel && modoExcel.startsWith('MASIVO_')) {
-                  console.log(c.amarillo('  âš ï¸ Saltando al siguiente nino del Excel...'));
+                  console.log(c.amarillo('  ⚠️ Saltando al siguiente nino del Excel...'));
                   const ninoTarget = ninosExcel[idxNinoExcelActual];
                   if (ninoTarget) {
                       ninosProcesados.push({
                           ...ninoTarget,
-                          estado: 'âŒ NO ENCONTRADO EN CUENTAME',
+                          estado: 'NO ENCONTRADO EN CUENTAME',
                           observacion: 'El beneficiario no aparece en ninguna de las paginas de esta UDS en Cuentame.'
                       });
                   }
@@ -1164,7 +1161,7 @@ async function main() {
           }
 
           try {
-              console.log(c.verde(`\n  âœ… Nino seleccionado: ${ninoSeleccionado.nombreCompleto}`));
+              console.log(c.verde(`\n  ✅ Nino seleccionado: ${ninoSeleccionado.nombreCompleto}`));
               console.log(c.gris(`  Accediendo a su formulario de peso y talla...`));
               
               await Promise.all([
@@ -1172,7 +1169,7 @@ async function main() {
                   ninoSeleccionado.locator.evaluate(node => node.click())
               ]);
 
-              console.log(c.verde(`  âœ… Formulario del nino abierto exitosamente.`));
+              console.log(c.verde(`  ✅ Formulario del nino abierto exitosamente.`));
               
               // =========================================================================
               // FASE 3 (Prueba de Navegacion): AGREGAR O EDITAR TOMA
@@ -1237,7 +1234,7 @@ async function main() {
                           consecutivosDuplicados++;
                           console.log(c.amarillo(`\n  âš ï¸ TOMA DUPLICADA DETECTADA para ${ninoSeleccionado.nombreCompleto}:`));
                           console.log(c.amarillo(`     - Fecha: ${targetFechaNorm} (Ya tiene una toma registrada para esta fecha).`));
-                          console.log(c.amarillo(`     âž¡ï¸ Omitiendo nino (${consecutivosDuplicados} consecutivo(s)).`));
+                          console.log(c.amarillo(`     ➡️¡ï¸ Omitiendo nino (${consecutivosDuplicados} consecutivo(s)).`));
 
                           if (consecutivosDuplicados >= 3) {
                               console.log(c.rojo('\n  ========================================================================================'));
@@ -1245,18 +1242,18 @@ async function main() {
                               console.log(c.rojo('  âš ï¸  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
                               console.log(c.rojo('  ========================================================================================\n'));
 
-                              console.log(c.cyan('  â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—'));
-                              console.log(c.cyan('  â•‘                Que deseas hacer a continuacion?                   â•‘'));
-                              console.log(c.cyan('  â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£'));
+                              console.log(c.cyan('  ╔════════════════════════════════════════════════════════════════════╗'));
+                              console.log(c.cyan('  ║                Que deseas hacer a continuacion?                   ║'));
+                              console.log(c.cyan('  ═ ════════════════════════════════════════════════════════════════════╣'));
                               if (ascSeleccionada) {
-                                  console.log(c.cyan(`  â•‘  1. Cargar otro Excel de esta misma asociacion (${ascSeleccionada.nombreCorto.padEnd(20)}) â•‘`));
+                                  console.log(c.cyan(`  ║  1. Cargar otro Excel de esta misma asociacion (${ascSeleccionada.nombreCorto.padEnd(20)}) ║`));
                               } else {
-                                  console.log(c.cyan('  â•‘  1. Cargar otro Excel de esta misma asociacion                     â•‘'));
+                                  console.log(c.cyan('  ║  1. Cargar otro Excel de esta misma asociacion                     ║'));
                               }
-                              console.log(c.cyan('  â•‘  2. Cambiar de Jardin (UDS)                                        â•‘'));
-                              console.log(c.cyan('  â•‘  3. Cambiar de Asociacion                                          â•‘'));
-                              console.log(c.cyan('  â•‘  0. Volver al menu principal                                       â•‘'));
-                              console.log(c.cyan('  â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•'));
+                              console.log(c.cyan('  ║  2. Cambiar de Jardin (UDS)                                        ║'));
+                              console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
+                              console.log(c.cyan('  ║  0. Volver al menu principal                                       ║'));
+                              console.log(c.cyan('  ╚═════════════════════════════════════════════════════════════════════'));
 
                               let opt = '';
                               while (!['0', '1', '2', '3'].includes(opt.trim())) {
@@ -1264,7 +1261,7 @@ async function main() {
                               }
 
                               if (opt === '1') {
-                                  console.log(c.cyan('\n  ðŸ“‚ Carga de nuevo Excel para ' + (ascSeleccionada ? ascSeleccionada.nombreCorto : 'la asociacion activa')));
+                                  console.log(c.cyan('\n  📍‚ Carga de nuevo Excel para ' + (ascSeleccionada ? ascSeleccionada.nombreCorto : 'la asociacion activa')));
                                   const fileP = obtenerRutaExcel();
                                   try {
                                       const parseResult = parsearExcel(fileP);
@@ -1273,7 +1270,7 @@ async function main() {
                                           console.log(c.rojo('  âŒ No se encontraron ninos validos en el nuevo Excel.'));
                                           modoExcel = null;
                                       } else {
-                                          console.log(c.verde(`  âœ… Nuevo Excel cargado exitosamente (${ninosExcel.length} ninos).`));
+                                          console.log(c.verde(`  ✅ Nuevo Excel cargado exitosamente (${ninosExcel.length} ninos).`));
                                           console.log(c.verde(`  Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
 
                                           modoExcel = 'MASIVO_NUEVO';
@@ -1285,7 +1282,7 @@ async function main() {
                                               const nuevoJardin = ascSeleccionada.jardines.find(j => udsStr.includes(j.nombre.toUpperCase()) || j.nombre.toUpperCase().includes(udsStr));
                                               if (nuevoJardin) {
                                                   jardinSeleccionado = nuevoJardin;
-                                                  console.log(c.verde(`  âœ… Jardin (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
+                                                  console.log(c.verde(`  ✅ Jardin (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
                                               } else {
                                                   jardinSeleccionado = null;
                                               }
@@ -1333,7 +1330,7 @@ async function main() {
                   }
 
                   console.log(c.cyan('\n------------------------------------------------------'));
-                  console.log(c.cyan(`  ðŸ“Š TOMAS ACTUALES DE: ${ninoSeleccionado.nombreCompleto}`));
+                  console.log(c.cyan(`  📊 TOMAS ACTUALES DE: ${ninoSeleccionado.nombreCompleto}`));
                   console.log(c.cyan('------------------------------------------------------'));
                   
                   const btnNuevo = content.locator('a[id*="btnNuevo"], input[id*="btnNuevo"]').first();
@@ -1347,7 +1344,7 @@ async function main() {
                               content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                               btnNuevo.evaluate(node => node.click())
                           ]);
-                          console.log(c.verde('  âœ… Nueva ventana (Nuevo) cargada.'));
+                          console.log(c.verde('  ✅ Nueva ventana (Nuevo) cargada.'));
                       } else {
                           console.log(c.rojo('  âŒ No se encontro el boton (+) Nuevo.'));
                       }
@@ -1389,7 +1386,7 @@ async function main() {
                                   content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                   btnNuevo.evaluate(node => node.click())
                               ]);
-                              console.log(c.verde('  âœ… Nueva ventana (Nuevo) cargada.'));
+                              console.log(c.verde('  ✅ Nueva ventana (Nuevo) cargada.'));
                                const btnAceptarPop = content.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
                                if (await btnAceptarPop.isVisible().catch(() => false)) {
                                    console.log(c.amarillo('  âš ï¸  Mensaje Informativo Cuentame detectado (SGSSS / Alerta) â†’ haciendo clic en Aceptar...'));
@@ -1439,7 +1436,7 @@ async function main() {
                                           content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                           tomaSeleccionada.btnInfoLocator.evaluate(node => node.click())
                                       ]);
-                                      console.log(c.verde('  âœ… Ventana de Edicion cargada.'));
+                                      console.log(c.verde('  ✅ Ventana de Edicion cargada.'));
                                   } else {
                                       console.log(c.rojo('  âŒ No se encontro el boton azul (detalle) para esta fila.'));
                                   }
@@ -1468,14 +1465,14 @@ async function main() {
                           talla: String(ninoInfo.talla || '').trim().replace(',', '.'),
                           perimetro: ninoInfo.perimetro ? String(ninoInfo.perimetro).trim().replace(',', '.') : ''
                       };
-                      console.log(c.amarillo(`  ðŸ“¥ Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro}`));
+                      console.log(c.amarillo(`  📍¥ Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro}`));
                       await page.waitForTimeout(800);
                   } else {
                       let regimenInput = null;
                       let epsInput = null;
 
                       while (true) {
-                          console.log(c.cyan('\n  ðŸ“‹ DATOS DE LA TOMA (Ingresa los datos para este nino)'));
+                          console.log(c.cyan('\n  📍‹ DATOS DE LA TOMA (Ingresa los datos para este nino)'));
                           let fechaEntrada = readline.question(c.negrita('  > Fecha de valoracion (ej. "hoy", "22", "30/07/2026") [Opcional]: '));
                           let pesoInput = readline.question(c.negrita('  > Peso en Kilogramos (ej. 12.5) [Opcional]: '));
                           let tallaInput = readline.question(c.negrita('  > Talla en Centimetros (ej. 85) [Opcional]: '));
@@ -1532,7 +1529,7 @@ async function main() {
                       const btnGuardar = content.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
                       if (await btnGuardar.count() > 0) {
                           await btnGuardar.click({ timeout: 3000 }).catch(() => btnGuardar.evaluate(node => node.click()));
-                          console.log(c.verde('  âœ… Clic en boton Guardar enviado.'));
+                          console.log(c.verde('  ✅ Clic en boton Guardar enviado.'));
                       } else {
                           console.log(c.rojo('  âŒ No se encontro el boton de Guardar. Por favor guardalo manualmente.'));
                       }
@@ -1618,15 +1615,15 @@ async function main() {
 
                   if (errorTomaExistente) {
                       consecutivosDuplicados++;
-                      console.log(c.amarillo(`\n  âš ï¸ ALERTA DE CUENTAME: "El beneficiario ya tiene una toma para la fecha de antropometrica relacionada".`));
-                      console.log(c.amarillo(`     âž¡ï¸ Registro omitido por duplicidad de fecha (${consecutivosDuplicados} consecutivo(s)).`));
+                      console.log(c.amarillo(`\n  ⚠️ ALERTA DE CUENTAME: "El beneficiario ya tiene una toma para la fecha de antropometrica relacionada".`));
+                      console.log(c.amarillo(`     ➡ Registro omitido por duplicidad de fecha (${consecutivosDuplicados} consecutivo(s)).`));
 
                       if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                           const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
                           if (ninoTarget) {
                               ninosProcesados.push({
                                   ...ninoTarget,
-                                  estado: 'âš ï¸ OMITIDO (TOMA DUPLICADA)',
+                                  estado: 'OMITIDO (TOMA DUPLICADA)',
                                   observacion: 'Cuentame indico que el beneficiario ya tiene una toma para esa fecha.'
                               });
                           }
@@ -1634,8 +1631,8 @@ async function main() {
 
                       if (consecutivosDuplicados >= 3) {
                           console.log(c.rojo('\n  ========================================================================================'));
-                          console.log(c.rojo('  â›” SE VALIDO EN 3 REGISTROS CONSECUTIVOS QUE LA TOMA YA EXISTE EN CUENTAME.'));
-                          console.log(c.rojo('  âš ï¸  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
+                          console.log(c.rojo('  ⛔ SE VALIDO EN 3 REGISTROS CONSECUTIVOS QUE LA TOMA YA EXISTE EN CUENTAME.'));
+                          console.log(c.rojo('  ⚠️ FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
                           console.log(c.rojo('  ========================================================================================\n'));
 
                           preFiltroBeneficiario = null;
@@ -1643,17 +1640,17 @@ async function main() {
                       }
                   } else if (guardadoConfirmado) {
                       consecutivosDuplicados = 0;
-                      console.log(c.verde('  ðŸŽ‰ Confirmado! Banner "La Informacion ha sido guardada." recibido de Cuentame.'));
+                      console.log(c.verde('  🎉 Confirmado! Banner "La Informacion ha sido guardada." recibido de Cuentame.'));
                       if (modoExcel && modoExcel.startsWith('MASIVO_')) {
                           const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
                           if (ninoTarget) {
                               ninosProcesados.push({
                                   ...ninoTarget,
-                                  estado: 'âœ… CARGADO EXITOSAMENTE',
+                                  estado: 'CARGADO EXITOSAMENTE',
                                   observacion: 'La informacion de la toma se guardo en Cuentame.'
                               });
                           }
-                          console.log(c.verde(`  ðŸŽ‰ Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
+                          console.log(c.verde(`  🎉 Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                       }
                   } else {
                       let currentFrameErr = page.frame({ name: 'frameContent' }) || page;
@@ -1670,7 +1667,7 @@ async function main() {
 
                       // Auto-recuperacion si Cuentame reclama por Fecha de medicion de perimetro braquial o fecha de inicio de atencion
                       if (txtError && (txtError.toLowerCase().includes('perimetro braquial') || txtError.toLowerCase().includes('menor o igual') || txtError.toLowerCase().includes('inicio de atencion')) && ninoTarget) {
-                          console.log(c.amarillo(`\n  âš ï¸ Detectado error de fecha de perimetro braquial / inicio de atencion en Cuentame.`));
+                          console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perimetro braquial / inicio de atencion en Cuentame.`));
                           
                           // Extraer cualquier fecha valida mencionada en el mensaje de error (EXCLUYENDO 01/01/1900)
                           let fechaRef = ninoTarget.fecha;
@@ -1679,12 +1676,12 @@ async function main() {
                           
                           if (validDates.length > 0) {
                               fechaRef = validDates[0];
-                              console.log(c.amarillo(`  ðŸ› ï¸ Autocorrigiendo: Ajustando Fecha a ${fechaRef} (sugerida por la regla de validacion)...`));
+                              console.log(c.amarillo(`  🛠️ Autocorrigiendo: Ajustando Fecha a ${fechaRef} (sugerida por la regla de validacion)...`));
                           } else {
                               // Fallback a la fecha actual o fecha del registro (NUNCA 1900)
                               const hoyStr = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/-/g, '/');
                               if (!fechaRef || fechaRef.includes('1900')) fechaRef = hoyStr;
-                              console.log(c.amarillo(`  ðŸ› ï¸ Autocorrigiendo: Re-sincronizando formulario completo con Fecha (${fechaRef})...`));
+                              console.log(c.amarillo(`  🛠️ Autocorrigiendo: Re-sincronizando formulario completo con Fecha (${fechaRef})...`));
                           }
                           
                           datosLlenado.fecha = fechaRef;
@@ -1695,7 +1692,7 @@ async function main() {
 
                           const btnGuardarRetry = currentFrameErr.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
                           if (await btnGuardarRetry.count() > 0) {
-                              console.log(c.amarillo('  â³ Reintentando guardado...'));
+                              console.log(c.amarillo('  ⏳ Reintentando guardado...'));
                               await btnGuardarRetry.click({ timeout: 3000 }).catch(() => btnGuardarRetry.evaluate(node => node.click()));
                               await page.waitForTimeout(800);
 
@@ -1706,14 +1703,14 @@ async function main() {
                               if (txtBodyRetry.includes('La Informacion ha sido guardada') || txtMainRetry.includes('La Informacion ha sido guardada') || txtBodyRetry.includes('ha sido guardada')) {
                                   autoHealed = true;
                                   consecutivosDuplicados = 0;
-                                  console.log(c.verde('  ðŸŽ‰ Corregido y guardado exitosamente! Banner "La Informacion ha sido guardada." recibido.'));
+                                  console.log(c.verde('  🎉 Corregido y guardado exitosamente! Banner "La Informacion ha sido guardada." recibido.'));
                                   if (modoExcel && modoExcel.startsWith('MASIVO_') && ninoTarget) {
                                       ninosProcesados.push({
                                           ...ninoTarget,
-                                          estado: 'âœ… CARGADO EXITOSAMENTE (AUTOCORREGIDO FECHA PERIMETRO)',
+                                          estado: 'CARGADO EXITOSAMENTE (AUTOCORREGIDO FECHA PERIMETRO)',
                                           observacion: 'La informacion de la toma se guardo tras autocorregir fecha de perimetro braquial.'
                                       });
-                                      console.log(c.verde(`  ðŸŽ‰ Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
+                                      console.log(c.verde(`  🎉‰ Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                                   }
                               }
                           }
@@ -1774,15 +1771,15 @@ async function main() {
 
 
                   // â”€â”€ MENU POST-GUARDADO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                  console.log(c.cyan('\n  â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—'));
-                  console.log(c.cyan('  â•‘                Que deseas hacer a continuacion?                   â•‘'));
-                  console.log(c.cyan('  â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£'));
-                  console.log(c.cyan('  â•‘  1. Otro nino del mismo jardin                                     â•‘'));
-                  console.log(c.cyan('  â•‘  2. Cambiar de Jardin (UDS)                                        â•‘'));
-                  console.log(c.cyan('  â•‘  3. Cambiar de Asociacion                                          â•‘'));
-                  console.log(c.cyan('  â•‘  4. Volver al menu de opciones de Peso y Talla                     â•‘'));
-                  console.log(c.cyan('  â•‘  0. Volver al panel principal (AutoTrabajo / Start)               â•‘'));
-                  console.log(c.cyan('  â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•'));
+                  console.log(c.cyan('\n  ╔════════════════════════════════════════════════════════════════════╗'));
+                  console.log(c.cyan('  ║                Que deseas hacer a continuacion?                   ║'));
+                  console.log(c.cyan('  ═ ════════════════════════════════════════════════════════════════════╣'));
+                  console.log(c.cyan('  ║  1. Otro nino del mismo jardin                                     ║'));
+                  console.log(c.cyan('  ║  2. Cambiar de Jardin (UDS)                                        ║'));
+                  console.log(c.cyan('  ║  3. Cambiar de Asociacion                                          ║'));
+                  console.log(c.cyan('  ║  4. Volver al menu de opciones de Peso y Talla                     ║'));
+                  console.log(c.cyan('  ║  0. Volver al panel principal (AutoTrabajo / Start)               ║'));
+                  console.log(c.cyan('  ╚═════════════════════════════════════════════════════════════════════'));
 
                   let respNavPost = '';
                   while (!['0', '1', '2', '3', '4'].includes(respNavPost.trim())) {
@@ -1833,7 +1830,7 @@ async function main() {
                                   await popup.waitForEvent('close', { timeout: 10000 });
                               } catch (e) {}
                               
-                              console.log(c.verde('  âœ… UDS recargada correctamente. Busca el siguiente.'));
+                              console.log(c.verde('  ✅ UDS recargada correctamente. Busca el siguiente.'));
                           } else {
                               console.log(c.rojo('  âŒ No se encontro la lupa de UDS para recargar.'));
                           }
@@ -1857,7 +1854,7 @@ async function main() {
                               await page.goto('https://rubonline.icbf.gov.co/General/General/Master/MasterPrincipal.aspx', { waitUntil: 'networkidle', timeout: 20000 });
                               await page.waitForTimeout(800);
                           }
-                          console.log(c.verde('  âœ… Listo. Selecciona el nuevo jardin desde los filtros.'));
+                          console.log(c.verde('  ✅ Listo. Selecciona el nuevo jardin desde los filtros.'));
                       } catch(e) {
                           console.log(c.rojo(`  âŒ Error navegando: ${e.message}`));
                       }
@@ -1874,7 +1871,7 @@ async function main() {
                               await loginYLlegarARoles(page, { usuario: USUARIO, password: PASSWORD, gmailUser: GMAIL_USER, gmailAppPassword: GMAIL_APP_PASSWORD });
                           }
                           loggedIn = true;
-                          console.log(c.verde('  âœ… Listo. El script seleccionara la nueva asociacion.'));
+                          console.log(c.verde('  ✅ Listo. El script seleccionara la nueva asociacion.'));
                       } catch(e) {
                           console.log(c.rojo(`  âŒ Error navegando a roles: ${e.message}`));
                       }

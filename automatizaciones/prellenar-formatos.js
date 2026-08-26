@@ -23,16 +23,15 @@ const xlsx = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const readline = require('readline-sync');
-const picocolors = require('picocolors');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const c = {
-    verde: str => picocolors.green(str),
-    cyan: str => picocolors.cyan(str),
-    amarillo: str => picocolors.yellow(str),
-    rojo: str => picocolors.red(str),
-    gris: str => picocolors.gray(str),
-    negrita: str => picocolors.bold(str)
+    verde: (t) => `\x1b[32m${t}\x1b[0m`,
+    amarillo: (t) => `\x1b[33m${t}\x1b[0m`,
+    cyan: (t) => `\x1b[36m${t}\x1b[0m`,
+    rojo: (t) => `\x1b[31m${t}\x1b[0m`,
+    gris: (t) => `\x1b[90m${t}\x1b[0m`,
+    negrita: (t) => `\x1b[1m${t}\x1b[0m`
 };
 
 function removeAccents(str) {

@@ -100,7 +100,7 @@ async function main() {
             console.log(c.amarillo(`  ðŸ¢ Seleccionando la asociacion ${ascSeleccionada.nombreCorto}...`));
             await seleccionarRolYEntrar(page, ascSeleccionada);
         } else {
-            console.log(c.verde(`  âœ… Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
+            console.log(c.verde(`  ✅ Preservando sesion y asociacion activa: "${ascSeleccionada.nombreCorto}".`));
             loggedIn = true;
         }
 
@@ -155,7 +155,7 @@ async function main() {
         }
         
         await page.waitForTimeout(1500);
-        console.log(c.verde('  âœ… Clic en "Informacion beneficiario" enviado.'));
+        console.log(c.verde('  ✅ Clic en "Informacion beneficiario" enviado.'));
     } catch (err) {
         console.log(c.rojo(`  âŒ Error al intentar acceder a Informacion beneficiario: ${err.message}`));
     }
@@ -307,7 +307,7 @@ async function main() {
             });
 
             const masReciente = registros[0];
-            console.log(c.verde(`\n  âœ… Beneficiario encontrado: ${c.cyan(masReciente.nombre)}`));
+            console.log(c.verde(`\n  ✅ Beneficiario encontrado: ${c.cyan(masReciente.nombre)}`));
             console.log(`    Ultimo registro: ${masReciente.fechaAtencion}`);
             console.log(`    Estado actual: ${c.negrita(masReciente.estado)}`);
             console.log(`    Asociacion (Entidad): ${masReciente.entidad}`);
@@ -386,7 +386,7 @@ async function main() {
                             
                             await workbook.xlsx.writeFile(childExcelPath);
                             
-                            console.log(c.verde(`  âœ… Novedad guardada exitosamente en el Excel (solo para este nino).`));
+                            console.log(c.verde(`  ✅ Novedad guardada exitosamente en el Excel (solo para este nino).`));
                             
                             const armarCorreo = readline.question('  Desea armar el correo para envio a la regional? (s/n) o [M] para menu principal: ').toLowerCase();
                             if (armarCorreo === 'm') {
@@ -459,7 +459,7 @@ async function main() {
                                 } else {
                                     const messageBuffer = await mail.compile().build();
                                     await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
-                                    console.log(c.verde(`  âœ… Borrador de correo subido exitosamente a la carpeta Borradores de tu Gmail.`));
+                                    console.log(c.verde(`  ✅ Borrador de correo subido exitosamente a la carpeta Borradores de tu Gmail.`));
                                     console.log(c.verde(`     (Revisa la carpeta "Borradores" en tu correo, alli estara listo con el Excel adjunto).`));
                                 }
                             }
@@ -468,7 +468,7 @@ async function main() {
                         }
                     }
                 } else {
-                    console.log(c.verde(`  âœ… El nino se encuentra VINCULADO correctamente en tu asociacion.`));
+                    console.log(c.verde(`  ✅ El nino se encuentra VINCULADO correctamente en tu asociacion.`));
                 }
             } else if (estadoMayus === 'DESVINCULADO') {
                 console.log(c.amarillo(`  ðŸ‘‰ El nino se encuentra DESVINCULADO. (Procede a la tarea 5 para vincularlo).`));
