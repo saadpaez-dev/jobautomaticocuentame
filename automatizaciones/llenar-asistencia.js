@@ -706,22 +706,70 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
                 await selectDropdown('Mes', mesAtencion);
                 await selectDropdown('Estado', 'Todos');
+                await mainPage.waitForTimeout(400);
 
-                // Seleccionar UDS por nombre o código
-                const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
-                if (await uLoc.count() > 0) {
-                    const udsValue = await uLoc.evaluate((s, jSearch) => {
-                        const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(jSearch.toUpperCase()));
-                        return opt ? opt.value : null;
-                    }, jNombre);
+                // 1. Seleccionar Servicio (requerido para habilitar el dropdown de UDS)
+                const servicioLocator = contentFrame.locator('select[id*="Servicio"]').first();
+                if (await servicioLocator.count() > 0) {
+                    const servOpts = await servicioLocator.evaluate(s => {
+                        return Array.from(s.options)
+                            .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
+                            .map(o => ({ value: o.value, text: o.text }));
+                    });
 
-                    if (udsValue) {
-                        await uLoc.selectOption(udsValue);
-                        await mainPage.waitForTimeout(500);
+                    let chosenServ = null;
+                    const jModalidad = (jGrupo.jardin.modalidad || '').toUpperCase();
+
+                    if (servOpts.length === 1) {
+                        chosenServ = servOpts[0];
+                    } else if (servOpts.length > 1) {
+                        chosenServ = servOpts.find(o => {
+                            const txtNorm = removeAccentsStr(o.text);
+                            const modNorm = removeAccentsStr(jModalidad);
+                            return txtNorm.includes(modNorm) || modNorm.includes(txtNorm) ||
+                                   (modNorm.includes('JARDIN') && txtNorm.includes('JARDIN')) ||
+                                   (modNorm.includes('HCB') && txtNorm.includes('HCB'));
+                        }) || servOpts[0];
+                    }
+
+                    if (chosenServ) {
+                        console.log(c.gris(`    [Filtro] Seleccionando Servicio: ${chosenServ.text}`));
+                        await servicioLocator.selectOption(chosenServ.value, { timeout: 5000 });
+                        await mainPage.waitForTimeout(600); // Esperar postback de ASP.NET para actualizar UDS
                     }
                 }
 
-                // Clic en la Lupa para desplegar la lista de niños en Cuéntame
+                // 2. Seleccionar UDS por nombre o codigo
+                const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
+                if (await uLoc.count() > 0) {
+                    let udsValue = null;
+                    const jSearch = removeAccentsStr(jNombre);
+
+                    for (let r = 0; r < 20; r++) {
+                        udsValue = await uLoc.evaluate((s, target) => {
+                            const opt = Array.from(s.options).find(o => {
+                                const tNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                                return tNorm.includes(target) || target.includes(tNorm);
+                            });
+                            return opt ? opt.value : null;
+                        }, jSearch);
+
+                        if (udsValue) break;
+                        await mainPage.waitForTimeout(100);
+                    }
+
+                    if (udsValue) {
+                        console.log(c.gris(`    [Filtro] Seleccionando UDS: ${jNombre}`));
+                        await uLoc.selectOption(udsValue);
+                        await mainPage.waitForTimeout(500);
+                    } else {
+                        console.log(c.rojo(`    ⚠️ No se encontro la UDS "${jNombre}" en el dropdown de Cuentame.`));
+                        continue;
+                    }
+                }
+
+                // Clic en la Lupa para desplegar la lista de ninos en Cuentame
+                console.log(c.gris('    [Filtro] Clic en Lupa para consultar beneficiarios...'));
                 const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
                 if (await lupa.count() > 0 && await lupa.isVisible()) {
                     await lupa.click();
@@ -729,7 +777,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first();
                     if (await genericBtn.count() > 0) await genericBtn.click();
                 }
-                await mainPage.waitForTimeout(800);
+                await mainPage.waitForTimeout(1000);
 
                 contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
