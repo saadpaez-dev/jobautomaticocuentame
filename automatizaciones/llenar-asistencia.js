@@ -451,236 +451,352 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             break;
         }
 
-        const baseAsc = asociaciones[ascIdx];
-        let subAsociacionesFase2 = [];
-        if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => baseAsc.nombreCorto.toUpperCase().includes(x))) {
-            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDIN COMUNITARIO - 420269)', 'Ambas (Individuales + Agrupados)'];
-            const res = readline.keyInSelect(opciones, c.negrita(`\n  > La asociacion ${baseAsc.nombreCorto} es MIXTA. Que jardines desea procesar?`), { cancel: false });
-            if (res === 2) {
-                subAsociacionesFase2 = [
-                    { ...baseAsc, tipoServicio: 'Individual' },
-                    { ...baseAsc, tipoServicio: 'Agrupado' }
-                ];
-            } else {
-                baseAsc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
-                subAsociacionesFase2 = [baseAsc];
+async function ejecutarFase2(asociaciones, mesAtencion) {
+    const { obtenerJardinesDeAsociacion, obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
+    const removeAccentsStr = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+
+    const tareasPreparadas = [];
+
+    console.log(c.cyan('\n===================================================================='));
+    console.log(c.cyan('  ⚡ FASE 2: PRE-CONSULTA INTERACTIVA Y EDICIÓN EN LOTE (OFF-LINE)'));
+    console.log(c.cyan('  (Configura todos los cambios de una vez sin esperar a la web)'));
+    console.log(c.cyan('===================================================================='));
+
+    while (true) {
+        // 1. Seleccionar Asociación
+        console.log(c.cyan('\n  📋 Selecciona la Asociación:'));
+        const opcionesAsc = asociaciones.map(a => `${a.nombreCorto} (Contrato: ${a.numeroContrato})`);
+        const ascIdx = readline.keyInSelect(opcionesAsc, c.negrita('  > Asociación: '), { cancel: tareasPreparadas.length > 0 ? 'Finalizar Selección y Procesar Lote' : 'Volver al Menú Principal' });
+
+        if (ascIdx === -1) {
+            if (tareasPreparadas.length === 0) {
+                console.log(c.verde('\n  👋 Volviendo al menú principal...'));
+                return;
             }
-        } else {
-            subAsociacionesFase2 = [baseAsc];
+            break; // Proceder a procesar las tareas ya preparadas
         }
 
-        for (let asc of subAsociacionesFase2) {
-            console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociacion: ${asc.nombreCorto}${asc.tipoServicio ? ' (' + asc.tipoServicio + ')' : ''}`));
+        const baseAsc = asociaciones[ascIdx];
 
-            if (!authDone || !rolesPage) {
-                const nav = await iniciarNavegador();
-                browser = nav.browser;
-                context = nav.context;
-                rolesPage = nav.mainPage;
-                authDone = true;
+        // 2. Seleccionar Jardín (desde BD Master Local)
+        const jardinesLocal = obtenerJardinesDeAsociacion(baseAsc.nombreCorto);
+        if (!jardinesLocal || jardinesLocal.length === 0) {
+            console.log(c.rojo(`  ⚠️ No se encontraron jardines para ${baseAsc.nombreCorto} en la BD Local. Descarga primero el reporte de beneficiarios.`));
+            continue;
+        }
+
+        console.log(c.cyan(`\n  📋 Selecciona el Jardín / UDS en ${baseAsc.nombreCorto}:`));
+        const opcionesJardines = jardinesLocal.map(j => `${j.nombreUds} (${j.modalidad || 'HCB'} - ${j.totalNinos} niños)`);
+        const jIdx = readline.keyInSelect(opcionesJardines, c.negrita('  > Jardín: '), { cancel: 'Atrás' });
+
+        if (jIdx === -1) continue;
+
+        const jardinElegido = jardinesLocal[jIdx];
+
+        // 3. Seleccionar Niño/Niña (desde BD Master Local)
+        const ninosLocal = obtenerNinosDeJardin(baseAsc.nombreCorto, jardinElegido.nombreUds);
+        if (!ninosLocal || ninosLocal.length === 0) {
+            console.log(c.rojo(`  ⚠️ No se encontraron niños registrados en ${jardinElegido.nombreUds}.`));
+            continue;
+        }
+
+        while (true) {
+            console.log(c.cyan(`\n  📂 Beneficiarios en ${jardinElegido.nombreUds} (${ninosLocal.length}):`));
+            console.log(c.amarillo('  0. 🌟 TODOS LOS NIÑOS DEL JARDÍN'));
+            ninosLocal.forEach((n, idx) => {
+                console.log(`  ${idx + 1}. ${n.nombreCompleto} (${n.tipoDoc}: ${n.documento} - ${n.edad} años)`);
+            });
+
+            const respNino = readline.question(c.negrita('\n  > Ingrese el Número (ej: 1), Nombre, Apellido o 0 (o Vacío para cambiar de Jardín): ')).trim();
+            if (!respNino) break;
+
+            let ninosSeleccionados = [];
+            const numNino = parseInt(respNino, 10);
+
+            if (respNino === '0' || respNino.toUpperCase() === 'TODOS') {
+                ninosSeleccionados = ninosLocal;
+            } else if (!isNaN(numNino) && numNino >= 1 && numNino <= ninosLocal.length) {
+                ninosSeleccionados = [ninosLocal[numNino - 1]];
+            } else {
+                const qName = removeAccentsStr(respNino);
+                ninosSeleccionados = ninosLocal.filter(n => removeAccentsStr(n.nombreCompleto).includes(qName) || n.documento.includes(qName));
+                if (ninosSeleccionados.length === 0) {
+                    console.log(c.rojo(`  ❌ No se encontró ningún niño que coincida con "${respNino}".`));
+                    continue;
+                }
             }
 
-            try {
-                console.log(`  🏢 Validando y seleccionando entidad/asociacion: "${asc.nombreCorto}"...`);
-            const mismaAsc = await validarYCambiarAsociacion(rolesPage, asc);
+            // 4. Seleccionar Acción
+            console.log(c.cyan(`\n  🎯 Niño(s) seleccionado(s): ${ninosSeleccionados.map(n => n.nombreCompleto).join(', ')}`));
+            const acciones = [
+                'Marcar ASISTENCIAS (poner checks [X])',
+                'Marcar INASISTENCIAS (quitar checks [ ])'
+            ];
+            const accionIdx = readline.keyInSelect(acciones, c.negrita(`  > Acción a aplicar: `), { cancel: 'Cancelar' });
+            if (accionIdx === -1) continue;
+
+            const tipoAccion = accionIdx === 0 ? 'ASISTENCIA' : 'INASISTENCIA';
+
+            // 5. Seleccionar Días
+            const diasInput = readline.question(c.negrita('\n  > Ingrese los días. Ejemplo: 1,5,8 o 1-15: ')).trim();
+            if (!diasInput) continue;
+
+            let dias = [];
+            const partes = diasInput.split(',');
+            for (let p of partes) {
+                p = p.trim();
+                if (p.includes('-')) {
+                    const rangos = p.split('-');
+                    const ini = parseInt(rangos[0], 10);
+                    const fin = parseInt(rangos[1], 10);
+                    if (!isNaN(ini) && !isNaN(fin) && ini <= fin) {
+                        for (let i = ini; i <= fin; i++) dias.push(i);
+                    }
+                } else {
+                    const num = parseInt(p, 10);
+                    if (!isNaN(num)) dias.push(num);
+                }
+            }
+
+            if (dias.length === 0) {
+                console.log(c.rojo('  ❌ Días inválidos. Intenta nuevamente.'));
+                continue;
+            }
+
+            // Agregar a tareas preparadas
+            for (const nino of ninosSeleccionados) {
+                tareasPreparadas.push({
+                    asociacion: baseAsc,
+                    jardin: jardinElegido,
+                    nino: nino,
+                    tipoAccion: tipoAccion,
+                    dias: dias,
+                    mesAtencion: mesAtencion
+                });
+                console.log(c.verde(`  ➕ [LOTE] ${tipoAccion} -> ${nino.nombreCompleto} (${jardinElegido.nombreUds}) | Días: [${dias.join(', ')}]`));
+            }
+
+            const mas = readline.question(c.negrita('\n  > ¿Deseas agregar otra tarea en este mismo jardín? (s/n) [por defecto s]: ')).trim();
+            if (mas.toLowerCase() === 'n') break;
+        }
+
+        const continuarMas = readline.question(c.negrita('\n  > ¿Deseas agregar tareas en otro jardín o asociación? (s/n) [por defecto n]: ')).trim();
+        if (continuarMas.toLowerCase() !== 's') break;
+    }
+
+    if (tareasPreparadas.length === 0) {
+        console.log(c.amarillo('\n  ⚠️ No se preparó ninguna tarea. Volviendo al menú principal...'));
+        return;
+    }
+
+    // RESUMEN FINAL DEL LOTE
+    console.log(c.cyan('\n===================================================================='));
+    console.log(c.cyan(`  📋 RESUMEN FINAL DEL LOTE A EJECUTAR EN CUÉNTAME (${tareasPreparadas.length} TAREAS):`));
+    console.log(c.cyan('===================================================================='));
+    tareasPreparadas.forEach((t, idx) => {
+        console.log(`  ${idx + 1}. [${t.asociacion.nombreCorto} | ${t.jardin.nombreUds}] ${t.tipoAccion}: ${t.nino.nombreCompleto} (Doc: ${t.nino.documento}) -> Días: [${t.dias.join(', ')}]`);
+    });
+
+    const confirm = readline.question(c.negrita('\n  > ¿Confirmar y ejecutar automáticamente en Cuéntame? (ENTER = Sí, n = Cancelar): ')).trim();
+    if (confirm.toLowerCase() === 'n') {
+        console.log(c.amarillo('  ⚠️ Operación cancelada por el usuario.'));
+        return;
+    }
+
+    // EJECUCIÓN AUTOMÁTICA EN CUÉNTAME
+    console.log(c.cyan('\n===================================================================='));
+    console.log(c.cyan('  🚀 INICIANDO EJECUCIÓN AUTOMÁTICA EN CUÉNTAME...'));
+    console.log(c.cyan('===================================================================='));
+
+    const nav = await iniciarNavegador();
+    const { browser, context, mainPage } = nav;
+
+    // Agrupar por asociación para hacer 1 solo login/cambio de asociación por grupo
+    const gruposAsoc = new Map();
+    for (const t of tareasPreparadas) {
+        const key = t.asociacion.nombreCorto;
+        if (!gruposAsoc.has(key)) {
+            gruposAsoc.set(key, { asc: t.asociacion, tareas: [] });
+        }
+        gruposAsoc.get(key).tareas.push(t);
+    }
+
+    for (const [ascNombre, grupo] of gruposAsoc) {
+        const asc = grupo.asc;
+        console.log(c.cyan(`\n▶ Procesando Asociación en Cuéntame: ${asc.nombreCorto}`));
+
+        try {
+            const mismaAsc = await validarYCambiarAsociacion(mainPage, asc);
             if (!mismaAsc) {
-                await loginYLlegarARoles(rolesPage, { 
+                await loginYLlegarARoles(mainPage, { 
                     usuario: process.env.CUENTAME_USUARIO, 
                     password: process.env.CUENTAME_PASSWORD,
                     gmailUser: process.env.GMAIL_USER,
                     gmailAppPassword: process.env.GMAIL_APP_PASSWORD
                 });
-                await seleccionarRolYEntrar(rolesPage, asc);
+                await seleccionarRolYEntrar(mainPage, asc);
             }
-            const workPage = rolesPage;
-            console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
-            
-            console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
-            await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
-            await workPage.waitForTimeout(1200);
 
-            let contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
+            await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded', timeout: 60000 });
+            await mainPage.waitForTimeout(800);
 
-        console.log('  📝 Llenando filtros del RAM...');
-        const selectDropdown = async (keyword, textOrIndex) => {
-            try {
-                const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
-                
-                // Esperar hasta que el select aparezca (max 10 segs)
-                let attempts = 0;
-                while (await sel.count() === 0 && attempts < 20) {
-                    await workPage.waitForTimeout(300);
-                    attempts++;
+            let contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+
+            // Agrupar tareas por Jardín dentro de esta Asociación
+            const gruposJardin = new Map();
+            for (const t of grupo.tareas) {
+                const jKey = t.jardin.nombreUds;
+                if (!gruposJardin.has(jKey)) {
+                    gruposJardin.set(jKey, { jardin: t.jardin, tareas: [] });
                 }
-                if (await sel.count() === 0) return;
+                gruposJardin.get(jKey).tareas.push(t);
+            }
+
+            for (const [jNombre, jGrupo] of gruposJardin) {
+                console.log(c.amarillo(`\n  🏢 Cargando Jardín en Cuéntame: ${jNombre}...`));
                 
-                let isEnabled = await sel.evaluate(s => !s.disabled);
-                if (!isEnabled) return; // Skip if disabled
+                contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
-                let valueToSelect = null;
+                // Llenar filtros de RAM
+                const selectDropdown = async (keyword, textOrIndex) => {
+                    try {
+                        const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
+                        if (await sel.count() === 0) return;
+                        if (await sel.evaluate(s => s.disabled)) return;
 
-                // Intentar encontrar la opcion esperada con reintentos (UpdatePanels son lentos)
-                for (let retry = 0; retry < 40; retry++) {
-                    if (typeof textOrIndex === 'string') {
-                        valueToSelect = await sel.evaluate((s, t) => {
-                            const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(t.toUpperCase()));
-                            return opt ? opt.value : null;
-                        }, textOrIndex);
-                    } else if (typeof textOrIndex === 'number') {
-                        valueToSelect = await sel.evaluate(s => {
-                            const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "");
-                            return opt ? opt.value : null;
-                        });
-                    }
+                        let valueToSelect = null;
+                        for (let retry = 0; retry < 30; retry++) {
+                            if (typeof textOrIndex === 'string') {
+                                valueToSelect = await sel.evaluate((s, t) => {
+                                    const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(t.toUpperCase()));
+                                    return opt ? opt.value : null;
+                                }, textOrIndex);
+                            }
+                            if (valueToSelect) break;
+                            await mainPage.waitForTimeout(100);
+                        }
 
-                    if (valueToSelect) {
-                        break; // Encontrado
-                    }
-                    await workPage.waitForTimeout(100); // Esperar a que Cuentame actualice el select
-                }
+                        if (valueToSelect) {
+                            const curVal = await sel.evaluate(s => s.value);
+                            if (curVal !== valueToSelect) {
+                                await sel.selectOption(valueToSelect, { timeout: 5000 });
+                                await mainPage.waitForTimeout(100);
+                            }
+                        }
+                    } catch(e) {}
+                };
 
-                if (valueToSelect) {
-                    const currentValue = await sel.evaluate(s => s.value);
-                    if (currentValue === valueToSelect) return;
-                    console.log(c.gris(`    [DEBUG] Seleccionando en ${keyword}: ${valueToSelect}`));
-                    await sel.selectOption(valueToSelect, { timeout: 5000 });
-                    await workPage.waitForTimeout(100);
-                } else {
-                    console.log(c.rojo(`    ⚠️ No se encontro la opcion para ${keyword} (${textOrIndex}). Intentando fallback a la primera opcion valida...`));
-                    const fallbackVal = await sel.evaluate(s => {
-                        const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
+                await selectDropdown('Direcciones', 'Primera Infancia');
+                await selectDropdown('Regional', 'Bogota');
+                await selectDropdown('Centro', 'USAQUEN');
+                await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
+                await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
+                await selectDropdown('Mes', mesAtencion);
+                await selectDropdown('Estado', 'Todos');
+
+                // Seleccionar UDS por nombre o código
+                const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
+                if (await uLoc.count() > 0) {
+                    const udsValue = await uLoc.evaluate((s, jSearch) => {
+                        const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(jSearch.toUpperCase()));
                         return opt ? opt.value : null;
-                    });
-                    if (fallbackVal) {
-                        const currentValue = await sel.evaluate(s => s.value);
-                        if (currentValue === fallbackVal) return;
-                        console.log(c.amarillo(`    ⚠️ Fallback exitoso: Seleccionando valor: ${fallbackVal} en ${keyword}`));
-                        await sel.selectOption(fallbackVal, { timeout: 5000 });
-                        await workPage.waitForTimeout(100);
-                    } else {
-                        console.log(c.rojo(`    ❌ Fallback fallo: No hay opciones validas en ${keyword}.`));
+                    }, jNombre);
+
+                    if (udsValue) {
+                        await uLoc.selectOption(udsValue);
+                        await mainPage.waitForTimeout(500);
                     }
                 }
-            } catch (e) {
-                console.log(c.gris(`    (No se pudo seleccionar en ${keyword}: ${e.message})`));
-            }
-        };
-        
-        await selectDropdown('Direcciones', 'Primera Infancia');
-        await selectDropdown('Regional', 'Bogota');
-        await selectDropdown('Centro', 'USAQUEN'); // A veces se requiere
-        await selectDropdown('Vigencia', (asc.vigenciaContrato || '2026').toString());
-        await selectDropdown('Contrato', asc.numeroContrato ? asc.numeroContrato.toString() : 1);
-        await selectDropdown('Mes', mesAtencion);
-        await selectDropdown('Estado', 'Todos');
-        await workPage.waitForTimeout(500);
 
-        const servicioLocator = contentFrame.locator(`select[id*="Servicio"]`).first();
-        let serviciosOptions = [];
-        if (await servicioLocator.count() > 0) {
-            serviciosOptions = await servicioLocator.evaluate(s => {
-                return Array.from(s.options)
-                    .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
-                    .map(o => ({ value: o.value, text: o.text }));
-            });
-        }
+                // Clic en la Lupa para desplegar la lista de niños en Cuéntame
+                const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
+                if (await lupa.count() > 0 && await lupa.isVisible()) {
+                    await lupa.click();
+                } else {
+                    const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first();
+                    if (await genericBtn.count() > 0) await genericBtn.click();
+                }
+                await mainPage.waitForTimeout(800);
 
-        console.log(c.gris(`    [DEBUG] Servicios encontrados sin filtrar: ${serviciosOptions.map(s => s.text).join(' | ')}`));
-        let serviciosFiltrados = filtrarServiciosPorAsociacion(serviciosOptions, asc.nombreCorto, asc.tipoServicio);
-        console.log(c.cyan(`  Escaneando ${serviciosFiltrados.length} servicios validos para encontrar todos los jardines...`));
+                contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
-        let todasLasUdsMap = [];
-        
-        for (const serv of serviciosFiltrados) {
-            await servicioLocator.selectOption(serv.value, { timeout: 5000 });
-            await workPage.waitForTimeout(400); 
-
-            const udsLocator = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
-            if (await udsLocator.count() > 0) {
-                const udsOpts = await udsLocator.evaluate(s => {
-                    return Array.from(s.options)
-                        .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
-                        .map(o => ({ value: o.value, text: o.text }));
-                });
+                // Buscar las filas de la tabla de niños
+                const filasNuevas = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
                 
-                // Filtrar segun el excel si es necesario, o mantenerlas todas
-                let udsAIncluir = udsOpts;
-                if (asc.jardinesAProcesar && asc.jardinesAProcesar.length > 0) {
-                    udsAIncluir = udsOpts.filter(webUds => {
-                        return asc.jardinesAProcesar.some(jExcel => {
-                            const nombreWeb = webUds.text.toUpperCase();
-                            return nombreWeb.includes(jExcel.codigo) || nombreWeb.includes(jExcel.nombre.toUpperCase());
-                        });
+                const listaNinosTabla = [];
+                for (let j = 0; j < filasNuevas.length; j++) {
+                    const rowText = await filasNuevas[j].innerText();
+                    const nombre = rowText.split('\t')[0].trim();
+                    if (nombre && rowText.includes('Activo')) {
+                        listaNinosTabla.push({ nombre: nombre, row: filasNuevas[j] });
+                    }
+                }
+
+                // Habilitar edición (Clic en el lápiz si existe)
+                const lapiz = contentFrame.locator('input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"]').first();
+                if (await lapiz.count() > 0 && await lapiz.isVisible()) {
+                    await lapiz.click();
+                    await mainPage.waitForTimeout(800);
+                }
+
+                // Aplicar las tareas del lote para este Jardín
+                for (const tarea of jGrupo.tareas) {
+                    console.log(c.cyan(`    👉 Aplicando [${tarea.tipoAccion}] para ${tarea.nino.nombreCompleto}...`));
+                    
+                    const qTarget = removeAccentsStr(tarea.nino.nombreCompleto);
+
+                    let filaTarget = listaNinosTabla.find(n => {
+                        const nClean = removeAccentsStr(n.nombre);
+                        return nClean.includes(qTarget) || qTarget.includes(nClean);
                     });
+
+                    if (!filaTarget) {
+                        const partesNom = qTarget.split(' ').filter(p => p.length > 2);
+                        filaTarget = listaNinosTabla.find(n => {
+                            const nClean = removeAccentsStr(n.nombre);
+                            return partesNom.filter(p => nClean.includes(p)).length >= 2;
+                        });
+                    }
+
+                    if (!filaTarget) {
+                        console.log(c.rojo(`    ❌ No se encontró la fila en Cuéntame para ${tarea.nino.nombreCompleto}.`));
+                        continue;
+                    }
+
+                    const checkboxes = await filaTarget.row.locator('input[type="checkbox"]').all();
+                    const marcar = (tarea.tipoAccion === 'ASISTENCIA');
+
+                    for (const d of tarea.dias) {
+                        const chkIndex = d - 1;
+                        if (chkIndex >= 0 && chkIndex < checkboxes.length) {
+                            const isChecked = await checkboxes[chkIndex].isChecked();
+                            if (marcar && !isChecked) {
+                                await checkboxes[chkIndex].check({ force: true }).catch(() => checkboxes[chkIndex].click());
+                            } else if (!marcar && isChecked) {
+                                await checkboxes[chkIndex].uncheck({ force: true }).catch(() => checkboxes[chkIndex].click());
+                            }
+                        }
+                    }
+
+                    console.log(c.verde(`    ✅ ${tarea.tipoAccion} aplicada para ${tarea.nino.nombreCompleto} (Días: ${tarea.dias.join(', ')})`));
                 }
-                
-                for (const uds of udsAIncluir) {
-                    todasLasUdsMap.push({ servicio: serv, uds: uds });
+
+                // Guardar cambios en Cuéntame
+                console.log(c.amarillo('    💾 Guardando cambios de asistencia en Cuéntame...'));
+                const btnGuardar = contentFrame.locator('input[value*="Guardar" i], input[title*="Guardar" i], a:has(img[src*="save"]), input[src*="save"], button:has-text("Guardar")').first();
+                if (await btnGuardar.count() > 0 && await btnGuardar.isVisible()) {
+                    await btnGuardar.click();
+                    await mainPage.waitForTimeout(1500);
+                    console.log(c.verde('    ✅ Guardado exitoso.'));
                 }
-            }
-        }
-
-        if (todasLasUdsMap.length === 0) {
-            console.log(c.rojo('  ❌ No se encontro ningun jardin en los servicios de 2026.'));
-            if (workPage !== rolesPage) await workPage.close();
-            continue;
-        }
-
-        // BUCLE INFINITO DE FASE 2 HASTA QUE CANCELE
-        let jardinAutoProcesado = false;
-        
-        while (true) {
-            console.log(c.cyan(`\n  --- FASE 2: ${asc.nombreCorto} ---`));
-            let udsIdx;
-            
-            if (todasLasUdsMap.length === 1 && !jardinAutoProcesado) {
-                console.log(c.verde(`  ✅ Se encontro un solo jardin: ${todasLasUdsMap[0].uds.text}`));
-                console.log(c.verde(`  Seleccionandolo automaticamente...`));
-                udsIdx = 0;
-                jardinAutoProcesado = true;
-            } else if (todasLasUdsMap.length === 1 && jardinAutoProcesado) {
-                console.log(c.verde(`  ✅ Jardin unico procesado. Volviendo a seleccion de asociacion...`));
-                break;
-            } else {
-                const udsOptsNombres = todasLasUdsMap.map(u => u.uds.text);
-                udsIdx = readline.keyInSelect(udsOptsNombres, c.negrita('  > ESCOJA EL JARDIN A TRABAJAR: '), { cancel: 'Salir de Fase 2' });
-            }
-            
-            if (udsIdx === -1) break;
-
-            const elegida = todasLasUdsMap[udsIdx];
-            console.log(c.amarillo(`\n    Navegando a ${elegida.uds.text}...`));
-            
-            contentFrame = workPage.frame({ name: 'frameContent' }) || workPage.frames().find(f => f.name() === 'frameContent') || workPage;
-            
-            const servLoc = contentFrame.locator(`select[id*="Servicio"]`).first();
-            await servLoc.selectOption(elegida.servicio.value);
-            await workPage.waitForTimeout(800);
-
-            const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
-            await uLoc.selectOption(elegida.uds.value);
-            await workPage.waitForTimeout(800);
-
-            const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i], img[alt*="Consultar" i], img[alt*="Buscar" i]').first();
-            if (await lupa.count() > 0 && await lupa.isVisible()) await lupa.click();
-            else {
-                 const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first(); 
-                 if (await genericBtn.count() > 0) await genericBtn.click();
-            }
-            await workPage.waitForTimeout(800);
-
-            // Llamar a la funcion unificada
-            await modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown);
-        } // Fin while true (Menu jardines)
-            if (workPage !== rolesPage) {
-                await workPage.close();
             }
         } catch (err) {
-            console.error(c.rojo(`  ❌ Ocurrio un error: ${err && err.message ? err.message : err}`));
-            console.error(err); 
-            if (workPage !== rolesPage) await workPage.close();
+            console.error(c.rojo(`  ❌ Error en la ejecución del lote para ${ascNombre}: ${err.message}`));
         }
-    } // Fin while true (Asociaciones)
+    }
+
+    console.log(c.verde('\n  🎉 LOTE PROCESADO Y GUARDADO CON ÉXITO EN CUÉNTAME.'));
+}
 }
 
 async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, mesAtencion, asc, selectDropdown) {
