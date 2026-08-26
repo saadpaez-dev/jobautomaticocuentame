@@ -12,6 +12,7 @@ const { chromium } = require('playwright');
 const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines, encontrarMejorAsociacionYJardin } = require('../servicios/excel-reader');
+const { obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
 const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
 const { parsearExcel, resolverRutaConEspeciales } = require('../servicios/excel-parser');
 
@@ -727,9 +728,51 @@ async function main() {
       }
       
       if (respBenef.trim() === '3') {
-          preFiltroBeneficiario = readline.question(c.negrita('\n  > Ingresa el nombre o documento (ej. LIAM) (Vacio para omitir): ')).trim().toLowerCase();
+          const ninosLocal = obtenerNinosDeJardin(ascSeleccionada.nombreCorto, jardinSeleccionado.nombre);
+
+          if (ninosLocal && ninosLocal.length > 0) {
+              console.log(c.cyan(`\n  📂 BENEFICIARIOS REGISTRADOS EN ${jardinSeleccionado.nombre.toUpperCase()} (${ninosLocal.length}):`));
+              ninosLocal.forEach((n, idx) => {
+                  console.log(`  ${idx + 1}. ${n.nombreCompleto} (${n.tipoDoc}: ${n.documento} - ${n.edad} anos)`);
+              });
+              
+              const respInput = readline.question(c.negrita('\n  > Selecciona el Numero (ej: 1), Documento o Nombre (Vacio para omitir): ')).trim();
+              
+              if (respInput) {
+                  const numIndex = parseInt(respInput, 10);
+                  let ninoElegido = null;
+
+                  if (!isNaN(numIndex) && numIndex >= 1 && numIndex <= ninosLocal.length) {
+                      ninoElegido = ninosLocal[numIndex - 1];
+                  } else {
+                      const removeAccentsStr = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+                      const qName = removeAccentsStr(respInput);
+                      const coinc = ninosLocal.filter(n => removeAccentsStr(n.nombreCompleto).includes(qName) || n.documento.includes(qName));
+                      if (coinc.length === 1) {
+                          ninoElegido = coinc[0];
+                      } else if (coinc.length > 1) {
+                          console.log(c.amarillo(`  ⚠️ Coincidieron varios ninos:`));
+                          coinc.forEach((n, i) => console.log(`    ${i + 1}. ${n.nombreCompleto} (${n.documento})`));
+                          const subIdx = parseInt(readline.question(c.negrita('  > Selecciona la opcion correcta: ')), 10);
+                          if (!isNaN(subIdx) && subIdx >= 1 && subIdx <= coinc.length) {
+                              ninoElegido = coinc[subIdx - 1];
+                          }
+                      }
+                  }
+
+                  if (ninoElegido) {
+                      preFiltroBeneficiario = ninoElegido.nombreCompleto.toLowerCase();
+                      console.log(c.verde(`  ✅ Nino seleccionado: ${ninoElegido.nombreCompleto} (Doc: ${ninoElegido.documento})`));
+                  } else {
+                      preFiltroBeneficiario = respInput.toLowerCase();
+                  }
+              }
+          } else {
+              preFiltroBeneficiario = readline.question(c.negrita('\n  > Ingresa el nombre o documento (ej. LIAM) (Vacio para omitir): ')).trim().toLowerCase();
+          }
+
           if (preFiltroBeneficiario) {
-              console.log(c.amarillo('  Que deseas hacer con este beneficiario?'));
+              console.log(c.amarillo('\n  Que deseas hacer con este beneficiario?'));
               console.log('  1. Agregar una NUEVA toma (+)');
               console.log('  2. EDITAR una toma existente');
               const respAccion = readline.question(c.negrita('  > Selecciona (1 o 2): '));
