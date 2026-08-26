@@ -27,6 +27,8 @@ const c = {
   negrita:  (t) => `\x1b[1m${t}\x1b[0m`,
 };
 
+const removeAccentsStr = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+
 // ─────────────────────────────────────────────────────────────
 // Constantes del formulario
 // ─────────────────────────────────────────────────────────────
@@ -204,17 +206,33 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     cantidadBenef = 'TODOS';
   } else {
     console.log(c.cyan('\n    Leyendo lista de beneficiarios en la tabla...'));
-    // Buscar cualquier fila que tenga un checkbox (ignorando la cabecera general si es posible, pero las leeremos todas)
     const filasNinos = await frame.locator('tr:has(input[type="checkbox"])').all();
     
     const listaNinos = [];
     for (let j = 0; j < filasNinos.length; j++) {
         const rowText = await filasNinos[j].innerText();
-        const textoFila = rowText.replace(/\t/g, ' ').trim(); 
+        const textoLimpio = rowText.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim(); 
         
-        // Evitar la fila de cabecera que suele decir "Tipo Documento" o similar
-        if (textoFila && textoFila.length > 5 && !textoFila.toLowerCase().includes('tipo documento')) {
-            listaNinos.push({ idxOriginal: j, nombre: textoFila, row: filasNinos[j] });
+        if (textoLimpio && textoLimpio.length > 5 && !textoLimpio.toLowerCase().includes('tipo documento')) {
+            const cells = await filasNinos[j].locator(':scope > td').all();
+            let docNum = '';
+            let nombreLimpio = '';
+            
+            if (cells.length >= 4) {
+                docNum = (await cells[2].innerText().catch(() => '')).trim();
+                nombreLimpio = (await cells[3].innerText().catch(() => '')).replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+            if (!nombreLimpio) {
+                nombreLimpio = textoLimpio;
+            }
+
+            listaNinos.push({ 
+                numIndex: listaNinos.length + 1,
+                documento: docNum,
+                nombre: nombreLimpio, 
+                textoFila: textoLimpio,
+                row: filasNinos[j] 
+            });
         }
     }
 
@@ -223,16 +241,24 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     }
 
     let cantidadSeleccionada = 0;
-    while(true) {
-        console.log(c.cyan('\n    --- Lista de Beneficiarios ---'));
-        listaNinos.forEach(n => console.log(`      - ${n.nombre}`));
+    const seleccionadosSet = new Set();
 
-        const seleccionNina = readline.question(c.negrita('\n    > Ingrese nombre o apellido del nino (o "LISTO" para terminar, "CANCELAR" para saltar este jardin): ')).trim();
+    while(true) {
+        console.log(c.cyan(`\n    --- Lista de Beneficiarios (${listaNinos.length} ninos) ---`));
+        listaNinos.forEach(n => {
+            const estado = seleccionadosSet.has(n.numIndex) ? c.verde(' [✓ SELECCIONADO]') : '';
+            const docInfo = n.documento ? ` (Doc: ${n.documento})` : '';
+            console.log(`      ${String(n.numIndex).padStart(2, ' ')}. ${n.nombre}${docInfo}${estado}`);
+        });
+
+        console.log(c.gris('    (Puedes ingresar numero: 1, 3, 5 | nombre/doc | "T" para todos | "LISTO" para terminar)'));
+        const respuesta = readline.question(c.negrita('\n    > Ingrese seleccion (numero, nombre, T=Todos, LISTO=Guardar, 0=Cancelar): ')).trim();
         
-        if (seleccionNina.toUpperCase() === 'CANCELAR') {
+        const respUpper = respuesta.toUpperCase();
+        if (respUpper === 'CANCELAR' || respUpper === '0') {
             throw new Error('Usuario cancelo la seleccion en este jardin.');
         }
-        if (seleccionNina.toUpperCase() === 'LISTO' || seleccionNina === '') {
+        if (respUpper === 'LISTO' || respuesta === '') {
             if (cantidadSeleccionada === 0) {
                 const conf = readline.keyInYN('  No has seleccionado ningun nino. Estas seguro que deseas guardar vacio?');
                 if (!conf) continue;
@@ -240,31 +266,74 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
             break;
         }
 
-        const nombreBuscado = seleccionNina.toUpperCase();
-        const ninosAfectados = listaNinos.filter(n => n.nombre.toUpperCase().includes(nombreBuscado));
-        
-        if (ninosAfectados.length === 0) {
-            console.log(c.rojo(`    ⚠️ No se encontro ningun nino con "${seleccionNina}"`));
-            continue;
-        }
-        if (ninosAfectados.length > 1) {
-            console.log(c.amarillo(`    ⚠️ Se encontraron varios ninos que coinciden:`));
-            ninosAfectados.forEach(n => console.log(`      - ${n.nombre}`));
-            console.log(c.amarillo(`    Por favor sea mas especifico.`));
-            continue;
+        if (respUpper === 'T' || respUpper === 'TODOS') {
+            for (const n of listaNinos) {
+                const chk = n.row.locator('input[type="checkbox"]').first();
+                if (await chk.count() > 0) {
+                    const isChecked = await chk.isChecked();
+                    if (!isChecked) {
+                        await chk.check();
+                        seleccionadosSet.add(n.numIndex);
+                        cantidadSeleccionada++;
+                    }
+                }
+            }
+            console.log(c.verde(`\n    ✅ Se seleccionaron TODOS los ${listaNinos.length} ninos del jardin.`));
+            break;
         }
 
-        const ninoSeleccionado = ninosAfectados[0];
-        console.log(c.verde(`\n    ✅ Nino seleccionado: ${ninoSeleccionado.nombre}`));
-        
-        const chk = ninoSeleccionado.row.locator('input[type="checkbox"]').first();
-        if (await chk.count() > 0) {
-            const isChecked = await chk.isChecked();
-            if (!isChecked) {
-                await chk.check();
-                cantidadSeleccionada++;
-            } else {
-                console.log(c.amarillo(`    ⚠️ Este nino ya estaba seleccionado.`));
+        // Verificar si se ingresaron numeros de lista (ej: 1, 3, 5 o 2)
+        const partesNums = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
+        let matchPorNumero = false;
+
+        if (partesNums.length > 0 && partesNums.every(num => num >= 1 && num <= listaNinos.length)) {
+            matchPorNumero = true;
+            for (const num of partesNums) {
+                const ninoObj = listaNinos.find(n => n.numIndex === num);
+                if (ninoObj) {
+                    const chk = ninoObj.row.locator('input[type="checkbox"]').first();
+                    if (await chk.count() > 0) {
+                        const isChecked = await chk.isChecked();
+                        if (!isChecked) {
+                            await chk.check();
+                            seleccionadosSet.add(ninoObj.numIndex);
+                            cantidadSeleccionada++;
+                            console.log(c.verde(`    ✅ [${ninoObj.numIndex}] ${ninoObj.nombre} marcado.`));
+                        } else {
+                            console.log(c.amarillo(`    ⚠️ [${ninoObj.numIndex}] ${ninoObj.nombre} ya estaba seleccionado.`));
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!matchPorNumero) {
+            const nombreBuscado = removeAccentsStr(respuesta);
+            const ninosAfectados = listaNinos.filter(n => removeAccentsStr(n.nombre).includes(nombreBuscado) || (n.documento && n.documento.includes(nombreBuscado)));
+            
+            if (ninosAfectados.length === 0) {
+                console.log(c.rojo(`    ⚠️ No se encontro ningun nino con "${respuesta}"`));
+                continue;
+            }
+            if (ninosAfectados.length > 1) {
+                console.log(c.amarillo(`    ⚠️ Se encontraron varios ninos que coinciden:`));
+                ninosAfectados.forEach(n => console.log(`      ${n.numIndex}. ${n.nombre} (${n.documento})`));
+                console.log(c.amarillo(`    Por favor ingrese el NUMERO especifico del nino (ej: ${ninosAfectados[0].numIndex}).`));
+                continue;
+            }
+
+            const ninoSeleccionado = ninosAfectados[0];
+            const chk = ninoSeleccionado.row.locator('input[type="checkbox"]').first();
+            if (await chk.count() > 0) {
+                const isChecked = await chk.isChecked();
+                if (!isChecked) {
+                    await chk.check();
+                    seleccionadosSet.add(ninoSeleccionado.numIndex);
+                    cantidadSeleccionada++;
+                    console.log(c.verde(`\n    ✅ [${ninoSeleccionado.numIndex}] ${ninoSeleccionado.nombre} marcado.`));
+                } else {
+                    console.log(c.amarillo(`    ⚠️ Este nino ya estaba seleccionado.`));
+                }
             }
         }
     }
