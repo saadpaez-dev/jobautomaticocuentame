@@ -64,25 +64,39 @@ function leerJardines(rutaExcel) {
   return { jardines, porAsociacion };
 }
 
-function encontrarMejorAsociacionYJardin(asociaciones, ascStr, udsStr) {
+function removeAccents(str) {
+    return (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[,.]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+}
+
+function encontrarMejorAsociacionYJardin(asociaciones, ascStr, udsStr, nombreArchivo = '') {
     let ascSeleccionada = null;
     let jardinSeleccionado = null;
 
-    if (ascStr && ascStr.trim().length >= 3) {
-        const ascUpper = ascStr.trim().toUpperCase();
+    const esInstruccionUds = (str) => {
+        const s = removeAccents(str);
+        return s.includes('REGISTRAR') || s.includes('NOMBRE DE LA UNIDAD') || s.includes('UNIDAD COMUNITARIA') || s.includes('SELECCIONE') || s.includes('UNIDAD DE SERVICIO');
+    };
+
+    if (udsStr && esInstruccionUds(udsStr)) {
+        udsStr = ''; // Limpiar si es texto instructivo de plantilla Excel
+    }
+
+    const candidatosSearchAsc = [ascStr, nombreArchivo].filter(s => s && String(s).trim().length >= 3);
+
+    for (const searchStr of candidatosSearchAsc) {
+        if (ascSeleccionada) break;
+        const ascUpper = removeAccents(searchStr);
         
         let mejorScoreAsc = 0;
         for (const a of asociaciones) {
-            const cortoUpper = a.nombreCorto.toUpperCase();
-            const largoUpper = a.nombreLargo ? a.nombreLargo.toUpperCase() : '';
+            const cortoUpper = removeAccents(a.nombreCorto);
+            const largoUpper = removeAccents(a.nombreLargo);
             
             let score = 0;
             // Coincidencia exacta
             if (ascUpper === cortoUpper || ascUpper === largoUpper) {
                 score = 1000 + cortoUpper.length;
-            } 
-            // ascUpper contiene el nombre corto o viceversa
-            else if (ascUpper.includes(cortoUpper)) {
+            } else if (ascUpper.includes(cortoUpper)) {
                 score = 500 + cortoUpper.length;
             } else if (cortoUpper.includes(ascUpper)) {
                 score = 300 + ascUpper.length;
@@ -92,38 +106,49 @@ function encontrarMejorAsociacionYJardin(asociaciones, ascStr, udsStr) {
                 score = 200 + ascUpper.length;
             }
 
-            // Bono de coincidencia de palabras clave (ej: BRISAS)
             const palabrasAscUpper = ascUpper.split(/\s+/).filter(w => w.length > 3);
             const palabrasCorto = cortoUpper.split(/\s+/).filter(w => w.length > 3);
             const palabrasCoincidentes = palabrasCorto.filter(w => palabrasAscUpper.includes(w));
             score += palabrasCoincidentes.length * 50;
 
-            if (score > mejorScoreAsc) {
+            if (score > mejorScoreAsc && score >= 200) {
                 mejorScoreAsc = score;
                 ascSeleccionada = a;
             }
         }
     }
 
-    if (ascSeleccionada && udsStr && udsStr.trim().length >= 3) {
-        const udsUpper = udsStr.trim().toUpperCase();
-        let mejorScoreUds = 0;
+    if (ascSeleccionada) {
+        const candidatosSearchUds = [udsStr, nombreArchivo].filter(s => s && String(s).trim().length >= 3);
 
-        for (const j of ascSeleccionada.jardines) {
-            const jNomUpper = j.nombre.toUpperCase();
-            let score = 0;
-            
-            if (udsUpper === jNomUpper) {
-                score = 1000 + jNomUpper.length;
-            } else if (udsUpper.includes(jNomUpper)) {
-                score = 500 + jNomUpper.length;
-            } else if (jNomUpper.includes(udsUpper)) {
-                score = 300 + udsUpper.length;
-            }
+        for (const searchStr of candidatosSearchUds) {
+            if (jardinSeleccionado) break;
+            const udsUpper = removeAccents(searchStr);
+            let mejorScoreUds = 0;
 
-            if (score > mejorScoreUds) {
-                mejorScoreUds = score;
-                jardinSeleccionado = j;
+            for (const j of ascSeleccionada.jardines) {
+                const jNomUpper = removeAccents(j.nombre);
+                let score = 0;
+                
+                if (udsUpper === jNomUpper) {
+                    score = 1000 + jNomUpper.length;
+                } else if (udsUpper.includes(jNomUpper)) {
+                    score = 500 + jNomUpper.length;
+                } else if (jNomUpper.includes(udsUpper)) {
+                    score = 300 + udsUpper.length;
+                } else {
+                    const palUds = udsUpper.split(/\s+/).filter(w => w.length >= 4);
+                    const palJardin = jNomUpper.split(/\s+/).filter(w => w.length >= 4);
+                    const coincidentes = palJardin.filter(w => palUds.includes(w));
+                    if (coincidentes.length > 0) {
+                        score = 200 + (coincidentes.length * 50);
+                    }
+                }
+
+                if (score > mejorScoreUds && score >= 200) {
+                    mejorScoreUds = score;
+                    jardinSeleccionado = j;
+                }
             }
         }
     }

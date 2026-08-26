@@ -149,9 +149,14 @@ function parsearExcel(filePath) {
                 for (let colIdx = 0; colIdx < rowData.length; colIdx++) {
                     const cellVal = String(rowData[colIdx] || '').trim().toUpperCase();
 
+                    const esTextoInstruccion = (str) => {
+                        const s = String(str || '').toUpperCase();
+                        return s.includes('REGISTRAR') || s.includes('NOMBRE DE LA UNIDAD') || s.includes('UNIDAD COMUNITARIA DE ATENCION') || s.includes('MODALIDAD') || s.includes('SELECCIONE') || s.includes('UNIDAD DE SERVICIO O UNIDAD');
+                    };
+
                     // Buscar etiqueta de Asociacion / Entidad Administradora
                     if (!asociacion && (cellVal.includes('ASOCIACION') || cellVal.includes('ENTIDAD ADMINISTRADORA') || cellVal.includes('PRESTADOR') || cellVal.includes('EAS'))) {
-                        const nextVal = rowData.slice(colIdx + 1).find(v => v !== undefined && v !== null && String(v).trim().length > 2 && !String(v).toUpperCase().includes('NOMBRE DE LA UNIDAD') && !String(v).toUpperCase().includes('MODALIDAD'));
+                        const nextVal = rowData.slice(colIdx + 1).find(v => v !== undefined && v !== null && String(v).trim().length > 2 && !esTextoInstruccion(v));
                         if (nextVal) {
                             asociacion = String(nextVal).trim();
                         }
@@ -159,10 +164,10 @@ function parsearExcel(filePath) {
 
                     // Buscar etiqueta de UDS / Unidad de Servicio
                     if (!uds && (cellVal.includes('UNIDAD DE SERVICIO') || cellVal.includes('UNIDAD DE ATENCION') || cellVal.includes('UNIDAD COMUNITARIA') || cellVal.includes('NOMBRE UDS'))) {
-                        const nextVal = rowData.slice(colIdx + 1).find(v => v !== undefined && v !== null && String(v).trim().length > 2 && !String(v).toUpperCase().includes('MODALIDAD'));
+                        const nextVal = rowData.slice(colIdx + 1).find(v => v !== undefined && v !== null && String(v).trim().length > 2 && !esTextoInstruccion(v));
                         if (nextVal) {
                             uds = String(nextVal).trim();
-                        } else if (rowData[23]) {
+                        } else if (rowData[23] && !esTextoInstruccion(rowData[23])) {
                             uds = String(rowData[23]).trim();
                         }
                     }

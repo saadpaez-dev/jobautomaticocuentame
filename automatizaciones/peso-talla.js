@@ -611,26 +611,26 @@ async function main() {
               const parseResult = parsearExcel(fileP);
               ninosExcel = parseResult.ninos;
               if (ninosExcel.length === 0) {
-                  console.log(c.rojo(`  âŒ No se encontraron ninos validos en el primer Excel (${path.basename(fileP)}).`));
+                  console.log(c.rojo(`  â Œ No se encontraron ninos validos en el primer Excel (${path.basename(fileP)}).`));
                   continue;
               }
               console.log(c.verde(`\n  📄 [1/${listaArchivosPendientes.length}] Leyendo Excel: ${path.basename(fileP)}`));
-              console.log(c.verde(`  ✅ Excel cargado exitosamente. Detectado -> Asociacion: ${parseResult.asociacion} | UDS: ${parseResult.uds}`));
+              console.log(c.verde(`  ✅ Excel cargado exitosamente.`));
               
-              const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
+              const match = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds, path.basename(fileP));
               ascSeleccionada = match.ascSeleccionada;
               jardinSeleccionado = match.jardinSeleccionado;
 
               if (!ascSeleccionada) {
-                  console.log(c.amarillo(`  âš ï¸ No se encontro la Asociacion automaticamente. Se pedira seleccion manual.`));
+                  console.log(c.amarillo(`  ⚠️ No se encontro la Asociacion automaticamente. Se pedira seleccion manual.`));
               } else if (!jardinSeleccionado) {
-                  console.log(c.amarillo(`  âš ï¸ No se encontro la UDS automaticamente. Se pedira seleccion manual.`));
+                  console.log(c.amarillo(`  ⚠️ No se encontro la UDS automaticamente. Se pedira seleccion manual.`));
               }
 
               console.log(c.verde(`  ✅ Se encontraron ${ninosExcel.length} ninos listos para procesar.`));
               modoExcel = respBenef.trim() === '1' ? 'MASIVO_NUEVO' : 'MASIVO_EDITAR';
           } catch(e) {
-              console.log(c.rojo(`  âŒ Error leyendo Excel: ${e.message}`));
+              console.log(c.rojo(`  ❌ Error leyendo Excel: ${e.message}`));
               continue;
           }
       } else if (respBenef.trim() === '2') {
@@ -651,7 +651,7 @@ async function main() {
                               filtrados.push(coincidencia);
                           }
                       } else {
-                          console.log(c.amarillo(`  âš ï¸ No se encontro ningun beneficiario para: "${b}"`));
+                          console.log(c.amarillo(`  ⚠️ No se encontro ningun beneficiario para: "${b}"`));
                       }
                   }
 
@@ -662,11 +662,11 @@ async function main() {
                       modoExcel = 'INDIVIDUAL_EXCEL';
                       accionRapida = '1';
                       
-                      const matchIndiv = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds);
+                      const matchIndiv = encontrarMejorAsociacionYJardin(asociaciones, parseResult.asociacion, parseResult.uds, path.basename(fileP));
                       ascSeleccionada = matchIndiv.ascSeleccionada;
                       jardinSeleccionado = matchIndiv.jardinSeleccionado;
                   } else {
-                      console.log(c.rojo(`  âŒ No se encontro ninguno de los beneficiarios ingresados.`));
+                      console.log(c.rojo(`  â Œ No se encontro ninguno de los beneficiarios ingresados.`));
                       continue;
                   }
               } catch(e) {
