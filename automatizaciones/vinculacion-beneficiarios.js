@@ -1146,13 +1146,27 @@ async function main() {
                                              const cells = Array.from(row.querySelectorAll('td')).map(td => (td.innerText || '').trim());
                                              const esResp = cells.some(c => c === 'S' || c === 'Si' || c === 'SI');
                                              if (esResp) {
+                                                 // Mapeo preciso segun columnas de Cuentame:
+                                                 // Cell 0: Icono, Cell 1: TipoDoc, Cell 2: Identificacion, Cell 3: Nombre, Cell 4: ParJefe, Cell 5: ParBen, Cell 6: Responsable(S)
+                                                 let tipoDoc = cells[1] || '';
+                                                 let numDoc = cells[2] || '';
+                                                 let nombre = cells[3] || '';
+                                                 let parentescoBen = cells[5] || cells[4] || '';
+
+                                                 // Fallback si celda 0 no era icono y no hay desplazamiento
+                                                 if (/^\d+$/.test(cells[1])) {
+                                                     tipoDoc = cells[0];
+                                                     numDoc = cells[1];
+                                                     nombre = cells[2];
+                                                     parentescoBen = cells[4] || cells[3];
+                                                 }
+
                                                  return {
                                                      idx,
-                                                     tipoDoc: cells[0] || '',
-                                                     numDoc: cells[1] || '',
-                                                     nombre: cells[2] || '',
-                                                     parentescoJefe: cells[3] || '',
-                                                     parentescoBen: cells[4] || ''
+                                                     tipoDoc,
+                                                     numDoc,
+                                                     nombre,
+                                                     parentesco: parentescoBen
                                                  };
                                              }
                                          }
@@ -1165,7 +1179,7 @@ async function main() {
                                          console.log(c.cyan(`\n  👨‍👩‍👧 Responsable pre-existente registrado en Cuentame:`));
                                          console.log(c.verde(`     • Nombre: ${responsableExistente.nombre}`));
                                          console.log(c.verde(`     • Documento: ${responsableExistente.tipoDoc} ${responsableExistente.numDoc}`));
-                                         console.log(c.verde(`     • Parentesco: ${responsableExistente.parentescoBen || responsableExistente.parentescoJefe}`));
+                                         console.log(c.verde(`     • Parentesco: ${responsableExistente.parentesco}`));
                                          
                                          const respResp = readline.question(c.negrita('\n  > Este dato del Responsable es correcto? (s/n) [por defecto s]: ')).trim().toLowerCase();
                                          if (respResp === '' || respResp === 's' || respResp === 'si') {
