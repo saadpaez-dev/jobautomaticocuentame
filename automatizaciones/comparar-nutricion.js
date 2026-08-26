@@ -519,6 +519,19 @@ async function main() {
     console.log(c.gris('  Este script compara los reportes originales de Cuentame para identificar que ninos faltan por Nutricion.\n'));
 
     try {
+        const respDescargar = readline.question(c.negrita('  > Deseas actualizar y descargar los reportes desde Cuentame ahora? (s/n) [por defecto s]: ')).trim().toLowerCase();
+
+        if (respDescargar === '' || respDescargar === 's' || respDescargar === 'si' || respDescargar === 'y') {
+            console.log(c.cyan('\n  📥 Iniciando modulo de Descarga de Reportes en Cuentame...\n'));
+            try {
+                const { spawnSync } = require('child_process');
+                const scriptReportes = path.join(__dirname, 'descargar-reportes.js');
+                spawnSync(process.execPath, [scriptReportes], { stdio: 'inherit' });
+            } catch(e) {
+                console.log(c.rojo(`  ⚠️ Error ejecutando descarga de reportes: ${e.message}`));
+            }
+        }
+
         while (true) {
             const pareja = pedirParejaReportes();
             if (!pareja || !pareja.rutaActivos) {
