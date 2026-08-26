@@ -544,9 +544,10 @@ async function main() {
 
     console.log(c.verde(`\n  ✅ Tarea finalizada. Exitosos: ${exitososActual.length} | Fallidos: ${fallidosActual.length}\n`));
     
-    const continuar = readline.keyInYN(c.negrita('  Desea iniciar OTRA tarea de Formacion a Familias?'));
-    if (!continuar) {
-        break;
+    const opcionesFin = ['Iniciar OTRA tarea de Formacion a Familias', 'Volver al Menu Principal (AutoTrabajo)'];
+    const finIdx = readline.keyInSelect(opcionesFin, c.negrita('  > Que deseas hacer ahora?: '), { cancel: false });
+    if (finIdx === 1) {
+        break; // Volver al menu principal
     }
   }
 
@@ -566,7 +567,7 @@ async function main() {
   const archivoLog = guardarLog(log);
   console.log(c.gris(`  📄 Log guardado en: ${archivoLog}\n`));
 
-  console.log(c.verde('  👋 Modulo finalizado. Navegador mantenido activo.\n'));
+  console.log(c.verde('  👋 Volviendo al menu principal...\n'));
 }
 
 main().catch((err) => {
