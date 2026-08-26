@@ -28,18 +28,14 @@ async function loginYLlegarARoles(page, credenciales) {
 
   console.log('\n  🔐 Iniciando login en el sistema Cuentame...');
   
-  // Limpiar buzon 2FA ANTES de entrar, para no agarrar correos pasados
-  await limpiarBuzon2FA(gmailUser, gmailAppPassword);
-
   const currentUrl = page.url();
-  const pageText = await page.evaluate(() => document.body.innerText).catch(() => '');
+  const pageText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
   const pageTextClean = removeAccents(pageText);
   
   const esLoginO2FA = (pageTextClean.includes('INICIAR SESION') && !pageTextClean.includes('SELECCIONE LA ENTIDAD')) || 
                       pageTextClean.includes('INGRESE SU CODIGO') || 
                       pageTextClean.includes('SE HA ENVIADO UN CODIGO') || 
-                      pageTextClean.includes('OLVIDASTE TU CONTRASEÑA') ||
-                      pageTextClean.includes('OLVIDASTE TU CONTRASENA');
+                      pageTextClean.includes('OLVIDASTE TU CONTRASE');
 
   if (!esLoginO2FA && (currentUrl.includes('Roles.aspx') || currentUrl.includes('MasterPrincipal') || currentUrl.includes('General') || pageTextClean.includes('SELECCIONE LA ENTIDAD'))) {
       console.log('  ✅ Ya se detecto una sesion activa en Cuentame. Omitiendo inicio de sesion.');
@@ -61,7 +57,7 @@ async function loginYLlegarARoles(page, credenciales) {
         console.log(c.amarillo(`\n  🔄 Reintentando login (intento ${intentoActual} de ${MAX_INTENTOS})...`));
       }
 
-      await page.goto(URL_LOGIN, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.goto(URL_LOGIN, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
       // Llenar usuario y contrasena
       await page.locator('input[type="text"]').first().fill(usuario);
@@ -88,8 +84,8 @@ async function loginYLlegarARoles(page, credenciales) {
         console.log('  ✅ Captcha resuelto exitosamente, continuando con el proceso automatico...');
       } else {
         await Promise.all([
-          page.waitForLoadState('networkidle'),
-          page.locator('input[value="Iniciar Sesion"], input[type="submit"]').first().click()
+          page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
+          page.locator('input[value*="Iniciar" i], input[type="submit"]').first().click()
         ]);
       }
 
@@ -118,47 +114,40 @@ async function loginYLlegarARoles(page, credenciales) {
         }
         console.log(c.rojo(`  ❌ Credenciales incorrectas. Intento ${intentoActual} de ${MAX_INTENTOS}.`));
         console.log(c.amarillo(`  ⚠️  CUIDADO: ${MAX_INTENTOS - intentoActual} intento(s) restante(s) antes del bloqueo.`));
-        await page.waitForTimeout(800);
-        continue; // Reintentar
+        await page.waitForTimeout(500);
+        continue;
       }
 
-      // ─── Si llego aqui, las credenciales fueron aceptadas ────────────────
       break;
     }
 
     tiene2FA = await detectar2FA(page);
   }
 
+  // Si ICBF solicita codigo 2FA, se procesa:
   if (tiene2FA) {
     console.log('  🔑 El sistema solicita codigo 2FA...');
-
-    // Leer el codigo del Gmail pasando el momento en que iniciamos el login
+    await limpiarBuzon2FA(gmailUser, gmailAppPassword).catch(() => {});
     const codigo = await obtenerCodigo2FA(gmailUser, gmailAppPassword, fechaInicio);
-    console.log(); // salto de linea despues del spinner
+    console.log();
 
-    // Ingresar el codigo
-    const campoCodigo = page.locator('input[placeholder*="codigo" i], input[placeholder*="codigo" i], input[id*="Codigo" i], input[type="text"]:visible').first();
+    const campoCodigo = page.locator('input[placeholder*="codigo" i], input[id*="Codigo" i], input[type="text"]:visible').first();
     await campoCodigo.fill(codigo);
 
-    // Click en boton "Verificar Codigo"
     await Promise.all([
-      page.waitForLoadState('networkidle').catch(() => {}),
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
       page.locator('input[value*="Verificar" i], button:has-text("Verificar"), input[type="submit"][value*="Verificar" i]').first().click()
     ]);
-    // Darle tiempo extra a ASP.NET para asimilar el 2FA
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(800);
   }
 
-  // Verificar si pide seleccion de asociacion/entidad
   const contenidoFinal = await page.content();
   const contenidoFinalClean = removeAccents(contenidoFinal);
   if (contenidoFinalClean.includes('SELECCIONE LA ENTIDAD')) {
     const rolesUrl = page.url();
-    console.log(`  🔗 [DEBUG] URL de Roles detectada: ${rolesUrl}`);
-    return rolesUrl; // Retornamos la URL de roles para poder duplicar pestanas
+    return rolesUrl;
   }
   
-  // Si no pide roles, verificamos que haya entrado directo
   await verificarLoginExitoso(page);
   return page.url();
 }
@@ -170,13 +159,11 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
   let contenidoFinal = await page.content();
   let contenidoFinalClean = removeAccents(contenidoFinal);
 
-  // Si la pagina actual no esta en la pantalla de seleccion de entidad (DefaultF.aspx),
-  // forzar la navegacion a DefaultF.aspx para elegir la nueva asociacion limpia
   if (!contenidoFinalClean.includes('SELECCIONE LA ENTIDAD')) {
       console.log(c.amarillo('  ⏳ Navegando a la pantalla de seleccion de asociacion (DefaultF.aspx)...'));
       try {
-          await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
-          await page.waitForTimeout(800);
+          await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 });
+          await page.waitForTimeout(500);
       } catch(e) {}
       contenidoFinal = await page.content();
       contenidoFinalClean = removeAccents(contenidoFinal);
@@ -189,7 +176,6 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
       if (contenidoFinalClean.includes('SELECCIONE LA ENTIDAD')) {
         if (intentos === 0) console.log('  🏢 Seleccionando entidad (asociacion)...');
         
-        // Esperar a que el select este visible y habilitado
         let selectLocator = page.locator('select:visible').first();
         await selectLocator.waitFor({ state: 'visible', timeout: 10000 });
         
@@ -198,13 +184,12 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
           if (intentos === 0) console.log(`  Buscando asociacion que coincida con: ${nameToSearch}`);
           const opciones = await selectLocator.locator('option').allInnerTexts();
           
-          let indexToSelect = 1; // Default
+          let indexToSelect = 1;
           let mejorSimilitud = -1;
 
           for (let i = 0; i < opciones.length; i++) {
               const optText = opciones[i].toUpperCase();
               if (optText.includes(nameToSearch)) {
-                  // Si tenemos nombreLargo, usamos heuristica de similitud para evitar falsos positivos
                   if (nombreLargo) {
                       const palabrasLargo = nombreLargo.toUpperCase().split(/[\s,.-]+/);
                       const palabrasOpt = optText.split(/[\s,.-]+/);
@@ -218,7 +203,6 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
                           indexToSelect = i;
                       }
                   } else {
-                      // Si no hay nombreLargo, usar la primera coincidencia
                       indexToSelect = i;
                       break;
                   }
@@ -228,26 +212,22 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
           if (intentos === 0) console.log(`  ✅ Encontrada mejor coincidencia en el menu: ${opciones[indexToSelect]}`);
           await selectLocator.selectOption({ index: indexToSelect });
         } else {
-          // Seleccionar la primera opcion valida si no se especifica
           await selectLocator.selectOption({ index: 1 });
         }
         
-        // Darle tiempo al servidor si el dropdown tiene AutoPostBack
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(500);
         
-        // --- VERIFICAR ERROR DE SERVIDOR DESPUES DEL POSTBACK ---
         let errorServidor = await page.evaluate(() => document.body.innerText.includes('Server Error in'));
         if (errorServidor) {
             intentos++;
             console.log(c.rojo(`  ❌ Cuentame arrojo un Server Error 500. Reintentando (${intentos}/${MAX_INTENTOS})...`));
             await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
-            await page.waitForTimeout(800);
+            await page.waitForTimeout(500);
             contenidoFinal = await page.content();
             contenidoFinalClean = removeAccents(contenidoFinal);
             continue;
         }
         
-        // Si se pidio mantener la pestana de roles intacta, obligamos al form a hacer POST a _blank
         if (mantenerRolesTab) {
             await page.evaluate(() => {
                 if (document.forms.length > 0) document.forms[0].target = '_blank';
@@ -258,9 +238,8 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
                 page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
             ]);
             
-            await newPage.waitForLoadState('networkidle');
+            await newPage.waitForLoadState('domcontentloaded');
             
-            // Restaurar target por limpieza
             await page.evaluate(() => {
                 if (document.forms.length > 0) document.forms[0].target = '';
             });
@@ -268,9 +247,8 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
             await verificarLoginExitoso(newPage);
             return newPage;
         } else {
-            // Comportamiento normal, usar la misma pestana
             await Promise.all([
-              page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }).catch(()=>{}),
+              page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(()=>{}),
               page.locator('input[value="Continuar"], button:has-text("Continuar")').first().click()
             ]);
             
@@ -279,7 +257,7 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
                 intentos++;
                 console.log(c.rojo(`  ❌ Server Error 500 al presionar Continuar. Reintentando (${intentos}/${MAX_INTENTOS})...`));
                 await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded' });
-                await page.waitForTimeout(800);
+                await page.waitForTimeout(500);
                 contenidoFinal = await page.content();
                 continue;
             }
@@ -288,14 +266,13 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
             return page;
         }
       }
-      break; // Salir del loop si no pide entidad
+      break;
   }
   
   if (intentos >= MAX_INTENTOS) {
       throw new Error('El servidor de Cuentame arrojo demasiados errores 500. Por favor, intenta de nuevo mas tarde.');
   }
   
-  // Fallback si no habia dropdown de entidad (ya estaba seleccionada)
   return page;
 }
 
