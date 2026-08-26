@@ -947,15 +947,31 @@ async function main() {
                                 await tabDatosGeo.click().catch(() => tabDatosGeo.evaluate(el => el.click()));
                                 await page.waitForTimeout(1200); // Esperar que renderice la pestana
                                 
-                                console.log(c.gris('     - Llenando valores fijos predeterminados (modo humano para evitar colision de UpdatePanel)...'));
+                                 // Validar si la localidad actual ya es LOCALIDAD USAQUEN
+                                 const selLocalidad = currentFrame.locator('select[id*="tbnDatosGeo"][id*="Comuna"], select[id*="tbnDatosGeo"][id*="Localidad"]').first();
+                                 let esUsaquen = false;
+                                 if (await selLocalidad.count() > 0) {
+                                     const textoLocalidad = await selLocalidad.evaluate(el => {
+                                         const sel = el.options[el.selectedIndex];
+                                         return sel ? (sel.text || sel.innerText || '') : '';
+                                     }).catch(() => '');
+                                     if (textoLocalidad.toUpperCase().includes('USAQUEN')) {
+                                         esUsaquen = true;
+                                     }
+                                 }
 
-                                await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Pais"]').first(), "COLOMBIA");
-                                await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Departamento"], select[id*="tbnDatosGeo"][id*="Depto"]').first(), "BOGOTA D.C.");
-                                await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Municipio"]').first(), "BOGOTA D.C.");
-                                await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Zona"]').first(), "CABECERA");
-                                await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="CentroPoblado"]').first(), "BOGOTA D.C.");
-                                await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="TipoCabecera"]').first(), "LOCALIDAD");
-                                await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Comuna"], select[id*="tbnDatosGeo"][id*="Localidad"]').first(), "LOCALIDAD USAQUEN");
+                                 if (esUsaquen) {
+                                     console.log(c.verde('     ✅ Ubicacion actual ya esta en LOCALIDAD USAQUEN. Conservando filtros superiores.'));
+                                 } else {
+                                     console.log(c.gris('     - Configurando valores predeterminados (BOGOTA D.C. / LOCALIDAD USAQUEN)...'));
+                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Pais"]').first(), "COLOMBIA");
+                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Departamento"], select[id*="tbnDatosGeo"][id*="Depto"]').first(), "BOGOTA D.C.");
+                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Municipio"]').first(), "BOGOTA D.C.");
+                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="Zona"]').first(), "CABECERA");
+                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="CentroPoblado"]').first(), "BOGOTA D.C.");
+                                     await waitForAndSelect(currentFrame.locator('select[id*="tbnDatosGeo"][id*="TipoCabecera"]').first(), "LOCALIDAD");
+                                     await waitForAndSelect(selLocalidad, "LOCALIDAD USAQUEN");
+                                 }
                                 
                                 let barrioDefecto = "";
                 const nombreAsc = ascSeleccionada.nombreCorto.toUpperCase();
