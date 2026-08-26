@@ -107,6 +107,8 @@ async function main() {
           await ejecutarFase2(asociaciones, mesAtencion);
       }
   }
+  console.log(c.verde('\n  👋 Volviendo al menu principal...\n'));
+  process.exit(0);
 }
 
 async function iniciarNavegador() {
