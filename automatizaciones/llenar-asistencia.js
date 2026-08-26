@@ -153,13 +153,23 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     let diasIgnorarStr = readline.question(c.negrita('\n  > Dias a ignorar en todo el mes (separados por coma, ej: 20,25) o ENTER para ninguno: '));
     const diasIgnorar = diasIgnorarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
 
+    let finalAscAProcesar = [];
     for (let asc of ascAProcesar) {
         if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => asc.nombreCorto.toUpperCase().includes(x))) {
-            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDIN COMUNITARIO - 420269)'];
+            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDIN COMUNITARIO - 420269)', 'Ambas (Individuales + Agrupados)'];
             const res = readline.keyInSelect(opciones, c.negrita(`\n  > La asociacion ${asc.nombreCorto} es MIXTA. Que jardines desea procesar?`), { cancel: false });
-            asc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
+            if (res === 2) {
+                finalAscAProcesar.push({ ...asc, tipoServicio: 'Individual' });
+                finalAscAProcesar.push({ ...asc, tipoServicio: 'Agrupado' });
+            } else {
+                asc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
+                finalAscAProcesar.push(asc);
+            }
+        } else {
+            finalAscAProcesar.push(asc);
         }
     }
+    ascAProcesar = finalAscAProcesar;
 
     console.log(c.verde(`\n  ✅ Iniciando Fase 1: ${ascAProcesar.length} Asociacion(es) | Ignorando dias: [${diasIgnorar.join(',') || 'Ninguno'}]`));
 
@@ -454,14 +464,26 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
             break;
         }
 
-        const asc = asociaciones[ascIdx];
-        if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => asc.nombreCorto.toUpperCase().includes(x))) {
-            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDIN COMUNITARIO - 420269)'];
-            const res = readline.keyInSelect(opciones, c.negrita(`\n  > La asociacion ${asc.nombreCorto} es MIXTA. Que jardines desea procesar?`), { cancel: false });
-            asc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
+        const baseAsc = asociaciones[ascIdx];
+        let subAsociacionesFase2 = [];
+        if (['BUENAVISTA', 'VERBENAL Y REFUGIO', 'CANAIMA'].some(x => baseAsc.nombreCorto.toUpperCase().includes(x))) {
+            const opciones = ['Individuales (HCB - 420267)', 'Agrupados (JARDIN COMUNITARIO - 420269)', 'Ambas (Individuales + Agrupados)'];
+            const res = readline.keyInSelect(opciones, c.negrita(`\n  > La asociacion ${baseAsc.nombreCorto} es MIXTA. Que jardines desea procesar?`), { cancel: false });
+            if (res === 2) {
+                subAsociacionesFase2 = [
+                    { ...baseAsc, tipoServicio: 'Individual' },
+                    { ...baseAsc, tipoServicio: 'Agrupado' }
+                ];
+            } else {
+                baseAsc.tipoServicio = res === 0 ? 'Individual' : 'Agrupado';
+                subAsociacionesFase2 = [baseAsc];
+            }
+        } else {
+            subAsociacionesFase2 = [baseAsc];
         }
 
-        console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociacion: ${asc.nombreCorto}`));
+        for (let asc of subAsociacionesFase2) {
+            console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociacion: ${asc.nombreCorto}${asc.tipoServicio ? ' (' + asc.tipoServicio + ')' : ''}`));
 
         if (!authDone) {
             const nav = await iniciarNavegador();
@@ -860,6 +882,7 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
 
             break;
         }
+    }
     }
 }
 
