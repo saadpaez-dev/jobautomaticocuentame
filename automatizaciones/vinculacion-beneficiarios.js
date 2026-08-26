@@ -1462,7 +1462,7 @@ async function main() {
 
                                         const btnActualizarNino = currentFrame.locator('a:visible:has-text("Actualizar Persona"), a:visible[id*="LblAgregarPersona"]').first();
                                         if (await btnActualizarNino.count() > 0) {
-                                            console.log(c.amarillo('  â³ Actualizando datos del nino en la tabla...'));
+                                            console.log(c.amarillo('  â ³ Actualizando datos del nino en la tabla...'));
                                             const postActualizar = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                                             await btnActualizarNino.click();
                                             await postActualizar;
@@ -1477,9 +1477,33 @@ async function main() {
                                             const postGuardarFam = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
                                             await btnGuardarFam.click();
                                             await postGuardarFam;
-                                            console.log(c.verde('  âœ… Guardado exitoso.'));
+                                            await page.waitForTimeout(1500);
+
+                                            // Validar si ASP.NET mostró un mensaje de error o si el niño ya está siendo atendido en otra asociación
+                                            const textPagina = await currentFrame.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+                                            const textPaginaLower = textPagina.toLowerCase();
+
+                                            const esErrorAtendido = textPaginaLower.includes('no se vincula el beneficiario') || 
+                                                                     textPaginaLower.includes('ya esta siendo atendido') || 
+                                                                     textPaginaLower.includes('ya está siendo atendido') ||
+                                                                     textPaginaLower.includes('operación no se completó satisfactoriamente') ||
+                                                                     textPaginaLower.includes('operacion no se completo satisfactoriamente');
+
+                                            if (esErrorAtendido) {
+                                                console.log(c.rojo('\n  🚨 LA OPERACION NO SE COMPLETO SATISFACTORIAMENTE EN CUENTAME:'));
+                                                const matchError = textPagina.match(/(La operaci[oó]n no se complet[oó][^.\n]*|No se vincula el beneficiario[^.\n]*|ya est[aá] siendo atendido[^.\n]*)/i);
+                                                console.log(c.rojo(`     "${matchError ? matchError[0].trim() : 'El beneficiario ya esta siendo atendido en el mismo servicio / otra asociacion.'}"`));
+
+                                                const actConsulta = readline.question(c.negrita('\n  > Deseas activar el protocolo de CONSULTA DE ACTIVOS para buscar la asociacion y generar solicitud de desvinculacion? (s/n) [por defecto s]: ')).trim().toLowerCase();
+                                                if (actConsulta === '' || actConsulta === 's' || actConsulta === 'si') {
+                                                    const { ejecutarProtocoloConsultaActivos } = require('./consulta-activos');
+                                                    await ejecutarProtocoloConsultaActivos(page, ascSeleccionada, docNum, 'REGISTRO CIVIL');
+                                                }
+                                            } else {
+                                                console.log(c.verde('  ✅ Guardado exitoso.'));
+                                            }
                                         } else {
-                                            console.log(c.rojo('  âš ï¸ No se encontro el boton Guardar general. Guarda manualmente.'));
+                                            console.log(c.rojo('  ⚠️ No se encontro el boton Guardar general. Guarda manualmente.'));
                                         }
 
 

@@ -509,4 +509,317 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(console.error);
+if (require.main === module) {
+  main().catch(console.error);
+}
+
+module.exports = {
+  main,
+  ejecutarProtocoloConsultaActivos
+};
+
+async function ejecutarProtocoloConsultaActivos(page, ascSeleccionada, docNum, tipoDoc = 'REGISTRO CIVIL') {
+    const fs = require('fs');
+    const path = require('path');
+    const ExcelJS = require('exceljs');
+
+    console.log(c.cyan('\n======================================================'));
+    console.log(c.cyan('   🔍 PROTOCOLO CONSULTA DE ACTIVOS (DESVINCULACIÓN)'));
+    console.log(c.cyan('======================================================\n'));
+    console.log(c.amarillo(`  > Consultando documento: [${tipoDoc}] ${docNum}`));
+
+    // 1. Navegar a Información del Beneficiario
+    console.log(c.cyan('  🚀 Navegando al módulo de Información del Beneficiario...'));
+    
+    let menuFrame = page.frame({ name: 'frameMenu' });
+    if (!menuFrame) {
+        for (const f of page.frames()) {
+            if (f.name() === 'frameMenu') {
+                menuFrame = f;
+                break;
+            }
+        }
+    }
+    const rootMenu = menuFrame || page;
+
+    try {
+        let result = await rootMenu.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('a'));
+            const norm = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            
+            const target = links.find(a => 
+                (a.href && a.href.toUpperCase().includes('INFORMACIONBENEFICIARIO')) ||
+                norm(a.innerText).includes('informacion beneficiario')
+            );
+
+            if (target) {
+                target.click();
+                return 'TARGET_CLICKED';
+            }
+
+            const rubLink = links.find(a => norm(a.innerText).trim() === 'rub online' && a.classList.contains('desplegable'));
+            if (rubLink) {
+                const li = rubLink.closest('li');
+                const ul = li ? li.querySelector('ul') : null;
+                if (!ul || ul.style.display === 'none' || ul.style.display === '') {
+                    rubLink.click();
+                    return 'RUB_EXPANDED';
+                }
+            }
+            return 'NOT_FOUND';
+        }).catch(() => 'ERROR');
+
+        if (result === 'RUB_EXPANDED') {
+            await page.waitForTimeout(400);
+            await rootMenu.evaluate(() => {
+                const links = Array.from(document.querySelectorAll('a'));
+                const norm = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                const target = links.find(a => 
+                    (a.href && a.href.toUpperCase().includes('INFORMACIONBENEFICIARIO')) ||
+                    norm(a.innerText).includes('informacion beneficiario')
+                );
+                if (target) target.click();
+            }).catch(() => {});
+        } else if (result === 'NOT_FOUND' || result === 'ERROR') {
+            const targetLocator = rootMenu.locator('a[href*="INFORMACIONBENEFICIARIO" i], a:has-text("Información beneficiario"), a:has-text("Informacion beneficiario")').first();
+            if (await targetLocator.count() > 0) {
+                await targetLocator.click().catch(() => targetLocator.evaluate(node => node.click()));
+            }
+        }
+        
+        await page.waitForTimeout(1000);
+        console.log(c.verde('  ✅ Clic en "Información beneficiario" enviado.'));
+    } catch (err) {
+        console.log(c.rojo(`  ❌ Error al intentar acceder a Información beneficiario: ${err.message}`));
+    }
+
+    // 2. Llenar búsqueda
+    let frame = page.frame({ name: 'frameContent' });
+    if (!frame) {
+        for (const f of page.frames()) {
+            if (f.name() === 'frameContent') {
+                frame = f;
+                break;
+            }
+        }
+    }
+    if (!frame) frame = page;
+
+    const selectDoc = frame.locator('select').first();
+    await selectDoc.selectOption({ label: tipoDoc }).catch(() => {});
+    
+    const inputDoc = frame.locator('input[type="text"]').first();
+    await inputDoc.click();
+    await inputDoc.clear();
+    await page.waitForTimeout(200);
+    await inputDoc.pressSequentially(docNum, { delay: 100 });
+    await page.waitForTimeout(500);
+
+    const btnBuscar = frame.locator('#btnBuscar, a:has(img[alt="Consultar"])').first();
+    if (await btnBuscar.count() > 0) {
+        await btnBuscar.evaluate(node => node.click());
+    } else {
+        await inputDoc.press('Enter');
+    }
+
+    console.log(c.amarillo('  ⏳ Cargando resultados de la consulta...'));
+    await page.waitForTimeout(5000);
+
+    frame = page.frame({ name: 'frameContent' });
+    if (!frame) {
+        for (const f of page.frames()) {
+            if (f.name() === 'frameContent') {
+                frame = f;
+                break;
+            }
+        }
+    }
+    if (!frame) frame = page;
+
+    const tablas = await frame.locator('table').all();
+    let registros = [];
+    
+    for (let i = 0; i < tablas.length; i++) {
+        const filas = await tablas[i].locator('tr').all();
+        if (filas.length > 2) {
+            const celdasHeader = await filas[0].locator('th, td').allInnerTexts();
+            if (celdasHeader.length >= 15) {
+                for (let j = 1; j < filas.length; j++) {
+                    const celdas = await filas[j].locator('td').allInnerTexts();
+                    if (celdas.length >= 15) {
+                        const info = celdas.map(t => t.trim().replace(/\s+/g, ' '));
+                        registros.push({
+                            regionalVinculado: info[1] || '',
+                            entidad: info[2] || '',
+                            contratoVinculado: info[4] || '',
+                            codigoUds: info[5] || '',
+                            nombreUds: info[6] || '',
+                            tipoDoc: info[10] || '',
+                            nombre: `${info[12] || ''} ${info[13] || ''} ${info[14] || ''} ${info[15] || ''}`.replace(/\s+/g, ' ').trim(),
+                            fechaAtencion: info[16] || '',
+                            estado: info[18] || ''
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    if (registros.length === 0) {
+        const sinDatos = frame.locator('text="No se encontraron datos"').first();
+        if (await sinDatos.count() > 0 && await sinDatos.isVisible()) {
+            console.log(c.rojo(`  ❌ El sistema reporta: No se encontraron datos para el documento ${docNum}.`));
+        } else {
+            console.log(c.rojo('  ❌ No se encontro ninguna tabla de resultados. Revisa si la pagina mostro un error.'));
+        }
+        return false;
+    }
+
+    registros.sort((a, b) => {
+        const parseD = (str) => {
+            const parts = str.split('/');
+            if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+            return 0;
+        };
+        return parseD(b.fechaAtencion) - parseD(a.fechaAtencion);
+    });
+
+    const masReciente = registros[0];
+    console.log(c.verde(`\n  ✅ Beneficiario encontrado: ${c.cyan(masReciente.nombre)}`));
+    console.log(`     Ultimo registro : ${masReciente.fechaAtencion}`);
+    console.log(`     Estado actual   : ${c.negrita(masReciente.estado)}`);
+    console.log(`     Asociacion (EAS): ${masReciente.entidad}`);
+    console.log(`     UDS             : ${masReciente.nombreUds}\n`);
+
+    const estadoMayus = masReciente.estado.toUpperCase();
+    const esMismaAsociacion = ascSeleccionada && masReciente.entidad.toUpperCase().includes((ascSeleccionada.nombreCorto || '').toUpperCase());
+
+    if (estadoMayus === 'VINCULADO' && !esMismaAsociacion) {
+        console.log(c.rojo(`  ⚠️ El nino se encuentra VINCULADO pero en OTRA asociacion (${masReciente.entidad}).`));
+        const resp = readline.question(c.negrita('  > Deseas guardar esta novedad en el Excel oficial de ICBF? (s/n) [por defecto s]: ')).trim().toLowerCase();
+        if (resp === '' || resp === 's' || resp === 'si') {
+            console.log(c.amarillo('  ⏳ Guardando en el formato de desvinculacion...'));
+            const formatoPath = path.join(__dirname, '..', 'docs', 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx');
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.readFile(formatoPath);
+            
+            const ws = workbook.worksheets.find(w => w.name.toUpperCase() === 'FORMATO');
+            if (ws) {
+                let filaVacia = 6;
+                while (filaVacia <= 500) {
+                    const row = ws.getRow(filaVacia);
+                    const celda = row.getCell(1).value;
+                    if (!celda || String(celda).trim() === '') break;
+                    filaVacia++;
+                }
+                
+                const hoy = new Date();
+                const dia1MesActual = `01/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+                
+                const normalizarRegional = (str) => {
+                    let res = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                    if (res.includes('BOGOTA')) return 'BOGOTA';
+                    if (res.includes('VALLE DEL CAUCA') || res === 'VALLE') return 'CAUCA';
+                    if (res.includes('SAN ANDRES')) return 'SAN ANDRES';
+                    return res;
+                };
+                
+                const rowToFill = ws.getRow(filaVacia);
+                rowToFill.getCell(1).value = 'BOGOTA';
+                rowToFill.getCell(2).value = ascSeleccionada ? ascSeleccionada.nit || '' : '';
+                rowToFill.getCell(3).value = ascSeleccionada ? ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto : '';
+                rowToFill.getCell(4).value = ascSeleccionada ? ascSeleccionada.numeroContrato || '' : '';
+                
+                rowToFill.getCell(5).value = normalizarRegional(masReciente.regionalVinculado);
+                rowToFill.getCell(6).value = masReciente.entidad;
+                rowToFill.getCell(7).value = masReciente.contratoVinculado;
+                rowToFill.getCell(8).value = masReciente.codigoUds;
+                rowToFill.getCell(9).value = masReciente.nombreUds;
+                
+                rowToFill.getCell(10).value = masReciente.tipoDoc;
+                rowToFill.getCell(11).value = docNum;
+                rowToFill.getCell(12).value = masReciente.nombre;
+                rowToFill.getCell(13).value = dia1MesActual;
+                
+                rowToFill.commit();
+                
+                const docsDir = path.join(__dirname, '..', 'docs', 'adjuntos', docNum);
+                if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
+                
+                const childExcelPath = path.join(docsDir, 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx');
+                await workbook.xlsx.writeFile(childExcelPath);
+                await workbook.xlsx.writeFile(formatoPath);
+                
+                console.log(c.verde(`  ✅ Novedad guardada exitosamente en el Excel.`));
+                
+                const armarCorreo = readline.question(c.negrita('  > Desea armar el correo para envio a la regional? (s/n) [por defecto s]: ')).trim().toLowerCase();
+                if (armarCorreo === '' || armarCorreo === 's' || armarCorreo === 'si') {
+                    console.log(c.amarillo('  ⏳ Generando borrador del correo (.eml)...'));
+                    
+                    const cuerpoCorreoHtml = `<p>
+<b>Nit:</b> ${ascSeleccionada ? ascSeleccionada.nit || '' : ''}<br>
+<b>Nombre del EAS que requiere el ajuste:</b> ${ascSeleccionada ? ascSeleccionada.nombreLargo || ascSeleccionada.nombreCorto : ''}<br>
+<b>Numero de Contrato:</b> ${ascSeleccionada ? ascSeleccionada.numeroContrato || '' : ''}<br>
+<b>Nombre de la persona que pone el caso:</b> SAAD PAEZ<br>
+<b>Numero de Identificacion:</b> 1020722462<br>
+<b>Numero de contacto:</b> 3202002073<br>
+<b>Area Misional si aplica:</b> Primera Infancia<br>
+<b>Regional y Centro Zonal:</b> BOGOTA, CZ USAQUEN
+</p>
+<p>
+<i>Atte</i><br><br>
+<i>SAAD PAEZ</i><br>
+<i>Tel: 3202002073</i>
+</p>`;
+
+                    const { procesarDocumentos } = require('../servicios/verificador-docs');
+                    const { buildRawEML, guardarBorradorGmail } = require('../servicios/eml-generator');
+
+                    console.log(c.cyan('\n  ⏳ Verificando y clasificando documentos de soporte (CARTA, RAM, RC)...'));
+                    const docsClasificados = await procesarDocumentos(docNum);
+                    
+                    const attachments = [
+                        {
+                            filename: 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx',
+                            path: childExcelPath
+                        }
+                    ];
+
+                    if (docsClasificados) {
+                        attachments.push({ filename: 'RAM.pdf', path: path.join(docsDir, 'RAM.pdf') });
+                        attachments.push({ filename: 'RC.pdf', path: path.join(docsDir, 'RC.pdf') });
+                        attachments.push({ filename: 'CARTA.pdf', path: path.join(docsDir, 'CARTA.pdf') });
+                    } else {
+                        console.log(c.amarillo(`  ⚠️ El borrador del correo se creara SOLO con el Excel, ya que los documentos de soporte estan incompletos.`));
+                    }
+
+                    const emlBuffer = buildRawEML({
+                        from: 'SAAD PAEZ <saad.paez@gmail.com>',
+                        to: 'Mis.Aplicaciones@icbf.gov.co',
+                        subject: 'Desvinculacion Primera Infancia',
+                        html: cuerpoCorreoHtml,
+                        attachments: attachments
+                    });
+
+                    const reportesDir = path.join(__dirname, '..', 'reportes');
+                    if (!fs.existsSync(reportesDir)) fs.mkdirSync(reportesDir, { recursive: true });
+                    const emlPath = path.join(reportesDir, `Solicitud_Desvinculacion_${docNum}.eml`);
+                    fs.writeFileSync(emlPath, emlBuffer);
+                    console.log(c.verde(`  📄 Archivo .eml guardado en: "${emlPath}"`));
+
+                    const gmailUser = process.env.GMAIL_USER;
+                    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+                    
+                    if (gmailUser && gmailPass) {
+                        await guardarBorradorGmail(gmailUser, gmailPass, emlBuffer);
+                    }
+                }
+            } else {
+                console.log(c.rojo('  ❌ No se encontro la hoja "FORMATO" en el archivo de Excel.'));
+            }
+        }
+    } else {
+        console.log(c.verde(`  ✅ El nino se encuentra ${masReciente.estado}.`));
+    }
+    return true;
+}
