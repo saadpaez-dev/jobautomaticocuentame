@@ -1,4 +1,4 @@
-﻿/**
+/**
  * consulta-activos.js
  * Script interactivo para consultar si un beneficiario se encuentra vinculado o desvinculado,
  * y en que Unidad de Servicio esta.
@@ -105,60 +105,74 @@ async function main() {
         }
 
         // Navegar a Informacion del Beneficiario
-    console.log(c.cyan('  ðŸš€ Navegando al modulo de Informacion del Beneficiario...'));
-    
-    let menuFrame = page.frame({ name: 'frameMenu' });
-    if (!menuFrame) {
-        for (const f of page.frames()) {
-            if (f.name() === 'frameMenu') {
-                menuFrame = f;
-                break;
-            }
-        }
-    }
-    const rootMenu = menuFrame || page;
-    
-    try {
-        let result = await rootMenu.evaluate(() => {
-            const links = Array.from(document.querySelectorAll('a'));
-            
-            // Si "Informacion beneficiario" ya esta visible, hacerle clic directamente
-            const target = links.find(a => a.innerText && a.innerText.toLowerCase().includes('informacion beneficiario'));
-            if (target) {
-                target.click();
-                return 'TARGET_CLICKED';
-            }
-
-            // Si no, buscar el enlace exacto "Rub online" para expandirlo
-            const rubLink = links.find(a => a.innerText && a.innerText.trim() === 'Rub online' && a.classList.contains('desplegable'));
-            if (rubLink) {
-                const li = rubLink.closest('li');
-                const ul = li ? li.querySelector('ul') : null;
-                if (!ul || ul.style.display === 'none' || ul.style.display === '') {
-                    rubLink.click();
-                    return 'RUB_EXPANDED';
+        console.log(c.cyan('  🚀 Navegando al modulo de Informacion del Beneficiario...'));
+        
+        let menuFrame = page.frame({ name: 'frameMenu' });
+        if (!menuFrame) {
+            for (const f of page.frames()) {
+                if (f.name() === 'frameMenu') {
+                    menuFrame = f;
+                    break;
                 }
             }
-            return 'NOT_FOUND';
-        }).catch(() => 'ERROR');
-
-        console.log(c.gris(`  â„¹ï¸ Estado del menu: ${result}`));
-
-        if (result === 'RUB_EXPANDED') {
-            await page.waitForTimeout(800); // Esperar a que el sub-menu se expanda
-            // Ahora hacer clic en "Informacion beneficiario"
-            await rootMenu.evaluate(() => {
-                const links = Array.from(document.querySelectorAll('a'));
-                const target = links.find(a => a.innerText && a.innerText.toLowerCase().includes('informacion beneficiario'));
-                if (target) target.click();
-            }).catch(() => {});
         }
+        const rootMenu = menuFrame || page;
         
-        await page.waitForTimeout(1500);
-        console.log(c.verde('  ✅ Clic en "Informacion beneficiario" enviado.'));
-    } catch (err) {
-        console.log(c.rojo(`  âŒ Error al intentar acceder a Informacion beneficiario: ${err.message}`));
-    }
+        try {
+            let result = await rootMenu.evaluate(() => {
+                const links = Array.from(document.querySelectorAll('a'));
+                const norm = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                
+                // 1. Buscar directamente por href o texto normalizado
+                const target = links.find(a => 
+                    (a.href && a.href.toUpperCase().includes('INFORMACIONBENEFICIARIO')) ||
+                    norm(a.innerText).includes('informacion beneficiario')
+                );
+
+                if (target) {
+                    target.click();
+                    return 'TARGET_CLICKED';
+                }
+
+                // 2. Si no esta visible, expandir Rub online
+                const rubLink = links.find(a => norm(a.innerText).trim() === 'rub online' && a.classList.contains('desplegable'));
+                if (rubLink) {
+                    const li = rubLink.closest('li');
+                    const ul = li ? li.querySelector('ul') : null;
+                    if (!ul || ul.style.display === 'none' || ul.style.display === '') {
+                        rubLink.click();
+                        return 'RUB_EXPANDED';
+                    }
+                }
+                return 'NOT_FOUND';
+            }).catch(() => 'ERROR');
+
+            console.log(c.gris(`  ℹ️ Estado del menu: ${result}`));
+
+            if (result === 'RUB_EXPANDED') {
+                await page.waitForTimeout(800);
+                await rootMenu.evaluate(() => {
+                    const links = Array.from(document.querySelectorAll('a'));
+                    const norm = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    const target = links.find(a => 
+                        (a.href && a.href.toUpperCase().includes('INFORMACIONBENEFICIARIO')) ||
+                        norm(a.innerText).includes('informacion beneficiario')
+                    );
+                    if (target) target.click();
+                }).catch(() => {});
+            }
+
+            // Fallback con locator Playwright por si la evaluacion DOM previa no hizo clic
+            const targetLocator = rootMenu.locator('a[href*="INFORMACIONBENEFICIARIO" i], a:has-text("Información beneficiario"), a:has-text("Informacion beneficiario")').first();
+            if (await targetLocator.count() > 0) {
+                await targetLocator.click().catch(() => targetLocator.evaluate(node => node.click()));
+            }
+            
+            await page.waitForTimeout(1500);
+            console.log(c.verde('  ✅ Clic en "Informacion beneficiario" enviado.'));
+        } catch (err) {
+            console.log(c.rojo(`  ❌ Error al intentar acceder a Informacion beneficiario: ${err.message}`));
+        }
     // (La obtencion del frame se hara dentro del bucle para asegurar que este listo)
     
     // Bucle interactivo de busqueda
