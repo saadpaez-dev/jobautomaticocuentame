@@ -499,6 +499,25 @@ module.exports = {
   expandirMenu
 };
 
+async function esperarPuertoCDP(puerto = 9333, maxEsperaMs = 3000) {
+    const http = require('http');
+    const inicio = Date.now();
+    while (Date.now() - inicio < maxEsperaMs) {
+        const listo = await new Promise((resolve) => {
+            const req = http.get(`http://localhost:${puerto}/json/version`, (res) => {
+                resolve(res.statusCode === 200);
+            }).on('error', () => resolve(false));
+            req.setTimeout(300, () => {
+                req.abort();
+                resolve(false);
+            });
+        });
+        if (listo) return true;
+        await new Promise(r => setTimeout(r, 100));
+    }
+    return false;
+}
+
 async function obtenerNavegador() {
     try {
         console.log(c.cyan('\n  🔍 Buscando navegador en Modo Humano (Puerto 9333)...'));
@@ -506,22 +525,15 @@ async function obtenerNavegador() {
         console.log(c.verde('  ✅ Conectado al navegador del usuario exitosamente.'));
         
         const context = browser.contexts()[0];
-        let cuentamePage = null;
-        
-        // Buscar si el usuario ya tiene la pestana de Cuentame abierta
-        for (const page of context.pages()) {
-            if (page.url().includes('rubonline.icbf.gov.co')) {
-                cuentamePage = page;
-                break;
-            }
-        }
+        let cuentamePage = context.pages().find(p => p.url().includes('rubonline.icbf.gov.co'));
         
         if (!cuentamePage) {
             console.log(c.amarillo('  ⚠️ No se encontro una pestana de Cuentame abierta. Creando una nueva...'));
-            cuentamePage = await context.newPage();
-            await cuentamePage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx');
+            cuentamePage = context.pages()[0] || await context.newPage();
+            if (!cuentamePage.url().includes('rubonline.icbf.gov.co')) {
+                await cuentamePage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 });
+            }
         } else {
-            // Traer la pestana al frente
             await cuentamePage.bringToFront();
         }
         
@@ -530,30 +542,25 @@ async function obtenerNavegador() {
         console.log(c.amarillo('  ⚠️ No se detecto el navegador en Modo Humano (Puerto 9333).'));
         console.log(c.cyan('  🚀 Lanzando Microsoft Edge (Navegador_Bot) automaticamente...'));
         
-        const { execSync } = require('child_process');
+        const { exec } = require('child_process');
         try {
-            // Lanza Edge usando el mismo perfil y puerto
-            const comando = `start msedge.exe --remote-debugging-port=9333 --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --exclude-switches=enable-automation --user-data-dir="%LOCALAPPDATA%\\Microsoft\\Edge\\User Data Bot"`;
-            execSync(comando, { stdio: 'ignore' });
+            const comando = `start msedge.exe --remote-debugging-port=9333 --no-first-run --no-default-browser-check --disable-blink-features=AutomationControlled --exclude-switches=enable-automation --user-data-dir="%LOCALAPPDATA%\\Microsoft\\Edge\\User Data Bot" https://rubonline.icbf.gov.co`;
+            exec(comando);
             
-            console.log(c.amarillo('  ⏳ Esperando 4 segundos a que Edge inicie...'));
-            await new Promise(resolve => setTimeout(resolve, 4000));
+            console.log(c.amarillo('  ⚡ Esperando apertura de Edge (deteccion ultrarapida max 3s)...'));
+            await esperarPuertoCDP(9333, 3000);
             
             console.log(c.cyan('  🔌 Reintentando conexion al Puerto 9333...'));
             const browser = await chromium.connectOverCDP('http://localhost:9333');
             console.log(c.verde('  ✅ Conectado exitosamente!'));
             
             const context = browser.contexts()[0];
-            let cuentamePage = null;
-            for (const page of context.pages()) {
-                if (page.url().includes('rubonline.icbf.gov.co')) {
-                    cuentamePage = page;
-                    break;
-                }
-            }
+            let cuentamePage = context.pages().find(p => p.url().includes('rubonline.icbf.gov.co'));
             if (!cuentamePage) {
-                cuentamePage = await context.newPage();
-                await cuentamePage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx');
+                cuentamePage = context.pages()[0] || await context.newPage();
+                if (!cuentamePage.url().includes('rubonline.icbf.gov.co')) {
+                    await cuentamePage.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 });
+                }
             } else {
                 await cuentamePage.bringToFront();
             }

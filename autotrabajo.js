@@ -41,23 +41,23 @@ function runScript(scriptName) {
     }
 }
 
-async function iniciarEdgeAutomatico() {
-    return new Promise((resolve) => {
-        const http = require('http');
-        const req = http.get('http://localhost:9333/json/version', (res) => {
-            if (res.statusCode === 200) {
-                resolve(true); // Ya esta corriendo
-            } else {
+async function esperarPuertoCDP(puerto = 9333, maxEsperaMs = 3000) {
+    const http = require('http');
+    const inicio = Date.now();
+    while (Date.now() - inicio < maxEsperaMs) {
+        const listo = await new Promise((resolve) => {
+            const req = http.get(`http://localhost:${puerto}/json/version`, (res) => {
+                resolve(res.statusCode === 200);
+            }).on('error', () => resolve(false));
+            req.setTimeout(300, () => {
+                req.abort();
                 resolve(false);
-            }
-        }).on('error', () => {
-            resolve(false); // No esta corriendo
+            });
         });
-        req.setTimeout(1000, () => {
-            req.abort();
-            resolve(false);
-        });
-    });
+        if (listo) return true;
+        await new Promise(r => setTimeout(r, 100));
+    }
+    return false;
 }
 
 async function main() {
@@ -72,16 +72,14 @@ async function main() {
     const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
     console.log(c.amarillo('\n  🔍 Verificando si el navegador esta abierto...'));
-    const navegadorAbierto = await iniciarEdgeAutomatico();
+    let navegadorAbierto = await esperarPuertoCDP(9333, 500);
 
     if (!navegadorAbierto) {
         console.log(c.cyan('  🚀 Abriendo Microsoft Edge automaticamente en Modo Humano...'));
-        // Anadimos banderas para evitar que restaure pestanas viejas o muestre el globo de "restaurar sesion"
         const comandoEdge = `start msedge.exe --remote-debugging-port=9333 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --user-data-dir="%LOCALAPPDATA%\\Microsoft\\Edge\\User Data Bot" https://rubonline.icbf.gov.co`;
         exec(comandoEdge);
-        // Esperar a que el navegador abra completamente
-        console.log(c.gris('  ⏳ Esperando a que Edge inicie (5 segundos)...'));
-        await new Promise(r => setTimeout(r, 5000));
+        console.log(c.gris('  ⚡ Deteccion ultrarapida de puerto activa (esperando inicio de Edge)...'));
+        navegadorAbierto = await esperarPuertoCDP(9333, 3000);
     }
 
     // Conectar al navegador via CDP y hacer login automatico
@@ -90,11 +88,13 @@ async function main() {
         const browser = await chromium.connectOverCDP('http://localhost:9333');
         const context = browser.contexts()[0];
         
-        // Buscar pestana de Cuentame o crear una nueva
+        // Buscar pestana de Cuentame o usar la activa
         let page = context.pages().find(p => p.url().includes('rubonline.icbf.gov.co'));
         if (!page) {
             page = context.pages()[0] || await context.newPage();
-            await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'networkidle', timeout: 30000 });
+            if (!page.url().includes('rubonline.icbf.gov.co')) {
+                await page.goto('https://rubonline.icbf.gov.co/DefaultF.aspx', { waitUntil: 'domcontentloaded', timeout: 15000 });
+            }
         }
         
         // Cerrar cualquier otra pestana que se haya quedado guardada en cache (para no estorbar)
