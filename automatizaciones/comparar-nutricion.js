@@ -509,6 +509,35 @@ function pedirParejaReportes() {
     };
 }
 
+function obtenerUltimaParejaReportes() {
+    const reportesDir = path.join(__dirname, '..', 'reportes');
+    if (!fs.existsSync(reportesDir)) return null;
+
+    const archivos = fs.readdirSync(reportesDir)
+        .filter(f => !f.startsWith('~') && !f.startsWith('Reporte_Faltantes_') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')))
+        .map(f => ({
+            nombre: f,
+            mtime: fs.statSync(path.join(reportesDir, f)).mtimeMs
+        }))
+        .sort((a, b) => b.mtime - a.mtime);
+
+    if (archivos.length === 0) return null;
+
+    const archivoActivos = archivos.find(a => a.nombre.toLowerCase().includes('beneficiario') || a.nombre.toLowerCase().includes('activo'));
+    const archivoNutricion = archivos.find(a => a.nombre.toLowerCase().includes('nutricion') || a.nombre.toLowerCase().includes('peso'));
+
+    if (!archivoActivos || !archivoNutricion) return null;
+
+    console.log(c.verde(`\n  ✅ Archivos seleccionados automaticamente tras la descarga:`));
+    console.log(c.verde(`     • Beneficiarios Activos: ${archivoActivos.nombre}`));
+    console.log(c.verde(`     • Seguimiento Nutricional: ${archivoNutricion.nombre}`));
+
+    return {
+        rutaActivos: path.join(reportesDir, archivoActivos.nombre),
+        rutaNutricion: path.join(reportesDir, archivoNutricion.nombre)
+    };
+}
+
 async function main() {
     console.clear();
     console.log(c.cyan(`
@@ -521,19 +550,23 @@ async function main() {
     try {
         const respDescargar = readline.question(c.negrita('  > Deseas actualizar y descargar los reportes desde Cuentame ahora? (s/n) [por defecto s]: ')).trim().toLowerCase();
 
+        let parejaAuto = null;
         if (respDescargar === '' || respDescargar === 's' || respDescargar === 'si' || respDescargar === 'y') {
-            console.log(c.cyan('\n  📥 Iniciando modulo de Descarga de Reportes en Cuentame...\n'));
+            console.log(c.cyan('\n  📥 Iniciando modulo de Descarga Automatica de Reportes en Cuentame...\n'));
             try {
                 const { spawnSync } = require('child_process');
                 const scriptReportes = path.join(__dirname, 'descargar-reportes.js');
-                spawnSync(process.execPath, [scriptReportes], { stdio: 'inherit' });
+                spawnSync(process.execPath, [scriptReportes, '--auto-comparar'], { stdio: 'inherit' });
             } catch(e) {
                 console.log(c.rojo(`  ⚠️ Error ejecutando descarga de reportes: ${e.message}`));
             }
+            parejaAuto = obtenerUltimaParejaReportes();
         }
 
         while (true) {
-            const pareja = pedirParejaReportes();
+            const pareja = parejaAuto || pedirParejaReportes();
+            parejaAuto = null; // solo usar en el primer ciclo tras descarga
+
             if (!pareja || !pareja.rutaActivos) {
                 console.log(c.amarillo('\n  👋 Volviendo al panel principal...'));
                 break;
