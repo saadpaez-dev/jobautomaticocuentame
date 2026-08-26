@@ -180,44 +180,45 @@ async function main() {
         console.log(c.cyan('\n------------------------------------------------------'));
         console.log(c.amarillo('  [0] Volver a seleccion de asociacion'));
         console.log(c.rojo('  [M] Volver al menu principal (npm start)'));
-        console.log(c.amarillo('  Escribe el numero de documento del nino para consultar.'));
-        const documento = readline.question(c.negrita('\n  > Documento del nino: '));
-
-        if (documento.trim().toUpperCase() === 'M') {
-            salirModulo = true;
-            break;
-        }
-        if (documento.trim() === '0') {
-            break; // Vuelve al loop de seleccion de asociacion
-        }
-        if (documento.trim() === '') {
-            continue;
-        }
+        console.log(c.amarillo('  Selecciona el TIPO DE DOCUMENTO del nino:'));
 
         const opcionesDoc = [
             "REGISTRO CIVIL",
+            "TARJETA DE IDENTIDAD",
+            "CEDULA DE CIUDADANIA",
+            "CEDULA DE EXTRANJERIA",
             "PERMISO POR PROTECCION TEMPORAL",
             "PERMISO ESPECIAL DE PERMANENCIA",
             "PARTIDA O ACTA DE NACIMIENTO",
+            "PASAPORTE",
             "SIN DOCUMENTO",
-            "Volver al menu principal (Start)"
+            "TARJETA DE MOVILIDAD FRONTERIZA",
+            "VISA"
         ];
         console.log();
-        const idxDoc = readline.keyInSelect(opcionesDoc, c.negrita('  > Selecciona el Tipo de Documento: '), { cancel: 'Atras' });
+        const idxDoc = readline.keyInSelect(opcionesDoc, c.negrita('  > Selecciona el Tipo de Documento: '), { cancel: 'Volver a seleccion de asociacion' });
         
         if (idxDoc === -1) {
-            console.log(c.amarillo('  Volviendo a la solicitud de documento...'));
-            continue;
+            break; // Vuelve al loop de seleccion de asociacion
         }
 
         const tipoDocId = opcionesDoc[idxDoc];
 
-        if (tipoDocId === "Volver al menu principal (Start)") {
+        console.log(c.cyan(`\n  Tipo seleccionado: ${tipoDocId}`));
+        const documento = readline.question(c.negrita('  > Escribe el Numero de Documento del nino: ')).trim();
+
+        if (documento.toUpperCase() === 'M') {
             salirModulo = true;
             break;
         }
+        if (documento === '0') {
+            break;
+        }
+        if (documento === '') {
+            continue;
+        }
 
-        console.log(c.gris(`  Buscando beneficiario con documento: ${tipoDocId} - ${documento}...`));
+        console.log(c.gris(`\n  🔍 Buscando beneficiario: [${tipoDocId}] ${documento}...`));
         
         try {
             // Re-evaluar el frame justo antes de interactuar, asegurando que este listo
