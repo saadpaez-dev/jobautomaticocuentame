@@ -9,8 +9,9 @@ const path = require('path');
 const XLSX = require('xlsx');
 
 const RUTA_REPORTES = path.join(__dirname, '..', 'reportes');
-const RUTA_MASTER_EXCEL = path.join(RUTA_REPORTES, 'BD_MASTER_BENEFICIARIOS.xlsx');
-const RUTA_MASTER_JSON = path.join(RUTA_REPORTES, 'BD_MASTER_BENEFICIARIOS.json');
+const RUTA_BASE_DATOS_DIR = path.join(__dirname, '..', 'docs', 'database');
+const RUTA_MASTER_EXCEL = path.join(RUTA_BASE_DATOS_DIR, 'BD_MASTER_BENEFICIARIOS.xlsx');
+const RUTA_MASTER_JSON = path.join(RUTA_BASE_DATOS_DIR, 'BD_MASTER_BENEFICIARIOS.json');
 
 const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
@@ -30,14 +31,20 @@ function normalizarNombreAsociacion(nombreOriginal, nombreArchivo) {
 }
 
 /**
- * Escanea la carpeta reportes/ y consolida todos los Beneficiarios_*.xlsx
+ * Escanea la carpeta reportes/ y consolida todos los Beneficiarios_*.xlsx en docs/database/
  */
 function consolidarBaseDatos() {
     console.log('\n  📊 Consolidando Base de Datos Master de Beneficiarios...');
 
-    if (!fs.existsSync(RUTA_REPORTES)) {
-        fs.mkdirSync(RUTA_REPORTES, { recursive: true });
+    if (!fs.existsSync(RUTA_BASE_DATOS_DIR)) {
+        fs.mkdirSync(RUTA_BASE_DATOS_DIR, { recursive: true });
     }
+
+    // Limpiar archivos legacy de la carpeta reportes si existen
+    const legacyExcel = path.join(RUTA_REPORTES, 'BD_MASTER_BENEFICIARIOS.xlsx');
+    const legacyJson = path.join(RUTA_REPORTES, 'BD_MASTER_BENEFICIARIOS.json');
+    if (fs.existsSync(legacyExcel)) fs.unlinkSync(legacyExcel);
+    if (fs.existsSync(legacyJson)) fs.unlinkSync(legacyJson);
 
     const archivos = fs.readdirSync(RUTA_REPORTES).filter(f => 
         f.startsWith('Beneficiarios_') && f.endsWith('.xlsx') && !f.includes('BD_MASTER')
