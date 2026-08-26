@@ -20,14 +20,24 @@ const cleanAscii = removeAccents;
  * Mapea el nombre del archivo o el nombre largo al nombre corto de la asociacion
  */
 function normalizarNombreAsociacion(nombreOriginal, nombreArchivo) {
-    const txt = (nombreOriginal || nombreArchivo || '').toUpperCase();
-    if (txt.includes('BARRIOS') || txt.includes('BARRIOS_UNIDOS')) return 'BARRIOS UNIDOS';
+    const fileUpper = (nombreArchivo || '').toUpperCase();
+    if (fileUpper.includes('BARRIOS_UNIDOS') || fileUpper.includes('BARRIOS UNIDOS')) return 'BARRIOS UNIDOS';
+    if (fileUpper.includes('BRISAS')) return 'BRISAS DE BUENAVISTA';
+    if (fileUpper.includes('BUENAVISTA')) return 'BUENAVISTA';
+    if (fileUpper.includes('CANAIMA')) return 'CANAIMA';
+    if (fileUpper.includes('DELICIAS')) return 'DELICIAS DEL CARMEN';
+    if (fileUpper.includes('PROGRESO')) return 'PROGRESO INFANTIL';
+    if (fileUpper.includes('VERBENAL')) return 'VERBENAL Y REFUGIO';
+
+    const txt = (nombreOriginal || '').toUpperCase();
+    if (txt.includes('BARRIOS UNIDOS')) return 'BARRIOS UNIDOS';
     if (txt.includes('BRISAS')) return 'BRISAS DE BUENAVISTA';
+    if (txt.includes('VERBENAL')) return 'VERBENAL Y REFUGIO';
     if (txt.includes('BUENAVISTA')) return 'BUENAVISTA';
     if (txt.includes('CANAIMA')) return 'CANAIMA';
-    if (txt.includes('DELICIAS') || txt.includes('DELICIAS_DEL_CARMEN')) return 'DELICIAS DEL CARMEN';
-    if (txt.includes('PROGRESO') || txt.includes('PROGRESO_INFANTIL')) return 'PROGRESO INFANTIL';
-    if (txt.includes('VERBENAL')) return 'VERBENAL Y REFUGIO';
+    if (txt.includes('DELICIAS')) return 'DELICIAS DEL CARMEN';
+    if (txt.includes('PROGRESO')) return 'PROGRESO INFANTIL';
+
     return nombreOriginal || nombreArchivo;
 }
 
