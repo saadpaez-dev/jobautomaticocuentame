@@ -21,6 +21,8 @@ const c = {
   negrita:  (t) => `\x1b[1m${t}\x1b[0m`,
 };
 
+const removeAccentsStr = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+
 // Mapa de servicios para optimizar la busqueda. 
 // Solo buscamos servicios de 2026.
 const SERVICIOS_2026 = ["2026"];
