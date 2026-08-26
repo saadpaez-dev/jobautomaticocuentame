@@ -150,7 +150,7 @@ async function main() {
             console.log(c.gris(`  ℹ️ Estado del menu: ${result}`));
 
             if (result === 'RUB_EXPANDED') {
-                await page.waitForTimeout(800);
+                await page.waitForTimeout(400);
                 await rootMenu.evaluate(() => {
                     const links = Array.from(document.querySelectorAll('a'));
                     const norm = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -160,15 +160,14 @@ async function main() {
                     );
                     if (target) target.click();
                 }).catch(() => {});
-            }
-
-            // Fallback con locator Playwright por si la evaluacion DOM previa no hizo clic
-            const targetLocator = rootMenu.locator('a[href*="INFORMACIONBENEFICIARIO" i], a:has-text("Información beneficiario"), a:has-text("Informacion beneficiario")').first();
-            if (await targetLocator.count() > 0) {
-                await targetLocator.click().catch(() => targetLocator.evaluate(node => node.click()));
+            } else if (result === 'NOT_FOUND' || result === 'ERROR') {
+                const targetLocator = rootMenu.locator('a[href*="INFORMACIONBENEFICIARIO" i], a:has-text("Información beneficiario"), a:has-text("Informacion beneficiario")').first();
+                if (await targetLocator.count() > 0) {
+                    await targetLocator.click().catch(() => targetLocator.evaluate(node => node.click()));
+                }
             }
             
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(200);
             console.log(c.verde('  ✅ Clic en "Informacion beneficiario" enviado.'));
         } catch (err) {
             console.log(c.rojo(`  ❌ Error al intentar acceder a Informacion beneficiario: ${err.message}`));
