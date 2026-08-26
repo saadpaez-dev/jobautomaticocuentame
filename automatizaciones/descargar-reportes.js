@@ -384,12 +384,13 @@ async function main() {
                     }
 
                     if (targetIdx >= 0 && targetIdx < select.options.length) {
+                        const textSelected = select.options[targetIdx] ? (select.options[targetIdx].text || select.options[targetIdx].innerText || '') : '';
                         select.selectedIndex = targetIdx;
                         select.dispatchEvent(new Event('change', { bubbles: true }));
                         if (typeof __doPostBack === 'function') {
                             try { __doPostBack(select.name, ''); } catch(e) {}
                         }
-                        return { ok: true, textSelected: select.options[targetIdx].text };
+                        return { ok: true, textSelected };
                     }
 
                     return { ok: false, reason: 'Opcion no valida o lista vacia' };
@@ -641,7 +642,7 @@ if (!chk) chk = matchedLabel;
             if (!asoc) return 'CZ USAQUEN';
             if (asoc.centroZonal) return asoc.centroZonal;
             const name = (asoc.nombreCorto || asoc.nombreLargo || asoc.nombre || '').toUpperCase();
-            if (name.includes('BRISAS') || name.includes('BUENAVISTA') || name.includes('USME')) {
+            if (name.includes('USME')) {
                 return 'CZ USME';
             }
             return 'CZ USAQUEN';
