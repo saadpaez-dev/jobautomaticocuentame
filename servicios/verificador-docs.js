@@ -1,8 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { PDFDocument } = require('pdf-lib');
-const pdfParse = require('pdf-parse');
-const Tesseract = require('tesseract.js');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -42,7 +39,21 @@ async function procesarDocumentos(documento) {
         return false;
     }
 
-    console.log(c.cyan(`  🔍 Buscando el documento ${documento} entre ${allFiles.length} archivo(s) en la bandeja de entrada...`));
+    console.log(c.cyan(`  🔍 Buscando archivos de soporte (CARTA, RAM, RC) para el documento ${documento} en ${inputDir}...`));
+
+    // 1. Deteccion directa por nombre de archivo (CARTA, RAM, RC con o sin extension .pdf/.png/.jpg)
+    let fCarta = allFiles.find(f => /^carta(\.(pdf|png|jpg|jpeg))?$/i.test(f.trim()));
+    let fRam   = allFiles.find(f => /^ram(\.(pdf|png|jpg|jpeg))?$/i.test(f.trim()));
+    let fRc    = allFiles.find(f => /^(rc|registro)(\.(pdf|png|jpg|jpeg))?$/i.test(f.trim()));
+
+    if (fCarta && fRam && fRc) {
+        console.log(c.verde(`  ✔️ Detectados archivos de soporte directos en entradas: ${fCarta}, ${fRam}, ${fRc}.`));
+        fs.copyFileSync(path.join(inputDir, fCarta), path.join(outputDir, 'CARTA.pdf'));
+        fs.copyFileSync(path.join(inputDir, fRam), path.join(outputDir, 'RAM.pdf'));
+        fs.copyFileSync(path.join(inputDir, fRc), path.join(outputDir, 'RC.pdf'));
+        console.log(c.verde(`  ✅ Copiados exitosamente a: docs/adjuntos/${documento}/ (CARTA.pdf, RAM.pdf, RC.pdf)`));
+        return true;
+    }
 
     let paginasExtraidas = [];
 
@@ -53,15 +64,21 @@ async function procesarDocumentos(documento) {
         let paginasTemporales = [];
         
         if (ext === '.pdf') {
+            const { PDFDocument } = require('pdf-lib');
+            let pdfParse = null;
+            try { pdfParse = require('pdf-parse'); } catch(_) {}
+            
             const dataBuffer = fs.readFileSync(filePath);
             const pdfDoc = await PDFDocument.load(dataBuffer);
             const numPages = pdfDoc.getPageCount();
             
             let pdfTextoGlobal = '';
-            try {
-                const pdfData = await pdfParse(dataBuffer);
-                pdfTextoGlobal = pdfData.text || '';
-            } catch (e) {}
+            if (pdfParse) {
+                try {
+                    const pdfData = await pdfParse(dataBuffer);
+                    pdfTextoGlobal = pdfData.text || '';
+                } catch (e) {}
+            }
 
             for (let i = 0; i < numPages; i++) {
                 const subDoc = await PDFDocument.create();
@@ -79,6 +96,8 @@ async function procesarDocumentos(documento) {
         } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
             console.log(c.gray(`     Analizando imagen con OCR: ${file}`));
             try {
+                const { PDFDocument } = require('pdf-lib');
+                const Tesseract = require('tesseract.js');
                 const { data: { text } } = await Tesseract.recognize(filePath, 'spa');
                 
                 const imageBytes = fs.readFileSync(filePath);
@@ -166,6 +185,7 @@ async function procesarDocumentos(documento) {
             continue;
         }
 
+        const { PDFDocument } = require('pdf-lib');
         const mergedPdf = await PDFDocument.create();
         for (const pag of paginas) {
             const tempDoc = await PDFDocument.load(pag.bytes);

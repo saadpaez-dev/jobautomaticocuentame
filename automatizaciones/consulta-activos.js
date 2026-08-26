@@ -400,7 +400,7 @@ async function main() {
                             
                             await workbook.xlsx.writeFile(childExcelPath);
                             
-                            console.log(c.verde(`  ✅ Novedad guardada exitosamente en el Excel (solo para este nino).`));
+                            console.log(c.verde(`  ✅ Novedad guardada exitosamente en el Excel.`));
                             
                             const armarCorreo = readline.question('  Desea armar el correo para envio a la regional? (s/n) o [M] para menu principal: ').toLowerCase();
                             if (armarCorreo === 'm') {
@@ -408,9 +408,7 @@ async function main() {
                                 break;
                             }
                             if (armarCorreo === 's' || armarCorreo === 'si') {
-                                console.log(c.amarillo('  â³ Generando borrador del correo (.eml)...'));
-                                const nodemailer = require('nodemailer');
-                                const MailComposer = require('nodemailer/lib/mail-composer');
+                                console.log(c.amarillo('  ⏳ Generando borrador del correo (.eml)...'));
                                 
                                 const cuerpoCorreoHtml = `<p>
 <b>Nit:</b> ${ascSeleccionada.nit || ''}<br>
@@ -429,15 +427,11 @@ async function main() {
 </p>`;
 
                                 const { procesarDocumentos } = require('../servicios/verificador-docs');
-                                console.log(c.cyan('\n  â³ Verificando y clasificando documentos de soporte...'));
+                                const { buildRawEML, guardarBorradorGmail } = require('../servicios/eml-generator');
+
+                                console.log(c.cyan('\n  ⏳ Verificando y clasificando documentos de soporte (CARTA, RAM, RC)...'));
                                 const docsClasificados = await procesarDocumentos(documento);
                                 
-                                const fs = require('fs');
-                                const reportesDir = path.join(__dirname, '..', 'reportes');
-                                if (!fs.existsSync(reportesDir)) {
-                                    fs.mkdirSync(reportesDir);
-                                }
-
                                 const attachments = [
                                     {
                                         filename: 'f3.m3.pp_formato_solicitud_desvinculacion_de_beneficiarios_v4.xlsx',
@@ -451,34 +445,34 @@ async function main() {
                                     attachments.push({ filename: 'RC.pdf', path: path.join(docsDir, 'RC.pdf') });
                                     attachments.push({ filename: 'CARTA.pdf', path: path.join(docsDir, 'CARTA.pdf') });
                                 } else {
-                                    console.log(c.amarillo(`  âš ï¸ El borrador del correo se creara SOLO con el Excel, ya que los documentos de soporte estan incompletos.`));
+                                    console.log(c.amarillo(`  ⚠️ El borrador del correo se creara SOLO con el Excel, ya que los documentos de soporte estan incompletos.`));
                                 }
 
-                                const mail = new MailComposer({
-                                    from: 'SAAD PAEZ',
+                                const emlBuffer = buildRawEML({
+                                    from: 'SAAD PAEZ <saad.paez@gmail.com>',
                                     to: 'Mis.Aplicaciones@icbf.gov.co',
                                     subject: 'Desvinculacion Primera Infacia',
                                     html: cuerpoCorreoHtml,
                                     attachments: attachments
                                 });
-                                
-                                const { guardarEnBorradores } = require('../servicios/gmail-draft');
-                                require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-                                
+
+                                const reportesDir = path.join(__dirname, '..', 'reportes');
+                                if (!fs.existsSync(reportesDir)) fs.mkdirSync(reportesDir, { recursive: true });
+                                const emlPath = path.join(reportesDir, `Solicitud_Desvinculacion_${documento}.eml`);
+                                fs.writeFileSync(emlPath, emlBuffer);
+                                console.log(c.verde(`  📄 Archivo .eml guardado en: "${emlPath}"`));
+
                                 const gmailUser = process.env.GMAIL_USER;
                                 const gmailPass = process.env.GMAIL_APP_PASSWORD;
                                 
                                 if (!gmailUser || !gmailPass) {
-                                    console.log(c.rojo('  âŒ No se encontraron GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
+                                    console.log(c.rojo('  ❌ No se encontraron GMAIL_USER o GMAIL_APP_PASSWORD en el .env.'));
                                 } else {
-                                    const messageBuffer = await mail.compile().build();
-                                    await guardarEnBorradores(gmailUser, gmailPass, messageBuffer);
-                                    console.log(c.verde(`  ✅ Borrador de correo subido exitosamente a la carpeta Borradores de tu Gmail.`));
-                                    console.log(c.verde(`     (Revisa la carpeta "Borradores" en tu correo, alli estara listo con el Excel adjunto).`));
+                                    await guardarBorradorGmail(gmailUser, gmailPass, emlBuffer);
                                 }
                             }
                         } else {
-                            console.log(c.rojo('  âŒ No se encontro la hoja "FORMATO" en el archivo de Excel.'));
+                            console.log(c.rojo('  ❌ No se encontro la hoja "FORMATO" en el archivo de Excel.'));
                         }
                     }
                 } else {
