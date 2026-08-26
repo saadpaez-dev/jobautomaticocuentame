@@ -538,6 +538,31 @@ function obtenerUltimaParejaReportes() {
     };
 }
 
+function pedirMesToma() {
+    console.log(c.cyan('\n  📋 Selecciona el mes de Toma para el reporte de Nutricion:'));
+    console.log(c.gris('   1. Enero      2. Febrero    3. Marzo       4. Abril'));
+    console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
+    console.log(c.gris('   9. Septiembre 10. Octubre   11. Noviembre 12. Diciembre'));
+    console.log(c.gris('   0. Todos los meses (Select All)\n'));
+
+    const respToma = readline.question(c.negrita('  > Ingresa el mes de Toma [por defecto 0 (Todos)]: ')).trim();
+    if (!respToma || respToma === '0') return '(Select All)';
+
+    const mapaMeses = {
+        '1': 'Enero', '2': 'Febrero', '3': 'Marzo', '4': 'Abril',
+        '5': 'Mayo', '6': 'Junio', '7': 'Julio', '8': 'Agosto',
+        '9': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+    };
+
+    const partes = respToma.split(/[,;\s]+/);
+    const mesesConvertidos = partes.map(p => {
+        const cleanKey = p.trim();
+        return mapaMeses[cleanKey] || cleanKey;
+    });
+
+    return mesesConvertidos.join(',');
+}
+
 async function main() {
     console.clear();
     console.log(c.cyan(`
@@ -548,7 +573,10 @@ async function main() {
     console.log(c.gris('  Este script compara los reportes originales de Cuentame para identificar que ninos faltan por Nutricion.\n'));
 
     try {
-        const respDescargar = readline.question(c.negrita('  > Deseas actualizar y descargar los reportes desde Cuentame ahora? (s/n) [por defecto s]: ')).trim().toLowerCase();
+        const mesToma = pedirMesToma();
+        console.log(c.verde(`\n  ✅ Mes de Toma seleccionado: ${mesToma}`));
+
+        const respDescargar = readline.question(c.negrita('\n  > Deseas actualizar y descargar los reportes desde Cuentame ahora? (s/n) [por defecto s]: ')).trim().toLowerCase();
 
         let parejaAuto = null;
         if (respDescargar === '' || respDescargar === 's' || respDescargar === 'si' || respDescargar === 'y') {
@@ -556,7 +584,7 @@ async function main() {
             try {
                 const { spawnSync } = require('child_process');
                 const scriptReportes = path.join(__dirname, 'descargar-reportes.js');
-                spawnSync(process.execPath, [scriptReportes, '--auto-comparar'], { stdio: 'inherit' });
+                spawnSync(process.execPath, [scriptReportes, '--auto-comparar', `--mes-toma=${mesToma}`], { stdio: 'inherit' });
             } catch(e) {
                 console.log(c.rojo(`  ⚠️ Error ejecutando descarga de reportes: ${e.message}`));
             }

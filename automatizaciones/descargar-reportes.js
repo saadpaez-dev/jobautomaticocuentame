@@ -118,11 +118,14 @@ async function main() {
       }
   }
 
+  const argMesToma = process.argv.find(a => a.startsWith('--mes-toma='));
+  const mesTomaAuto = argMesToma ? argMesToma.split('=')[1] : null;
+
   for (const opcionReporte of reportesAProcesar) {
-      let seleccionToma = '(Select All)';
+      let seleccionToma = mesTomaAuto || '(Select All)';
       let mesAtencion = '(Select All)';
       
-      if (opcionReporte === 2) {
+      if (opcionReporte === 2 && !mesTomaAuto) {
         console.log(c.cyan('\n  📋 Selecciona el mes de Toma (o varios meses):'));
         console.log(c.gris('   1. Enero      2. Febrero    3. Marzo       4. Abril'));
         console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
