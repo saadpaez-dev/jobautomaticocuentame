@@ -47,123 +47,142 @@ async function main() {
   const RUTA_EXCEL = process.env.RUTA_EXCEL || 'C:\\GENERAL.xlsx';
   const { porAsociacion } = leerJardines(RUTA_EXCEL);
   
+  const esAutoComparar = process.argv.includes('--auto-comparar');
+
   while (true) {
   let asociaciones = Object.values(porAsociacion);
-  
-  console.log(c.cyan('\n  📋 Selecciona el Reporte a generar:'));
-  console.log(c.amarillo(`  1. Beneficiarios vinculados`));
-  console.log(c.amarillo(`  2. Seguimiento nutricional de ninos y ninas por toma`));
-  console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
-  console.log(c.amarillo(`  4. Unidades de servicio`));
-  console.log(c.rojo(`  0. Volver al panel principal (AutoTrabajo / Start)`));
-  
-  let opcionReporte = -1;
-  while (opcionReporte < 0 || opcionReporte > 4) {
-    const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (0, 1, 2, 3 o 4): '));
-    opcionReporte = parseInt(respuesta, 10);
-    if (isNaN(opcionReporte)) opcionReporte = -1;
-  }
-  
-  if (opcionReporte === 0) {
-      console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
-      break;
-  }
-  
-  let seleccionToma = '(Select All)';
-  let mesAtencion = '(Select All)';
-  if (opcionReporte === 2) {
-    console.log(c.cyan('\n  📋 Selecciona el mes de Toma (o varios meses):'));
-    console.log(c.gris('   1. Enero      2. Febrero    3. Marzo       4. Abril'));
-    console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
-    console.log(c.gris('   9. Septiembre 10. Octubre   11. Noviembre 12. Diciembre'));
-    console.log(c.gris('   0. Todos los meses (Select All)\n'));
-    console.log(c.gris('  (Puedes ingresar numeros como "5,6,7" o el nombre de los meses)'));
+  let reportesAProcesar = [];
 
-    const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto 0 (Todos)]: ')).trim();
-    
-    if (respuestaToma !== '' && respuestaToma !== '0') {
-        const mapaMeses = {
-            '1': 'Enero', '2': 'Febrero', '3': 'Marzo', '4': 'Abril',
-            '5': 'Mayo', '6': 'Junio', '7': 'Julio', '8': 'Agosto',
-            '9': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
-        };
-
-        const partes = respuestaToma.split(/[,;\s]+/);
-        const mesesConvertidos = partes.map(p => {
-            const cleanKey = p.trim();
-            return mapaMeses[cleanKey] || cleanKey;
-        });
-
-        seleccionToma = mesesConvertidos.join(',');
-    } else {
-        seleccionToma = '(Select All)';
-    }
-
-    console.log(c.verde(`  ✅ Toma seleccionada: ${seleccionToma}`));
-  } else if (opcionReporte === 3) {
-    console.log(c.cyan('\n  📋 Selecciona el Mes de Atencion:'));
-    const meses = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-    ];
-    meses.forEach((m, idx) => console.log(`  ${idx + 1}. ${m}`));
-    
-    let opcionMes = -1;
-    while (opcionMes < 1 || opcionMes > meses.length) {
-      const respMes = readline.question(c.negrita('\n  > Ingresa el numero del mes (1-12): '));
-      opcionMes = parseInt(respMes, 10);
-      if (isNaN(opcionMes)) opcionMes = -1;
-    }
-    mesAtencion = meses[opcionMes - 1];
-  }
-  
-  let asociacionesSeleccionadas = [];
-  console.log(c.cyan('\n  📋 Selecciona la Asociacion para procesar:'));
-  console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
-  asociaciones.forEach((asc, idx) => {
-    console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
-  });
-  
-  while (asociacionesSeleccionadas.length === 0) {
-    console.log(c.gris('  (Puedes ingresar varios numeros separados por coma, ej: 1,3,4 o 0 para Todas)'));
-    const defaultOpt = process.env.ASOCIACION_ACTIVA ? ` [por defecto ${JSON.parse(process.env.ASOCIACION_ACTIVA).nombreCorto}]` : '';
-    const respuesta = readline.question(c.negrita(`\n  > Ingresa el numero de la(s) opcion(es)${defaultOpt}: `)).trim();
-    
-    if (respuesta === '' && process.env.ASOCIACION_ACTIVA) {
-        asociacionesSeleccionadas = [JSON.parse(process.env.ASOCIACION_ACTIVA)];
-        break;
-    }
-
-    const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
-    
-    if (partes.includes(0)) {
-        asociacionesSeleccionadas = asociaciones;
-    } else {
-        const validas = partes.filter(n => n >= 1 && n <= asociaciones.length);
-        if (validas.length > 0) {
-            asociacionesSeleccionadas = validas.map(n => asociaciones[n - 1]);
-        } else {
-            console.log(c.rojo('  ❌ Opcion no valida. Intenta nuevamente.'));
-        }
-    }
-  }
-
-  let prepararExcel = false;
-  
-  if (opcionReporte === 1 || opcionReporte === 2) {
-      console.log(c.cyan('\n  📋 Que accion realizar con el reporte descargado?'));
-      console.log(c.amarillo(`  1. Dejar por defecto (Original)`));
-      console.log(c.amarillo(`  2. Preparar reporte (Elimina col A-F, ordena A-Z y agrega filtro)`));
-      
-      let opcionPreparar = -1;
-      while (opcionPreparar < 1 || opcionPreparar > 2) {
-        const respuestaPrep = readline.question(c.negrita('\n  > Ingresa la opcion (1 o 2) [por defecto 1]: '));
-        if (respuestaPrep.trim() === '') opcionPreparar = 1;
-        else opcionPreparar = parseInt(respuestaPrep, 10);
-        if (isNaN(opcionPreparar)) opcionPreparar = -1;
-      }
-      prepararExcel = (opcionPreparar === 2);
+  if (esAutoComparar) {
+      console.log(c.cyan('\n  🚀 MODO AUTOMATICO PARA COMPARACION:'));
+      console.log(c.verde('     Descargando automaticamente Reporte 1 (Beneficiarios Vinculados) y Reporte 2 (Seguimiento Nutricional)...\n'));
+      reportesAProcesar = [1, 2];
   } else {
+      console.log(c.cyan('\n  📋 Selecciona el Reporte a generar:'));
+      console.log(c.amarillo(`  1. Beneficiarios vinculados`));
+      console.log(c.amarillo(`  2. Seguimiento nutricional de ninos y ninas por toma`));
+      console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
+      console.log(c.amarillo(`  4. Unidades de servicio`));
+      console.log(c.rojo(`  0. Volver al panel principal (AutoTrabajo / Start)`));
+      
+      let opcionReporte = -1;
+      while (opcionReporte < 0 || opcionReporte > 4) {
+        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (0, 1, 2, 3 o 4): '));
+        opcionReporte = parseInt(respuesta, 10);
+        if (isNaN(opcionReporte)) opcionReporte = -1;
+      }
+      
+      if (opcionReporte === 0) {
+          console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
+          break;
+      }
+      reportesAProcesar = [opcionReporte];
+  }
+
+  let asociacionesSeleccionadas = [];
+  if (esAutoComparar && process.env.ASOCIACION_ACTIVA) {
+      try {
+          asociacionesSeleccionadas = [JSON.parse(process.env.ASOCIACION_ACTIVA)];
+      } catch(e) {}
+  }
+
+  if (asociacionesSeleccionadas.length === 0) {
+      console.log(c.cyan('\n  📋 Selecciona la Asociacion para procesar:'));
+      console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
+      asociaciones.forEach((asc, idx) => {
+        console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
+      });
+      
+      while (asociacionesSeleccionadas.length === 0) {
+        console.log(c.gris('  (Puedes ingresar varios numeros separados por coma, ej: 1,3,4 o 0 para Todas)'));
+        const defaultOpt = process.env.ASOCIACION_ACTIVA ? ` [por defecto ${JSON.parse(process.env.ASOCIACION_ACTIVA).nombreCorto}]` : '';
+        const respuesta = readline.question(c.negrita(`\n  > Ingresa el numero de la(s) opcion(es)${defaultOpt}: `)).trim();
+        
+        if (respuesta === '' && process.env.ASOCIACION_ACTIVA) {
+            asociacionesSeleccionadas = [JSON.parse(process.env.ASOCIACION_ACTIVA)];
+            break;
+        }
+
+        const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
+        
+        if (partes.includes(0)) {
+            asociacionesSeleccionadas = asociaciones;
+        } else {
+            const validas = partes.filter(n => n >= 1 && n <= asociaciones.length);
+            if (validas.length > 0) {
+                asociacionesSeleccionadas = validas.map(n => asociaciones[n - 1]);
+            } else {
+                console.log(c.rojo('  ❌ Opcion no valida. Intenta nuevamente.'));
+            }
+        }
+      }
+  }
+
+  for (const opcionReporte of reportesAProcesar) {
+      let seleccionToma = '(Select All)';
+      let mesAtencion = '(Select All)';
+      
+      if (opcionReporte === 2 && !esAutoComparar) {
+        console.log(c.cyan('\n  📋 Selecciona el mes de Toma (o varios meses):'));
+        console.log(c.gris('   1. Enero      2. Febrero    3. Marzo       4. Abril'));
+        console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
+        console.log(c.gris('   9. Septiembre 10. Octubre   11. Noviembre 12. Diciembre'));
+        console.log(c.gris('   0. Todos los meses (Select All)\n'));
+        console.log(c.gris('  (Puedes ingresar numeros como "5,6,7" o el nombre de los meses)'));
+
+        const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto 0 (Todos)]: ')).trim();
+        
+        if (respuestaToma !== '' && respuestaToma !== '0') {
+            const mapaMeses = {
+                '1': 'Enero', '2': 'Febrero', '3': 'Marzo', '4': 'Abril',
+                '5': 'Mayo', '6': 'Junio', '7': 'Julio', '8': 'Agosto',
+                '9': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+            };
+
+            const partes = respuestaToma.split(/[,;\s]+/);
+            const mesesConvertidos = partes.map(p => {
+                const cleanKey = p.trim();
+                return mapaMeses[cleanKey] || cleanKey;
+            });
+
+            seleccionToma = mesesConvertidos.join(',');
+        } else {
+            seleccionToma = '(Select All)';
+        }
+
+        console.log(c.verde(`  ✅ Toma seleccionada: ${seleccionToma}`));
+      } else if (opcionReporte === 3 && !esAutoComparar) {
+        console.log(c.cyan('\n  📋 Selecciona el Mes de Atencion:'));
+        const meses = [
+          'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+        meses.forEach((m, idx) => console.log(`  ${idx + 1}. ${m}`));
+        
+        let opcionMes = -1;
+        while (opcionMes < 1 || opcionMes > meses.length) {
+          const respMes = readline.question(c.negrita('\n  > Ingresa el numero del mes (1-12): '));
+          opcionMes = parseInt(respMes, 10);
+          if (isNaN(opcionMes)) opcionMes = -1;
+        }
+        mesAtencion = meses[opcionMes - 1];
+      }
+
+      let prepararExcel = false;
+      if (!esAutoComparar && (opcionReporte === 1 || opcionReporte === 2)) {
+          console.log(c.cyan('\n  📋 Que accion realizar con el reporte descargado?'));
+          console.log(c.amarillo(`  1. Dejar por defecto (Original)`));
+          console.log(c.amarillo(`  2. Preparar reporte (Elimina col A-F, ordena A-Z y agrega filtro)`));
+          
+          let opcionPreparar = -1;
+          while (opcionPreparar < 1 || opcionPreparar > 2) {
+            const respuestaPrep = readline.question(c.negrita('\n  > Ingresa la opcion (1 o 2) [por defecto 1]: '));
+            if (respuestaPrep.trim() === '') opcionPreparar = 1;
+            else opcionPreparar = parseInt(respuestaPrep, 10);
+            if (isNaN(opcionPreparar)) opcionPreparar = -1;
+          }
+          prepararExcel = (opcionPreparar === 2);
+      } else {
       console.log(c.gris('\n  ℹ️ El reporte se descargara en su formato original (sin modificar).'));
   }
   
@@ -925,18 +944,21 @@ if (!chk) chk = matchedLabel;
             await mainPage.waitForTimeout(900);
         }
       }
-  }
+  } // fin loop ascValidas
+  } // fin loop reportesAProcesar
 
-  if (opcionReporte === 1) {
-      try {
-          const { consolidarBaseDatos } = require('../servicios/bd-beneficiarios');
-          consolidarBaseDatos();
-      } catch (eCons) {
-          console.log(c.amarillo(`  ⚠️ No se pudo consolidar la Base de Datos Master: ${eCons.message}`));
-      }
+  try {
+      const { consolidarBaseDatos } = require('../servicios/bd-beneficiarios');
+      consolidarBaseDatos();
+  } catch (eCons) {
+      console.log(c.amarillo(`  ⚠️ No se pudo consolidar la Base de Datos Master: ${eCons.message}`));
   }
 
   console.log(c.verde('\n  ✅ Descargas de reportes completadas con exito.'));
+  if (esAutoComparar) {
+      break;
+  }
+
   console.log(c.cyan('\n======================================================'));
   console.log(c.cyan('  📋 ¿Qué deseas hacer ahora?'));
   console.log(c.amarillo('  0. 🏠 Volver al Menú Principal (AutoTrabajo / Start)'));
