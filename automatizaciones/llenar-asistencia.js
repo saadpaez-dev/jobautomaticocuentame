@@ -679,6 +679,17 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     console.log(c.rojo(`  ❌ No se encontro ningun nino que coincida con "${respNino}".`));
                     continue;
                 }
+                if (ninosSeleccionados.length > 1) {
+                    console.log(c.amarillo(`\n  ⚠️ Se encontraron ${ninosSeleccionados.length} ninos que coinciden con "${respNino}":`));
+                    const opcionesCoincidentes = ninosSeleccionados.map(n => `${n.nombreCompleto} (Doc: ${n.documento})`);
+                    opcionesCoincidentes.unshift('🌟 TODOS los ninos coincidentes');
+                    
+                    const subIdx = readline.keyInSelect(opcionesCoincidentes, c.negrita('  > Escoja el nino especifico: '), { cancel: 'Cancelar seleccion' });
+                    if (subIdx === -1) continue;
+                    if (subIdx > 0) {
+                        ninosSeleccionados = [ninosSeleccionados[subIdx - 1]];
+                    }
+                }
             }
 
             // 4. Seleccionar Accion
