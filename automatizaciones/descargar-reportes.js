@@ -118,32 +118,33 @@ async function main() {
   }
   
   let asociacionesSeleccionadas = [];
-  if (process.env.ASOCIACION_ACTIVA) {
-      asociacionesSeleccionadas = [JSON.parse(process.env.ASOCIACION_ACTIVA)];
-  } else {
-    console.log(c.cyan('\n  📋 Selecciona la Asociacion para procesar:'));
-    console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
-    asociaciones.forEach((asc, idx) => {
-      console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
-    });
+  console.log(c.cyan('\n  📋 Selecciona la Asociacion para procesar:'));
+  console.log(c.amarillo(`  0. 🌟 TODAS LAS ASOCIACIONES`));
+  asociaciones.forEach((asc, idx) => {
+    console.log(`  ${idx + 1}. ${asc.nombreCorto} (Contrato: ${asc.numeroContrato || 'N/A'})`);
+  });
+  
+  while (asociacionesSeleccionadas.length === 0) {
+    console.log(c.gris('  (Puedes ingresar varios numeros separados por coma, ej: 1,3,4 o 0 para Todas)'));
+    const defaultOpt = process.env.ASOCIACION_ACTIVA ? ` [por defecto ${JSON.parse(process.env.ASOCIACION_ACTIVA).nombreCorto}]` : '';
+    const respuesta = readline.question(c.negrita(`\n  > Ingresa el numero de la(s) opcion(es)${defaultOpt}: `)).trim();
     
-    let asociacionesSeleccionadas = [];
-    while (asociacionesSeleccionadas.length === 0) {
-      console.log(c.gris('  (Puedes ingresar varios numeros separados por coma, ej: 1,3,4)'));
-      const respuesta = readline.question(c.negrita('\n  > Ingresa el numero de la(s) opcion(es): '));
-      
-      const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
-      
-      if (partes.includes(0)) {
-          asociacionesSeleccionadas = asociaciones;
-      } else {
-          const validas = partes.filter(n => n >= 1 && n <= asociaciones.length);
-          if (validas.length > 0) {
-              asociacionesSeleccionadas = validas.map(n => asociaciones[n - 1]);
-          } else {
-              console.log(c.rojo('  ❌ Opcion no valida. Intenta nuevamente.'));
-          }
-      }
+    if (respuesta === '' && process.env.ASOCIACION_ACTIVA) {
+        asociacionesSeleccionadas = [JSON.parse(process.env.ASOCIACION_ACTIVA)];
+        break;
+    }
+
+    const partes = respuesta.split(',').map(p => parseInt(p.trim(), 10)).filter(n => !isNaN(n));
+    
+    if (partes.includes(0)) {
+        asociacionesSeleccionadas = asociaciones;
+    } else {
+        const validas = partes.filter(n => n >= 1 && n <= asociaciones.length);
+        if (validas.length > 0) {
+            asociacionesSeleccionadas = validas.map(n => asociaciones[n - 1]);
+        } else {
+            console.log(c.rojo('  ❌ Opcion no valida. Intenta nuevamente.'));
+        }
     }
   }
 
