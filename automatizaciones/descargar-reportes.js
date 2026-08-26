@@ -927,12 +927,15 @@ if (!chk) chk = matchedLabel;
       }
   }
 
-  // Al finalizar todas, no cerramos el contexto todavia
-  console.log(c.verde('\n  ✅ Todas las asociaciones procesadas exitosamente.'));
-
+  console.log(c.verde('\n  ✅ Descargas de reportes completadas con exito.'));
   console.log(c.cyan('\n======================================================'));
-  const respFinal = readline.question(c.negrita('  > Deseas generar otro reporte? (s = Si, n = Volver al panel principal) [por defecto s]: '));
-  if (respFinal.toLowerCase().trim() === 'n') {
+  console.log(c.cyan('  📋 ¿Qué deseas hacer ahora?'));
+  console.log(c.amarillo('  0. 🏠 Volver al Menú Principal (AutoTrabajo / Start)'));
+  console.log(c.amarillo('  1. 🔄 Descargar otro reporte'));
+  console.log(c.cyan('======================================================'));
+  
+  const respFinal = readline.question(c.negrita('\n  > Ingresa tu opcion (0 o 1) [por defecto 0]: ')).trim();
+  if (respFinal === '' || respFinal === '0' || respFinal.toLowerCase() === 'n') {
       console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
       break;
   }
