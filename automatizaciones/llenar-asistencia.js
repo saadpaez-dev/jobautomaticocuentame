@@ -681,15 +681,24 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     try {
                         const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
                         if (await sel.count() === 0) return;
-                        if (await sel.evaluate(s => s.disabled)) return;
+                        
+                        for (let r = 0; r < 30; r++) {
+                            const disabled = await sel.evaluate(s => s.disabled).catch(() => true);
+                            if (!disabled) break;
+                            await mainPage.waitForTimeout(100);
+                        }
 
                         let valueToSelect = null;
                         for (let retry = 0; retry < 30; retry++) {
                             if (typeof textOrIndex === 'string') {
+                                const targetText = removeAccentsStr(textOrIndex);
                                 valueToSelect = await sel.evaluate((s, t) => {
-                                    const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(t.toUpperCase()));
+                                    const opt = Array.from(s.options).find(o => {
+                                        const tNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                                        return tNorm.includes(t) || t.includes(tNorm);
+                                    });
                                     return opt ? opt.value : null;
-                                }, textOrIndex);
+                                }, targetText);
                             }
                             if (valueToSelect) break;
                             await mainPage.waitForTimeout(100);
@@ -698,8 +707,22 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                         if (valueToSelect) {
                             const curVal = await sel.evaluate(s => s.value);
                             if (curVal !== valueToSelect) {
-                                await sel.selectOption(valueToSelect, { timeout: 5000 });
-                                await mainPage.waitForTimeout(100);
+                                console.log(c.gris(`    [Filtro] Seleccionando ${keyword}: ${valueToSelect}`));
+                                await sel.selectOption(valueToSelect, { timeout: 5000 }).catch(() => {});
+                                await sel.evaluate(el => {
+                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                    if (typeof __doPostBack === 'function') {
+                                        try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                                    }
+                                }).catch(() => {});
+
+                                await mainPage.waitForTimeout(150);
+                                await mainPage.waitForFunction(() => {
+                                    if (typeof Sys === 'undefined' || !Sys.WebForms || !Sys.WebForms.PageRequestManager) return true;
+                                    var prm = Sys.WebForms.PageRequestManager.getInstance();
+                                    return !prm.get_isInAsyncPostBack();
+                                }, { timeout: 5000 }).catch(() => {});
+                                await mainPage.waitForTimeout(300);
                             }
                         }
                     } catch(e) {}
@@ -717,18 +740,23 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 // 1. Seleccionar Servicio (requerido para habilitar el dropdown de UDS - 2026)
                 const servicioLocator = contentFrame.locator('select[id*="Servicio"]').first();
                 if (await servicioLocator.count() > 0) {
-                    const servOpts = await servicioLocator.evaluate(s => {
-                        return Array.from(s.options)
-                            .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
-                            .map(o => ({ value: o.value, text: o.text }));
-                    });
+                    let servOpts = [];
+                    for (let r = 0; r < 40; r++) {
+                        servOpts = await servicioLocator.evaluate(s => {
+                            return Array.from(s.options)
+                                .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
+                                .map(o => ({ value: o.value, text: o.text }));
+                        });
+                        if (servOpts.length > 0) break;
+                        await mainPage.waitForTimeout(100);
+                    }
 
                     const jModalidad = (jGrupo.jardin.modalidad || '').toUpperCase();
                     const tipoServ = (jModalidad.includes('JARDIN') || jModalidad.includes('AGRUPADO')) ? 'Agrupado' : 'Individual';
                     
                     let servValidos = filtrarServiciosPorAsociacion(servOpts, asc.nombreCorto, tipoServ);
                     if (servValidos.length === 0) {
-                        servValidos = servOpts.filter(o => o.text.includes("2026"));
+                        servValidos = servOpts.filter(o => /-2026\b/.test(o.text) || o.text.endsWith("2026"));
                     }
                     if (servValidos.length === 0) {
                         servValidos = servOpts;
@@ -738,8 +766,21 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
                     if (chosenServ) {
                         console.log(c.gris(`    [Filtro] Seleccionando Servicio (2026): ${chosenServ.text}`));
-                        await servicioLocator.selectOption(chosenServ.value, { timeout: 5000 });
-                        await mainPage.waitForTimeout(600); // Esperar postback de ASP.NET para actualizar UDS
+                        await servicioLocator.selectOption(chosenServ.value, { timeout: 5000 }).catch(() => {});
+                        await servicioLocator.evaluate(el => {
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                            if (typeof __doPostBack === 'function') {
+                                try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                            }
+                        }).catch(() => {});
+
+                        await mainPage.waitForTimeout(200);
+                        await mainPage.waitForFunction(() => {
+                            if (typeof Sys === 'undefined' || !Sys.WebForms || !Sys.WebForms.PageRequestManager) return true;
+                            var prm = Sys.WebForms.PageRequestManager.getInstance();
+                            return !prm.get_isInAsyncPostBack();
+                        }, { timeout: 6000 }).catch(() => {});
+                        await mainPage.waitForTimeout(500); // Esperar postback de ASP.NET para actualizar UDS
                     }
                 }
 
@@ -753,7 +794,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     // Esperar a que el UpdatePanel de ASP.NET cargue las opciones de UDS (hasta 60 reintentos x 100ms = 6s)
                     for (let r = 0; r < 60; r++) {
                         udsValue = await uLoc.evaluate((s, { code, name }) => {
-                            const validOpts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
+                            const validOpts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"));
                             if (validOpts.length === 0) return null;
 
                             const opt = validOpts.find(o => {
@@ -771,8 +812,21 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
                     if (udsValue) {
                         console.log(c.gris(`    [Filtro] Seleccionando UDS: ${jNombre}`));
-                        await uLoc.selectOption(udsValue);
-                        await mainPage.waitForTimeout(600);
+                        await uLoc.selectOption(udsValue, { timeout: 5000 }).catch(() => {});
+                        await uLoc.evaluate(el => {
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                            if (typeof __doPostBack === 'function') {
+                                try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                            }
+                        }).catch(() => {});
+
+                        await mainPage.waitForTimeout(150);
+                        await mainPage.waitForFunction(() => {
+                            if (typeof Sys === 'undefined' || !Sys.WebForms || !Sys.WebForms.PageRequestManager) return true;
+                            var prm = Sys.WebForms.PageRequestManager.getInstance();
+                            return !prm.get_isInAsyncPostBack();
+                        }, { timeout: 5000 }).catch(() => {});
+                        await mainPage.waitForTimeout(500);
                     } else {
                         console.log(c.rojo(`    ⚠️ No se encontro la UDS "${jNombre}" en el dropdown de Cuentame.`));
                         continue;
