@@ -122,7 +122,7 @@ async function main() {
       let seleccionToma = '(Select All)';
       let mesAtencion = '(Select All)';
       
-      if (opcionReporte === 2 && !esAutoComparar) {
+      if (opcionReporte === 2) {
         console.log(c.cyan('\n  📋 Selecciona el mes de Toma (o varios meses):'));
         console.log(c.gris('   1. Enero      2. Febrero    3. Marzo       4. Abril'));
         console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
