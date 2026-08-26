@@ -457,6 +457,125 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     console.log(c.verde('\n  🎉 FASE 1 COMPLETADA CON EXITO. Navegador mantenido activo.'));
 }
 
+function calcularMapaSemanasDelMes(mesNombre, anio = 2026) {
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const mesIdx = meses.findIndex(m => m.toLowerCase() === (mesNombre || '').toLowerCase());
+    const idxReal = mesIdx !== -1 ? mesIdx : new Date().getMonth();
+
+    const mapaSemanas = {};
+    let contadorSemana = 1;
+    let primerDiaVistoEnSemana = false;
+
+    const totalDias = new Date(anio, idxReal + 1, 0).getDate();
+
+    for (let d = 1; d <= totalDias; d++) {
+        const fecha = new Date(anio, idxReal, d);
+        const dayOfWeek = fecha.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab
+
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            if (!mapaSemanas[contadorSemana]) {
+                mapaSemanas[contadorSemana] = {};
+            }
+            mapaSemanas[contadorSemana][dayOfWeek] = d;
+            primerDiaVistoEnSemana = true;
+        } else if (dayOfWeek === 6 || dayOfWeek === 0) {
+            if (primerDiaVistoEnSemana && dayOfWeek === 0) {
+                contadorSemana++;
+                primerDiaVistoEnSemana = false;
+            }
+        }
+    }
+    return mapaSemanas;
+}
+
+function pedirDiasPorSemanaYDiaSemana(mesAtencion, anio = 2026, tipoAccion = 'INASISTENCIA') {
+    const mapaSemanas = calcularMapaSemanasDelMes(mesAtencion, anio);
+    const totalSemanas = Object.keys(mapaSemanas).length;
+
+    console.log(c.cyan(`\n  📅 CONFIGURACION DE DIAS POR SEMANAS (${mesAtencion} ${anio}):`));
+    console.log(c.gris('  --------------------------------------------------'));
+    console.log(c.gris('   Semana  |  1.Lun  2.Mar  3.Mie  4.Jue  5.Vie'));
+    console.log(c.gris('  --------------------------------------------------'));
+    for (let s = 1; s <= totalSemanas; s++) {
+        const dSem = mapaSemanas[s] || {};
+        const d1 = String(dSem[1] || '-').padStart(2, ' ');
+        const d2 = String(dSem[2] || '-').padStart(2, ' ');
+        const d3 = String(dSem[3] || '-').padStart(2, ' ');
+        const d4 = String(dSem[4] || '-').padStart(2, ' ');
+        const d5 = String(dSem[5] || '-').padStart(2, ' ');
+        console.log(c.gris(`   Semana ${s} |   ${d1}     ${d2}     ${d3}     ${d4}     ${d5}`));
+    }
+    console.log(c.gris('  --------------------------------------------------'));
+
+    console.log(c.cyan(`\n  > En que semanas tiene ${tipoAccion.toLowerCase()}s?`));
+    console.log(c.gris('    (Ingresa los numeros de semana separados por coma, ej: 1,3 o 2,4. O escribe "TODAS" o directos ej. 1,5,8):'));
+    
+    const respSemanas = readline.question(c.negrita('  > Semanas: ')).trim();
+    if (!respSemanas) return [];
+
+    let diasFinales = [];
+
+    // Si el usuario ingresa numeros de dias directos (ej: 15,20 o 1-15)
+    if ((/^\d{1,2}(?:\s*,\s*\d{1,2})*$/.test(respSemanas) && respSemanas.split(',').some(numStr => parseInt(numStr.trim(), 10) > totalSemanas)) || respSemanas.includes('-')) {
+        const partes = respSemanas.split(',');
+        for (let p of partes) {
+            p = p.trim();
+            if (p.includes('-')) {
+                const rangos = p.split('-');
+                const ini = parseInt(rangos[0], 10);
+                const fin = parseInt(rangos[1], 10);
+                if (!isNaN(ini) && !isNaN(fin) && ini <= fin) {
+                    for (let i = ini; i <= fin; i++) diasFinales.push(i);
+                }
+            } else {
+                const num = parseInt(p, 10);
+                if (!isNaN(num)) diasFinales.push(num);
+            }
+        }
+        return Array.from(new Set(diasFinales)).sort((a, b) => a - b);
+    }
+
+    let semanasSeleccionadas = [];
+    if (respSemanas.toUpperCase() === 'TODAS' || respSemanas.toUpperCase() === 'ALL' || respSemanas.toUpperCase() === 'T') {
+        semanasSeleccionadas = Object.keys(mapaSemanas).map(Number);
+    } else {
+        semanasSeleccionadas = respSemanas.split(',').map(s => parseInt(s.trim(), 10)).filter(s => !isNaN(s) && mapaSemanas[s]);
+    }
+
+    if (semanasSeleccionadas.length === 0) {
+        console.log(c.rojo('  ⚠️ No se seleccionaron semanas validas.'));
+        return [];
+    }
+
+    for (const sem of semanasSeleccionadas) {
+        console.log(c.amarillo(`\n  📌 Semana ${sem}:`));
+        console.log(c.gris('     1. Lunes  |  2. Martes  |  3. Miercoles  |  4. Jueves  |  5. Viernes  |  0. Todos los dias de esta semana'));
+        const respDiasSem = readline.question(c.negrita(`  > Dia(s) de ${tipoAccion.toLowerCase()} para la Semana ${sem} (ej: 1,4 para Lun y Jue): `)).trim();
+
+        if (!respDiasSem) continue;
+
+        let diasSemana = [];
+        if (respDiasSem === '0' || respDiasSem.toUpperCase() === 'TODOS' || respDiasSem.toUpperCase() === 'ALL') {
+            diasSemana = [1, 2, 3, 4, 5];
+        } else {
+            diasSemana = respDiasSem.split(',').map(d => parseInt(d.trim(), 10)).filter(d => !isNaN(d) && d >= 1 && d <= 5);
+        }
+
+        const mapaDiasSemana = mapaSemanas[sem] || {};
+        for (const ds of diasSemana) {
+            if (mapaDiasSemana[ds]) {
+                diasFinales.push(mapaDiasSemana[ds]);
+            }
+        }
+    }
+
+    diasFinales = Array.from(new Set(diasFinales)).sort((a, b) => a - b);
+    if (diasFinales.length > 0) {
+        console.log(c.verde(`\n  ✅ Dias de mes calculados para ${tipoAccion}: [${diasFinales.join(', ')}]`));
+    }
+    return diasFinales;
+}
+
 // ==========================================
 // FASE 2: PRE-CONSULTA INTERACTIVA Y LOTE
 // ==========================================
@@ -573,29 +692,10 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
 
             const tipoAccion = accionIdx === 0 ? 'ASISTENCIA' : 'INASISTENCIA';
 
-            // 5. Seleccionar Dias
-            const diasInput = readline.question(c.negrita('\n  > Ingrese los dias. Ejemplo: 1,5,8 o 1-15: ')).trim();
-            if (!diasInput) continue;
-
-            let dias = [];
-            const partes = diasInput.split(',');
-            for (let p of partes) {
-                p = p.trim();
-                if (p.includes('-')) {
-                    const rangos = p.split('-');
-                    const ini = parseInt(rangos[0], 10);
-                    const fin = parseInt(rangos[1], 10);
-                    if (!isNaN(ini) && !isNaN(fin) && ini <= fin) {
-                        for (let i = ini; i <= fin; i++) dias.push(i);
-                    }
-                } else {
-                    const num = parseInt(p, 10);
-                    if (!isNaN(num)) dias.push(num);
-                }
-            }
-
-            if (dias.length === 0) {
-                console.log(c.rojo('  ❌ Dias invalidos. Intenta nuevamente.'));
+            // 5. Seleccionar Dias por Semanas y Dias de Semana (1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie)
+            const dias = pedirDiasPorSemanaYDiaSemana(mesAtencion, 2026, tipoAccion);
+            if (!dias || dias.length === 0) {
+                console.log(c.rojo('  ⚠️ No se configuraron dias validos. Intenta nuevamente.'));
                 continue;
             }
 
