@@ -739,20 +739,27 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     }
                 }
 
-                // 2. Seleccionar UDS por nombre o codigo
+                // 2. Seleccionar UDS por codigoUds o nombreUds
                 const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
                 if (await uLoc.count() > 0) {
                     let udsValue = null;
-                    const jSearch = removeAccentsStr(jNombre);
+                    const codigoSearch = (jGrupo.jardin.codigoUds || '').trim();
+                    const nombreSearch = removeAccentsStr(jNombre);
 
-                    for (let r = 0; r < 20; r++) {
-                        udsValue = await uLoc.evaluate((s, target) => {
-                            const opt = Array.from(s.options).find(o => {
-                                const tNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-                                return tNorm.includes(target) || target.includes(tNorm);
+                    // Esperar a que el UpdatePanel de ASP.NET cargue las opciones de UDS (hasta 60 reintentos x 100ms = 6s)
+                    for (let r = 0; r < 60; r++) {
+                        udsValue = await uLoc.evaluate((s, { code, name }) => {
+                            const validOpts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
+                            if (validOpts.length === 0) return null;
+
+                            const opt = validOpts.find(o => {
+                                const textNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                                return (code && textNorm.includes(code)) ||
+                                       (name && textNorm.includes(name)) ||
+                                       (name && name.includes(textNorm));
                             });
                             return opt ? opt.value : null;
-                        }, jSearch);
+                        }, { code: codigoSearch, name: nombreSearch });
 
                         if (udsValue) break;
                         await mainPage.waitForTimeout(100);
@@ -761,7 +768,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     if (udsValue) {
                         console.log(c.gris(`    [Filtro] Seleccionando UDS: ${jNombre}`));
                         await uLoc.selectOption(udsValue);
-                        await mainPage.waitForTimeout(500);
+                        await mainPage.waitForTimeout(600);
                     } else {
                         console.log(c.rojo(`    ⚠️ No se encontro la UDS "${jNombre}" en el dropdown de Cuentame.`));
                         continue;
