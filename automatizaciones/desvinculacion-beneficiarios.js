@@ -412,13 +412,16 @@ async function main() {
                     const jMod = (jGrupo.jardin.modalidad || '').toUpperCase();
                     const esAgrupado = jMod.includes('JARDIN') || jMod.includes('AGRUPADO');
                     
+                    const servOpts2026 = servOpts.filter(o => /-2026\b/.test(o.t) || o.t.endsWith("2026"));
+                    const poolServ = servOpts2026.length > 0 ? servOpts2026 : servOpts;
+
                     let matchServ = null;
                     if (esAgrupado) {
-                        matchServ = servOpts.find(o => o.t.toUpperCase().includes("420269") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                        matchServ = poolServ.find(o => o.t.toUpperCase().includes("420269") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
                     } else {
-                        matchServ = servOpts.find(o => o.t.toUpperCase().includes("420267") || o.t.toUpperCase().includes("HCB"));
+                        matchServ = poolServ.find(o => o.t.toUpperCase().includes("420267") || o.t.toUpperCase().includes("HCB"));
                     }
-                    if (!matchServ) matchServ = servOpts[0];
+                    if (!matchServ) matchServ = poolServ[0];
 
                     await selectServicio.selectOption(matchServ.v).catch(()=>{});
                     await page.waitForTimeout(500);

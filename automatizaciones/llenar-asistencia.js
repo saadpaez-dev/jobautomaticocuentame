@@ -26,25 +26,31 @@ const c = {
 const SERVICIOS_2026 = ["2026"];
 
 function filtrarServiciosPorAsociacion(servOptions, ascNombre, tipoServicio) {
-    // Primero, siempre descartamos lo que NO sea 2026
-    let options = servOptions.filter(o => o.text.includes("2026"));
+    // Filtrar por el año 2026 al FINAL de la opción (ej: -2026), evitando falsos positivos con 420267 / 420269
+    let options2026 = servOptions.filter(o => /-2026\b/.test(o.text) || o.text.endsWith("2026"));
+    let options = options2026.length > 0 ? options2026 : servOptions;
     
-    ascNombre = ascNombre.toUpperCase();
+    const ascUpper = removeAccentsStr(ascNombre);
 
-    if (ascNombre.includes("DELICIAS DEL CARMEN")) {
-        options = options.filter(o => o.text.includes("420269") || o.text.includes("JARDIN COMUNITARIO"));
-    } else if (ascNombre.includes("BARRIOS UNIDOS") || 
-               ascNombre.includes("PROGRESO INFANTIL") || 
-               ascNombre.includes("BRISAS DE BUENAVISTA")) {
-        options = options.filter(o => o.text.includes("420267") || o.text.includes("HCB"));
+    if (ascUpper.includes("DELICIAS DEL CARMEN")) {
+        options = options.filter(o => o.text.includes("420269") || o.text.toUpperCase().includes("JARDIN COMUNITARIO"));
+    } else if (ascUpper.includes("BARRIOS UNIDOS") || 
+               ascUpper.includes("PROGRESO INFANTIL") || 
+               ascUpper.includes("BRISAS DE BUENAVISTA")) {
+        options = options.filter(o => o.text.includes("420267") || o.text.toUpperCase().includes("HCB"));
     } else {
         // Asociaciones mixtas (BUENAVISTA, VERBENAL Y REFUGIO, CANAIMA)
         if (tipoServicio === 'Individual') {
-            options = options.filter(o => (o.text.includes("420267") || o.text.includes("HCB")) && !o.text.includes("420269"));
+            options = options.filter(o => (o.text.includes("420267") || o.text.toUpperCase().includes("HCB")) && !o.text.includes("420269"));
         } else if (tipoServicio === 'Agrupado') {
-            options = options.filter(o => o.text.includes("420269") || o.text.includes("JARDIN COMUNITARIO"));
+            options = options.filter(o => o.text.includes("420269") || o.text.toUpperCase().includes("JARDIN COMUNITARIO"));
         }
     }
+
+    if (options.length === 0) {
+        options = options2026.length > 0 ? options2026 : servOptions;
+    }
+
     return options;
 }
 
