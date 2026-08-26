@@ -9,7 +9,7 @@ require('dotenv').config();
 const { chromium } = require('playwright');
 const path = require('path');
 const readline = require('readline-sync');
-const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador } = require('../servicios/autenticacion');
+const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 
 const c = {
@@ -174,37 +174,27 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
     console.log(c.verde(`\n  ✅ Iniciando Fase 1: ${ascAProcesar.length} Asociacion(es) | Ignorando dias: [${diasIgnorar.join(',') || 'Ninguno'}]`));
 
     const { browser, context, mainPage } = await iniciarNavegador();
-    let authCookies = null;
-    let rolesPage = mainPage; // Pagina que se quedara en Roles.aspx
 
     for (let i = 0; i < ascAProcesar.length; i++) {
         const asc = ascAProcesar[i];
         console.log(c.cyan(`\n======================================================`));
-        console.log(c.cyan(`▶ Procesando Asociacion [${i+1}/${ascAProcesar.length}]: ${asc.nombreCorto}`));
+        console.log(c.cyan(`▶ Procesando Asociacion [${i+1}/${ascAProcesar.length}]: ${asc.nombreCorto}${asc.tipoServicio ? ' (' + asc.tipoServicio + ')' : ''}`));
         console.log(c.cyan(`======================================================`));
 
-        if (i === 0) {
-            console.log(c.cyan('\n======================================================'));
-            console.log(c.cyan('▶ Iniciando sesion unica y 2FA...'));
-            console.log(c.cyan('======================================================\n'));
-            await loginYLlegarARoles(rolesPage, { 
-                usuario: process.env.CUENTAME_USUARIO, 
-                password: process.env.CUENTAME_PASSWORD,
-                gmailUser: process.env.GMAIL_USER,
-                gmailAppPassword: process.env.GMAIL_APP_PASSWORD
-            });
-            authCookies = await context.cookies();
-        }
-
-        let workPage = rolesPage;
         try {
-            console.log('  🏢 Seleccionando entidad (asociacion)...');
-            // Si NO es la ultima asociacion, abrimos el trabajo en una PESTANA NUEVA,
-            // manteniendo rolesPage intacta en la pagina de roles para el siguiente ciclo.
-            const mantenerRolesTab = (i < ascAProcesar.length - 1);
-            workPage = await seleccionarRolYEntrar(rolesPage, asc, mantenerRolesTab);
-            await workPage.bringToFront();
-            console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
+            console.log(`  🏢 Validando y seleccionando entidad/asociacion: "${asc.nombreCorto}"...`);
+            const mismaAsc = await validarYCambiarAsociacion(mainPage, asc);
+            if (!mismaAsc) {
+                await loginYLlegarARoles(mainPage, { 
+                    usuario: process.env.CUENTAME_USUARIO, 
+                    password: process.env.CUENTAME_PASSWORD,
+                    gmailUser: process.env.GMAIL_USER,
+                    gmailAppPassword: process.env.GMAIL_APP_PASSWORD
+                });
+                await seleccionarRolYEntrar(mainPage, asc);
+            }
+            const workPage = mainPage;
+            console.log(c.verde(`  ✅ Asociacion "${asc.nombreCorto}" cargada e ingresada limpia en la plataforma.`));
             
             console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');
             await workPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'networkidle', timeout: 60000 });
@@ -434,11 +424,6 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
 
                 } // fin loop UDS
             } // fin loop SERVICIOS
-            
-            // Cerrar la pestana de trabajo temporal si no es la principal
-            if (workPage !== rolesPage) {
-                await workPage.close();
-            }
         } catch (err) {
             console.error(c.rojo(`  ❌ Ocurrio un error con ${asc.nombreCorto}: ${err && err.message ? err.message : err}`));
             console.error(err); 
@@ -485,29 +470,27 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
         for (let asc of subAsociacionesFase2) {
             console.log(c.verde(`\n  ✅ Iniciando Fase 2 en la asociacion: ${asc.nombreCorto}${asc.tipoServicio ? ' (' + asc.tipoServicio + ')' : ''}`));
 
-        if (!authDone) {
-            const nav = await iniciarNavegador();
-            browser = nav.browser;
-            context = nav.context;
-            rolesPage = nav.mainPage;
-            authDone = true;
-        }
+            if (!authDone || !rolesPage) {
+                const nav = await iniciarNavegador();
+                browser = nav.browser;
+                context = nav.context;
+                rolesPage = nav.mainPage;
+                authDone = true;
+            }
 
-        console.log(c.cyan('\n======================================================'));
-        console.log(c.cyan('▶ Iniciando sesion unica y 2FA...'));
-        console.log(c.cyan('======================================================\n'));
-        await loginYLlegarARoles(rolesPage, { 
-            usuario: process.env.CUENTAME_USUARIO, 
-            password: process.env.CUENTAME_PASSWORD,
-            gmailUser: process.env.GMAIL_USER,
-            gmailAppPassword: process.env.GMAIL_APP_PASSWORD
-        });
-
-        let workPage = rolesPage;
-        try {
-            console.log('  🏢 Seleccionando entidad (asociacion)...');
-            workPage = await seleccionarRolYEntrar(rolesPage, asc, true);
-            await workPage.bringToFront();
+            try {
+                console.log(`  🏢 Validando y seleccionando entidad/asociacion: "${asc.nombreCorto}"...`);
+            const mismaAsc = await validarYCambiarAsociacion(rolesPage, asc);
+            if (!mismaAsc) {
+                await loginYLlegarARoles(rolesPage, { 
+                    usuario: process.env.CUENTAME_USUARIO, 
+                    password: process.env.CUENTAME_PASSWORD,
+                    gmailUser: process.env.GMAIL_USER,
+                    gmailAppPassword: process.env.GMAIL_APP_PASSWORD
+                });
+                await seleccionarRolYEntrar(rolesPage, asc);
+            }
+            const workPage = rolesPage;
             console.log(c.verde('  ✅ Login exitoso en Cuentame.'));
             
             console.log('  🚀 Navegando a Unidad -> Registro de asistencia mensual - ram...');

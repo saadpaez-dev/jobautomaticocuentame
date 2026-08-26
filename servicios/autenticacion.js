@@ -473,6 +473,20 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
         }
 
         await seleccionarRolYEntrar(page, asociacionObj);
+
+        // Validacion final: asegurar que la cabecera de la pagina ahora si muestre la asociacion deseada
+        await page.waitForTimeout(800);
+        const headerDespues = await page.evaluate(() => {
+            const cab = document.querySelector('#CabeceraPrincipal, div.ui-layout-north, table#CabeceraPrincipal');
+            return cab ? cab.innerText : document.body.innerText;
+        }).catch(() => '');
+        const headerDespuesClean = removeAccents(headerDespues);
+
+        if (!headerDespuesClean.includes(targetClean)) {
+            console.log(c.rojo(`  ⚠️ Cuentame no cambio la cabecera a "${targetNombre}". Se re-autenticara.`));
+            return false;
+        }
+
         return true;
     } catch(e) {
         console.log(c.rojo(`  ❌ Error al cambiar asociacion: ${e.message}`));
