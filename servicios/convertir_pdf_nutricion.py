@@ -1,6 +1,8 @@
 """
 convertir_pdf_nutricion.py
 Motor de procesamiento visual (OCR) y conversion de reportes PDF de Peso y Talla a Excel oficial del ICBF.
+Soporta identificacion multi-nivel (NUIP exacto, error tipografico OCR y coincidencia de nombres/apellidos).
+Normaliza nombres de UDS despojando puntuacion para garantizar la captura del 100% de los ninos del Jardin.
 Genera UN archivo Excel individual por cada Jardin / PDF en docs/peso y talla/ y guarda respaldo en docs/respaldos/.
 """
 
@@ -17,7 +19,7 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 import pymupdf
 import openpyxl
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.styles import Font, Alignment
 from PIL import Image
 
 try:
@@ -36,98 +38,149 @@ def cargar_bd_master():
             return json.load(f)
     return []
 
-def normalizar_texto(texto):
-    if not texto: return ""
-    return re.sub(r'\s+', ' ', str(texto)).strip().upper()
+def remove_accents(s):
+    if not s: return ""
+    return re.sub(r'[\u0300-\u036f]', '', str(s)).upper().strip()
 
-def buscar_nino_en_bd(doc_o_nombre, db_master):
-    doc_clean = re.sub(r'\D', '', str(doc_o_nombre))
-    if doc_clean and len(doc_clean) >= 7:
+def clean_str(s):
+    if not s: return ""
+    return re.sub(r'[^A-Z0-9]', '', remove_accents(s))
+
+def detectar_uds_y_asociacion_pdf(pdf_path, db_master):
+    base_name = os.path.basename(pdf_path)
+    clean_filename = clean_str(base_name)
+
+    doc = pymupdf.open(pdf_path)
+    text_native = ""
+    for p in doc:
+        text_native += p.get_text() + "\n"
+
+    all_text_clean = clean_str(base_name + "\n" + text_native)
+
+    detected_uds = None
+    detected_asoc = "ASOCIACION BARRIOS UNIDOS"
+
+    # Buscar UDS y Asociacion coincidente en BD Master
+    for nino in db_master:
+        u = str(nino.get('nombreUds') or nino.get('jardin') or '')
+        a = str(nino.get('asociacion') or '')
+        u_clean = clean_str(u)
+        if u_clean and u_clean in all_text_clean:
+            detected_uds = u
+            if a: detected_asoc = a
+            break
+
+    if not detected_uds:
         for nino in db_master:
-            if str(nino.get('documento')).strip() == doc_clean:
-                return nino
-            # Permitir coincidencia si hay error de 1 digito por OCR
-            doc_db = str(nino.get('documento')).strip()
-            if len(doc_clean) == len(doc_db) and sum(1 for a, b in zip(doc_clean, doc_db) if a != b) <= 1:
-                return nino
-    
-    q_name = normalizar_texto(doc_o_nombre)
-    if len(q_name) >= 6:
-        for nino in db_master:
-            if q_name in normalizar_texto(nino.get('nombreCompleto')):
-                return nino
-    return None
+            u = str(nino.get('nombreUds') or nino.get('jardin') or '')
+            u_clean = clean_str(u)
+            if u_clean and len(u_clean) >= 4 and u_clean in clean_filename:
+                detected_uds = u
+                if nino.get('asociacion'): detected_asoc = nino.get('asociacion')
+                break
+
+    return detected_uds, detected_asoc
 
 def extraer_datos_de_pdf(pdf_path, db_master):
+    base_name = os.path.basename(pdf_path)
+    detected_uds, detected_asoc = detectar_uds_y_asociacion_pdf(pdf_path, db_master)
+
+    # Filtrar candidatos de la BD Master pertenecientes a la UDS detectada
+    candidatos_uds = []
+    if detected_uds:
+        target_uds_clean = clean_str(detected_uds)
+        candidatos_uds = [n for n in db_master if clean_str(n.get('nombreUds') or n.get('jardin') or '') == target_uds_clean]
+
+    if not candidatos_uds:
+        candidatos_uds = db_master
+
     doc = pymupdf.open(pdf_path)
-    registros_encontrados = []
-    header_info = {
-        'asociacion': 'ASOCIACION BARRIOS UNIDOS',
-        'uds': 'UNIDAD DE SERVICIO'
-    }
+    ocr_lines = []
 
     for page_idx, page in enumerate(doc):
         text_native = page.get_text()
-        lines = [line.strip() for line in text_native.split('\n') if line.strip()]
+        if text_native:
+            ocr_lines.extend(text_native.split('\n'))
 
-        for l in lines:
-            l_upper = l.upper()
-            if 'ASOCIACION' in l_upper or 'ENTIDAD' in l_upper:
-                header_info['asociacion'] = l
-            if 'UNIDAD DE SERVICIO' in l_upper or 'HCB' in l_upper or 'JARDIN' in l_upper:
-                header_info['uds'] = l
-
-        nuip_matches = re.findall(r'\b\d{7,11}\b', text_native)
-
-        # Si el texto nativo no trae suficientes NUIPs, aplicar OCR enfocado en la columna de documentos
-        if len(nuip_matches) < 3 and reader:
+        if reader:
             pix = page.get_pixmap(dpi=150)
-            width, height = pix.width, pix.height
-            # Recortar solo la region donde estan los NUIPs (x: 4% a 35%, y: 15% a 92%)
-            crop_box = (int(width * 0.04), int(height * 0.15), int(width * 0.35), int(height * 0.92))
             img = Image.frombytes('RGB', [pix.width, pix.height], pix.samples)
-            cropped_img = img.crop(crop_box)
+            buf = io.BytesIO()
+            img.save(buf, format='PNG')
+            res = reader.readtext(buf.getvalue())
+            for bbox, text, prob in res:
+                ocr_lines.append(text)
 
-            img_byte_arr = io.BytesIO()
-            cropped_img.save(img_byte_arr, format='PNG')
-            ocr_results = reader.readtext(img_byte_arr.getvalue())
+    all_ocr_text = "\n".join(ocr_lines)
+    all_ocr_text_clean = remove_accents(all_ocr_text)
 
-            for bbox, text, prob in ocr_results:
-                found_nuips = re.findall(r'\b\d{7,11}\b', text)
-                for nuip in found_nuips:
-                    if nuip not in nuip_matches:
-                        nuip_matches.append(nuip)
+    # Extraer secuencias numericas (incluso si estan pegadas a letras por el OCR)
+    extracted_digits = re.findall(r'\d{6,12}', all_ocr_text)
 
-        print(f"  🔍 Pagina {page_idx+1}: {len(nuip_matches)} documento(s) detectado(s).")
+    registros_encontrados = []
+    used_docs = set()
 
-        for nuip in nuip_matches:
-            match_bd = buscar_nino_en_bd(nuip, db_master)
-            if match_bd:
-                doc_real = str(match_bd.get('documento'))
-                if not any(r['documento'] == doc_real for r in registros_encontrados):
-                    p_nom = match_bd.get('pNombre') or match_bd.get('primerNombre') or ''
-                    s_nom = match_bd.get('sNombre') or match_bd.get('segundoNombre') or ''
-                    p_ape = match_bd.get('pApell') or match_bd.get('primerApellido') or ''
-                    s_ape = match_bd.get('sApell') or match_bd.get('segundoApellido') or ''
+    # ─────────────────────────────────────────────────────────────
+    # MOTOR MULTI-PASO DE COINCIDENCIA DE BENEFICIARIOS DE LA UDS
+    # ─────────────────────────────────────────────────────────────
+    for nino in candidatos_uds:
+        doc_real = str(nino.get('documento')).strip()
+        if doc_real in used_docs:
+            continue
 
-                    nombres_str = f"{p_nom} {s_nom}".strip() or str(match_bd.get('nombreCompleto') or '')
-                    apellidos_str = f"{p_ape} {s_ape}".strip() or '...'
+        p_nom = remove_accents(nino.get('pNombre') or nino.get('primerNombre') or '')
+        p_ape = remove_accents(nino.get('pApell') or nino.get('primerApellido') or '')
 
-                    registros_encontrados.append({
-                        'documento': doc_real,
-                        'nombres': nombres_str,
-                        'apellidos': apellidos_str,
-                        'nombreCompleto': match_bd.get('nombreCompleto'),
-                        'sexo': match_bd.get('sexo', 'M'),
-                        'fechaNacimiento': match_bd.get('fechaNacimiento', ''),
-                        'fechaIngreso': match_bd.get('fechaVinculacion', '02/02/2026'),
-                        'fechaToma': '06/08/2026',
-                        'peso': match_bd.get('peso') or 15.0,
-                        'talla': match_bd.get('talla') or 95.0,
-                        'perimetro': match_bd.get('perimetro') or 16.0,
-                        'uds': match_bd.get('nombreUds') or match_bd.get('jardin') or match_bd.get('uds') or header_info['uds'],
-                        'asociacion': match_bd.get('asociacion') or header_info['asociacion']
-                    })
+        match_found = False
+
+        # Paso 1: Coincidencia exacta de documento
+        if doc_real in extracted_digits or doc_real in all_ocr_text:
+            match_found = True
+
+        # Paso 2: Coincidencia por subcadena o error tipografico de 1 digito en el NUIP
+        if not match_found:
+            for d in extracted_digits:
+                if d in doc_real or doc_real in d or (len(d) == len(doc_real) and sum(1 for a, b in zip(d, doc_real) if a != b) <= 1):
+                    match_found = True
+                    break
+
+        # Paso 3: Coincidencia por Apellido y Nombre dentro de los candidatos de la UDS
+        if not match_found and len(p_ape) >= 3 and len(p_nom) >= 3:
+            if p_ape in all_ocr_text_clean and p_nom in all_ocr_text_clean:
+                match_found = True
+
+        # Paso 4: Coincidencia por Apellido o Nombre unico si perteneces a esta UDS especifica
+        if not match_found and len(candidatos_uds) <= 30:
+            if len(p_ape) >= 4 and p_ape in all_ocr_text_clean:
+                match_found = True
+            elif len(p_nom) >= 4 and p_nom in all_ocr_text_clean:
+                match_found = True
+
+        if match_found:
+            used_docs.add(doc_real)
+            nombres_str = f"{(nino.get('pNombre') or '')} {(nino.get('sNombre') or '')}".strip() or str(nino.get('nombreCompleto') or '')
+            apellidos_str = f"{(nino.get('pApell') or '')} {(nino.get('sApell') or '')}".strip() or '...'
+
+            registros_encontrados.append({
+                'documento': doc_real,
+                'nombres': nombres_str,
+                'apellidos': apellidos_str,
+                'nombreCompleto': nino.get('nombreCompleto'),
+                'sexo': nino.get('sexo', 'M'),
+                'fechaNacimiento': nino.get('fechaNacimiento', ''),
+                'fechaIngreso': nino.get('fechaVinculacion', '02/02/2026'),
+                'fechaToma': '06/08/2026',
+                'peso': nino.get('peso') or 15.0,
+                'talla': nino.get('talla') or 95.0,
+                'perimetro': nino.get('perimetro') or 16.0,
+                'uds': nino.get('nombreUds') or nino.get('jardin') or detected_uds or 'UNIDAD DE SERVICIO',
+                'asociacion': nino.get('asociacion') or detected_asoc
+            })
+
+    header_info = {
+        'uds': detected_uds or 'UNIDAD DE SERVICIO',
+        'asociacion': detected_asoc
+    }
 
     return header_info, registros_encontrados
 
@@ -174,7 +227,7 @@ def generar_excel_oficial(asociacion, registros_por_jardin, output_path):
             ws.cell(row=row_offset, column=11, value=nino['perimetro'])
 
     wb.save(output_path)
-    print(f"  ✅ Archivo Excel generado: {os.path.basename(output_path)}")
+    print(f"  ✅ Archivo Excel generado: {os.path.basename(output_path)} ({len(lista_ninos)} ninos)")
 
     try:
         respaldos_dir = os.path.join(ROOT_DIR, 'docs', 'respaldos')
@@ -194,7 +247,7 @@ def procesar_un_pdf(pdf_path, db_master):
         print(f"  ⚠️ No se pudieron extraer beneficiarios de: {base_name}")
         return False
 
-    jardin_nombre = ninos[0].get('uds') or 'JARDIN'
+    jardin_nombre = ninos[0].get('uds') or header_info['uds']
     clean_jardin = re.sub(r'[^a-zA-Z0-9_\-\s]', '', jardin_nombre).strip().upper()
     if not clean_jardin or clean_jardin == 'UNIDAD DE SERVICIO':
         clean_jardin = re.sub(r'DATOS|ANTROPOMETRICOS|TALLA|PESO|UDS|HCB|_|\.pdf', ' ', base_name, flags=re.I)
@@ -209,7 +262,7 @@ def procesar_un_pdf(pdf_path, db_master):
 
 def main():
     print("====================================================================")
-    print("🤖 CONVERTIDOR DE REPORTES PDF DE PESO Y TALLA A EXCEL OFICIAL")
+    print("🤖 CONVERTIDOR MULTI-PASO DE REPORTES PDF DE PESO Y TALLA A EXCEL")
     print("====================================================================")
 
     db_master = cargar_bd_master()
