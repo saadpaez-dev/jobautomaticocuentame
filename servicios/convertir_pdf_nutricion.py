@@ -1,7 +1,14 @@
+"""
+convertir_pdf_nutricion.py
+Motor de procesamiento visual (OCR) y conversion de reportes PDF de Peso y Talla a Excel oficial del ICBF.
+Genera UN archivo Excel individual por cada Jardin / PDF en docs/peso y talla/ y guarda respaldo en docs/respaldos/.
+"""
+
 import os
 import sys
 import re
 import json
+import io
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -11,8 +18,8 @@ if hasattr(sys.stderr, 'reconfigure'):
 import pymupdf
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from PIL import Image
 
-# Inicializar EasyOCR solo si esta instalado
 try:
     import easyocr
     reader = easyocr.Reader(['es'], gpu=False)
@@ -35,12 +42,15 @@ def normalizar_texto(texto):
 
 def buscar_nino_en_bd(doc_o_nombre, db_master):
     doc_clean = re.sub(r'\D', '', str(doc_o_nombre))
-    if doc_clean and len(doc_clean) >= 8:
+    if doc_clean and len(doc_clean) >= 7:
         for nino in db_master:
             if str(nino.get('documento')).strip() == doc_clean:
                 return nino
+            # Permitir coincidencia si hay error de 1 digito por OCR
+            doc_db = str(nino.get('documento')).strip()
+            if len(doc_clean) == len(doc_db) and sum(1 for a, b in zip(doc_clean, doc_db) if a != b) <= 1:
+                return nino
     
-    # Busqueda por nombre aproximado
     q_name = normalizar_texto(doc_o_nombre)
     if len(q_name) >= 6:
         for nino in db_master:
@@ -52,72 +62,83 @@ def extraer_datos_de_pdf(pdf_path, db_master):
     doc = pymupdf.open(pdf_path)
     registros_encontrados = []
     header_info = {
-        'asociacion': 'ASOCIACION VERBENAL Y REFUGIO',
-        'uds': 'MI MUNDO DE FANTASIA'
+        'asociacion': 'ASOCIACION BARRIOS UNIDOS',
+        'uds': 'UNIDAD DE SERVICIO'
     }
 
-    print(f"\n  📄 Analizando PDF: {os.path.basename(pdf_path)} ({len(doc)} pagina(s))...")
-
     for page_idx, page in enumerate(doc):
-        pix = page.get_pixmap(dpi=200)
-        img_bytes = pix.tobytes("png")
-
-        # Texto nativo si existe
         text_native = page.get_text()
         lines = [line.strip() for line in text_native.split('\n') if line.strip()]
 
-        # Buscar header UDS/Asociacion en texto
         for l in lines:
             l_upper = l.upper()
             if 'ASOCIACION' in l_upper or 'ENTIDAD' in l_upper:
                 header_info['asociacion'] = l
-            if 'UNIDAD DE SERVICIO' in l_upper or 'OSITO' in l_upper or 'FANTASIA' in l_upper:
+            if 'UNIDAD DE SERVICIO' in l_upper or 'HCB' in l_upper or 'JARDIN' in l_upper:
                 header_info['uds'] = l
 
-        # Si tenemos EasyOCR disponible, procesar la imagen
-        ocr_results = []
-        if reader:
-            ocr_results = reader.readtext(img_bytes)
+        nuip_matches = re.findall(r'\b\d{7,11}\b', text_native)
 
-        # Extraer filas con documentos de identidad (NUIPs de 8-11 digitos)
-        nuip_matches = re.findall(r'\b\d{8,11}\b', text_native)
-        if reader and ocr_results:
+        # Si el texto nativo no trae suficientes NUIPs, aplicar OCR enfocado en la columna de documentos
+        if len(nuip_matches) < 3 and reader:
+            pix = page.get_pixmap(dpi=150)
+            width, height = pix.width, pix.height
+            # Recortar solo la region donde estan los NUIPs (x: 4% a 35%, y: 15% a 92%)
+            crop_box = (int(width * 0.04), int(height * 0.15), int(width * 0.35), int(height * 0.92))
+            img = Image.frombytes('RGB', [pix.width, pix.height], pix.samples)
+            cropped_img = img.crop(crop_box)
+
+            img_byte_arr = io.BytesIO()
+            cropped_img.save(img_byte_arr, format='PNG')
+            ocr_results = reader.readtext(img_byte_arr.getvalue())
+
             for bbox, text, prob in ocr_results:
-                found_nuips = re.findall(r'\b\d{8,11}\b', text)
+                found_nuips = re.findall(r'\b\d{7,11}\b', text)
                 for nuip in found_nuips:
                     if nuip not in nuip_matches:
                         nuip_matches.append(nuip)
 
-        print(f"  🔍 Pagina {page_idx+1}: {len(nuip_matches)} documento(s) NUIP detectado(s).")
+        print(f"  🔍 Pagina {page_idx+1}: {len(nuip_matches)} documento(s) detectado(s).")
 
         for nuip in nuip_matches:
             match_bd = buscar_nino_en_bd(nuip, db_master)
             if match_bd:
-                registros_encontrados.append({
-                    'documento': str(match_bd.get('documento')),
-                    'nombres': match_bd.get('primerNombre', '') + ' ' + match_bd.get('segundoNombre', ''),
-                    'apellidos': match_bd.get('primerApellido', '') + ' ' + match_bd.get('segundoApellido', ''),
-                    'nombreCompleto': match_bd.get('nombreCompleto'),
-                    'sexo': match_bd.get('sexo', 'M'),
-                    'fechaNacimiento': match_bd.get('fechaNacimiento', ''),
-                    'fechaIngreso': match_bd.get('fechaVinculacion', '02/02/2026'),
-                    'fechaToma': '06/08/2026',
-                    'peso': match_bd.get('peso') or 15.0,
-                    'talla': match_bd.get('talla') or 95.0,
-                    'perimetro': match_bd.get('perimetro') or 16.0,
-                    'uds': match_bd.get('jardin') or match_bd.get('uds') or header_info['uds']
-                })
+                doc_real = str(match_bd.get('documento'))
+                if not any(r['documento'] == doc_real for r in registros_encontrados):
+                    p_nom = match_bd.get('pNombre') or match_bd.get('primerNombre') or ''
+                    s_nom = match_bd.get('sNombre') or match_bd.get('segundoNombre') or ''
+                    p_ape = match_bd.get('pApell') or match_bd.get('primerApellido') or ''
+                    s_ape = match_bd.get('sApell') or match_bd.get('segundoApellido') or ''
+
+                    nombres_str = f"{p_nom} {s_nom}".strip() or str(match_bd.get('nombreCompleto') or '')
+                    apellidos_str = f"{p_ape} {s_ape}".strip() or '...'
+
+                    registros_encontrados.append({
+                        'documento': doc_real,
+                        'nombres': nombres_str,
+                        'apellidos': apellidos_str,
+                        'nombreCompleto': match_bd.get('nombreCompleto'),
+                        'sexo': match_bd.get('sexo', 'M'),
+                        'fechaNacimiento': match_bd.get('fechaNacimiento', ''),
+                        'fechaIngreso': match_bd.get('fechaVinculacion', '02/02/2026'),
+                        'fechaToma': '06/08/2026',
+                        'peso': match_bd.get('peso') or 15.0,
+                        'talla': match_bd.get('talla') or 95.0,
+                        'perimetro': match_bd.get('perimetro') or 16.0,
+                        'uds': match_bd.get('nombreUds') or match_bd.get('jardin') or match_bd.get('uds') or header_info['uds'],
+                        'asociacion': match_bd.get('asociacion') or header_info['asociacion']
+                    })
 
     return header_info, registros_encontrados
 
 def generar_excel_oficial(asociacion, registros_por_jardin, output_path):
     wb = openpyxl.Workbook()
-    wb.remove(wb.active) # Remover hoja por defecto
+    wb.remove(wb.active)
 
     for jardin_nombre, lista_ninos in registros_por_jardin.items():
-        ws = wb.create_sheet(title=jardin_nombre[:30].replace('/', '_').replace('\\', '_'))
+        sheet_title = re.sub(r'[^a-zA-Z0-9_\-\s]', '', jardin_nombre)[:30].strip()
+        ws = wb.create_sheet(title=sheet_title or 'UNIDAD')
 
-        # Encabezados
         ws.merge_cells('A1:AC1')
         ws['A1'] = 'FORMATO CAPTURA DE DATOS ANTROPOMETRICOS DE LAS NINAS Y LOS NINOS'
         ws['A1'].font = Font(bold=True, size=11)
@@ -142,26 +163,49 @@ def generar_excel_oficial(asociacion, registros_por_jardin, output_path):
         for row_offset, nino in enumerate(lista_ninos, 16):
             ws.cell(row=row_offset, column=1, value=row_offset - 15)
             ws.cell(row=row_offset, column=2, value=nino['documento'])
-            ws.cell(row=row_offset, column=3, value=nino['nombres'].strip())
-            ws.cell(row=row_offset, column=4, value=nino['apellidos'].strip())
+            ws.cell(row=row_offset, column=3, value=nino['nombres'])
+            ws.cell(row=row_offset, column=4, value=nino['apellidos'])
             ws.cell(row=row_offset, column=5, value=nino['sexo'])
             ws.cell(row=row_offset, column=6, value=nino['fechaNacimiento'])
             ws.cell(row=row_offset, column=7, value=nino['fechaIngreso'])
             ws.cell(row=row_offset, column=8, value=nino['fechaToma'])
             ws.cell(row=row_offset, column=9, value=nino['peso'])
             ws.cell(row=row_offset, column=10, value=nino['talla'])
-    wb.save(output_path)
-    print(f"\n  ✅ Archivo Excel generado exitosamente:\n     {output_path}\n")
+            ws.cell(row=row_offset, column=11, value=nino['perimetro'])
 
-    # Guardar copia de respaldo automatica fuera de docs/peso y talla
+    wb.save(output_path)
+    print(f"  ✅ Archivo Excel generado: {os.path.basename(output_path)}")
+
     try:
         respaldos_dir = os.path.join(ROOT_DIR, 'docs', 'respaldos')
         os.makedirs(respaldos_dir, exist_ok=True)
         backup_path = os.path.join(respaldos_dir, os.path.basename(output_path))
         wb.save(backup_path)
-        print(f"  🛡️ Copia de respaldo guardada en:\n     {backup_path}\n")
+        print(f"     🛡️ Copia de respaldo guardada en: docs/respaldos/{os.path.basename(output_path)}")
     except Exception as e:
         pass
+
+def procesar_un_pdf(pdf_path, db_master):
+    base_name = os.path.basename(pdf_path)
+    print(f"\n  📄 Procesando PDF: {base_name}")
+
+    header_info, ninos = extraer_datos_de_pdf(pdf_path, db_master)
+    if not ninos:
+        print(f"  ⚠️ No se pudieron extraer beneficiarios de: {base_name}")
+        return False
+
+    jardin_nombre = ninos[0].get('uds') or 'JARDIN'
+    clean_jardin = re.sub(r'[^a-zA-Z0-9_\-\s]', '', jardin_nombre).strip().upper()
+    if not clean_jardin or clean_jardin == 'UNIDAD DE SERVICIO':
+        clean_jardin = re.sub(r'DATOS|ANTROPOMETRICOS|TALLA|PESO|UDS|HCB|_|\.pdf', ' ', base_name, flags=re.I)
+        clean_jardin = re.sub(r'[^a-zA-Z0-9_\-\s]', '', clean_jardin).strip().upper()
+
+    filename = f"TERCERA TOMA 2026 TALLA Y PESO {clean_jardin}.xlsx"
+    output_excel = os.path.join(PESO_TALLA_DIR, filename)
+    asociacion = ninos[0].get('asociacion') or header_info['asociacion']
+
+    generar_excel_oficial(asociacion, {jardin_nombre: ninos}, output_excel)
+    return True
 
 def main():
     print("====================================================================")
@@ -177,28 +221,14 @@ def main():
         print(f"  ❌ No se encontraron archivos PDF en: {PESO_TALLA_DIR}")
         return
 
-    registros_totales = {}
-    asociacion_global = 'ASOCIACION VERBENAL Y REFUGIO'
+    print(f"  📂 Procesando {len(pdf_files)} archivo(s) PDF independientemente...\n")
 
-    for pdf in pdf_files:
-        header_info, ninos = extraer_datos_de_pdf(pdf, db_master)
-        if header_info.get('asociacion'):
-            asociacion_global = header_info['asociacion']
+    exitosos = 0
+    for pdf_path in pdf_files:
+        if procesar_un_pdf(pdf_path, db_master):
+            exitosos += 1
 
-        for nino in ninos:
-            uds = nino['uds']
-            if uds not in registros_totales:
-                registros_totales[uds] = []
-            
-            # Evitar duplicados por documento
-            if not any(x['documento'] == nino['documento'] for x in registros_totales[uds]):
-                registros_totales[uds].append(nino)
-
-    if registros_totales:
-        output_excel = os.path.join(PESO_TALLA_DIR, 'CONVERTIDO_AUTOMATICO_PESO_Y_TALLA.xlsx')
-        generar_excel_oficial(asociacion_global, registros_totales, output_excel)
-    else:
-        print("  ⚠️ No se pudieron estructurar registros desde los PDFs procesados.")
+    print(f"\n  ✨ ¡Conversion completada! Se generaron {exitosos} archivo(s) Excel en:\n     {PESO_TALLA_DIR}\n")
 
 if __name__ == '__main__':
     main()
