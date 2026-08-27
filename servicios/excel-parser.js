@@ -80,13 +80,28 @@ function resolverRutaConEspeciales(inputPath) {
     let limpia = inputPath.replace(/['"]/g, '').trim();
     if (fs.existsSync(limpia)) return limpia;
 
-    try {
-        const dir = path.dirname(limpia);
-        const baseCorrupto = path.basename(limpia);
-        if (fs.existsSync(dir)) {
+    const baseName = path.basename(limpia);
+    const carpetasBusqueda = [
+        path.dirname(limpia),
+        path.join(__dirname, '..', 'docs', 'database'),
+        path.join(__dirname, '..', 'docs', 'respaldos'),
+        path.join(__dirname, '..', 'docs', 'entradas'),
+        path.join(__dirname, '..', 'docs', 'peso y talla')
+    ];
+
+    for (const dir of carpetasBusqueda) {
+        if (!fs.existsSync(dir)) continue;
+        const candidate = path.join(dir, baseName);
+        if (fs.existsSync(candidate)) {
+            console.log(`\n  🛡️ Archivo recuperado desde respaldo seguro:`);
+            console.log(`     ${candidate}\n`);
+            return candidate;
+        }
+
+        try {
             const archivos = fs.readdirSync(dir);
-            const prefix = baseCorrupto.split(/[\uFFFD\?\s_]/)[0];
-            const ext = path.extname(baseCorrupto);
+            const prefix = baseName.split(/[\uFFFD\?\s_]/)[0];
+            const ext = path.extname(baseName);
             
             let match = null;
             if (prefix && prefix.length >= 4) {
@@ -94,7 +109,7 @@ function resolverRutaConEspeciales(inputPath) {
             }
             
             if (!match) {
-                const palabras = baseCorrupto.toUpperCase().replace(/[\uFFFD\?]/g, ' ').split(/[^A-Z0-9]/).filter(p => p.length >= 3);
+                const palabras = baseName.toUpperCase().replace(/[\uFFFD\?]/g, ' ').split(/[^A-Z0-9]/).filter(p => p.length >= 3);
                 if (palabras.length > 0) {
                     match = archivos.find(f => {
                         const fUpper = f.toUpperCase();
@@ -105,12 +120,12 @@ function resolverRutaConEspeciales(inputPath) {
             
             if (match) {
                 const rutaReal = path.join(dir, match);
-                console.log(`\n  ✅ Ruta corregida automaticamente (caracter N/tilde detectado):`);
-                console.log(`     Archivo encontrado: ${match}\n`);
+                console.log(`\n  ✅ Ruta recuperada automaticamente desde:`);
+                console.log(`     ${rutaReal}\n`);
                 return rutaReal;
             }
-        }
-    } catch (e) {}
+        } catch (e) {}
+    }
 
     return limpia;
 }

@@ -150,10 +150,18 @@ def generar_excel_oficial(asociacion, registros_por_jardin, output_path):
             ws.cell(row=row_offset, column=8, value=nino['fechaToma'])
             ws.cell(row=row_offset, column=9, value=nino['peso'])
             ws.cell(row=row_offset, column=10, value=nino['talla'])
-            ws.cell(row=row_offset, column=11, value=nino['perimetro'])
-
     wb.save(output_path)
     print(f"\n  ✅ Archivo Excel generado exitosamente:\n     {output_path}\n")
+
+    # Guardar copia de respaldo automatica fuera de docs/peso y talla
+    try:
+        respaldos_dir = os.path.join(ROOT_DIR, 'docs', 'respaldos')
+        os.makedirs(respaldos_dir, exist_ok=True)
+        backup_path = os.path.join(respaldos_dir, os.path.basename(output_path))
+        wb.save(backup_path)
+        print(f"  🛡️ Copia de respaldo guardada en:\n     {backup_path}\n")
+    except Exception as e:
+        pass
 
 def main():
     print("====================================================================")
