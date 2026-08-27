@@ -52,6 +52,7 @@ async function main() {
   while (true) {
   let asociaciones = Object.values(porAsociacion);
   let reportesAProcesar = [];
+  let esActualizarMaster = false;
 
   if (esAutoComparar) {
       console.log(c.cyan('\n  🚀 MODO AUTOMATICO PARA COMPARACION:'));
@@ -63,11 +64,12 @@ async function main() {
       console.log(c.amarillo(`  2. Seguimiento nutricional de ninos y ninas por toma`));
       console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
       console.log(c.amarillo(`  4. Unidades de servicio`));
+      console.log(c.amarillo(`  5. Actualizar base Master beneficiarios`));
       console.log(c.rojo(`  0. Volver al panel principal (AutoTrabajo / Start)`));
       
       let opcionReporte = -1;
-      while (opcionReporte < 0 || opcionReporte > 4) {
-        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (0, 1, 2, 3 o 4): '));
+      while (opcionReporte < 0 || opcionReporte > 5) {
+        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (0, 1, 2, 3, 4 o 5): '));
         opcionReporte = parseInt(respuesta, 10);
         if (isNaN(opcionReporte)) opcionReporte = -1;
       }
@@ -76,11 +78,21 @@ async function main() {
           console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
           break;
       }
-      reportesAProcesar = [opcionReporte];
+
+      if (opcionReporte === 5) {
+          esActualizarMaster = true;
+          reportesAProcesar = [1];
+      } else {
+          reportesAProcesar = [opcionReporte];
+      }
   }
 
   let asociacionesSeleccionadas = [];
-  if (esAutoComparar && process.env.ASOCIACION_ACTIVA) {
+  if (esActualizarMaster) {
+      console.log(c.cyan('\n  🔄 MODO ACTUALIZAR BASE MASTER BENEFICIARIOS:'));
+      console.log(c.verde('     Descargando reportes de Beneficiarios Vinculados de TODAS las asociaciones...\n'));
+      asociacionesSeleccionadas = asociaciones;
+  } else if (esAutoComparar && process.env.ASOCIACION_ACTIVA) {
       try {
           asociacionesSeleccionadas = [JSON.parse(process.env.ASOCIACION_ACTIVA)];
       } catch(e) {}
@@ -953,6 +965,21 @@ if (!chk) chk = matchedLabel;
   try {
       const { consolidarBaseDatos } = require('../servicios/bd-beneficiarios');
       consolidarBaseDatos();
+
+      if (esActualizarMaster) {
+          console.log(c.cyan('\n  🧹 Limpiando reportes temporales de la carpeta "reportes"...'));
+          const reportesDir = path.join(__dirname, '..', 'reportes');
+          if (fs.existsSync(reportesDir)) {
+              const archivosBenef = fs.readdirSync(reportesDir).filter(f => f.startsWith('Beneficiarios_') && f.endsWith('.xlsx') && !f.includes('BD_MASTER'));
+              for (const arc of archivosBenef) {
+                  try {
+                      fs.unlinkSync(path.join(reportesDir, arc));
+                      console.log(c.gris(`     • Eliminado reporte temporal: ${arc}`));
+                  } catch(eDel) {}
+              }
+          }
+          console.log(c.verde('  ✨ Base de Datos Master actualizada exitosamente y carpeta reportes limpia!'));
+      }
   } catch (eCons) {
       console.log(c.amarillo(`  ⚠️ No se pudo consolidar la Base de Datos Master: ${eCons.message}`));
   }
