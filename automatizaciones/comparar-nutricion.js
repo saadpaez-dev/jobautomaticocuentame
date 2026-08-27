@@ -104,6 +104,19 @@ function detectarColumnas(data) {
     };
 }
 
+function getDocColIdx(hList) {
+    let idx = hList.findIndex(h => !h.includes('TIPO') && (h.includes('DOCUMENTO BENEFICIARIO') || h.includes('DOCUMENTO DEL BENEFICIARIO') || (h.includes('NUMERO DOCUMENTO') && !h.includes('CONTRATISTA') && !h.includes('ENTIDAD') && !h.includes('CONTRATO'))));
+    if (idx === -1) {
+        idx = hList.findIndex(h => !h.includes('TIPO') && (h.includes('DOCUMENTO') || h.includes('IDENTIFICACION')) && !h.includes('CONTRATISTA') && !h.includes('ACUDIENTE') && !h.includes('RESPONSABLE') && !h.includes('ENTIDAD') && !h.includes('CONTRATO'));
+    }
+    return idx;
+}
+
+function getUdsColIdx(hList) {
+    let idx = hList.findIndex(h => (h.includes('UNIDAD DE SERVICIO') || h === 'NOMBRE UNIDAD' || h.includes('NOMBRE UDS') || h === 'UDS') && !h.includes('CODIGO') && !h.includes('REGIONAL') && !h.includes('MUNICIPIO'));
+    return idx;
+}
+
 function extraerNinosActivos(filePath) {
     const rutaReal = resolverRutaConEspeciales(filePath);
     if (!fs.existsSync(rutaReal)) throw new Error(`El archivo no existe: ${filePath}`);
@@ -119,60 +132,36 @@ function extraerNinosActivos(filePath) {
         const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
         if (!data || data.length < 2) continue;
 
-        const cols = detectarColumnas(data);
+        const hList = (data[0] && Array.isArray(data[0])) ? data[0].map(h => String(h || '').trim().toUpperCase()) : [];
+        let idxDoc = getDocColIdx(hList);
+        let idxNom1 = hList.findIndex(h => h.includes('PRIMER NOMBRE'));
+        let idxNom2 = hList.findIndex(h => h.includes('SEGUNDO NOMBRE'));
+        let idxApe1 = hList.findIndex(h => h.includes('PRIMER APELLIDO'));
+        let idxApe2 = hList.findIndex(h => h.includes('SEGUNDO APELLIDO'));
+        let idxUds = getUdsColIdx(hList);
+        let idxCodUds = hList.findIndex(h => h.includes('CODIGO') && h.includes('UNIDAD'));
+        let idxTipo = hList.findIndex(h => h.includes('TIPO') && (h.includes('DOCUMENTO') || h.includes('DOC')));
+        let idxEst = hList.findIndex(h => h.includes('ESTADO'));
 
-        // Regla directa para formato original de Cuentame: Col O (index 14) es Documento
-        let idxDoc = cols.colDoc;
-        let esFormatoOriginalActivos = false;
+        if (idxDoc === -1) idxDoc = 14;
 
-        if (data[0] && String(data[0][14] || '').toUpperCase().includes('DOCUMENTO DEL BENEFICIARIO')) {
-            idxDoc = 14;
-            esFormatoOriginalActivos = true;
-        }
-
-        const startRow = esFormatoOriginalActivos ? 1 : (cols.headerRowIdx !== -1 ? cols.headerRowIdx + 1 : 15);
-
-        for (let r = startRow; r < data.length; r++) {
+        for (let r = 1; r < data.length; r++) {
             const row = data[r];
             if (!row) continue;
 
-            let docRaw = '';
-            let nombreCompleto = '';
-            let uds = sheetName;
-            let codUds = 'N/A';
-            let tipoDoc = 'RC';
-            let estado = 'VINCULADO';
-
-            if (esFormatoOriginalActivos) {
-                docRaw = String(row[14] || '').trim();
-                const nom1 = String(row[15] || '').trim();
-                const nom2 = String(row[16] || '').trim();
-                const ape1 = String(row[17] || '').trim();
-                const ape2 = String(row[18] || '').trim();
-                nombreCompleto = [nom1, nom2, ape1, ape2].filter(Boolean).join(' ');
-                uds = String(row[10] || '').trim() || sheetName;
-                codUds = String(row[9] || '').trim();
-                tipoDoc = String(row[13] || '').trim();
-            } else if (idxDoc !== -1 && row[idxDoc]) {
-                docRaw = String(row[idxDoc]).trim();
-                if (cols.colNombreCompleto !== -1 && row[cols.colNombreCompleto]) {
-                    nombreCompleto = String(row[cols.colNombreCompleto]).trim();
-                } else {
-                    const nom = cols.colNombre !== -1 ? String(row[cols.colNombre] || '').trim() : '';
-                    const ape = cols.colApellido !== -1 ? String(row[cols.colApellido] || '').trim() : '';
-                    nombreCompleto = `${nom} ${ape}`.trim();
-                }
-                uds = cols.colUds !== -1 ? String(row[cols.colUds] || '').trim() : sheetName;
-                codUds = cols.colCodUds !== -1 ? String(row[cols.colCodUds] || '').trim() : 'N/A';
-                tipoDoc = cols.colTipoDoc !== -1 ? String(row[cols.colTipoDoc] || '').trim() : 'RC';
-                estado = cols.colEstado !== -1 ? String(row[cols.colEstado] || '').trim() : 'VINCULADO';
-            } else if (row[1] && row[2]) {
-                docRaw = String(row[1]).trim();
-                nombreCompleto = `${row[2] || ''} ${row[3] || ''}`.trim();
-            }
-
+            const docRaw = String(row[idxDoc] || '').trim();
             const docNorm = normalizarDoc(docRaw);
             if (!docNorm || docNorm.length < 3) continue;
+
+            const nom1 = idxNom1 !== -1 ? String(row[idxNom1] || '').trim() : '';
+            const nom2 = idxNom2 !== -1 ? String(row[idxNom2] || '').trim() : '';
+            const ape1 = idxApe1 !== -1 ? String(row[idxApe1] || '').trim() : '';
+            const ape2 = idxApe2 !== -1 ? String(row[idxApe2] || '').trim() : '';
+            const nombreCompleto = [nom1, nom2, ape1, ape2].filter(Boolean).join(' ');
+            const uds = (idxUds !== -1 ? String(row[idxUds] || '').trim() : '') || sheetName;
+            const codUds = idxCodUds !== -1 ? String(row[idxCodUds] || '').trim() : 'N/A';
+            const tipoDoc = idxTipo !== -1 ? String(row[idxTipo] || '').trim() : 'RC';
+            const estado = idxEst !== -1 ? String(row[idxEst] || '').trim() : 'VINCULADO';
 
             if (estado.toUpperCase().includes('RETIRAD')) continue;
 
@@ -211,99 +200,68 @@ function extraerNinosNutricion(filePath) {
         const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
         if (!data || data.length < 2) continue;
 
-        const cols = detectarColumnas(data);
+        const hList = (data[0] && Array.isArray(data[0])) ? data[0].map(h => String(h || '').trim().toUpperCase()) : [];
+        let idxDoc = getDocColIdx(hList);
+        let idxNom1 = hList.findIndex(h => h.includes('PRIMER NOMBRE'));
+        let idxNom2 = hList.findIndex(h => h.includes('SEGUNDO NOMBRE'));
+        let idxApe1 = hList.findIndex(h => h.includes('PRIMER APELLIDO'));
+        let idxApe2 = hList.findIndex(h => h.includes('SEGUNDO APELLIDO'));
+        let idxComp = hList.findIndex(h => h.includes('NOMBRE COMPLETO'));
+        let idxUds = getUdsColIdx(hList);
+        let idxTallaInf = hList.findIndex(h => h.includes('TALLA INFERIOR'));
 
-        let idxDoc = cols.colDoc;
-        let esFormatoOriginalNutricion = false;
-        let idxTallaInf = cols.colTallaInferior;
+        if (idxDoc === -1) idxDoc = 10;
 
-        if (data[0] && Array.isArray(data[0])) {
-            const hStr = data[0].map(h => String(h || '').toUpperCase()).join(' ');
-            if (hStr.includes('DOCUMENTO BENEFICIARIO') || hStr.includes('VALORACION') || hStr.includes('TALLA INFERIOR')) {
-                esFormatoOriginalNutricion = true;
-                if (idxDoc === -1) {
-                    idxDoc = data[0].findIndex(h => String(h || '').toUpperCase().includes('NUMERO DOCUMENTO') || String(h || '').toUpperCase().includes('DOCUMENTO BENEFICIARIO'));
-                    if (idxDoc === -1) idxDoc = 4;
-                }
-            }
-            if (idxTallaInf === -1) {
-                idxTallaInf = data[0].findIndex(h => String(h || '').toUpperCase().includes('TALLA INFERIOR'));
-                if (idxTallaInf === -1 && data[0].length > 60) idxTallaInf = 61;
-            }
-        }
-
-        const startRow = esFormatoOriginalNutricion ? 1 : (cols.headerRowIdx !== -1 ? cols.headerRowIdx + 1 : 15);
-
-        for (let r = startRow; r < data.length; r++) {
+        for (let r = 1; r < data.length; r++) {
             const row = data[r];
             if (!row) continue;
 
-            let docRaw = '';
-            let nombreCompleto = '';
-            let uds = sheetName;
-            let valTallaInf = '';
+            const docRaw = String(row[idxDoc] || '').trim();
+            const docNorm = normalizarDoc(docRaw);
+            if (!docNorm || docNorm.length < 3) continue;
 
-            if (esFormatoOriginalNutricion) {
-                docRaw = String(row[idxDoc !== -1 ? idxDoc : 4] || row[10] || '').trim();
-                const nom1 = String(row[7] || row[11] || row[12] || '').trim();
-                const nom2 = String(row[8] || row[13] || '').trim();
-                const ape1 = String(row[5] || row[14] || '').trim();
-                const ape2 = String(row[6] || row[15] || '').trim();
-                nombreCompleto = [nom1, nom2, ape1, ape2].filter(Boolean).join(' ');
-                if (!nombreCompleto && row[7]) nombreCompleto = String(row[7]).trim();
-                uds = String(row[0] || row[8] || row[9] || '').trim() || sheetName;
-                if (idxTallaInf !== -1) {
-                    valTallaInf = String(row[idxTallaInf] || '').trim().toUpperCase();
-                }
-            } else if (idxDoc !== -1 && row[idxDoc]) {
-                docRaw = String(row[idxDoc]).trim();
-                if (cols.colNombreCompleto !== -1 && row[cols.colNombreCompleto]) {
-                    nombreCompleto = String(row[cols.colNombreCompleto]).trim();
-                } else {
-                    const nom = cols.colNombre !== -1 ? String(row[cols.colNombre] || '').trim() : '';
-                    const ape = cols.colApellido !== -1 ? String(row[cols.colApellido] || '').trim() : '';
-                    nombreCompleto = `${nom} ${ape}`.trim();
-                }
-                uds = cols.colUds !== -1 ? String(row[cols.colUds] || '').trim() : sheetName;
-                if (idxTallaInf !== -1) {
-                    valTallaInf = String(row[idxTallaInf] || '').trim().toUpperCase();
-                }
-            } else if (row[1]) {
-                docRaw = String(row[1]).trim();
-                nombreCompleto = `${row[2] || ''} ${row[3] || ''}`.trim();
+            let nombreCompleto = '';
+            if (idxComp !== -1 && row[idxComp]) {
+                nombreCompleto = String(row[idxComp]).trim();
+            } else {
+                const n1 = idxNom1 !== -1 ? String(row[idxNom1] || '').trim() : '';
+                const n2 = idxNom2 !== -1 ? String(row[idxNom2] || '').trim() : '';
+                const a1 = idxApe1 !== -1 ? String(row[idxApe1] || '').trim() : '';
+                const a2 = idxApe2 !== -1 ? String(row[idxApe2] || '').trim() : '';
+                nombreCompleto = [n1, n2, a1, a2].filter(Boolean).join(' ');
             }
 
-            const docNorm = normalizarDoc(docRaw);
-            if (docNorm && docNorm.length >= 3) {
-                totalRegistros++;
-                docsNutricion.add(docNorm);
+            const uds = (idxUds !== -1 ? String(row[idxUds] || '').trim() : '') || sheetName;
+            const valTallaInf = idxTallaInf !== -1 ? String(row[idxTallaInf] || '').trim().toUpperCase() : '';
 
-                if (!conteoDocsMap.has(docNorm)) {
-                    conteoDocsMap.set(docNorm, {
+            totalRegistros++;
+            docsNutricion.add(docNorm);
+
+            if (!conteoDocsMap.has(docNorm)) {
+                conteoDocsMap.set(docNorm, {
+                    documentoRaw: docRaw,
+                    documento: docNorm,
+                    nombreCompleto: nombreCompleto || 'SIN NOMBRE',
+                    jardin: uds,
+                    count: 1
+                });
+            } else {
+                const info = conteoDocsMap.get(docNorm);
+                info.count++;
+                if ((!info.nombreCompleto || info.nombreCompleto === 'SIN NOMBRE') && nombreCompleto) {
+                    info.nombreCompleto = nombreCompleto;
+                }
+            }
+
+            if (valTallaInf === 'SI') {
+                if (!tallaInferiorMap.has(docNorm)) {
+                    tallaInferiorMap.set(docNorm, {
                         documentoRaw: docRaw,
                         documento: docNorm,
                         nombreCompleto: nombreCompleto || 'SIN NOMBRE',
                         jardin: uds,
-                        count: 1
+                        tallaInferior: 'SI'
                     });
-                } else {
-                    const info = conteoDocsMap.get(docNorm);
-                    info.count++;
-                    if ((!info.nombreCompleto || info.nombreCompleto === 'SIN NOMBRE') && nombreCompleto) {
-                        info.nombreCompleto = nombreCompleto;
-                    }
-                }
-
-                if (valTallaInf === 'SI') {
-                    if (!tallaInferiorMap.has(docNorm)) {
-                        tallaInferiorMap.set(docNorm, {
-                            documentoRaw: docRaw,
-                            documento: docNorm,
-                            nombreCompleto: nombreCompleto || 'SIN NOMBRE',
-                            jardin: uds,
-                            tallaInferior: 'SI'
-                        });
-                    }
                 }
             }
         }
@@ -809,4 +767,4 @@ if (require.main === module) {
     main();
 }
 
-module.exports = { main };
+module.exports = { main, extraerNinosActivos, extraerNinosNutricion, generarReporteExcelFaltantes };
