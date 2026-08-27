@@ -33,19 +33,20 @@ function detectarColumnas(data) {
     let colCodUds = -1;
     let colTipoDoc = -1;
     let colEstado = -1;
+    let colTallaInferior = -1;
 
     for (let r = 0; r < Math.min(30, data.length); r++) {
         const row = data[r];
         if (!row || !Array.isArray(row)) continue;
 
         let score = 0;
-        let cDoc = -1, cNom = -1, cApe = -1, cComp = -1, cUds = -1, cCodUds = -1, cTipo = -1, cEst = -1;
+        let cDoc = -1, cNom = -1, cApe = -1, cComp = -1, cUds = -1, cCodUds = -1, cTipo = -1, cEst = -1, cTallaInf = -1;
 
         for (let c = 0; c < row.length; c++) {
             const cell = String(row[c] || '').trim().toUpperCase();
             if (!cell) continue;
 
-            if (cell.includes('NUMERO DOCUMENTO') || cell.includes('NUMERO DOCUMENTO') || cell.includes('NO. DOCUMENTO') || cell.includes('DOCUMENTO') || cell.includes('IDENTIFICACION') || cell.includes('NUM_DOC') || cell === 'DOC') {
+            if (cell.includes('NUMERO DOCUMENTO') || cell.includes('NO. DOCUMENTO') || cell.includes('DOCUMENTO') || cell.includes('IDENTIFICACION') || cell.includes('NUM_DOC') || cell === 'DOC') {
                 if (cDoc === -1) { cDoc = c; score += 5; }
             }
             if (cell.includes('TIPO DOCUMENTO') || cell.includes('TIPO DOC') || cell.includes('TIPO_DOC')) {
@@ -69,6 +70,9 @@ function detectarColumnas(data) {
             if (cell.includes('ESTADO')) {
                 if (cEst === -1) { cEst = c; score += 2; }
             }
+            if (cell.includes('TALLA INFERIOR') || cell.includes('TALLA_INFERIOR') || (cell.includes('TALLA') && cell.includes('ULTIMA') && cell.includes('TOMA'))) {
+                if (cTallaInf === -1) { cTallaInf = c; score += 4; }
+            }
         }
 
         if (score > maxScore && cDoc !== -1) {
@@ -82,6 +86,7 @@ function detectarColumnas(data) {
             colCodUds = cCodUds;
             colTipoDoc = cTipo;
             colEstado = cEst;
+            colTallaInferior = cTallaInf;
         }
     }
 
@@ -94,7 +99,8 @@ function detectarColumnas(data) {
         colUds,
         colCodUds,
         colTipoDoc,
-        colEstado
+        colEstado,
+        colTallaInferior
     };
 }
 
@@ -195,6 +201,7 @@ function extraerNinosNutricion(filePath) {
     const wb = xlsx.readFile(rutaReal);
     const docsNutricion = new Set();
     const conteoDocsMap = new Map();
+    const tallaInferiorMap = new Map();
     let totalRegistros = 0;
 
     for (const sheetName of wb.SheetNames) {
@@ -208,10 +215,21 @@ function extraerNinosNutricion(filePath) {
 
         let idxDoc = cols.colDoc;
         let esFormatoOriginalNutricion = false;
+        let idxTallaInf = cols.colTallaInferior;
 
-        if (data[0] && String(data[0][10] || '').toUpperCase().includes('NUMERO DOCUMENTO BENEFICIARIO')) {
-            idxDoc = 10;
-            esFormatoOriginalNutricion = true;
+        if (data[0] && Array.isArray(data[0])) {
+            const hStr = data[0].map(h => String(h || '').toUpperCase()).join(' ');
+            if (hStr.includes('DOCUMENTO BENEFICIARIO') || hStr.includes('VALORACION') || hStr.includes('TALLA INFERIOR')) {
+                esFormatoOriginalNutricion = true;
+                if (idxDoc === -1) {
+                    idxDoc = data[0].findIndex(h => String(h || '').toUpperCase().includes('NUMERO DOCUMENTO') || String(h || '').toUpperCase().includes('DOCUMENTO BENEFICIARIO'));
+                    if (idxDoc === -1) idxDoc = 4;
+                }
+            }
+            if (idxTallaInf === -1) {
+                idxTallaInf = data[0].findIndex(h => String(h || '').toUpperCase().includes('TALLA INFERIOR'));
+                if (idxTallaInf === -1 && data[0].length > 60) idxTallaInf = 61;
+            }
         }
 
         const startRow = esFormatoOriginalNutricion ? 1 : (cols.headerRowIdx !== -1 ? cols.headerRowIdx + 1 : 15);
@@ -223,16 +241,20 @@ function extraerNinosNutricion(filePath) {
             let docRaw = '';
             let nombreCompleto = '';
             let uds = sheetName;
+            let valTallaInf = '';
 
             if (esFormatoOriginalNutricion) {
-                docRaw = String(row[10] || '').trim();
-                const nom1 = String(row[11] || row[12] || '').trim();
-                const nom2 = String(row[13] || '').trim();
-                const ape1 = String(row[14] || '').trim();
-                const ape2 = String(row[15] || '').trim();
+                docRaw = String(row[idxDoc !== -1 ? idxDoc : 4] || row[10] || '').trim();
+                const nom1 = String(row[7] || row[11] || row[12] || '').trim();
+                const nom2 = String(row[8] || row[13] || '').trim();
+                const ape1 = String(row[5] || row[14] || '').trim();
+                const ape2 = String(row[6] || row[15] || '').trim();
                 nombreCompleto = [nom1, nom2, ape1, ape2].filter(Boolean).join(' ');
-                if (!nombreCompleto && row[11]) nombreCompleto = String(row[11]).trim();
-                uds = String(row[8] || row[9] || '').trim() || sheetName;
+                if (!nombreCompleto && row[7]) nombreCompleto = String(row[7]).trim();
+                uds = String(row[0] || row[8] || row[9] || '').trim() || sheetName;
+                if (idxTallaInf !== -1) {
+                    valTallaInf = String(row[idxTallaInf] || '').trim().toUpperCase();
+                }
             } else if (idxDoc !== -1 && row[idxDoc]) {
                 docRaw = String(row[idxDoc]).trim();
                 if (cols.colNombreCompleto !== -1 && row[cols.colNombreCompleto]) {
@@ -243,6 +265,9 @@ function extraerNinosNutricion(filePath) {
                     nombreCompleto = `${nom} ${ape}`.trim();
                 }
                 uds = cols.colUds !== -1 ? String(row[cols.colUds] || '').trim() : sheetName;
+                if (idxTallaInf !== -1) {
+                    valTallaInf = String(row[idxTallaInf] || '').trim().toUpperCase();
+                }
             } else if (row[1]) {
                 docRaw = String(row[1]).trim();
                 nombreCompleto = `${row[2] || ''} ${row[3] || ''}`.trim();
@@ -268,20 +293,34 @@ function extraerNinosNutricion(filePath) {
                         info.nombreCompleto = nombreCompleto;
                     }
                 }
+
+                if (valTallaInf === 'SI') {
+                    if (!tallaInferiorMap.has(docNorm)) {
+                        tallaInferiorMap.set(docNorm, {
+                            documentoRaw: docRaw,
+                            documento: docNorm,
+                            nombreCompleto: nombreCompleto || 'SIN NOMBRE',
+                            jardin: uds,
+                            tallaInferior: 'SI'
+                        });
+                    }
+                }
             }
         }
     }
 
     const duplicados = Array.from(conteoDocsMap.values()).filter(item => item.count > 1);
+    const tallaInferiorNinos = Array.from(tallaInferiorMap.values());
 
     return {
         docsNutricion,
         totalRegistros,
-        duplicados
+        duplicados,
+        tallaInferiorNinos
     };
 }
 
-async function generarReporteExcelFaltantes(faltantes, duplicados, totalActivos, totalUnicosNutricion, totalRegistrosNutricion) {
+async function generarReporteExcelFaltantes(faltantes, duplicados, tallaInferiorNinos, totalActivos, totalUnicosNutricion, totalRegistrosNutricion) {
     const now = new Date();
     const fechaStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
     
@@ -411,6 +450,70 @@ async function generarReporteExcelFaltantes(faltantes, duplicados, totalActivos,
                 }
             });
             col.width = Math.min(maxLen + 4, 45);
+        });
+    }
+
+    // Hoja 3: Beneficiarios con Talla Inferior a la Ultima Toma (Errores de Talla)
+    if (tallaInferiorNinos && tallaInferiorNinos.length > 0) {
+        const wsTalla = workbook.addWorksheet('Talla Inferior (Errores Talla)');
+        wsTalla.mergeCells('A1:F1');
+        const tCellTalla = wsTalla.getCell('A1');
+        tCellTalla.value = 'BENEFICIARIOS CON TALLA INFERIOR A LA ULTIMA TOMA (ERROR EN CUENTAME)';
+        tCellTalla.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFF' } };
+        tCellTalla.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C00000' } };
+        tCellTalla.alignment = { horizontal: 'center', vertical: 'middle' };
+        wsTalla.getRow(1).height = 30;
+
+        const headersTalla = [
+            '#',
+            'Numero de Documento',
+            'Nombre Completo del Beneficiario',
+            'Unidad de Servicio (Jardin)',
+            'Talla Inferior Ultima Toma',
+            'Observacion'
+        ];
+        const hRowTalla = wsTalla.getRow(3);
+        headersTalla.forEach((h, i) => {
+            const cell = hRowTalla.getCell(i + 1);
+            cell.value = h;
+            cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C00000' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        tallaInferiorNinos.forEach((item, index) => {
+            const row = wsTalla.getRow(4 + index);
+            row.getCell(1).value = index + 1;
+            row.getCell(2).value = item.documentoRaw;
+            row.getCell(3).value = item.nombreCompleto;
+            row.getCell(4).value = item.jardin;
+            row.getCell(5).value = item.tallaInferior;
+            row.getCell(6).value = 'Talla registrada menor a la toma anterior. Debe corregirse en Cuentame (ningun nino debe achiquitarse).';
+
+            row.getCell(1).alignment = { horizontal: 'center' };
+            row.getCell(2).alignment = { horizontal: 'center' };
+            row.getCell(5).alignment = { horizontal: 'center' };
+            row.getCell(5).font = { bold: true, color: { argb: 'C00000' } };
+
+            if (index % 2 === 1) {
+                row.eachCell({ includeEmpty: true }, cell => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F2F2F2' } };
+                });
+            }
+        });
+
+        wsTalla.columns.forEach((col, idx) => {
+            let maxLen = headersTalla[idx] ? headersTalla[idx].length : 12;
+            wsTalla.eachRow({ includeEmpty: false }, (row, rowNum) => {
+                if (rowNum >= 3) {
+                    const val = row.getCell(idx + 1).value;
+                    if (val) {
+                        const len = String(val).length;
+                        if (len > maxLen) maxLen = len;
+                    }
+                }
+            });
+            col.width = Math.min(maxLen + 4, 55);
         });
     }
 
@@ -617,7 +720,7 @@ async function main() {
             console.log(c.amarillo('\n  ⏳ Analizando y cruzando datos de ambos reportes...'));
 
             const ninosActivos = extraerNinosActivos(rutaActivos);
-            const { docsNutricion, totalRegistros, duplicados } = extraerNinosNutricion(rutaNutricion);
+            const { docsNutricion, totalRegistros, duplicados, tallaInferiorNinos } = extraerNinosNutricion(rutaNutricion);
 
             if (ninosActivos.length === 0) {
                 console.log(c.rojo('  ❌ No se encontraron beneficiarios activos validos en el primer reporte. Revisa el archivo.'));
@@ -638,7 +741,7 @@ async function main() {
             }
 
             // Generar Reporte Excel
-            const rutaExcelGenerado = await generarReporteExcelFaltantes(faltantes, duplicados, ninosActivos.length, docsNutricion.size, totalRegistros);
+            const rutaExcelGenerado = await generarReporteExcelFaltantes(faltantes, duplicados, tallaInferiorNinos, ninosActivos.length, docsNutricion.size, totalRegistros);
 
             // Mostrar resumen en consola
             console.log(c.verde('\n========================================================================================'));
@@ -647,7 +750,8 @@ async function main() {
             console.log(`  • Beneficiarios activos en Cuentame:    ${c.bold(ninosActivos.length)}`);
             console.log(`  • Beneficiarios unicos en Nutricion:    ${c.bold(docsNutricion.size)} (Total registros en Excel: ${totalRegistros})`);
             console.log(`  • Desfase / Faltantes por Nutricion:   ${c.rojo(c.bold(faltantes.length + ' beneficiario(s)'))}`);
-            console.log(`  • Beneficiarios con DOBLE TOMA:         ${c.amarillo(c.bold(duplicados.length + ' beneficiario(s)'))}\n`);
+            console.log(`  • Beneficiarios con DOBLE TOMA:         ${c.amarillo(c.bold(duplicados.length + ' beneficiario(s)'))}`);
+            console.log(`  • TALLA INFERIOR a la ultima toma:     ${c.rojo(c.bold((tallaInferiorNinos ? tallaInferiorNinos.length : 0) + ' beneficiario(s) (¡ERROR EN CUENTAME!)'))}\n`);
 
             if (faltantes.length > 0) {
                 console.log(c.cyan('  📋 NOMBRES DE LOS BENEFICIARIOS FALTANTES EN NUTRICION:\n'));
@@ -663,6 +767,14 @@ async function main() {
                 console.log(c.amarillo('  ⚠️ NOMBRES DE LOS BENEFICIARIOS CON DOBLE TOMA (DUPLICADOS EN NUTRICION):\n'));
                 duplicados.forEach((d, idx) => {
                     console.log(`  ${idx + 1}. Documento: ${c.bold(d.documentoRaw.padEnd(12))} | Nombre: ${c.amarillo(d.nombreCompleto)} | UDS: ${c.cyan(d.jardin)} | Tomas: ${c.bold(d.count + ' registros en el mes')}`);
+                });
+                console.log('');
+            }
+
+            if (tallaInferiorNinos && tallaInferiorNinos.length > 0) {
+                console.log(c.rojo('  🚨 BENEFICIARIOS CON TALLA INFERIOR A LA ULTIMA TOMA (DEBEN CORREGIRSE EN CUENTAME):\n'));
+                tallaInferiorNinos.forEach((t, idx) => {
+                    console.log(`  ${idx + 1}. Documento: ${c.bold(t.documentoRaw.padEnd(12))} | Nombre: ${c.rojo(t.nombreCompleto)} | UDS: ${c.amarillo(t.jardin)} | Talla Inferior: ${c.bold('SI')}`);
                 });
                 console.log('');
             }
