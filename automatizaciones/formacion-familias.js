@@ -570,9 +570,14 @@ async function main() {
   console.log(c.gris(`  📄 Log guardado en: ${archivoLog}\n`));
 
   console.log(c.verde('  👋 Volviendo al menu principal...\n'));
+  if (browser) {
+    await browser.close().catch(() => {});
+  }
 }
 
-main().catch((err) => {
-  console.error(c.rojo('\n❌ Error inesperado:'), err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().then(() => process.exit(0)).catch((err) => {
+    console.error(c.rojo('\n❌ Error inesperado:'), err.message);
+    process.exit(1);
+  });
+}
