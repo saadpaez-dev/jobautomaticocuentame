@@ -206,6 +206,7 @@ async function main() {
                 { nombre: 'Llenar Asistencia Mensual', archivo: 'llenar-asistencia.js' },
                 { nombre: 'Seguimiento Nutricional (Peso y Talla)', archivo: 'peso-talla.js' },
                 { nombre: 'Comparar Activos vs Nutricion (Faltantes)', archivo: 'comparar-nutricion.js' },
+                { nombre: 'Convertir PDF de Peso y Talla a Excel (Madres)', archivo: 'convertir-pdf-nutricion.js' },
                 { nombre: 'Pre-llenar Formatos para Madres (Peso y Talla)', archivo: 'prellenar-formatos.js' },
                 { nombre: 'Estimar Peso y Talla Ideal a Fecha de Hoy (Cols U, V, W)', archivo: 'estimar-peso-talla.js' },
                 { nombre: 'Formacion a Familias', archivo: 'formacion-familias.js' },
