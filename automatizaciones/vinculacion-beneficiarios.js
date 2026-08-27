@@ -387,31 +387,58 @@ async function main() {
             const servOpts = await waitForAndSelect(selectServicio);
             if (servOpts && servOpts.length > 1) {
                 let esAgrupado = false;
-                const nomAsc = ascSeleccionada.nombreCorto.toUpperCase();
+                const nomAsc = (ascSeleccionada.nombreCorto || "").toUpperCase();
                 const nomJardin = (jardinSeleccionado.nombre || "").toUpperCase();
-                
-                if (nomAsc.includes("DELICIAS DEL CARMEN")) {
+                const codJardin = String(jardinSeleccionado.codigo || "").trim();
+
+                const cleanStr = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                const nomAscClean = cleanStr(nomAsc);
+                const nomJardinClean = cleanStr(nomJardin);
+
+                // Codigos o Nombres de UDS Agrupadas (Jardin Comunitario 420269)
+                const codigosAgrupados = ["1100100132563", "1100100132699", "1100100132470", "1100100132461", "1100100132717"];
+
+                if (codigosAgrupados.includes(codJardin)) {
                     esAgrupado = true;
-                } else if (nomAsc.includes("VERBENAL Y REFUGIO") && (nomJardin.includes("OSITO CARINOSITO") || nomJardin.includes("MUNDO DE FANTASIA"))) {
+                } else if (nomAscClean.includes("DELICIAS DEL CARMEN")) {
                     esAgrupado = true;
-                } else if (nomAsc.includes("BUENAVISTA") && nomJardin.includes("EL SOLECITO")) {
+                } else if (nomAscClean.includes("VERBENAL Y REFUGIO") && (nomJardinClean.includes("OSITO") || nomJardinClean.includes("FANTASIA"))) {
                     esAgrupado = true;
-                } else if (nomAsc.includes("CANAIMA") && (nomJardin.includes("MARAVILLAS") || nomJardin.includes("ESTRELLITAS DEL FUTURO"))) {
+                } else if (nomAscClean.includes("BUENAVISTA") && nomJardinClean.includes("SOLECITO")) {
+                    esAgrupado = true;
+                } else if (nomAscClean.includes("CANAIMA") && (nomJardinClean.includes("MARAVILLAS") || nomJardinClean.includes("ESTRELLITAS"))) {
                     esAgrupado = true;
                 }
-                
+
                 let matchInd = null;
                 if (esAgrupado) {
-                    matchInd = servOpts.find(o => o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                    // Buscar servicio Agrupado: 420269 o JARDIN COMUNITARIO (con o sin tilde)
+                    matchInd = servOpts.find(o => {
+                        const cleanOpt = cleanStr(o.t);
+                        return cleanOpt.includes("420269") || cleanOpt.includes("JARDIN COMUNITARIO") || cleanOpt.includes("AGRUPADO");
+                    });
                 } else {
-                    matchInd = servOpts.find(o => o.t.toUpperCase().includes("HCB FAMI") || o.t.toUpperCase().includes("BIENVENIR"));
-                    if (!matchInd) matchInd = servOpts.find(o => !o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+                    // Buscar servicio Individual: 420267 o HCB FAMI / BIENVENIR / TRADICIONAL
+                    matchInd = servOpts.find(o => {
+                        const cleanOpt = cleanStr(o.t);
+                        return cleanOpt.includes("420267") || cleanOpt.includes("HCB FAMI") || cleanOpt.includes("BIENVENIR") || cleanOpt.includes("TRADICIONAL");
+                    });
+                    if (!matchInd) {
+                        matchInd = servOpts.find(o => {
+                            const cleanOpt = cleanStr(o.t);
+                            return !cleanOpt.includes("420269") && !cleanOpt.includes("JARDIN COMUNITARIO");
+                        });
+                    }
                 }
-                
+
                 if (!matchInd) matchInd = servOpts.find(o => o.t.includes(jardinSeleccionado.codigo));
-                
+
                 if (matchInd) {
+                    console.log(c.verde(`  ✅ Servicio seleccionado (${esAgrupado ? 'Agrupado 420269' : 'Individual'}): "${matchInd.t}"`));
                     await waitForAndSelect(selectServicio, matchInd.t);
+                } else if (servOpts.length > 0) {
+                    console.log(c.amarillo(`  ⚠️ No se encontro coincidencia exacta de Servicio. Seleccionando primero: "${servOpts[0].t}"`));
+                    await waitForAndSelect(selectServicio, servOpts[0].t);
                 }
             }
 
