@@ -38,9 +38,13 @@ def cargar_bd_master():
             return json.load(f)
     return []
 
+import unicodedata
+
 def remove_accents(s):
     if not s: return ""
-    return re.sub(r'[\u0300-\u036f]', '', str(s)).upper().strip()
+    s_clean = str(s).replace('Ñ', 'N').replace('ñ', 'n')
+    s_norm = unicodedata.normalize('NFD', s_clean)
+    return re.sub(r'[\u0300-\u036f]', '', s_norm).upper().strip()
 
 def clean_str(s):
     if not s: return ""
