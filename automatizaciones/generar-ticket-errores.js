@@ -552,7 +552,7 @@ async function main() {
         }
 
         // Navegar al menu de Beneficiario
-        console.log(c.amarillo('  â³ Entrando al menu "Beneficiario" > "Beneficiario"...'));
+        console.log(c.amarillo('  ⏳ Entrando al menu "Beneficiario" > "Información beneficiario"...'));
         let menuFrame = page.frame({ name: 'frameMenu' });
         if (!menuFrame) {
             for (const f of page.frames()) {
@@ -564,24 +564,46 @@ async function main() {
         }
         const rootMenu = menuFrame || page;
           
-          try {
-              await expandirMenu(page, ['Rub online']);
-              const links = await rootMenu.locator('a:text-is("Beneficiario")').all();
-            if (links.length >= 2) {
-                await links[1].evaluate(n => n.click());
-            } else if (links.length === 1) {
-                await links[0].evaluate(n => n.click());
-                await page.waitForTimeout(500);
-                const nuevosLinks = await rootMenu.locator('a:text-is("Beneficiario")').all();
-                if (nuevosLinks.length >= 2) {
-                    await nuevosLinks[1].evaluate(n => n.click());
+        try {
+            await expandirMenu(page, ['Rub online', 'Beneficiario']);
+            await page.waitForTimeout(500);
+
+            let clickExitoso = await rootMenu.evaluate(() => {
+                const links = Array.from(document.querySelectorAll('a'));
+                const norm = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                
+                const target = links.find(a => 
+                    (a.href && a.href.toUpperCase().includes('INFORMACIONBENEFICIARIO')) ||
+                    norm(a.innerText).includes('informacion beneficiario')
+                );
+
+                if (target) {
+                    target.click();
+                    return true;
                 }
-            } else {
-                console.log(c.rojo('  âš ï¸ No se encontro el menu Beneficiario.'));
+
+                const subBenef = links.filter(a => norm(a.innerText).trim() === 'beneficiario');
+                if (subBenef.length >= 2) {
+                    subBenef[1].click();
+                    return true;
+                } else if (subBenef.length === 1) {
+                    subBenef[0].click();
+                    return true;
+                }
+                return false;
+            }).catch(() => false);
+
+            if (!clickExitoso) {
+                const targetLocator = rootMenu.locator('a[href*="INFORMACIONBENEFICIARIO" i], a:has-text("Información beneficiario"), a:has-text("Informacion beneficiario")').first();
+                if (await targetLocator.count() > 0) {
+                    await targetLocator.click().catch(() => targetLocator.evaluate(node => node.click()));
+                } else {
+                    console.log(c.rojo('  ⚠️ No se encontro el menu Información Beneficiario.'));
+                }
             }
             await page.waitForTimeout(1500);
         } catch(e) {
-            console.log(c.rojo(`  âŒ Error al intentar acceder a Beneficiario: ${e.message}`));
+            console.log(c.rojo(`  ❌ Error al intentar acceder a Beneficiario: ${e.message}`));
         }
         
         // Cambiar al frame principal
