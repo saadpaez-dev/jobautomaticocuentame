@@ -59,9 +59,19 @@ async function loginYLlegarARoles(page, credenciales) {
 
       await page.goto(URL_LOGIN, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-      // Llenar usuario y contrasena
-      await page.locator('input[type="text"]').first().fill(usuario);
-      await page.locator('input[type="password"]').first().fill(password);
+      // Llenar usuario y contrasena (usando tipeo secuencial para sobrescribir autocompletados guardados en Edge)
+      const userInput = page.locator('input[type="text"]').first();
+      const passInput = page.locator('input[type="password"]').first();
+
+      await userInput.click().catch(() => {});
+      await userInput.fill('');
+      await userInput.pressSequentially(usuario, { delay: 20 }).catch(() => userInput.fill(usuario));
+
+      await passInput.click().catch(() => {});
+      await passInput.fill('');
+      await passInput.pressSequentially(password, { delay: 20 }).catch(() => passInput.fill(password));
+      await passInput.dispatchEvent('change').catch(() => {});
+      await passInput.dispatchEvent('blur').catch(() => {});
 
       const hasCaptcha = await page.locator('img[src*="Captcha"]:visible').count() > 0;
 
