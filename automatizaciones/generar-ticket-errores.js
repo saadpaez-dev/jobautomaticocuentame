@@ -1,4 +1,4 @@
-﻿const { chromium } = require('playwright');
+const { chromium } = require('playwright');
 const readline = require('readline-sync');
 const c = {
     verde: (t) => `\x1b[32m${t}\x1b[0m`,
@@ -14,7 +14,7 @@ const { PDFDocument } = require('pdf-lib');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { leerJardines } = require('../servicios/excel-reader');
 const { resolverRutaConEspeciales } = require('../servicios/excel-parser');
-const { seleccionarRolYEntrar, verificarConexionOCaida, loginYLlegarARoles } = require('../servicios/autenticacion');
+const { seleccionarRolYEntrar, verificarConexionOCaida, loginYLlegarARoles, obtenerNavegador } = require('../servicios/autenticacion');
 
 async function convertirImagenOConplanarPdf(rutaInput, rutaSalidaPdf) {
     if (!fs.existsSync(rutaInput)) throw new Error(`El archivo no existe: ${rutaInput}`);
@@ -497,27 +497,21 @@ async function main() {
         }
 
         if (idxAsociacion === 0) {
-            console.log(c.verde('\n  ðŸ‘‹ Volviendo al menu principal...'));
+            console.log(c.verde('\n  👋 Volviendo al menu principal...'));
             return;
         }
         ascSeleccionada = asociaciones[idxAsociacion - 1];
     }
 
-    console.log(c.amarillo('\n  Conectando al navegador...'));
-    let browser;
-    try {
-        browser = await chromium.connectOverCDP('http://localhost:9333');
-    } catch (e) {
-        console.log(c.rojo(`  âŒ Error al conectar al navegador: ${e.message}`));
-        return;
-    }
-    const context = browser.contexts()[0];
-    const page = context.pages().find(p => p.url().includes('rubonline.icbf.gov.co')) || context.pages()[0];
+    const navData = await obtenerNavegador();
+    const browser = navData.browser;
+    const context = navData.context;
+    const page = navData.page;
     
     // Verificacion inicial de sesion
     if (await verificarConexionOCaida(page)) {
-        console.log(c.amarillo('  âš ï¸ La sesion inicial expiro o se perdio.'));
-        console.log(c.amarillo('  â³ Iniciando sesion automaticamente (2FA)...'));
+        console.log(c.amarillo('  âš ï¸  La sesion inicial expiro o se perdio.'));
+        console.log(c.amarillo('  â ³ Iniciando sesion automaticamente (2FA)...'));
         await loginYLlegarARoles(page, {
             usuario: USUARIO,
             password: PASSWORD,
@@ -944,9 +938,14 @@ async function main() {
     } // Cierra el while(true)
     
     // Desconectar
-    await browser.close();
+    if (browser) {
+        await browser.close().catch(() => {});
+    }
 }
 
-main().catch(err => {
-    console.error(c.rojo(`\n  âŒ Error critico: ${err.message}`));
-});
+if (require.main === module) {
+    main().then(() => process.exit(0)).catch(err => {
+        console.error(c.rojo(`\n  ❌ Error critico: ${err.message}`));
+        process.exit(1);
+    });
+}
