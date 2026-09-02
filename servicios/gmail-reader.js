@@ -167,4 +167,95 @@ async function obtenerCodigo2FA(gmailUser, appPassword, fechaInicio) {
   return codManual;
 }
 
-module.exports = { obtenerCodigo2FA, limpiarBuzon2FA };
+/**
+ * Espera y obtiene la contraseña temporal enviada por Cuéntame (mts.notificaciones) al correo Gmail.
+ *
+ * @param {string} gmailUser - Correo Gmail
+ * @param {string} appPassword - App Password de 16 caracteres
+ * @param {Date} fechaInicio - Momento de inicio del proceso
+ * @returns {Promise<string>} La contraseña temporal (ej: 0L1unwEctf)
+ */
+async function obtenerContrasenaTemporal(gmailUser, appPassword, fechaInicio) {
+  const cleanPass = (appPassword || '').replace(/\s+/g, '').replace(/["']/g, '');
+  const readline = require('readline-sync');
+
+  if (!gmailUser || !cleanPass) {
+    console.log('  ⚠️ Credenciales de Gmail no configuradas en .env.');
+    return readline.question('  > Ingresa manualmente la contraseña temporal del correo: ').trim();
+  }
+
+  const c = new ImapFlow({
+    host: 'imap.gmail.com', port: 993, secure: true,
+    auth: { user: gmailUser, pass: cleanPass },
+    logger: false
+  });
+
+  console.log('  📧 Conectando a Gmail para leer la contraseña temporal...');
+
+  try {
+    await c.connect();
+    const deadline = Date.now() + TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+      const lock = await c.getMailboxLock('INBOX');
+      try {
+        await c.noop();
+        const status = await c.status('INBOX', { messages: true });
+        const total = status.messages || 0;
+
+        if (total > 0) {
+          const startSeq = Math.max(1, total - 15);
+          for await (let msg of c.fetch(`${startSeq}:${total}`, { envelope: true, internalDate: true, source: true, uid: true })) {
+            const fromAddr = msg.envelope && msg.envelope.from && msg.envelope.from[0] ? msg.envelope.from[0].address.toLowerCase() : '';
+            const subj = msg.envelope ? (msg.envelope.subject || '').toLowerCase() : '';
+
+            if (fromAddr.includes('icbf.gov.co') || subj.includes('contraseña') || subj.includes('contrasena') || subj.includes('restablecimiento')) {
+              const fechaBuffer = new Date(fechaInicio.getTime() - 180000);
+              if (msg.internalDate && msg.internalDate >= fechaBuffer) {
+                const fullRawText = msg.source ? msg.source.toString('utf-8') : '';
+                let decodedContent = fullRawText;
+
+                const base64Blocks = fullRawText.match(/([A-Za-z0-9+/=]{30,})/g);
+                if (base64Blocks) {
+                  for (const block of base64Blocks) {
+                    try {
+                      const dec = Buffer.from(block, 'base64').toString('utf-8');
+                      decodedContent += '\n' + dec;
+                    } catch(e) {}
+                  }
+                }
+
+                const textClean = decodedContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+                const match = textClean.match(/Su nueva contrase\u00f1a temporal es:\s*([A-Za-z0-9]+)/i) ||
+                              textClean.match(/contrase\u00f1a temporal es:\s*([A-Za-z0-9]+)/i) ||
+                              textClean.match(/temporal es:\s*([A-Za-z0-9]+)/i);
+
+                if (match && match[1]) {
+                  const passTemp = match[1].trim();
+                  console.log(`\n  ✅ Contraseña temporal recibida de Gmail: ${passTemp}`);
+                  lock.release();
+                  try { await c.logout(); } catch (_) {}
+                  return passTemp;
+                }
+              }
+            }
+          }
+        }
+      } finally {
+        lock.release();
+      }
+
+      const seg = Math.round((deadline - Date.now()) / 1000);
+      process.stdout.write(`\r  ⏳ Esperando correo con contraseña temporal de Cuéntame... (${seg}s)  `);
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+    }
+  } catch (err) {
+    console.log(`\n  ⚠️ No se pudo leer el correo automáticamente: ${err.message}`);
+  } finally {
+    try { await c.logout(); } catch (_) {}
+  }
+
+  return readline.question('\n  > Ingresa manualmente la contraseña temporal recibida por correo: ').trim();
+}
+
+module.exports = { obtenerCodigo2FA, limpiarBuzon2FA, obtenerContrasenaTemporal };

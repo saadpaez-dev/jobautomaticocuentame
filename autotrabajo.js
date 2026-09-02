@@ -137,7 +137,8 @@ async function main() {
                 { nombre: 'Generar Cuentas de Cobro', archivo: 'generar-cuentas-cobro.js' },
                 { nombre: 'Vinculacion Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },
                 { nombre: 'Desvinculacion Beneficiarios', archivo: 'desvinculacion-beneficiarios.js' },
-                { nombre: 'Generar Ticket de Errores de Digitacion', archivo: 'generar-ticket-errores.js' }
+                { nombre: 'Generar Ticket de Errores de Digitacion', archivo: 'generar-ticket-errores.js' },
+                { nombre: 'Cambiar / Restablecer Contraseña', archivo: 'cambiar-contrasena.js' }
             ];
             
             opciones.forEach((opc, index) => {
