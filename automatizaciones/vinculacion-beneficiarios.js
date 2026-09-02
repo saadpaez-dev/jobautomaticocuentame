@@ -1034,28 +1034,32 @@ async function main() {
 
                                  let conservarDireccion = false;
 
-                                 if (existingAddress.trim() || existingPhone.trim()) {
-                                     console.log(c.cyan(`\n  📍 Datos de ubicacion pre-existentes registrados en Cuentame:`));
-                                     if (existingAddress.trim()) console.log(c.verde(`     • Direccion registrada: ${existingAddress.trim()}`));
-                                     if (existingPhone.trim())   console.log(c.verde(`     • Telefono registrado : ${existingPhone.trim()}`));
-                                     
-                                     const respConservar = readline.question(c.negrita('\n  > Desea conservar esta direccion y telefono? (s/n) [por defecto s]: ')).trim().toLowerCase();
-                                     if (respConservar === '' || respConservar === 's' || respConservar === 'si') {
-                                         conservarDireccion = true;
-                                         console.log(c.verde('  ✅ Se conservaran la direccion y telefono registrados.'));
-                                     } else {
-                                         console.log(c.amarillo('  🧹 Limpiando direccion y telefono anteriores para ingresar los nuevos datos...'));
-                                         const btnLimpiar = currentFrame.locator('a[id*="btnLimpiar"], input[value*="Limpiar"], button:has-text("Limpiar"), a:has-text("Limpiar")').first();
-                                         if (await btnLimpiar.count() > 0) {
-                                             await btnLimpiar.evaluate(el => el.click()).catch(() => {});
-                                         }
-                                         await currentFrame.evaluate(() => {
-                                             const inputs = document.querySelectorAll('input[id*="Direccion"], input[id*="Telefono"], input[id*="txtDireccion"], input[id*="txtTelefono"]');
-                                             inputs.forEach(inp => { inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); });
-                                         }).catch(() => {});
-                                         await page.waitForTimeout(100);
-                                     }
-                                 }
+                                  // Solo preguntar por datos pre-existentes si la LUPA encontro que el nino ya existia previamente
+                                  const tieneDireccionReal = existingAddress.trim().length > 1 && existingAddress.trim().toUpperCase() !== 'R';
+                                  const tieneTelefonoReal = existingPhone.trim().length > 1;
+
+                                  if (ninoExiste && (tieneDireccionReal || tieneTelefonoReal)) {
+                                      console.log(c.cyan(`\n  📍 Datos de ubicacion pre-existentes registrados en Cuentame:`));
+                                      if (tieneDireccionReal) console.log(c.verde(`     • Direccion registrada: ${existingAddress.trim()}`));
+                                      if (tieneTelefonoReal)  console.log(c.verde(`     • Telefono registrado : ${existingPhone.trim()}`));
+                                      
+                                      const respConservar = readline.question(c.negrita('\n  > Desea conservar esta direccion y telefono? (s/n) [por defecto s]: ')).trim().toLowerCase();
+                                      if (respConservar === '' || respConservar === 's' || respConservar === 'si') {
+                                          conservarDireccion = true;
+                                          console.log(c.verde('  ✅ Se conservaran la direccion y telefono registrados.'));
+                                      } else {
+                                          console.log(c.amarillo('  🧹 Limpiando direccion y telefono anteriores para ingresar los nuevos datos...'));
+                                          const btnLimpiar = currentFrame.locator('a[id*="btnLimpiar"], input[value*="Limpiar"], button:has-text("Limpiar"), a:has-text("Limpiar")').first();
+                                          if (await btnLimpiar.count() > 0) {
+                                              await btnLimpiar.evaluate(el => el.click()).catch(() => {});
+                                          }
+                                          await currentFrame.evaluate(() => {
+                                              const inputs = document.querySelectorAll('input[id*="Direccion"], input[id*="Telefono"], input[id*="txtDireccion"], input[id*="txtTelefono"]');
+                                              inputs.forEach(inp => { inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); });
+                                          }).catch(() => {});
+                                          await page.waitForTimeout(100);
+                                      }
+                                  }
 
                                  if (!conservarDireccion) {
                                      console.log(c.amarillo('\n  🏠 Por favor, ingresa los Datos de Direccion de Residencia:'));
