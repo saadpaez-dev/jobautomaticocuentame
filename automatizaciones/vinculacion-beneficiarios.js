@@ -193,6 +193,7 @@ async function main() {
         if (!frame) frame = page;
 
         let forceMenuClick = false;
+        let ultimoBeneficiario = null;
         let docRecuperacion = null;
 
         // Bucle interactivo para ingresar ninos en el mismo jardin
@@ -232,12 +233,11 @@ async function main() {
                 continue;
             }
             if (accion === '2' || accion === 'N') {
-                console.log(c.cyan('\n  🚀 Activando modulo de Seguimiento Nutricional (Peso y Talla)...'));
+                console.log(c.cyan('\n  🚀 Activando modulo de Seguimiento Nutricional (Peso y Talla) Directo...'));
                 try {
-                    const pesoTallaScript = require('./peso-talla');
-                    if (typeof pesoTallaScript.main === 'function') {
-                        await pesoTallaScript.main();
-                    }
+                    const docT = ultimoBeneficiario ? ultimoBeneficiario.docNum : null;
+                    const nomT = ultimoBeneficiario ? ultimoBeneficiario.nombreCompleto : null;
+                    await ejecutarNutricionDirecta(page, ascSeleccionada, jardinSeleccionado, docT, nomT);
                 } catch(errNut) {
                     console.log(c.rojo(`  ❌ Error ejecutando Nutricion: ${errNut.message}`));
                 }
@@ -1572,6 +1572,10 @@ async function main() {
                                                 }
                                             } else {
                                                 console.log(c.verde('  ✅ Guardado exitoso.'));
+                                                ultimoBeneficiario = {
+                                                    docNum: datosNino.docNum,
+                                                    nombreCompleto: `${datosNino.pNombre} ${datosNino.sNombre || ''} ${datosNino.pApellido} ${datosNino.sApellido || ''}`.replace(/\s+/g, ' ').trim()
+                                                };
                                             }
                                         } else {
                                             console.log(c.rojo('  ⚠️ No se encontro el boton Guardar general. Guarda manualmente.'));
@@ -1634,6 +1638,150 @@ async function main() {
 
 if (require.main === module) {
   main();
+}
+
+async function ejecutarNutricionDirecta(page, asociacion, jardin, docNum, nombreNino) {
+    console.log(c.cyan(`\n======================================================`));
+    console.log(c.cyan(`  🍎 REGISTRO DIRECTO DE NUTRICIÓN (PESO Y TALLA)`));
+    console.log(c.cyan(`======================================================`));
+    if (nombreNino || docNum) console.log(c.verde(`  Niño: ${nombreNino || docNum}`));
+    console.log(c.verde(`  Jardín: ${jardin.nombre} (${asociacion.nombreCorto})\n`));
+
+    const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
+
+    // 1. Navegar al módulo de Seguimiento nutricional
+    console.log(c.amarillo('  ⏳ Entrando al módulo "Seguimiento nutricional"...'));
+    let menuFrame = page.frame({ name: 'frameMenu' });
+    if (!menuFrame) {
+        for (const f of page.frames()) {
+            if (f.name() === 'frameMenu') { menuFrame = f; break; }
+        }
+    }
+    const rootMenu = menuFrame || page;
+
+    try {
+        const linkNut = rootMenu.locator('a[href*="NUTRICIONAL" i], a:has-text("Seguimiento nutricional")').first();
+        if (await linkNut.count() > 0) {
+            await linkNut.click().catch(() => linkNut.evaluate(n => n.click()));
+        } else {
+            const links = await rootMenu.locator('a:text-is("Seguimiento nutricional")').all();
+            if (links.length > 0) await links[0].evaluate(n => n.click());
+        }
+        await page.waitForTimeout(1500);
+    } catch(e) {
+        console.log(c.rojo(`  ❌ Error accediendo al módulo de Nutrición: ${e.message}`));
+    }
+
+    let content = page.frame({ name: 'frameContent' }) || page;
+
+    // Helper para seleccionar en dropdown
+    const selectOptionClean = async (selectLoc, textToMatch) => {
+        if (!selectLoc || await selectLoc.count() === 0) return false;
+        const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[,.]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+        const cleanTarget = removeAccents(textToMatch);
+        const opts = await selectLoc.evaluate(s => Array.from(s.options).map(o => ({ v: o.value, t: o.text }))).catch(() => []);
+        const match = opts.find(o => removeAccents(o.t).includes(cleanTarget) || o.v.includes(cleanTarget));
+        if (match) {
+            await selectLoc.selectOption({ value: match.v }).catch(() => {});
+            await selectLoc.evaluate(el => el.dispatchEvent(new Event('change', { bubbles: true }))).catch(() => {});
+            return true;
+        }
+        return false;
+    };
+
+    // 2. Seleccionar UDS / Jardín y buscar Documento si lo tenemos
+    console.log(c.amarillo('  ⏳ Filtrando por Jardín...'));
+    const selUds = content.locator('select[id*="ddlUds"], select[id*="UnidadServicio"]').first();
+    if (await selUds.count() > 0) {
+        await selectOptionClean(selUds, jardin.codigo || jardin.nombre);
+        await page.waitForTimeout(800);
+    }
+
+    if (docNum) {
+        const inputDoc = content.locator('input[id*="txtNumeroDocumento"], input[id*="txtDocumento"]').first();
+        if (await inputDoc.count() > 0) {
+            await inputDoc.fill(docNum);
+        }
+
+        const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"]').first();
+        if (await btnBuscar.count() > 0) {
+            await Promise.all([
+                content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                btnBuscar.evaluate(n => n.click())
+            ]);
+            await page.waitForTimeout(800);
+        }
+    }
+
+    // 3. Abrir la fila del niño o la primera fila devuelta
+    let btnDetalle = null;
+    if (docNum) {
+        btnDetalle = content.locator(`tr:visible:has-text("${docNum}") input[type="image"][src*="lupa"], tr:visible:has-text("${docNum}") a:has-text("Ver")`).first();
+        await btnDetalle.waitFor({ state: 'attached', timeout: 2000 }).catch(() => {});
+    }
+
+    if (!btnDetalle || await btnDetalle.count() === 0) {
+        btnDetalle = content.locator('table tr input[type="image"][src*="lupa"]').first();
+    }
+
+    if (await btnDetalle.count() > 0) {
+        console.log(c.verde('  ✅ Niño localizado en Nutrición. Cargando formulario...'));
+        await Promise.all([
+            content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+            btnDetalle.evaluate(n => n.click())
+        ]);
+        await page.waitForTimeout(1000);
+
+        // 4. Clic en (+) Nueva Toma
+        const btnNuevo = content.locator('a#btnNuevo, #cphCont_btnNuevo, a[id*="btnNuevo" i], input[id*="btnNuevo" i], input[src*="nuevo" i]').first();
+        if (await btnNuevo.count() > 0) {
+            await Promise.all([
+                content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+                btnNuevo.evaluate(n => n.click())
+            ]);
+            console.log(c.verde('  ✅ Ventana de Nueva Toma abierta.'));
+        }
+
+        // 5. Pedir datos antropométricos
+        console.log(c.cyan('\n  Ingresa los datos para la toma antropométrica:'));
+        const hoyStr = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/-/g, '/');
+        
+        let fechaToma = readline.question(c.negrita(`  > Fecha de Toma (DD/MM/YYYY) [Enter para Hoy ${hoyStr}]: `)).trim();
+        if (!fechaToma) fechaToma = hoyStr;
+        fechaToma = parsearFecha(fechaToma);
+
+        let peso = '';
+        while(!peso || isNaN(parseFloat(peso.replace(',', '.')))) {
+            peso = readline.question(c.negrita('  > Peso en KG (ej: 14.5): ')).trim();
+        }
+
+        let talla = '';
+        while(!talla || isNaN(parseFloat(talla.replace(',', '.')))) {
+            talla = readline.question(c.negrita('  > Talla en CM (ej: 95.0): ')).trim();
+        }
+
+        const datosLlenado = {
+            fecha: fechaToma,
+            peso: peso,
+            talla: talla,
+            perimetro: '',
+            observaciones: 'VINCULACION NUEVO BENEFICIARIO'
+        };
+
+        // 6. Llenar y Guardar
+        await llenarFormularioNutricion(page.context().browser(), content, datosLlenado, false);
+        await page.waitForTimeout(500);
+
+        const btnGuardar = content.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i]').first();
+        if (await btnGuardar.count() > 0) {
+            console.log(c.amarillo('  ⏳ Guardando toma de nutrición...'));
+            await btnGuardar.click({ timeout: 3000 }).catch(() => btnGuardar.evaluate(n => n.click()));
+            await page.waitForTimeout(1000);
+            console.log(c.verde('\n  🎉 ¡Toma de Peso y Talla registrada exitosamente para el beneficiario!'));
+        }
+    } else {
+        console.log(c.rojo('  ⚠️ No se encontró la fila del niño en la lista de Nutrición. Por favor verifica manualmente.'));
+    }
 }
 
 module.exports = main;
