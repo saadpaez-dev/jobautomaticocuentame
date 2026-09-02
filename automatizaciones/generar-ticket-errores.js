@@ -14,7 +14,7 @@ const { PDFDocument } = require('pdf-lib');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { leerJardines } = require('../servicios/excel-reader');
 const { resolverRutaConEspeciales } = require('../servicios/excel-parser');
-const { seleccionarRolYEntrar, verificarConexionOCaida, loginYLlegarARoles, obtenerNavegador } = require('../servicios/autenticacion');
+const { seleccionarRolYEntrar, verificarConexionOCaida, loginYLlegarARoles, obtenerNavegador, expandirMenu } = require('../servicios/autenticacion');
 
 async function convertirImagenOConplanarPdf(rutaInput, rutaSalidaPdf) {
     if (!fs.existsSync(rutaInput)) throw new Error(`El archivo no existe: ${rutaInput}`);
@@ -598,7 +598,17 @@ async function main() {
                 if (await targetLocator.count() > 0) {
                     await targetLocator.click().catch(() => targetLocator.evaluate(node => node.click()));
                 } else {
-                    console.log(c.rojo('  ⚠️ No se encontro el menu Información Beneficiario.'));
+                    const links = await rootMenu.locator('a:text-is("Beneficiario")').all();
+                    if (links.length >= 2) {
+                        await links[1].evaluate(n => n.click());
+                    } else if (links.length === 1) {
+                        await links[0].evaluate(n => n.click());
+                        await page.waitForTimeout(500);
+                        const nuevosLinks = await rootMenu.locator('a:text-is("Beneficiario")').all();
+                        if (nuevosLinks.length >= 2) {
+                            await nuevosLinks[1].evaluate(n => n.click());
+                        }
+                    }
                 }
             }
             await page.waitForTimeout(1500);
