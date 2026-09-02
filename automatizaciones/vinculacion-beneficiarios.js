@@ -1321,6 +1321,12 @@ async function main() {
                                         let fechaNacMadre = '';
                                         while(!fechaNacMadre) fechaNacMadre = readline.question(c.negrita('  > Fecha de Nacimiento (DD/MM/YYYY): ')).trim();
 
+                                        const defaultSexoStr = esMadre ? 'FEMENINO' : 'MASCULINO';
+                                        const resSexoIn = readline.question(c.negrita(`  > Sexo de ${labelJefe} (1 = MASCULINO, 2 = FEMENINO) [Enter para ${defaultSexoStr}]: `)).trim();
+                                        let sexoFinal = defaultSexoStr;
+                                        if (resSexoIn === '1') sexoFinal = 'MASCULINO';
+                                        else if (resSexoIn === '2') sexoFinal = 'FEMENINO';
+
                                         await txtPrimerNombreMadre.fill(pNombreMadre);
                                         const txtSNombreM = currentFrame.locator('input[type="text"]:visible[id*="txtSegundoNombre"]').first();
                                         if (await txtSNombreM.count() > 0) await txtSNombreM.fill(sNombreMadre);
@@ -1366,14 +1372,20 @@ async function main() {
                                     };
 
                                     // --- AUTOCOMPLETAR CAMPOS REQUERIDOS EN CUENTAME ---
-                                    console.log(c.amarillo(`  â„¹ï¸ Completando campos en el formulario de ${labelJefe} (Sexo, Pais, Depto, Municipio)...`));
+                                    console.log(c.amarillo(`  â„¹ï¸  Completando campos en el formulario de ${labelJefe} (Sexo, Pais, Depto, Municipio)...`));
                                     
                                     const selSexoMadre = currentFrame.locator('select:visible[id*="ddlSexo"], select:visible[id*="Sexo"]').first();
                                     await selSexoMadre.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
                                     if (await selSexoMadre.count() > 0) {
                                         const vSexo = await selSexoMadre.inputValue().catch(() => '');
-                                        if (!vSexo || vSexo === '0' || vSexo.includes('Seleccione')) {
-                                            await waitForAndSelect(selSexoMadre, sexoJefeVal);
+                                        const textSelected = await selSexoMadre.evaluate(el => el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '').catch(() => '');
+                                        if (!vSexo || vSexo === '0' || vSexo === '-1' || textSelected.toUpperCase().includes('SELECCIONE')) {
+                                            console.log(c.verde(`    👉 Seleccionando Sexo de ${labelJefe} (${sexoFinal})...`));
+                                            let selOk = await waitForAndSelect(selSexoMadre, sexoFinal);
+                                            if (!selOk) {
+                                                const altSexo = sexoFinal === 'MASCULINO' ? 'HOMBRE' : 'MUJER';
+                                                await waitForAndSelect(selSexoMadre, altSexo);
+                                            }
                                         }
                                     }
 
