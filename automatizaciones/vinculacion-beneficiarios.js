@@ -212,6 +212,8 @@ async function main() {
             console.log(c.cyan('\n------------------------------------------------------'));
             console.log(c.amarillo(`  Jardin actual: ${jardinSeleccionado.nombre}`));
             console.log(c.amarillo('  [1] Ingresar nuevo beneficiario'));
+            console.log(c.cyan('  [2] Llenar Seguimiento Nutricional (Peso y Talla)'));
+            console.log(c.cyan('  [3] Llenar Formación a Familias'));
             console.log(c.amarillo('  [R] Recargar pagina (si hubo error de conexion)'));
             console.log(c.amarillo('  [0] Volver a seleccion de Jardin'));
             console.log(c.rojo('  [M] Volver al menu principal (npm start)'));
@@ -226,6 +228,32 @@ async function main() {
                 break; // Vuelve al loop de seleccion de jardin/asociacion
             }
             if (accion === 'R') {
+                forceMenuClick = true;
+                continue;
+            }
+            if (accion === '2' || accion === 'N') {
+                console.log(c.cyan('\n  🚀 Activando modulo de Seguimiento Nutricional (Peso y Talla)...'));
+                try {
+                    const pesoTallaScript = require('./peso-talla');
+                    if (typeof pesoTallaScript.main === 'function') {
+                        await pesoTallaScript.main();
+                    }
+                } catch(errNut) {
+                    console.log(c.rojo(`  ❌ Error ejecutando Nutricion: ${errNut.message}`));
+                }
+                forceMenuClick = true;
+                continue;
+            }
+            if (accion === '3' || accion === 'F') {
+                console.log(c.cyan('\n  🚀 Activando modulo de Formación a Familias...'));
+                try {
+                    const formacionScript = require('./formacion-familias');
+                    if (typeof formacionScript.main === 'function') {
+                        await formacionScript.main();
+                    }
+                } catch(errForm) {
+                    console.log(c.rojo(`  ❌ Error ejecutando Formacion: ${errForm.message}`));
+                }
                 forceMenuClick = true;
                 continue;
             }
