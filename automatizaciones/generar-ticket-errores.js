@@ -551,8 +551,8 @@ async function main() {
             await seleccionarRolYEntrar(page, ascSeleccionada);
         }
 
-        // Navegar al menu de Beneficiario
-        console.log(c.amarillo('  ⏳ Entrando al menu "Beneficiario" > "Información beneficiario"...'));
+        // Navegar a Beneficiario > Beneficiario (Modulo de Gestion de Beneficiarios)
+        console.log(c.cyan('  🚀 Navegando al modulo de Beneficiarios (Beneficiario > Beneficiario)...'));
         let menuFrame = page.frame({ name: 'frameMenu' });
         if (!menuFrame) {
             for (const f of page.frames()) {
@@ -563,53 +563,20 @@ async function main() {
             }
         }
         const rootMenu = menuFrame || page;
-          
+
         try {
-            await expandirMenu(page, ['Rub online', 'Beneficiario']);
-            await page.waitForTimeout(500);
-
-            let clickExitoso = await rootMenu.evaluate(() => {
-                const links = Array.from(document.querySelectorAll('a'));
-                const norm = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                
-                const target = links.find(a => 
-                    (a.href && a.href.toUpperCase().includes('INFORMACIONBENEFICIARIO')) ||
-                    norm(a.innerText).includes('informacion beneficiario')
-                );
-
-                if (target) {
-                    target.click();
-                    return true;
+            const links = await rootMenu.locator('a:text-is("Beneficiario")').all();
+            if (links.length >= 2) {
+                await links[1].evaluate(n => n.click());
+            } else if (links.length === 1) {
+                await links[0].evaluate(n => n.click());
+                await page.waitForTimeout(500);
+                const nuevosLinks = await rootMenu.locator('a:text-is("Beneficiario")').all();
+                if (nuevosLinks.length >= 2) {
+                    await nuevosLinks[1].evaluate(n => n.click());
                 }
-
-                const subBenef = links.filter(a => norm(a.innerText).trim() === 'beneficiario');
-                if (subBenef.length >= 2) {
-                    subBenef[1].click();
-                    return true;
-                } else if (subBenef.length === 1) {
-                    subBenef[0].click();
-                    return true;
-                }
-                return false;
-            }).catch(() => false);
-
-            if (!clickExitoso) {
-                const targetLocator = rootMenu.locator('a[href*="INFORMACIONBENEFICIARIO" i], a:has-text("Información beneficiario"), a:has-text("Informacion beneficiario")').first();
-                if (await targetLocator.count() > 0) {
-                    await targetLocator.click().catch(() => targetLocator.evaluate(node => node.click()));
-                } else {
-                    const links = await rootMenu.locator('a:text-is("Beneficiario")').all();
-                    if (links.length >= 2) {
-                        await links[1].evaluate(n => n.click());
-                    } else if (links.length === 1) {
-                        await links[0].evaluate(n => n.click());
-                        await page.waitForTimeout(500);
-                        const nuevosLinks = await rootMenu.locator('a:text-is("Beneficiario")').all();
-                        if (nuevosLinks.length >= 2) {
-                            await nuevosLinks[1].evaluate(n => n.click());
-                        }
-                    }
-                }
+            } else {
+                console.log(c.rojo('  ⚠️ No se encontro el menu Beneficiario.'));
             }
             await page.waitForTimeout(1500);
         } catch(e) {
