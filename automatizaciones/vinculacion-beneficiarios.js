@@ -1665,140 +1665,185 @@ async function ejecutarNutricionDirecta(page, asociacion, jardin, docNum, nombre
     if (nombreNino || docNum) console.log(c.verde(`  Niño: ${nombreNino || docNum}`));
     console.log(c.verde(`  Jardín: ${jardin.nombre} (${asociacion.nombreCorto})\n`));
 
+    const { expandirMenu } = require('../servicios/autenticacion');
+    const { cargarUdsEnCuentame } = require('./peso-talla');
     const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
 
     // 1. Navegar al módulo de Seguimiento nutricional
-    console.log(c.amarillo('  ⏳ Entrando al módulo "Seguimiento nutricional"...'));
-    let menuFrame = page.frame({ name: 'frameMenu' });
-    if (!menuFrame) {
-        for (const f of page.frames()) {
-            if (f.name() === 'frameMenu') { menuFrame = f; break; }
-        }
-    }
-    const rootMenu = menuFrame || page;
+    console.log(c.amarillo('  ⏳ Accediendo al módulo "Seguimiento nutricional"...'));
+    
+    // Expandir el menú 'Rub online' primero
+    await expandirMenu(page, ['Rub online']);
+    await page.waitForTimeout(600);
 
-    try {
-        const linkNut = rootMenu.locator('a[href*="NUTRICIONAL" i], a:has-text("Seguimiento nutricional")').first();
-        if (await linkNut.count() > 0) {
-            await linkNut.click().catch(() => linkNut.evaluate(n => n.click()));
-        } else {
-            const links = await rootMenu.locator('a:text-is("Seguimiento nutricional")').all();
-            if (links.length > 0) await links[0].evaluate(n => n.click());
-        }
-        await page.waitForTimeout(1500);
-    } catch(e) {
-        console.log(c.rojo(`  ❌ Error accediendo al módulo de Nutrición: ${e.message}`));
-    }
+    let menuFrame = page.frame({ name: 'frameMenu' }) || page.frames().find(f => f.name() === 'frameMenu') || page;
 
-    let content = page.frame({ name: 'frameContent' }) || page;
+    let clickedMenu = false;
+    for (let intento = 1; intento <= 3; intento++) {
+        clickedMenu = await menuFrame.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('a'));
+            const target = links.find(a => a.innerText && a.innerText.toLowerCase().includes('seguimiento nutricional'));
+            if (target) {
+                target.click();
+                return true;
+            }
+            return false;
+        }).catch(() => false);
 
-    // Helper para seleccionar en dropdown
-    const selectOptionClean = async (selectLoc, textToMatch) => {
-        if (!selectLoc || await selectLoc.count() === 0) return false;
-        const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[,.]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-        const cleanTarget = removeAccents(textToMatch);
-        const opts = await selectLoc.evaluate(s => Array.from(s.options).map(o => ({ v: o.value, t: o.text }))).catch(() => []);
-        const match = opts.find(o => removeAccents(o.t).includes(cleanTarget) || o.v.includes(cleanTarget));
-        if (match) {
-            await selectLoc.selectOption({ value: match.v }).catch(() => {});
-            await selectLoc.evaluate(el => el.dispatchEvent(new Event('change', { bubbles: true }))).catch(() => {});
-            return true;
-        }
-        return false;
-    };
-
-    // 2. Seleccionar UDS / Jardín y buscar Documento si lo tenemos
-    console.log(c.amarillo('  ⏳ Filtrando por Jardín...'));
-    const selUds = content.locator('select[id*="ddlUds"], select[id*="UnidadServicio"]').first();
-    if (await selUds.count() > 0) {
-        await selectOptionClean(selUds, jardin.codigo || jardin.nombre);
-        await page.waitForTimeout(800);
-    }
-
-    if (docNum) {
-        const inputDoc = content.locator('input[id*="txtNumeroDocumento"], input[id*="txtDocumento"]').first();
-        if (await inputDoc.count() > 0) {
-            await inputDoc.fill(docNum);
-        }
-
-        const btnBuscar = content.locator('a[id*="btnBuscar"], input[id*="btnBuscar"]').first();
-        if (await btnBuscar.count() > 0) {
-            await Promise.all([
-                content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                btnBuscar.evaluate(n => n.click())
-            ]);
-            await page.waitForTimeout(800);
-        }
-    }
-
-    // 3. Abrir la fila del niño o la primera fila devuelta
-    let btnDetalle = null;
-    if (docNum) {
-        btnDetalle = content.locator(`tr:visible:has-text("${docNum}") input[type="image"][src*="lupa"], tr:visible:has-text("${docNum}") a:has-text("Ver")`).first();
-        await btnDetalle.waitFor({ state: 'attached', timeout: 2000 }).catch(() => {});
-    }
-
-    if (!btnDetalle || await btnDetalle.count() === 0) {
-        btnDetalle = content.locator('table tr input[type="image"][src*="lupa"]').first();
-    }
-
-    if (await btnDetalle.count() > 0) {
-        console.log(c.verde('  ✅ Niño localizado en Nutrición. Cargando formulario...'));
-        await Promise.all([
-            content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-            btnDetalle.evaluate(n => n.click())
-        ]);
+        if (clickedMenu) break;
+        await expandirMenu(page, ['Rub online']);
         await page.waitForTimeout(1000);
+    }
 
-        // 4. Clic en (+) Nueva Toma
-        const btnNuevo = content.locator('a#btnNuevo, #cphCont_btnNuevo, a[id*="btnNuevo" i], input[id*="btnNuevo" i], input[src*="nuevo" i]').first();
-        if (await btnNuevo.count() > 0) {
-            await Promise.all([
-                content.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-                btnNuevo.evaluate(n => n.click())
-            ]);
-            console.log(c.verde('  ✅ Ventana de Nueva Toma abierta.'));
+    if (!clickedMenu) {
+        console.log(c.rojo('  ❌ No se pudo hacer clic en el enlace "Seguimiento nutricional" del menú.'));
+        return;
+    }
+
+    console.log(c.verde('  ✅ Clic en "Seguimiento nutricional" exitoso.'));
+    await page.waitForTimeout(2000);
+
+    // 2. Esperar que frameContent cargue la página de Seguimiento Nutricional
+    let contentFrame = page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
+    await contentFrame.waitForLoadState('networkidle').catch(() => {});
+
+    // 3. Cargar la UDS en Cuéntame
+    console.log(c.amarillo(`  ⏳ Cargando UDS en Cuéntame (${jardin.nombre})...`));
+    await cargarUdsEnCuentame(page, jardin);
+    await page.waitForTimeout(1500);
+
+    // Refrescar contentFrame
+    contentFrame = page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
+
+    // 4. Extraer lista de niños de la UDS
+    console.log(c.amarillo('  ⏳ Localizando al niño en la tabla de la UDS...'));
+    const filas = contentFrame.locator('tr:has(input[src*="info.jpg"], input[id*="btnInfo"])');
+    const count = await filas.count();
+
+    if (count === 0) {
+        console.log(c.rojo(`  ⚠️ No se encontraron niños listados en la UDS ${jardin.nombre}.`));
+        return;
+    }
+
+    let targetNino = null;
+    let listaNinos = [];
+    const cleanDocTarget = (docNum || '').replace(/\D/g, '');
+    const cleanNombreTarget = (nombreNino || '').toUpperCase();
+
+    for (let i = 0; i < count; i++) {
+        const fila = filas.nth(i);
+        const celdas = fila.locator(':scope > td');
+        const numCeldas = await celdas.count();
+        if (numCeldas < 4) continue;
+
+        const textoCeldas = await celdas.allInnerTexts();
+        const datos = textoCeldas.map(t => t.trim()).filter(t => t.length > 0);
+        if (datos.length >= 3) {
+            const docFila = datos[1] || '';
+            const nombreFila = datos.slice(2, -2).join(' ') || datos[2] || '';
+            const cleanDocFila = docFila.replace(/\D/g, '');
+
+            const ninoObj = {
+                index: i + 1,
+                documento: docFila,
+                nombreCompleto: nombreFila,
+                locator: fila.locator('input[type="image"][src*="info.jpg"], input[id*="btnInfo"]').first()
+            };
+            listaNinos.push(ninoObj);
+
+            // Coincidencia exacta por documento
+            if (cleanDocTarget && cleanDocFila && (cleanDocFila === cleanDocTarget || cleanDocTarget.includes(cleanDocFila) || cleanDocFila.includes(cleanDocTarget))) {
+                targetNino = ninoObj;
+                break;
+            }
+
+            // Coincidencia por nombre si no tiene documento o es parcial
+            if (!targetNino && cleanNombreTarget && cleanNombreTarget.split(' ').filter(p => p.length > 2).every(part => nombreFila.toUpperCase().includes(part))) {
+                targetNino = ninoObj;
+            }
         }
+    }
 
-        // 5. Pedir datos antropométricos
-        console.log(c.cyan('\n  Ingresa los datos para la toma antropométrica:'));
-        const hoyStr = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/-/g, '/');
-        
-        let fechaToma = readline.question(c.negrita(`  > Fecha de Toma (DD/MM/YYYY) [Enter para Hoy ${hoyStr}]: `)).trim();
-        if (!fechaToma) fechaToma = hoyStr;
-        fechaToma = parsearFecha(fechaToma);
-
-        let peso = '';
-        while(!peso || isNaN(parseFloat(peso.replace(',', '.')))) {
-            peso = readline.question(c.negrita('  > Peso en KG (ej: 14.5): ')).trim();
+    // Si no se encontró automáticamente, permitir selección manual
+    if (!targetNino) {
+        console.log(c.amarillo(`  ⚠️ No se localizó automáticamente al niño "${nombreNino || docNum}" entre los ${listaNinos.length} registros.`));
+        listaNinos.forEach(n => console.log(`    [${n.index}] ${c.cyan(n.documento)} - ${n.nombreCompleto}`));
+        const resIdx = readline.question(c.negrita(`\n  > Ingresa el número del niño de la lista (o 0 para salir): `)).trim();
+        const parsed = parseInt(resIdx, 10);
+        if (!isNaN(parsed) && parsed > 0 && parsed <= listaNinos.length) {
+            targetNino = listaNinos[parsed - 1];
+        } else {
+            return;
         }
+    }
 
-        let talla = '';
-        while(!talla || isNaN(parseFloat(talla.replace(',', '.')))) {
-            talla = readline.question(c.negrita('  > Talla en CM (ej: 95.0): ')).trim();
-        }
+    console.log(c.verde(`\n  ✅ Niño seleccionado: ${targetNino.nombreCompleto} (${targetNino.documento})`));
+    console.log(c.gris('  Accediendo al historial de tomas...'));
 
-        const datosLlenado = {
-            fecha: fechaToma,
-            peso: peso,
-            talla: talla,
-            perimetro: '',
-            observaciones: 'VINCULACION NUEVO BENEFICIARIO'
-        };
+    await Promise.all([
+        contentFrame.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+        targetNino.locator.evaluate(node => node.click())
+    ]);
+    await page.waitForTimeout(1200);
 
-        // 6. Llenar y Guardar
-        await llenarFormularioNutricion(page.context().browser(), content, datosLlenado, false);
-        await page.waitForTimeout(500);
+    // 5. Clic en (+) Nueva Toma
+    contentFrame = page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
+    const btnNuevo = contentFrame.locator('a[id*="btnNuevo"], input[id*="btnNuevo"]').first();
+    await btnNuevo.waitFor({ state: 'attached', timeout: 6000 }).catch(() => {});
+    if (await btnNuevo.count() > 0) {
+        console.log(c.amarillo('  ⏳ Abriendo formulario de Nueva Toma (+)...'));
+        await Promise.all([
+            contentFrame.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+            btnNuevo.evaluate(node => node.click())
+        ]);
+        await page.waitForTimeout(800);
 
-        const btnGuardar = content.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i]').first();
-        if (await btnGuardar.count() > 0) {
-            console.log(c.amarillo('  ⏳ Guardando toma de nutrición...'));
-            await btnGuardar.click({ timeout: 3000 }).catch(() => btnGuardar.evaluate(n => n.click()));
-            await page.waitForTimeout(1000);
-            console.log(c.verde('\n  🎉 ¡Toma de Peso y Talla registrada exitosamente para el beneficiario!'));
+        const btnAceptarPop = contentFrame.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
+        if (await btnAceptarPop.isVisible().catch(() => false)) {
+            await btnAceptarPop.click().catch(() => btnAceptarPop.evaluate(n => n.click()));
+            await page.waitForTimeout(600);
         }
     } else {
-        console.log(c.rojo('  ⚠️ No se encontró la fila del niño en la lista de Nutrición. Por favor verifica manualmente.'));
+        console.log(c.rojo('  ❌ No se encontró el botón (+) Nuevo en la pantalla de tomas.'));
+        return;
+    }
+
+    // 6. Solicitar datos antropométricos
+    console.log(c.cyan('\n  📍 INGRESO DE DATOS DE PESO Y TALLA'));
+    const hoyStr = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/-/g, '/');
+    let fechaEntrada = readline.question(c.negrita(`  > Fecha de valoración (Enter para hoy ${hoyStr}): `)).trim();
+    if (!fechaEntrada) fechaEntrada = hoyStr;
+
+    let pesoInput = '';
+    while (!pesoInput) pesoInput = readline.question(c.negrita('  > Peso en Kilogramos (ej. 12.5): ')).trim();
+
+    let tallaInput = '';
+    while (!tallaInput) tallaInput = readline.question(c.negrita('  > Talla en Centímetros (ej. 85): ')).trim();
+
+    let perimetroInput = readline.question(c.negrita('  > Perímetro Braquial (cm) [Opcional - Enter para omitir]: ')).trim();
+
+    const datosLlenado = {
+        documentoPrevio: targetNino.documento,
+        fecha: parsearFecha(fechaEntrada),
+        peso: pesoInput.replace(',', '.'),
+        talla: tallaInput.replace(',', '.'),
+        perimetro: perimetroInput ? perimetroInput.replace(',', '.') : ''
+    };
+
+    console.log(c.amarillo('\n  ⏳ Llenando formulario antropométrico...'));
+    const browser = page.context().browser();
+    await llenarFormularioNutricion(browser, contentFrame, datosLlenado, false);
+    await page.waitForTimeout(800);
+
+    // 7. Guardar en Cuéntame
+    console.log(c.amarillo('  ⏳ Guardando automáticamente en Cuéntame (clic en Guardar)...'));
+    const btnGuardar = contentFrame.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i]').first();
+    if (await btnGuardar.count() > 0) {
+        await btnGuardar.click({ timeout: 4000 }).catch(() => btnGuardar.evaluate(n => n.click()));
+        await page.waitForTimeout(1500);
+        console.log(c.verde('\n  🎉 ¡Toma de Peso y Talla registrada y guardada exitosamente!'));
+    } else {
+        console.log(c.rojo('  ⚠️ No se encontró el botón de Guardar automático. Por favor guarda manualmente en pantalla.'));
     }
 }
 
