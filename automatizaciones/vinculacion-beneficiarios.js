@@ -1298,48 +1298,63 @@ async function main() {
                                     }
                                     await waitForAndSelect(selParentescoBen, parentescoJefeVal);
 
-                                    // Preguntar Tipo de Documento
-                                    console.log(c.cyan(`\n  > Tipo de Documento de ${labelJefe}:`));
-                                    console.log(c.cyan('    1. Cedula de Ciudadania'));
-                                    console.log(c.cyan('    2. Cedula de Extranjeria'));
-                                    console.log(c.cyan('    3. Permiso por Proteccion Temporal'));
-                                    console.log(c.cyan('    4. Pasaporte'));
-                                    let tipoDocSel = '';
-                                    while(!['1','2','3','4'].includes(tipoDocSel)) {
-                                        tipoDocSel = readline.question(c.cyan('  > Elige una opcion (1-4): ')).trim();
-                                    }
-                                    const docsMap = {
-                                        '1': 'CEDULA DE CIUDADANIA',
-                                        '2': 'CEDULA DE EXTRANJERIA',
-                                        '3': 'PERMISO POR PROTECCION TEMPORAL',
-                                        '4': 'PASAPORTE'
-                                    };
-                                    const valTipoDocJefe = docsMap[tipoDocSel];
+                                     // Preguntar Tipo de Documento
+                                     console.log(c.cyan(`\n  > Tipo de Documento de ${labelJefe}:`));
+                                     console.log(c.cyan('    1. Cedula de Ciudadania'));
+                                     console.log(c.cyan('    2. Cedula de Extranjeria'));
+                                     console.log(c.cyan('    3. Permiso por Proteccion Temporal'));
+                                     console.log(c.cyan('    4. Pasaporte'));
+                                     console.log(c.cyan('    5. Sin Documento'));
+                                     let tipoDocSel = '';
+                                     while(!['1','2','3','4','5'].includes(tipoDocSel)) {
+                                         tipoDocSel = readline.question(c.cyan('  > Elige una opcion (1-5): ')).trim();
+                                     }
+                                     const docsMap = {
+                                         '1': 'CEDULA DE CIUDADANIA',
+                                         '2': 'CEDULA DE EXTRANJERIA',
+                                         '3': 'PERMISO POR PROTECCION TEMPORAL',
+                                         '4': 'PASAPORTE',
+                                         '5': 'SIN DOCUMENTO'
+                                     };
+                                     const valTipoDocJefe = docsMap[tipoDocSel];
+                                     const esSinDoc = (valTipoDocJefe === 'SIN DOCUMENTO');
 
-                                    const selTipoDocMadre = currentFrame.locator('select:visible[id*="ddlTipoDocumento"], select:visible[id*="TipoDoc"]').first();
-                                    await waitForAndSelect(selTipoDocMadre, valTipoDocJefe);
+                                     const selTipoDocMadre = currentFrame.locator('select:visible[id*="ddlTipoDocumento"], select:visible[id*="TipoDoc"]').first();
+                                     const postSelDoc = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 4000 }).catch(() => {});
+                                     await waitForAndSelect(selTipoDocMadre, valTipoDocJefe);
+                                     await postSelDoc;
+                                     await page.waitForTimeout(800);
 
-                                    const docMadre = readline.question(c.negrita(`\n  > Numero de Documento de Identidad de ${labelJefe}: `)).trim();
-                                    const txtDocMadre = currentFrame.locator('input[type="text"]:visible[id*="txtIdentificacion"], input[type="text"]:visible[id*="Documento"]').first();
-                                    await txtDocMadre.fill(docMadre);
+                                     let docMadre = 'SIN DOCUMENTO';
+                                     if (!esSinDoc) {
+                                         docMadre = readline.question(c.negrita(`\n  > Numero de Documento de Identidad de ${labelJefe}: `)).trim();
+                                         const txtDocMadre = currentFrame.locator('input[type="text"]:visible[id*="txtIdentificacion"], input[type="text"]:visible[id*="Documento"]').first();
+                                         if (await txtDocMadre.count() > 0) {
+                                             await txtDocMadre.fill(docMadre);
+                                         }
 
-                                    // Clic en lupa
-                                    const btnLupaMadre = currentFrame.locator('input[type="image"]:visible[src*="icoPagBuscar"], input[type="image"]:visible[id*="Buscar"], input[type="image"]:visible[id*="Lupa"]').first();
-                                    const postPromiseMadre = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
-                                    await btnLupaMadre.click();
-                                    console.log(c.amarillo(`  â³ Buscando a ${labelJefe} en el sistema...`));
-                                    await postPromiseMadre;
-                                    await page.waitForTimeout(800); // Esperar renderizado del UpdatePanel
+                                         // Clic en lupa
+                                         const btnLupaMadre = currentFrame.locator('input[type="image"]:visible[src*="icoPagBuscar"], input[type="image"]:visible[id*="Buscar"], input[type="image"]:visible[id*="Lupa"]').first();
+                                         if (await btnLupaMadre.count() > 0) {
+                                             const postPromiseMadre = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 10000 }).catch(() => {});
+                                             await btnLupaMadre.click();
+                                             console.log(c.amarillo(`  ⏳ Buscando a ${labelJefe} en el sistema...`));
+                                             await postPromiseMadre;
+                                             await page.waitForTimeout(800); // Esperar renderizado del UpdatePanel
+                                         }
+                                     } else {
+                                         console.log(c.amarillo(`  ℹ️  ${labelJefe} es SIN DOCUMENTO. Se omite busqueda por identificacion.`));
+                                     }
 
-                                    // Verificar si es nueva
-                                    const txtPrimerNombreMadre = currentFrame.locator('input[type="text"]:visible[id*="txtPrimerNombre"]').first();
-                                    await txtPrimerNombreMadre.waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
-                                    
-                                    const isEditable = await txtPrimerNombreMadre.isEditable().catch(() => false);
-                                    const valNombre = await txtPrimerNombreMadre.inputValue().catch(() => '');
+                                     // Verificar si es nueva
+                                     const txtPrimerNombreMadre = currentFrame.locator('input[type="text"]:visible[id*="txtPrimerNombre"]').first();
+                                     await txtPrimerNombreMadre.waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
+                                     
+                                     const isEditable = await txtPrimerNombreMadre.isEditable().catch(() => false);
+                                     const valNombre = await txtPrimerNombreMadre.inputValue().catch(() => '');
 
-                                    if (isEditable && !valNombre) {
-                                        console.log(c.cyan(`  âœ¨ ${labelJefe.toUpperCase()} es NUEVA(O) en el sistema. Solicitando datos...`));
+                                     if (esSinDoc || (isEditable && !valNombre)) {
+                                         console.log(c.cyan(`\n  ✨ ${labelJefe.toUpperCase()} ${esSinDoc ? 'es SIN DOCUMENTO' : 'es NUEVA(O) en el sistema'}. Solicitando datos...`));
                                         let pNombreMadre = '';
                                         while(!pNombreMadre) pNombreMadre = readline.question(c.negrita('  > Primer Nombre: ')).trim().toUpperCase();
                                         const sNombreMadre = readline.question(c.negrita('  > Segundo Nombre: ')).trim().toUpperCase();
@@ -1370,85 +1385,88 @@ async function main() {
                                             await txtFechaNacM.evaluate(el => { el.value = ''; }).catch(()=>{});
                                             await txtFechaNacM.focus();
                                             await txtFechaNacM.pressSequentially(fechaNacMadre.replace(/\D/g, ''), { delay: 100 });
-                                            const datePost = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 4000 }).catch(() => {});
-                                            await txtFechaNacM.press('Tab');
-                                            await datePost;
-                                        }
+                                            // --- PREGUNTAR / CONFIRMAR LUGAR DE NACIMIENTO DEL ACUDIENTE ---
+                                            console.log(c.cyan(`\n  🗺️  LUGAR DE NACIMIENTO DE ${labelJefe.toUpperCase()}`));
+                                            const resPaisM = readline.question(c.negrita(`  > Pais de Nacimiento? (Enter/Tab para COLOMBIA): `)).trim().toUpperCase();
+                                            const valPaisM = (resPaisM === '' || resPaisM === '1') ? 'COLOMBIA' : resPaisM;
 
-                                    // --- PREGUNTAR / CONFIRMAR LUGAR DE NACIMIENTO DEL ACUDIENTE ---
-                                    console.log(c.cyan(`\n  ðŸ“ LUGAR DE NACIMIENTO DE ${labelJefe.toUpperCase()}`));
-                                    const resPaisM = readline.question(c.negrita(`  > Pais de Nacimiento? (Enter/Tab para COLOMBIA): `)).trim().toUpperCase();
-                                    const valPaisM = (resPaisM === '' || resPaisM === '1') ? 'COLOMBIA' : resPaisM;
+                                            let valDeptoM = 'BOGOTA D.C.';
+                                            let valMuniM = 'BOGOTA, D.C.';
+                                            if (valPaisM === 'COLOMBIA') {
+                                                const resDeptoM = readline.question(c.negrita(`  > Departamento de Nacimiento? (Enter/Tab para BOGOTA D.C.): `)).trim().toUpperCase();
+                                                valDeptoM = (resDeptoM === '' || resDeptoM === '1') ? 'BOGOTA D.C.' : resDeptoM;
 
-                                    const resDeptoM = readline.question(c.negrita(`  > Departamento de Nacimiento? (Enter/Tab para BOGOTA D.C.): `)).trim().toUpperCase();
-                                    const valDeptoM = (resDeptoM === '' || resDeptoM === '1') ? 'BOGOTA D.C.' : resDeptoM;
+                                                const resMuniM = readline.question(c.negrita(`  > Municipio de Nacimiento? (Enter/Tab para BOGOTA, D.C.): `)).trim().toUpperCase();
+                                                valMuniM = (resMuniM === '' || resMuniM === '1') ? 'BOGOTA, D.C.' : resMuniM;
+                                            }
 
-                                    const resMuniM = readline.question(c.negrita(`  > Municipio de Nacimiento? (Enter/Tab para BOGOTA, D.C.): `)).trim().toUpperCase();
-                                    const valMuniM = (resMuniM === '' || resMuniM === '1') ? 'BOGOTA, D.C.' : resMuniM;
+                                            // Helper para seleccionar dropdowns en cascada con postback de ASP.NET
+                                            const selectCascadingDropdown = async (selectLoc, textToSelect) => {
+                                                if (await selectLoc.count() === 0) return false;
+                                                await selectLoc.waitFor({ state: 'attached', timeout: 4000 }).catch(() => {});
+                                                const postP = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 6000 }).catch(() => {});
+                                                await waitForAndSelect(selectLoc, textToSelect);
+                                                await selectLoc.evaluate(el => {
+                                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                                }).catch(() => {});
+                                                await postP;
+                                                await page.waitForTimeout(800);
+                                            };
 
-                                    // Helper para seleccionar dropdowns en cascada con postback de ASP.NET
-                                    const selectCascadingDropdown = async (selectLoc, textToSelect) => {
-                                        if (await selectLoc.count() === 0) return false;
-                                        await selectLoc.waitFor({ state: 'attached', timeout: 4000 }).catch(() => {});
-                                        const postP = page.waitForResponse(resp => resp.request().method() === 'POST', { timeout: 6000 }).catch(() => {});
-                                        await waitForAndSelect(selectLoc, textToSelect);
-                                        await selectLoc.evaluate(el => {
-                                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                                        }).catch(() => {});
-                                        await postP;
-                                        await page.waitForTimeout(800);
-                                    };
+                                            // --- AUTOCOMPLETAR CAMPOS REQUERIDOS EN CUENTAME ---
+                                            console.log(c.amarillo(`  ℹ️  Completando campos en el formulario de ${labelJefe} (Sexo, Pais, Depto, Municipio)...`));
+                                            
+                                            const selSexoMadre = currentFrame.locator('select:visible[id*="ddlSexo"], select:visible[id*="Sexo"]').first();
+                                            await selSexoMadre.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+                                            if (await selSexoMadre.count() > 0) {
+                                                const vSexo = await selSexoMadre.inputValue().catch(() => '');
+                                                const textSelected = await selSexoMadre.evaluate(el => el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '').catch(() => '');
+                                                if (!vSexo || vSexo === '0' || vSexo === '-1' || textSelected.toUpperCase().includes('SELECCIONE')) {
+                                                    console.log(c.verde(`    👉 Seleccionando Sexo de ${labelJefe} (${sexoFinal})...`));
+                                                    let selOk = await waitForAndSelect(selSexoMadre, sexoFinal);
+                                                    if (!selOk) {
+                                                        const altSexo = sexoFinal === 'MASCULINO' ? 'HOMBRE' : 'MUJER';
+                                                        await waitForAndSelect(selSexoMadre, altSexo);
+                                                    }
+                                                }
+                                            }
 
-                                    // --- AUTOCOMPLETAR CAMPOS REQUERIDOS EN CUENTAME ---
-                                    console.log(c.amarillo(`  â„¹ï¸  Completando campos en el formulario de ${labelJefe} (Sexo, Pais, Depto, Municipio)...`));
-                                    
-                                    const selSexoMadre = currentFrame.locator('select:visible[id*="ddlSexo"], select:visible[id*="Sexo"]').first();
-                                    await selSexoMadre.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
-                                    if (await selSexoMadre.count() > 0) {
-                                        const vSexo = await selSexoMadre.inputValue().catch(() => '');
-                                        const textSelected = await selSexoMadre.evaluate(el => el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '').catch(() => '');
-                                        if (!vSexo || vSexo === '0' || vSexo === '-1' || textSelected.toUpperCase().includes('SELECCIONE')) {
-                                            console.log(c.verde(`    👉 Seleccionando Sexo de ${labelJefe} (${sexoFinal})...`));
-                                            let selOk = await waitForAndSelect(selSexoMadre, sexoFinal);
-                                            if (!selOk) {
-                                                const altSexo = sexoFinal === 'MASCULINO' ? 'HOMBRE' : 'MUJER';
-                                                await waitForAndSelect(selSexoMadre, altSexo);
+                                            // 1. Pais
+                                            const selPaisM = currentFrame.locator('select:visible[id*="PaisNacimiento"], select:visible[id*="Pais"]').first();
+                                            await selPaisM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+                                            if (await selPaisM.count() > 0) {
+                                                const vPais = await selPaisM.inputValue().catch(() => '');
+                                                if (!vPais || vPais === '0' || vPais.includes('Seleccione')) {
+                                                    console.log(c.verde(`    👉 Seleccionando Pais de Nacimiento (${valPaisM})...`));
+                                                    await selectCascadingDropdown(selPaisM, valPaisM);
+                                                }
+                                            }
+                                            
+                                            // 2. Departamento (Cargado tras postback del Pais) - Solo si aplica
+                                            if (valPaisM === 'COLOMBIA') {
+                                                const selDeptoM = currentFrame.locator('select:visible[id*="DepartamentoNacimiento"], select:visible[id*="DeptoNacimiento"], select:visible[id*="Departamento"], select:visible[id*="Depto"]').first();
+                                                await selDeptoM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+                                                if (await selDeptoM.count() > 0 && await selDeptoM.isEnabled().catch(() => false)) {
+                                                    const vDepto = await selDeptoM.inputValue().catch(() => '');
+                                                    if (!vDepto || vDepto === '0' || vDepto.includes('Seleccione')) {
+                                                        console.log(c.verde(`    👉 Seleccionando Departamento de Nacimiento (${valDeptoM})...`));
+                                                        await selectCascadingDropdown(selDeptoM, valDeptoM);
+                                                    }
+                                                }
+                                                
+                                                // 3. Municipio (Cargado tras postback del Departamento) - Solo si aplica
+                                                const selMuniM = currentFrame.locator('select:visible[id*="MunicipioNacimiento"], select:visible[id*="MuniNacimiento"], select:visible[id*="Municipio"], select:visible[id*="Muni"]').first();
+                                                await selMuniM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+                                                if (await selMuniM.count() > 0 && await selMuniM.isEnabled().catch(() => false)) {
+                                                    const vMuni = await selMuniM.inputValue().catch(() => '');
+                                                    if (!vMuni || vMuni === '0' || vMuni.includes('Seleccione')) {
+                                                        console.log(c.verde(`    👉 Seleccionando Municipio de Nacimiento (${valMuniM})...`));
+                                                        await waitForAndSelect(selMuniM, valMuniM);
+                                                    }
+                                                }
                                             }
                                         }
-                                    }
-
-                                    // 1. Pais
-                                    const selPaisM = currentFrame.locator('select:visible[id*="PaisNacimiento"], select:visible[id*="Pais"]').first();
-                                    await selPaisM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
-                                    if (await selPaisM.count() > 0) {
-                                        const vPais = await selPaisM.inputValue().catch(() => '');
-                                        if (!vPais || vPais === '0' || vPais.includes('Seleccione')) {
-                                            console.log(c.verde(`    ðŸ‘‰ Seleccionando Pais de Nacimiento (${valPaisM})...`));
-                                            await selectCascadingDropdown(selPaisM, valPaisM);
-                                        }
-                                    }
-                                    
-                                    // 2. Departamento (Cargado tras postback del Pais)
-                                    const selDeptoM = currentFrame.locator('select:visible[id*="DepartamentoNacimiento"], select:visible[id*="DeptoNacimiento"], select:visible[id*="Departamento"], select:visible[id*="Depto"]').first();
-                                    await selDeptoM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
-                                    if (await selDeptoM.count() > 0) {
-                                        const vDepto = await selDeptoM.inputValue().catch(() => '');
-                                        if (!vDepto || vDepto === '0' || vDepto.includes('Seleccione')) {
-                                            console.log(c.verde(`    ðŸ‘‰ Seleccionando Departamento de Nacimiento (${valDeptoM})...`));
-                                            await selectCascadingDropdown(selDeptoM, valDeptoM);
-                                        }
-                                    }
-                                    
-                                    // 3. Municipio (Cargado tras postback del Departamento)
-                                    const selMuniM = currentFrame.locator('select:visible[id*="MunicipioNacimiento"], select:visible[id*="MuniNacimiento"], select:visible[id*="Municipio"], select:visible[id*="Muni"]').first();
-                                    await selMuniM.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
-                                    if (await selMuniM.count() > 0) {
-                                        const vMuni = await selMuniM.inputValue().catch(() => '');
-                                        if (!vMuni || vMuni === '0' || vMuni.includes('Seleccione')) {
-                                            console.log(c.verde(`    ðŸ‘‰ Seleccionando Municipio de Nacimiento (${valMuniM})...`));
-                                            await waitForAndSelect(selMuniM, valMuniM);
-                                        }
-                                    } } else {
+                                    } else {
                                         // === PERSONA EXISTENTE EN CUÉNTAME ===
                                         const pNombreM  = await currentFrame.locator('input[type="text"]:visible[id*="txtPrimerNombre"]').first().inputValue().catch(() => '');
                                         const sNombreM  = await currentFrame.locator('input[type="text"]:visible[id*="txtSegundoNombre"]').first().inputValue().catch(() => '');
