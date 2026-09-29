@@ -6,11 +6,13 @@
  */
 
 require('dotenv').config();
+const fs = require('fs');
 const { chromium } = require('playwright');
 const path = require('path');
 const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
+const calendario = require('../servicios/calendario-colombia');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -91,8 +93,9 @@ async function main() {
   
   while (true) {
       const fases = [
-        'Subida de RAM Masiva', 
-        'Asistencias/Inasistencias'
+        'Subida de RAM Masiva (Llenar días hábiles por defecto)', 
+        'Asistencias/Inasistencias Interactivas (Manual)',
+        'Sincronizar RAMs reportados por las Madres Comunitarias (Portal Web)'
       ];
       const faseIndex = readline.keyInSelect(fases, c.negrita('  > ESCOGER LA OPCION A EJECUTAR: '), { cancel: 'Volver al Menu Principal' });
       
@@ -111,8 +114,10 @@ async function main() {
 
       if (faseIndex === 0) {
           await ejecutarFase1(asociaciones, mesAtencion);
-      } else {
+      } else if (faseIndex === 1) {
           await ejecutarFase2(asociaciones, mesAtencion);
+      } else if (faseIndex === 2) {
+          await ejecutarFase3(asociaciones, mesAtencion);
       }
   }
   console.log(c.verde('\n  👋 Volviendo al menu principal...\n'));
@@ -159,21 +164,36 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
         ascAProcesar = partes.map(n => asociaciones[n - 1]);
     }
 
-    // Configurar dias a ignorar (Capacitaciones, etc)
-    let diasIgnorarStr = readline.question(c.negrita('\n  > Dias a ignorar en todo el mes (separados por coma, ej: 20,25) o ENTER para ninguno: '));
-    const diasIgnorar = diasIgnorarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
-
-    // Configurar dias para marcar asistencia (por defecto HOY)
-    const diaHoy = new Date().getDate();
-    let diasMarcarStr = readline.question(c.negrita(`  > Dias para marcar asistencia por defecto (hoy) [ENTER por defecto = HOY (dia ${diaHoy})]: `)).trim();
-    
-    let diasAMarcar = null;
-    if (diasMarcarStr === '') {
-        diasAMarcar = [diaHoy];
-    } else if (diasMarcarStr.toUpperCase() !== 'TODOS' && diasMarcarStr.toUpperCase() !== 'ALL') {
-        diasAMarcar = diasMarcarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
-        if (diasAMarcar.length === 0) diasAMarcar = [diaHoy];
+    // Calcular calendario oficial del mes (Festivos y Último Viernes)
+    const cal = calendario.obtenerCalendarioMesJardin(2026, mesAtencion);
+    console.log(c.cyan(`\n  📅 CALENDARIO OFICIAL ICBF PARA ${mesAtencion.toUpperCase()} 2026:`));
+    console.log(c.verde(`     Días hábiles de atención (${cal.totalDiasHabiles} días): [${cal.diasHabiles.join(', ')}]`));
+    if (cal.festivosDelMes.length > 0) {
+        console.log(c.amarillo(`     Festivos nacionales sin jardín: ${cal.festivosDelMes.map(f => `${f.dia} (${f.nombre})`).join(', ')}`));
+    } else {
+        console.log(c.gris(`     Festivos nacionales en este mes: Ninguno`));
     }
+    console.log(c.amarillo(`     Último viernes (Jornada pedagógica ICBF sin jardín): Día ${cal.ultimoViernes}`));
+
+    // Configurar dias adicionales a ignorar (Capacitaciones extraordinarias, etc.)
+    let diasIgnorarStr = readline.question(c.negrita('\n  > Días EXTRA a ignorar (separados por coma, ej: 10,12) o ENTER para ninguno: ')).trim();
+    const diasIgnorarExtra = diasIgnorarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+    
+    // Todos los días inhábiles (festivos + último viernes) se ignoran automáticamente
+    const diasInhabilesCal = cal.dias.filter(d => !d.esHabil).map(d => d.dia);
+    const diasIgnorar = Array.from(new Set([...diasInhabilesCal, ...diasIgnorarExtra]));
+
+    // Configurar dias para marcar asistencia (por defecto TODOS los días hábiles del mes)
+    console.log(c.cyan(`\n  ⭐ Por defecto se llenarán TODOS los ${cal.totalDiasHabiles} días hábiles de atención del mes.`));
+    let diasMarcarStr = readline.question(c.negrita(`  > Días para marcar [ENTER por defecto = TODOS LOS DÍAS HÁBILES (${cal.totalDiasHabiles} días)]: `)).trim();
+    
+    let diasAMarcar = [...cal.diasHabiles];
+    if (diasMarcarStr !== '' && diasMarcarStr.toUpperCase() !== 'TODOS' && diasMarcarStr.toUpperCase() !== 'ALL') {
+        const customDias = diasMarcarStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+        if (customDias.length > 0) diasAMarcar = customDias;
+    }
+    // Filtrar ignorados
+    diasAMarcar = diasAMarcar.filter(d => !diasIgnorar.includes(d));
 
     let finalAscAProcesar = [];
     for (let asc of ascAProcesar) {
@@ -1321,6 +1341,451 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
             break;
         }
     }
+}
+
+// ==========================================
+// FASE 3: SINCRONIZAR RAMS REPORTADOS POR MADRES (PORTAL WEB)
+// ==========================================
+async function ejecutarFase3(asociaciones, mesAtencion) {
+    console.log(c.cyan('\n===================================================================='));
+    console.log(c.cyan(`  📲 FASE 3: SINCRONIZAR RAMS REPORTADOS POR MADRES (${mesAtencion.toUpperCase()})`));
+    console.log(c.cyan('  (Lee los reportes digitales del Portal Web y los sube a Cuéntame)'));
+    console.log(c.cyan('===================================================================='));
+
+    const directoriosRAM = [
+        path.join(__dirname, '..', 'docs', 'ram_entregas'),
+        path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'ram_entregas')
+    ];
+
+    const archivosVistos = new Set();
+    const listaRams = [];
+
+    for (const baseDir of directoriosRAM) {
+        if (!fs.existsSync(baseDir)) continue;
+        try {
+            const subdirs = fs.readdirSync(baseDir).filter(f => fs.statSync(path.join(baseDir, f)).isDirectory());
+            for (const sub of subdirs) {
+                const subPath = path.join(baseDir, sub);
+                const files = fs.readdirSync(subPath).filter(f => f.endsWith('.json'));
+                for (const f of files) {
+                    const fullPath = path.join(subPath, f);
+                    const fileKey = `${sub}_${f}`;
+                    if (archivosVistos.has(fileKey)) continue;
+                    archivosVistos.add(fileKey);
+
+                    try {
+                        const contenido = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                        listaRams.push({
+                            fullPath,
+                            filename: f,
+                            asocSubdir: sub,
+                            data: contenido
+                        });
+                    } catch(e) {}
+                }
+            }
+        } catch(e) {}
+    }
+
+    if (listaRams.length === 0) {
+        console.log(c.amarillo(`\n  ℹ️ No se encontraron archivos de entrega RAM en docs/ram_entregas.`));
+        console.log(c.gris(`     Las madres pueden reportar su asistencia desde el portal web en https://app-cuentame.onrender.com (o http://localhost:3000)`));
+        readline.question(c.negrita('\n  Presiona ENTER para regresar al menú...'));
+        return;
+    }
+
+    // Filtrar por mes seleccionado (o mostrar todos si no coincide exactamente)
+    const ramsDelMes = listaRams.filter(r => (r.data.mes || '').toUpperCase() === (mesAtencion || '').toUpperCase());
+    const poolRams = ramsDelMes.length > 0 ? ramsDelMes : listaRams;
+
+    console.log(c.cyan(`\n  📋 LISTADO DE RAMS ENCONTRADOS (${poolRams.length}):`));
+    console.log(c.gris('  --------------------------------------------------------------------------------'));
+    poolRams.forEach((r, idx) => {
+        const d = r.data;
+        const estadoTag = d.estado === 'SINCRONIZADO' ? c.verde('✅ SINCRONIZADO') : c.amarillo('⏳ PENDIENTE');
+        const numFaltas = (d.resumen && d.resumen.totalInasistencias !== undefined) ? d.resumen.totalInasistencias : (d.inasistencias ? d.inasistencias.length : 0);
+        const ninosFaltas = (d.inasistencias && d.inasistencias.length) || 0;
+        console.log(`  ${idx + 1}. [${d.asociacion || r.asocSubdir}] UDS: ${d.jardin} (${d.codigoUds})`);
+        console.log(`     Madre: ${d.madre || 'N/A'} | Mes: ${d.mes} ${d.anio || 2026} | Radicado: ${d.radicado || 'N/A'}`);
+        console.log(`     Inasistencias: ${ninosFaltas} niños (${numFaltas} faltas) | Estado: ${estadoTag}`);
+        console.log(c.gris('  --------------------------------------------------------------------------------'));
+    });
+
+    console.log(c.amarillo('\n  T. 🌟 SINCRONIZAR TODOS LOS RAMS PENDIENTES'));
+    console.log(c.amarillo('  A. ⚡ FORZAR SINCRONIZACIÓN DE TODOS (Incluso los ya sincronizados)'));
+    console.log(c.amarillo('  0. Regresar al menú'));
+
+    const resp = readline.question(c.negrita('\n  > Selecciona la opción o número(s) separados por coma: ')).trim().toUpperCase();
+    if (resp === '0' || !resp) return;
+
+    let seleccionados = [];
+    if (resp === 'T') {
+        seleccionados = poolRams.filter(r => r.data.estado !== 'SINCRONIZADO');
+        if (seleccionados.length === 0) {
+            console.log(c.verde('\n  ✅ Todos los RAMs encontrados ya se encuentran SINCRONIZADOS.'));
+            const forzar = readline.keyInYNStrict(c.amarillo('  ¿Deseas forzar la resincronización de todos? '));
+            if (forzar) seleccionados = poolRams;
+            else return;
+        }
+    } else if (resp === 'A') {
+        seleccionados = poolRams;
+    } else {
+        const indices = resp.split(/[, ]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= poolRams.length);
+        seleccionados = indices.map(i => poolRams[i - 1]);
+    }
+
+    if (seleccionados.length === 0) {
+        console.log(c.rojo('  ⚠️ No se seleccionó ningún RAM válido para sincronizar.'));
+        return;
+    }
+
+    console.log(c.verde(`\n  🚀 Se sincronizarán ${seleccionados.length} RAM(s) a la plataforma Cuéntame...`));
+
+    // Inicializar navegador
+    const { browser, context, mainPage } = await iniciarNavegador();
+
+    // Agrupar por asociación para evitar re-logins innecesarios
+    const porAsoc = new Map();
+    for (const r of seleccionados) {
+        const asocNombre = (r.data.asociacion || r.asocSubdir || '').toUpperCase();
+        if (!porAsoc.has(asocNombre)) porAsoc.set(asocNombre, []);
+        porAsoc.get(asocNombre).push(r);
+    }
+
+    for (const [asocNom, items] of porAsoc.entries()) {
+        const ascObj = asociaciones.find(a => removeAccentsStr(a.nombreCorto).includes(removeAccentsStr(asocNom)) || removeAccentsStr(asocNom).includes(removeAccentsStr(a.nombreCorto))) || {
+            nombreCorto: asocNom,
+            numeroContrato: items[0].data.numeroContrato || null
+        };
+
+        console.log(c.cyan(`\n======================================================`));
+        console.log(c.cyan(`▶ Procesando Asociación: ${ascObj.nombreCorto} (${items.length} RAMs)`));
+        console.log(c.cyan(`======================================================`));
+
+        try {
+            console.log(`  🏢 Validando y cambiando asociación a "${ascObj.nombreCorto}"...`);
+            const mismaAsc = await validarYCambiarAsociacion(mainPage, ascObj);
+            if (!mismaAsc) {
+                await loginYLlegarARoles(mainPage, { 
+                    usuario: process.env.CUENTAME_USUARIO, 
+                    password: process.env.CUENTAME_PASSWORD,
+                    gmailUser: process.env.GMAIL_USER,
+                    gmailAppPassword: process.env.GMAIL_APP_PASSWORD
+                });
+                await seleccionarRolYEntrar(mainPage, ascObj);
+            }
+
+            console.log('  🚀 Navegando a Registro de asistencia mensual - RAM...');
+            await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded', timeout: 60000 });
+            await mainPage.waitForTimeout(800);
+
+            let contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+
+            for (let i = 0; i < items.length; i++) {
+                const ramItem = items[i];
+                const ramData = ramItem.data;
+                const cal = calendario.obtenerCalendarioMesJardin(ramData.anio || 2026, ramData.mes || mesAtencion);
+
+                console.log(c.amarillo(`\n  ----------------------------------------------------`));
+                console.log(c.amarillo(`  [${i+1}/${items.length}] Sincronizando UDS: ${ramData.jardin} (${ramData.codigoUds})`));
+                console.log(c.amarillo(`  Madre: ${ramData.madre || 'N/A'} | Radicado: ${ramData.radicado}`));
+                console.log(c.gris(`  Días hábiles (${cal.totalDiasHabiles} días): [${cal.diasHabiles.join(', ')}]`));
+                console.log(c.gris(`  Inasistencias a desmarcar: ${ramData.inasistencias ? ramData.inasistencias.length : 0} niño(s)`));
+                console.log(c.amarillo(`  ----------------------------------------------------`));
+
+                contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+
+                const selectDropdown = async (keyword, textOrIndex) => {
+                    try {
+                        const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
+                        if (await sel.count() === 0) return;
+                        
+                        for (let r = 0; r < 30; r++) {
+                            const disabled = await sel.evaluate(s => s.disabled).catch(() => true);
+                            if (!disabled) break;
+                            await mainPage.waitForTimeout(100);
+                        }
+
+                        let valueToSelect = null;
+                        for (let retry = 0; retry < 30; retry++) {
+                            if (typeof textOrIndex === 'string') {
+                                const targetText = removeAccentsStr(textOrIndex);
+                                valueToSelect = await sel.evaluate((s, t) => {
+                                    const opt = Array.from(s.options).find(o => {
+                                        const tNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                                        return tNorm.includes(t) || t.includes(tNorm);
+                                    });
+                                    return opt ? opt.value : null;
+                                }, targetText);
+                            } else if (typeof textOrIndex === 'number') {
+                                valueToSelect = await sel.evaluate(s => {
+                                    const opt = Array.from(s.options).find(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
+                                    return opt ? opt.value : null;
+                                });
+                            }
+                            if (valueToSelect) break;
+                            await mainPage.waitForTimeout(100);
+                        }
+
+                        if (valueToSelect) {
+                            const curVal = await sel.evaluate(s => s.value);
+                            if (curVal !== valueToSelect) {
+                                console.log(c.gris(`    [Filtro] Seleccionando ${keyword}: ${valueToSelect}`));
+                                await sel.selectOption(valueToSelect, { timeout: 5000 }).catch(() => {});
+                                await sel.evaluate(el => {
+                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                    if (typeof __doPostBack === 'function') {
+                                        try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                                    }
+                                }).catch(() => {});
+
+                                await mainPage.waitForTimeout(150);
+                                await mainPage.waitForFunction(() => {
+                                    if (typeof Sys === 'undefined' || !Sys.WebForms || !Sys.WebForms.PageRequestManager) return true;
+                                    var prm = Sys.WebForms.PageRequestManager.getInstance();
+                                    return !prm.get_isInAsyncPostBack();
+                                }, { timeout: 5000 }).catch(() => {});
+                                await mainPage.waitForTimeout(300);
+                            }
+                        }
+                    } catch(e) {}
+                };
+
+                await selectDropdown('Direcciones', 'Primera Infancia');
+                await selectDropdown('Regional', 'Bogota');
+                await selectDropdown('Centro', 'USAQUEN');
+                await selectDropdown('Vigencia', (ascObj.vigenciaContrato || '2026').toString());
+                await selectDropdown('Contrato', ascObj.numeroContrato ? ascObj.numeroContrato.toString() : 1);
+                await selectDropdown('Mes', ramData.mes || mesAtencion);
+                await selectDropdown('Estado', 'Todos');
+                await mainPage.waitForTimeout(400);
+
+                // Servicio
+                const servicioLocator = contentFrame.locator('select[id*="Servicio"]').first();
+                if (await servicioLocator.count() > 0) {
+                    let servOpts = [];
+                    for (let r = 0; r < 40; r++) {
+                        servOpts = await servicioLocator.evaluate(s => {
+                            return Array.from(s.options)
+                                .filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"))
+                                .map(o => ({ value: o.value, text: o.text }));
+                        });
+                        if (servOpts.length > 0) break;
+                        await mainPage.waitForTimeout(100);
+                    }
+
+                    const esAgrupado = (ramData.jardin || '').toUpperCase().includes('SALA CUNA') || (ramData.jardin || '').toUpperCase().includes('AGRUPADO');
+                    const tipoServ = esAgrupado ? 'Agrupado' : 'Individual';
+                    let servValidos = filtrarServiciosPorAsociacion(servOpts, ascObj.nombreCorto, tipoServ);
+                    if (servValidos.length === 0) servValidos = servOpts;
+
+                    if (servValidos.length > 0) {
+                        const chosenServ = servValidos[0];
+                        console.log(c.gris(`    [Filtro] Seleccionando Servicio: ${chosenServ.text}`));
+                        await servicioLocator.selectOption(chosenServ.value, { timeout: 5000 }).catch(() => {});
+                        await servicioLocator.evaluate(el => {
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                            if (typeof __doPostBack === 'function') {
+                                try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                            }
+                        }).catch(() => {});
+                        await mainPage.waitForTimeout(500);
+                    }
+                }
+
+                // UDS
+                const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
+                if (await uLoc.count() > 0) {
+                    let udsValue = null;
+                    const codigoSearch = String(ramData.codigoUds || '').trim();
+                    const nombreSearch = removeAccentsStr(ramData.jardin || '');
+
+                    for (let r = 0; r < 60; r++) {
+                        udsValue = await uLoc.evaluate((s, { code, name }) => {
+                            const validOpts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"));
+                            if (validOpts.length === 0) return null;
+
+                            const opt = validOpts.find(o => {
+                                const textNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                                return (code && textNorm.includes(code)) ||
+                                       (name && textNorm.includes(name)) ||
+                                       (name && name.includes(textNorm));
+                            });
+                            return opt ? opt.value : null;
+                        }, { code: codigoSearch, name: nombreSearch });
+
+                        if (udsValue) break;
+                        await mainPage.waitForTimeout(100);
+                    }
+
+                    if (udsValue) {
+                        console.log(c.gris(`    [Filtro] Seleccionando UDS: ${ramData.jardin}`));
+                        await uLoc.selectOption(udsValue, { timeout: 5000 }).catch(() => {});
+                        await uLoc.evaluate(el => {
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                            if (typeof __doPostBack === 'function') {
+                                try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                            }
+                        }).catch(() => {});
+                        await mainPage.waitForTimeout(500);
+                    } else {
+                        console.log(c.rojo(`    ❌ No se encontró la UDS "${ramData.jardin}" (${ramData.codigoUds}) en el dropdown.`));
+                        continue;
+                    }
+                }
+
+                // Clic en la Lupa para consultar beneficiarios
+                console.log(c.gris('    👉 Clic en Lupa para consultar beneficiarios...'));
+                const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i]').first();
+                if (await lupa.count() > 0 && await lupa.isVisible()) {
+                    await lupa.click();
+                } else {
+                    const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first();
+                    if (await genericBtn.count() > 0) await genericBtn.click();
+                }
+                await mainPage.waitForTimeout(1000);
+
+                contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+
+                // Habilitar edición (Clic en el lápiz)
+                console.log(c.gris('    👉 Clic en el Lápiz para habilitar edición...'));
+                const lapiz = contentFrame.locator('input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"]').first();
+                if (await lapiz.count() > 0 && await lapiz.isVisible()) {
+                    await lapiz.click();
+                    await mainPage.waitForTimeout(800);
+                }
+
+                // Buscar las filas de niños
+                const rows = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
+                console.log(c.gris(`    📋 Filas en la tabla: ${rows.length}`));
+
+                let ninosProcesados = 0;
+                let faltasAplicadas = 0;
+                let asistenciasMarcadas = 0;
+
+                // Mapa de inasistencias por documento y por nombre
+                const inasistenciasMapDoc = new Map();
+                const inasistenciasMapNom = new Map();
+                for (const item of (ramData.inasistencias || [])) {
+                    if (item.documento) inasistenciasMapDoc.set(String(item.documento).trim(), new Set(item.dias || []));
+                    if (item.nombreCompleto) inasistenciasMapNom.set(removeAccentsStr(item.nombreCompleto), new Set(item.dias || []));
+                }
+
+                for (const row of rows) {
+                    const rowText = await row.innerText();
+                    if (!rowText.includes('Activo')) continue;
+
+                    ninosProcesados++;
+                    const rowTextNorm = removeAccentsStr(rowText);
+
+                    // Buscar si este niño tiene faltas reportadas
+                    let diasFaltasDelNino = new Set();
+                    for (const [doc, setDias] of inasistenciasMapDoc.entries()) {
+                        if (rowText.includes(doc)) {
+                            diasFaltasDelNino = setDias;
+                            break;
+                        }
+                    }
+                    if (diasFaltasDelNino.size === 0) {
+                        for (const [nom, setDias] of inasistenciasMapNom.entries()) {
+                            const partes = nom.split(' ').filter(p => p.length > 2);
+                            if (partes.length >= 2 && partes.every(p => rowTextNorm.includes(p))) {
+                                diasFaltasDelNino = setDias;
+                                break;
+                            }
+                        }
+                    }
+
+                    const checkboxes = await row.locator('input[type="checkbox"]').all();
+
+                    // Procesar días 1 al 31
+                    for (let d = 1; d <= 31; d++) {
+                        const chkIndex = d - 1;
+                        if (chkIndex >= checkboxes.length) break;
+
+                        const chk = checkboxes[chkIndex];
+                        const isEnabled = await chk.isEnabled().catch(() => false);
+                        if (!isEnabled) continue;
+
+                        const isChecked = await chk.isChecked().catch(() => false);
+                        const esDiaHabil = cal.diasHabiles.includes(d);
+
+                        if (!esDiaHabil) {
+                            // DÍA INHÁBIL (Festivo, Fin de semana, Último Viernes) -> SIEMPRE DESMARCADO
+                            if (isChecked) {
+                                await chk.uncheck({ force: true }).catch(() => chk.click());
+                            }
+                        } else {
+                            // DÍA HÁBIL
+                            if (diasFaltasDelNino.has(d)) {
+                                // FALTA REPORTADA POR LA MADRE -> DESMARCAR
+                                if (isChecked) {
+                                    await chk.uncheck({ force: true }).catch(() => chk.click());
+                                    faltasAplicadas++;
+                                }
+                            } else {
+                                // ASISTIÓ (Por defecto positivo) -> MARCAR
+                                if (!isChecked) {
+                                    await chk.check({ force: true }).catch(() => chk.click());
+                                    asistenciasMarcadas++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                console.log(c.verde(`    ✔️ Procesados ${ninosProcesados} niños activos.`));
+                console.log(c.verde(`    ✔️ Asistencias marcadas: ${asistenciasMarcadas} | Inasistencias aplicadas: ${faltasAplicadas}`));
+
+                // Guardar cambios (clic en disco)
+                console.log(c.amarillo('    💾 Guardando RAM en Cuéntame (clic en Guardar)...'));
+                const disco = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], input[value*="Guardar" i]').first();
+                if (await disco.count() > 0 && await disco.isVisible()) {
+                    await disco.click();
+                } else {
+                    const genericSave = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible').last();
+                    if (await genericSave.count() > 0) await genericSave.click();
+                }
+                await mainPage.waitForTimeout(1500);
+                console.log(c.verde('    ✅ Guardado exitoso en Cuéntame.'));
+
+                // Actualizar estado en el archivo JSON
+                ramData.estado = 'SINCRONIZADO';
+                ramData.fechaSincronizacion = new Date().toISOString();
+                ramData.resumenSincronizacion = {
+                    ninosProcesados,
+                    asistenciasMarcadas,
+                    faltasAplicadas,
+                    diasHabilesMes: cal.totalDiasHabiles
+                };
+
+                const jsonActualizado = JSON.stringify(ramData, null, 2);
+                try { fs.writeFileSync(ramItem.fullPath, jsonActualizado, 'utf8'); } catch(e) {}
+
+                // Guardar también en la otra carpeta para mantener consistencia
+                for (const bDir of directoriosRAM) {
+                    const altPath = path.join(bDir, ramItem.asocSubdir, ramItem.filename);
+                    try {
+                        if (!fs.existsSync(path.dirname(altPath))) fs.mkdirSync(path.dirname(altPath), { recursive: true });
+                        fs.writeFileSync(altPath, jsonActualizado, 'utf8');
+                    } catch(e) {}
+                }
+
+                console.log(c.verde(`    🎉 [RADICADO ${ramData.radicado}] Actualizado a 'SINCRONIZADO'.`));
+
+                // Recargar página para siguiente UDS
+                if (i < items.length - 1) {
+                    console.log(c.gris('    🔄 Recargando filtros para siguiente UDS...'));
+                    await mainPage.goto('https://rubonline.icbf.gov.co/Page/RUBONLINE/RegistroAsistencia/List.aspx', { waitUntil: 'domcontentloaded' });
+                    await mainPage.waitForTimeout(800);
+                }
+            }
+        } catch(err) {
+            console.error(c.rojo(`  ❌ Error sincronizando RAMs para ${asocNom}: ${err.message}`));
+        }
+    }
+
+    console.log(c.verde('\n  🎉 PROCESO DE SINCRONIZACIÓN DE RAMS COMPLETADO CON ÉXITO.\n'));
 }
 
 main().catch(console.error);
