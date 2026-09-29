@@ -57,19 +57,42 @@ function consolidarBaseDatos() {
     if (fs.existsSync(legacyExcel)) fs.unlinkSync(legacyExcel);
     if (fs.existsSync(legacyJson)) fs.unlinkSync(legacyJson);
 
-    const archivos = fs.readdirSync(RUTA_REPORTES).filter(f => 
-        f.startsWith('Beneficiarios_') && f.endsWith('.xlsx') && !f.includes('BD_MASTER')
-    );
+    // Buscar archivos tanto en RUTA_REPORTES como en docs/reportes/activos
+    let archivosEncontrados = [];
+    if (fs.existsSync(RUTA_REPORTES)) {
+        const directos = fs.readdirSync(RUTA_REPORTES).filter(f => 
+            f.startsWith('Beneficiarios_') && f.endsWith('.xlsx') && !f.includes('BD_MASTER')
+        );
+        directos.forEach(f => archivosEncontrados.push({ archivo: f, path: path.join(RUTA_REPORTES, f) }));
+    }
 
-    if (archivos.length === 0) {
-        console.log('  ⚠️ No se encontraron archivos Beneficiarios_*.xlsx en la carpeta reportes.');
+    // Buscar también en docs/reportes/activos/<ASOCIACION> si existen allí
+    const docsActivos = path.join(__dirname, '..', 'docs', 'reportes', 'activos');
+    if (fs.existsSync(docsActivos)) {
+        const subdirs = fs.readdirSync(docsActivos);
+        for (const sub of subdirs) {
+            const subPath = path.join(docsActivos, sub);
+            if (fs.statSync(subPath).isDirectory()) {
+                const subFiles = fs.readdirSync(subPath).filter(f => f.startsWith('Beneficiarios_') && f.endsWith('.xlsx'));
+                for (const sf of subFiles) {
+                    if (!archivosEncontrados.some(a => a.archivo === sf)) {
+                        archivosEncontrados.push({ archivo: sf, path: path.join(subPath, sf) });
+                    }
+                }
+            }
+        }
+    }
+
+    if (archivosEncontrados.length === 0) {
+        console.log('  ⚠️ No se encontraron archivos Beneficiarios_*.xlsx en la carpeta reportes ni en docs/reportes/activos.');
         return [];
     }
 
     let todosLosBeneficiarios = [];
 
-    for (const archivo of archivos) {
-        const filePath = path.join(RUTA_REPORTES, archivo);
+    for (const item of archivosEncontrados) {
+        const filePath = item.path;
+        const archivo = item.archivo;
         try {
             const wb = XLSX.readFile(filePath);
             const sheetName = wb.SheetNames[0];
@@ -144,7 +167,91 @@ function consolidarBaseDatos() {
         console.log(`  ⚠️ No se pudo guardar Excel Master: ${errExcel.message}`);
     }
 
+    // 3. Organizar y sincronizar con Portal Web (app-cuentame)
+    sincronizarConPortalWeb(todosLosBeneficiarios, archivosEncontrados);
+
     return todosLosBeneficiarios;
+}
+
+/**
+ * Sincroniza la BD Master y los reportes individuales con app-cuentame
+ */
+function sincronizarConPortalWeb(todosLosBeneficiarios, archivosEncontrados) {
+    const portalDir = path.join(__dirname, '..', '..', 'app-cuentame');
+    if (!fs.existsSync(portalDir)) return;
+
+    try {
+        console.log('\n  🔄 Sincronizando con el Portal Web (app-cuentame)...');
+
+        // Copiar JSON Master a app-cuentame
+        const portalJson = path.join(portalDir, 'BD_MASTER_BENEFICIARIOS.json');
+        fs.writeFileSync(portalJson, JSON.stringify(todosLosBeneficiarios, null, 2), 'utf-8');
+        console.log(`     ✅ BD_MASTER_BENEFICIARIOS.json actualizado en app-cuentame (${todosLosBeneficiarios.length} niños).`);
+
+        // Copiar Excel Master
+        const portalDbDir = path.join(portalDir, 'docs', 'database');
+        if (!fs.existsSync(portalDbDir)) fs.mkdirSync(portalDbDir, { recursive: true });
+        if (fs.existsSync(RUTA_MASTER_EXCEL)) {
+            fs.copyFileSync(RUTA_MASTER_EXCEL, path.join(portalDbDir, 'BD_MASTER_BENEFICIARIOS.xlsx'));
+        }
+
+        // 3. Función auxiliar para alinear reportes
+        const alinearArchivo = (categoria, asoc, nombreArchivo, rutaOrigen) => {
+            const asocNorm = normalizarNombreAsociacion('', asoc || nombreArchivo);
+            const dirJob = path.join(__dirname, '..', 'docs', 'reportes', categoria, asocNorm);
+            const dirApp = path.join(portalDir, 'docs', 'reportes', categoria, asocNorm);
+
+            for (const d of [dirJob, dirApp]) {
+                if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+                fs.copyFileSync(rutaOrigen, path.join(d, nombreArchivo));
+            }
+            console.log(`     📂 Reporte [${categoria.toUpperCase()}] alineado para ${asocNorm}: ${nombreArchivo}`);
+        };
+
+        // 4. Distribuir cada reporte de Beneficiarios (Activos)
+        for (const item of (archivosEncontrados || [])) {
+            alinearArchivo('activos', '', item.archivo, item.path);
+        }
+
+        // 5. Escanear y sincronizar reportes de Nutrición (en reportes/ y docs/reportes/nutricion/)
+        if (fs.existsSync(RUTA_REPORTES)) {
+            const archivosNutri = fs.readdirSync(RUTA_REPORTES).filter(f => f.startsWith('Nutricion_') && f.endsWith('.xlsx'));
+            for (const fn of archivosNutri) {
+                alinearArchivo('nutricion', '', fn, path.join(RUTA_REPORTES, fn));
+            }
+        }
+
+        // 6. Escanear y sincronizar reportes de RAM (en reportes/ y docs/reportes/ram/)
+        if (fs.existsSync(RUTA_REPORTES)) {
+            const archivosRam = fs.readdirSync(RUTA_REPORTES).filter(f => (f.startsWith('Asistencia_') || f.startsWith('RAM_')) && f.endsWith('.xlsx'));
+            for (const fr of archivosRam) {
+                alinearArchivo('ram', '', fr, path.join(RUTA_REPORTES, fr));
+            }
+        }
+
+        // 7. Sincronizar todas las carpetas existentes en docs/reportes/ hacia app-cuentame
+        const tipos = ['activos', 'nutricion', 'ram', 'unidades'];
+        for (const t of tipos) {
+            const localBase = path.join(__dirname, '..', 'docs', 'reportes', t);
+            const portalBase = path.join(portalDir, 'docs', 'reportes', t);
+            if (fs.existsSync(localBase)) {
+                for (const sub of fs.readdirSync(localBase)) {
+                    const srcSub = path.join(localBase, sub);
+                    const dstSub = path.join(portalBase, sub);
+                    if (fs.statSync(srcSub).isDirectory()) {
+                        if (!fs.existsSync(dstSub)) fs.mkdirSync(dstSub, { recursive: true });
+                        for (const arc of fs.readdirSync(srcSub)) {
+                            fs.copyFileSync(path.join(srcSub, arc), path.join(dstSub, arc));
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log('  ✨ Portal Web alineado y listo para consultas y descargas (Activos, Nutrición y RAM)!');
+    } catch (eSync) {
+        console.log('  ⚠️ Error al sincronizar con portal web:', eSync.message);
+    }
 }
 
 /**

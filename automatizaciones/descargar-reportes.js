@@ -8,6 +8,7 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
 const path = require('path');
+const fs = require('fs');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 
 // ─────────────────────────────────────────────────────────────
@@ -21,6 +22,39 @@ const c = {
   gris:     (t) => `\x1b[90m${t}\x1b[0m`,
   negrita:  (t) => `\x1b[1m${t}\x1b[0m`,
 };
+
+// ─────────────────────────────────────────────────────────────
+// Sincronización Directa de Reportes con el Portal Web
+// ─────────────────────────────────────────────────────────────
+function distribuirReporteAPortal(opcionReporte, asc, savePath) {
+  if (!savePath || !fs.existsSync(savePath)) return;
+  
+  let tipoCarpeta = 'activos';
+  if (opcionReporte === 2) tipoCarpeta = 'nutricion';
+  if (opcionReporte === 3) tipoCarpeta = 'ram';
+  if (opcionReporte === 4) tipoCarpeta = 'unidades';
+
+  const asocFolder = (asc.nombreCorto || '').toUpperCase().trim();
+  if (!asocFolder) return;
+
+  const carpetasDestino = [
+    path.join(__dirname, '..', 'docs', 'reportes', tipoCarpeta, asocFolder),
+    path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'reportes', tipoCarpeta, asocFolder)
+  ];
+
+  for (const dir of carpetasDestino) {
+    try {
+      if (fs.existsSync(path.dirname(path.dirname(dir)))) {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        const destFile = path.join(dir, path.basename(savePath));
+        fs.copyFileSync(savePath, destFile);
+        console.log(c.verde(`    🚀 Reporte alineado para descarga en Portal: docs/reportes/${tipoCarpeta}/${asocFolder}/${path.basename(savePath)}`));
+      }
+    } catch (eCopy) {
+      console.log(c.amarillo(`    ⚠️ No se pudo copiar a ${dir}: ${eCopy.message}`));
+    }
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 // Script Principal
@@ -60,16 +94,21 @@ async function main() {
       reportesAProcesar = [1, 2];
   } else {
       console.log(c.cyan('\n  📋 Selecciona el Reporte a generar:'));
-      console.log(c.amarillo(`  1. Beneficiarios vinculados`));
-      console.log(c.amarillo(`  2. Seguimiento nutricional de ninos y ninas por toma`));
-      console.log(c.amarillo(`  3. Informe de registro asistencia mensual`));
+      console.log(c.amarillo(`  1. Beneficiarios vinculados (Por asociación o todas)`));
+      console.log(c.amarillo(`  2. Seguimiento nutricional de niños y niñas (Por asociación o todas)`));
+      console.log(c.amarillo(`  3. Informe de registro asistencia mensual RAM (Por asociación o todas)`));
       console.log(c.amarillo(`  4. Unidades de servicio`));
-      console.log(c.amarillo(`  5. Actualizar base Master beneficiarios`));
+      console.log(c.gris(`  ──────────────────────────────────────────────────────────────────`));
+      console.log(c.verde(`  🔥 ACTUALIZACIONES MASIVAS PARA EL PORTAL WEB:`));
+      console.log(c.cyan(`  5. 🔄 Actualizar Beneficiarios Activos (Todas las asociaciones)`));
+      console.log(c.cyan(`  6. 🍎 Actualizar Seguimiento Nutricional (Todas las asociaciones)`));
+      console.log(c.cyan(`  7. 📅 Actualizar Asistencia RAM (Todas las asociaciones)`));
+      console.log(c.cyan(`  8. 🚀 Actualizar TODO EL PAQUETE (Beneficiarios + Nutrición + RAM)`));
       console.log(c.rojo(`  0. Volver al panel principal (AutoTrabajo / Start)`));
       
       let opcionReporte = -1;
-      while (opcionReporte < 0 || opcionReporte > 5) {
-        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (0, 1, 2, 3, 4 o 5): '));
+      while (opcionReporte < 0 || opcionReporte > 8) {
+        const respuesta = readline.question(c.negrita('\n  > Ingresa el numero del reporte (0 a 8): '));
         opcionReporte = parseInt(respuesta, 10);
         if (isNaN(opcionReporte)) opcionReporte = -1;
       }
@@ -82,15 +121,27 @@ async function main() {
       if (opcionReporte === 5) {
           esActualizarMaster = true;
           reportesAProcesar = [1];
+          asociacionesSeleccionadas = asociaciones;
+      } else if (opcionReporte === 6) {
+          esActualizarMaster = true;
+          reportesAProcesar = [2];
+          asociacionesSeleccionadas = asociaciones;
+      } else if (opcionReporte === 7) {
+          esActualizarMaster = true;
+          reportesAProcesar = [3];
+          asociacionesSeleccionadas = asociaciones;
+      } else if (opcionReporte === 8) {
+          esActualizarMaster = true;
+          reportesAProcesar = [1, 2, 3];
+          asociacionesSeleccionadas = asociaciones;
       } else {
           reportesAProcesar = [opcionReporte];
       }
   }
 
-  let asociacionesSeleccionadas = [];
-  if (esActualizarMaster) {
-      console.log(c.cyan('\n  🔄 MODO ACTUALIZAR BASE MASTER BENEFICIARIOS:'));
-      console.log(c.verde('     Descargando reportes de Beneficiarios Vinculados de TODAS las asociaciones...\n'));
+  if (esActualizarMaster && asociacionesSeleccionadas.length === 0) {
+      console.log(c.cyan('\n  🔄 MODO ACTUALIZAR PARA PORTAL WEB:'));
+      console.log(c.verde(`     Descargando reportes para TODAS las asociaciones (${asociaciones.length} asociaciones)...\n`));
       asociacionesSeleccionadas = asociaciones;
   } else if (esAutoComparar && process.env.ASOCIACION_ACTIVA) {
       try {
@@ -947,6 +998,9 @@ if (!chk) chk = matchedLabel;
             }
         }
         
+        // Alinear y distribuir de inmediato al Portal Web (docs/reportes/<tipo>/<ASOCIACION>/)
+        distribuirReporteAPortal(opcionReporte, asc, savePath);
+        
       } catch (error) {
         console.error(c.rojo(`\n  ❌ Ocurrio un error con ${asc.nombreCorto}:`), error.message);
       } finally {
@@ -966,19 +1020,26 @@ if (!chk) chk = matchedLabel;
       const { consolidarBaseDatos } = require('../servicios/bd-beneficiarios');
       consolidarBaseDatos();
 
-      if (esActualizarMaster) {
-          console.log(c.cyan('\n  🧹 Limpiando reportes temporales de la carpeta "reportes"...'));
-          const reportesDir = path.join(__dirname, '..', 'reportes');
-          if (fs.existsSync(reportesDir)) {
-              const archivosBenef = fs.readdirSync(reportesDir).filter(f => f.startsWith('Beneficiarios_') && f.endsWith('.xlsx') && !f.includes('BD_MASTER'));
-              for (const arc of archivosBenef) {
-                  try {
-                      fs.unlinkSync(path.join(reportesDir, arc));
-                      console.log(c.gris(`     • Eliminado reporte temporal: ${arc}`));
-                  } catch(eDel) {}
+      console.log(c.verde('  ✨ Base de Datos Master actualizada y alineada con el Portal Web!'));
+
+      // Preguntar si desea sincronizar y desplegar a GitHub / Render
+      const portalDir = path.join(__dirname, '..', '..', 'app-cuentame');
+      if (fs.existsSync(portalDir) && esActualizarMaster) {
+          console.log(c.cyan('\n  🌐 ¿Deseas subir la actualización al Portal Web en línea (GitHub / Render)?'));
+          const subir = readline.question(c.negrita('  > Presiona ENTER para SI, o escribe "n" para omitir: ')).trim().toLowerCase();
+          if (subir === '' || subir === 's' || subir === 'si' || subir === 'y') {
+              console.log(c.verde('  🚀 Subiendo actualización a GitHub y Render...'));
+              const { execSync } = require('child_process');
+              try {
+                  execSync('git add . && git commit -m "Actualizar bases de datos y reportes de asociaciones" && git push origin main', {
+                      cwd: portalDir,
+                      stdio: 'inherit'
+                  });
+                  console.log(c.verde('  🎉 ¡Despliegue completado! El Portal Web está actualizado en línea.'));
+              } catch(eGit) {
+                  console.log(c.amarillo(`  ⚠️ No se pudo completar git push: ${eGit.message}`));
               }
           }
-          console.log(c.verde('  ✨ Base de Datos Master actualizada exitosamente y carpeta reportes limpia!'));
       }
   } catch (eCons) {
       console.log(c.amarillo(`  ⚠️ No se pudo consolidar la Base de Datos Master: ${eCons.message}`));

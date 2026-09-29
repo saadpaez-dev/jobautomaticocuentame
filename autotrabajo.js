@@ -63,8 +63,14 @@ async function esperarPuertoCDP(puerto = 9333, maxEsperaMs = 3000) {
 async function main() {
     require('dotenv').config();
 
+    const fs = require('fs');
     const { leerJardines } = require('./servicios/excel-reader');
-    const RUTA_EXCEL = process.env.RUTA_EXCEL || 'C:\\GENERAL_BOTS.xlsx';
+    let RUTA_EXCEL = process.env.RUTA_EXCEL;
+    if (!RUTA_EXCEL || !fs.existsSync(RUTA_EXCEL)) {
+        const localExcel = path.join(__dirname, 'GENERAL_BOTS.xlsx');
+        if (fs.existsSync(localExcel)) RUTA_EXCEL = localExcel;
+        else RUTA_EXCEL = 'C:\\GENERAL_BOTS.xlsx';
+    }
     let porAsociacion;
     try {
         const datos = leerJardines(RUTA_EXCEL);
@@ -138,7 +144,10 @@ async function main() {
                 { nombre: 'Vinculacion Beneficiarios', archivo: 'vinculacion-beneficiarios.js' },
                 { nombre: 'Desvinculacion Beneficiarios', archivo: 'desvinculacion-beneficiarios.js' },
                 { nombre: 'Generar Ticket de Errores de Digitacion', archivo: 'generar-ticket-errores.js' },
-                { nombre: 'Cambiar / Restablecer Contraseña', archivo: 'cambiar-contrasena.js' }
+                { nombre: 'Cambiar / Restablecer Contraseña', archivo: 'cambiar-contrasena.js' },
+                { nombre: 'Tomar Pantallazos Histórico Nutrición', archivo: 'tomar-pantallazos.js' },
+                { nombre: '📸 Capturar Pantallazos Oficiales de Jardines (UDS)', archivo: 'capturar-pantallazo-jardin.js' },
+                { nombre: 'Enviar Correos de Nutrición (Con Adjuntos)', archivo: 'enviar-correos.js' }
             ];
             
             opciones.forEach((opc, index) => {
