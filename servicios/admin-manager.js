@@ -19,7 +19,8 @@ const JOB_CONFIG_PATH = path.join(JOB_DATA_DIR, 'admin_config.json');
 
 const DEFAULT_CONFIG = {
     admin: {
-        usuario: process.env.ADMIN_USER || 'admin',
+        usuario: process.env.ADMIN_USER || '1020722462',
+        cedula: '1020722462',
         password: process.env.ADMIN_PASSWORD || 'admin2026*',
         nombre: process.env.ADMIN_NOMBRE || 'Administrador Cuéntame',
         correo: process.env.GMAIL_USER || 'digitadorcuentameicbf@gmail.com'
@@ -210,10 +211,30 @@ function validateLogin(cedulaInput, passwordInput) {
     const passTrim = String(passwordInput || '').trim();
 
     // 1. Validar si es Administrador
-    const adminUser = String(config.admin.usuario || 'admin').trim().toLowerCase();
+    const adminUser = String(config.admin.usuario || '1020722462').trim().toLowerCase();
+    const adminCedula = String(config.admin.cedula || '1020722462').trim();
     const inputLower = cedTrim.toLowerCase();
-    const esAdmin = (inputLower === adminUser || inputLower === 'admin' || cedTrim === '99999999') 
-        && passTrim === String(config.admin.password || 'admin2026*');
+
+    // Se reconoce como administrador si ingresa con su CC 1020722462, con el usuario configurado, o 'admin'
+    const esUsuarioAdmin = (
+        inputLower === adminUser ||
+        inputLower === 'admin' ||
+        cedTrim === adminCedula ||
+        cedTrim === '1020722462' ||
+        cedTrim === '99999999'
+    );
+
+    // Contraseña admin: admite la clave configurada (admin2026*) o los últimos 4 dígitos (2462)
+    const passEsperada = String(config.admin.password || 'admin2026*');
+    const ultimosCuatro = adminCedula ? adminCedula.slice(-4) : '2462';
+    const esPasswordValida = (
+        passTrim === passEsperada ||
+        passTrim === ultimosCuatro ||
+        passTrim === '2462' ||
+        passTrim === 'admin2026*'
+    );
+
+    const esAdmin = esUsuarioAdmin && esPasswordValida;
 
     if (esAdmin) {
         return {
@@ -221,7 +242,8 @@ function validateLogin(cedulaInput, passwordInput) {
             role: 'ADMIN',
             user: {
                 nombre: config.admin.nombre || 'Administrador Cuéntame',
-                usuario: config.admin.usuario || 'admin',
+                usuario: config.admin.usuario || '1020722462',
+                cedula: adminCedula || '1020722462',
                 role: 'ADMIN'
             }
         };
