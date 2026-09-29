@@ -91,6 +91,14 @@ async function main() {
   console.log(c.cyan('  🤖 BOT DE ASISTENCIA CUENTAME - V3'));
   console.log(c.cyan('  ======================================================'));
   
+  if (process.env.MODO_RAM_DIRECTO === 'FASE3' || process.argv.includes('--cola')) {
+      const fechaActual = new Date();
+      const todosLosMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const mesAtencion = todosLosMeses[fechaActual.getMonth()];
+      await ejecutarFase3(asociaciones, mesAtencion);
+      process.exit(0);
+  }
+
   while (true) {
       const fases = [
         'Subida de RAM Masiva (Llenar días hábiles por defecto)', 
@@ -1352,6 +1360,45 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
     console.log(c.cyan('  (Lee los reportes digitales del Portal Web y los sube a Cuéntame)'));
     console.log(c.cyan('===================================================================='));
 
+    // Sincronizar automáticamente con el Portal Web en la nube (Render)
+    console.log(c.gris('\n  ☁️ Consultando entregas de RAM en el Portal Web (Render)...'));
+    try {
+        const https = require('https');
+        const renderRams = await new Promise((resolve) => {
+            const req = https.get('https://portal-cuentame.onrender.com/api/admin/descargar-rams-completos', { timeout: 12000 }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    try {
+                        const parsed = JSON.parse(data);
+                        resolve(parsed && parsed.rams ? parsed.rams : []);
+                    } catch(e) { resolve([]); }
+                });
+            });
+            req.on('error', () => resolve([]));
+            req.on('timeout', () => { req.abort(); resolve([]); });
+        });
+
+        if (renderRams && renderRams.length > 0) {
+            let nuevosDescargados = 0;
+            const destDirBase = path.join(__dirname, '..', 'docs', 'ram_entregas');
+            for (const item of renderRams) {
+                const asocCarpeta = (item.asociacion || 'GENERAL').replace(/[\\/:*?"<>|]/g, '_').trim();
+                const dirTarget = path.join(destDirBase, asocCarpeta);
+                if (!fs.existsSync(dirTarget)) fs.mkdirSync(dirTarget, { recursive: true });
+                const targetFile = path.join(dirTarget, item.filename);
+                
+                fs.writeFileSync(targetFile, JSON.stringify(item.data, null, 2), 'utf8');
+                nuevosDescargados++;
+            }
+            console.log(c.verde(`  ✅ ${nuevosDescargados} entrega(s) de RAM sincronizada(s) desde el Portal Web a tu equipo local.`));
+        } else {
+            console.log(c.gris('  ℹ️ No hay nuevos RAMs o no hubo respuesta del servidor en la nube.'));
+        }
+    } catch(e) {
+        console.log(c.gris(`  ⚠️ Nota: Se usarán los RAMs locales (${e.message}).`));
+    }
+
     const directoriosRAM = [
         path.join(__dirname, '..', 'docs', 'ram_entregas'),
         path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'ram_entregas')
@@ -1772,6 +1819,27 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                 }
 
                 console.log(c.verde(`    🎉 [RADICADO ${ramData.radicado}] Actualizado a 'SINCRONIZADO'.`));
+
+                // Notificar actualización al portal en la nube (Render)
+                try {
+                    const https = require('https');
+                    const postPayload = JSON.stringify({
+                        radicado: ramData.radicado,
+                        estado: 'SINCRONIZADO',
+                        fechaSincronizacion: ramData.fechaSincronizacion
+                    });
+                    const reqSync = https.request('https://portal-cuentame.onrender.com/api/admin/actualizar-estado-ram', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Content-Length': Buffer.byteLength(postPayload)
+                        },
+                        timeout: 5000
+                    });
+                    reqSync.on('error', () => {});
+                    reqSync.write(postPayload);
+                    reqSync.end();
+                } catch(e) {}
 
                 // Recargar página para siguiente UDS
                 if (i < items.length - 1) {

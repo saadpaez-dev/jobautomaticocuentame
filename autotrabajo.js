@@ -133,7 +133,8 @@ async function main() {
             const opciones = [
                 { nombre: 'Consulta de Activos', archivo: 'consulta-activos.js' },
                 { nombre: 'Descargar Reportes', archivo: 'descargar-reportes.js' },
-                { nombre: 'Llenar Asistencia Mensual', archivo: 'llenar-asistencia.js' },
+                { nombre: 'Llenar Asistencia Mensual (Menú Completo)', archivo: 'llenar-asistencia.js' },
+                { nombre: '📲 Sincronizar Cola de RAMs Pendientes (Portal Web a Cuéntame)', archivo: 'sincronizar-cola-ram.js' },
                 { nombre: 'Seguimiento Nutricional (Peso y Talla)', archivo: 'peso-talla.js' },
                 { nombre: 'Comparar Activos vs Nutricion (Faltantes)', archivo: 'comparar-nutricion.js' },
                 { nombre: 'Convertir PDF de Peso y Talla a Excel (Madres)', archivo: 'convertir-pdf-nutricion.js' },
