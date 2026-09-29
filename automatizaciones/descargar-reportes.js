@@ -85,6 +85,7 @@ async function main() {
 
   while (true) {
   let asociaciones = Object.values(porAsociacion);
+  let asociacionesSeleccionadas = [];
   let reportesAProcesar = [];
   let esActualizarMaster = false;
 
