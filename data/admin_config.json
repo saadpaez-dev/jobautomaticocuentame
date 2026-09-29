@@ -1,0 +1,57 @@
+{
+  "admin": {
+    "usuario": "admin",
+    "password": "admin2026*",
+    "nombre": "Administrador Cuéntame",
+    "correo": "digitadorcuentameicbf@gmail.com"
+  },
+  "sistema": {
+    "mantenimientoGlobal": false,
+    "mensajeMantenimiento": "El portal se encuentra en mantenimiento programado. Por favor intenta más tarde.",
+    "tareasPausadas": {
+      "asistenciaRam": false,
+      "descargaReportes": false,
+      "pantallazos": false,
+      "consultas": false,
+      "desvinculaciones": false
+    },
+    "mensajesTareas": {
+      "asistenciaRam": "El reporte de asistencia RAM se encuentra temporalmente en pausa por actualización del sistema.",
+      "descargaReportes": "La descarga y envío de reportes se encuentra temporalmente en pausa.",
+      "pantallazos": "La consulta de pantallazos se encuentra temporalmente en pausa.",
+      "consultas": "La consulta de beneficiarios se encuentra temporalmente en pausa.",
+      "desvinculaciones": "El módulo de desvinculaciones se encuentra temporalmente en pausa."
+    }
+  },
+  "asociaciones": {
+    "DELICIAS DEL CARMEN": {
+      "habilitada": true,
+      "motivo": ""
+    },
+    "BRISAS DE BUENAVISTA": {
+      "habilitada": true,
+      "motivo": ""
+    },
+    "VERBENAL Y REFUGIO": {
+      "habilitada": true,
+      "motivo": ""
+    },
+    "BARRIOS UNIDOS": {
+      "habilitada": true,
+      "motivo": ""
+    },
+    "BUENAVISTA": {
+      "habilitada": true,
+      "motivo": ""
+    },
+    "CANAIMA": {
+      "habilitada": true,
+      "motivo": ""
+    },
+    "PROGRESO INFANTIL": {
+      "habilitada": true,
+      "motivo": ""
+    }
+  },
+  "madres": {}
+}
