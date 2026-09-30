@@ -56,30 +56,22 @@ function log(nivel, msg) {
 
 // ─── Lanzar sincronizar-cola-ram.js en una terminal nueva visible ─────────────
 function lanzarSincronizacion(radicado) {
-    if (procesoActivo && !procesoActivo.exitCode) {
-        log('warn', 'Ya hay un proceso de sincronización activo. Esperando a que termine...');
-        return { ya_ejecutando: true };
-    }
+    const batPath = path.join(ROOT, 'Sincronizar_Cola_RAM.bat');
 
-    const args = radicado ? [`--radicado=${radicado}`] : [];
-    const scriptPath = path.join(ROOT, 'automatizaciones', 'sincronizar-cola-ram.js');
+    log('info', `Lanzando sincronizacion RAM${radicado ? ` radicado: ${radicado}` : ' (todos los pendientes)'}...`);
 
-    log('info', `Lanzando sincronización RAM${radicado ? ` para radicado: ${radicado}` : ' (todos los pendientes)'}...`);
-
-    // En Windows: abre una nueva ventana de cmd con título descriptivo
-    const cmd = `start "🤖 SINCRONIZANDO RAMS - CUENTAME" cmd /k "node \"${scriptPath}\" ${args.join(' ')} && echo. && echo ✅ Sincronización completada! && pause"`;
-
-    const proc = spawn('cmd', ['/c', cmd], {
+    // spawn con detached:true + stdio:'ignore' -> proceso hijo completamente independiente
+    // cmd /c start abre una nueva ventana visible de cmd.exe con el bat
+    const proc = spawn('cmd.exe', ['/c', 'start', 'SINCRONIZANDO RAMS', 'cmd.exe', '/c', batPath], {
         cwd: ROOT,
         detached: true,
-        shell: false,
         stdio: 'ignore',
     });
 
-    proc.unref(); // No bloquear el servidor al liberar el proceso hijo
-    procesoActivo = proc;
+    proc.on('error', (err) => log('err', `No se pudo abrir la terminal: ${err.message}`));
+    proc.unref(); // desvincular del proceso padre (el servidor)
 
-    log('ok', `Terminal de sincronización abierta (PID ${proc.pid})`);
+    log('ok', `Proceso desvinculado (PID ${proc.pid})`);
     return { ok: true, pid: proc.pid };
 }
 
