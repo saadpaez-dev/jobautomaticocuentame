@@ -5,4 +5,9 @@
  */
 
 process.env.MODO_RAM_DIRECTO = 'FASE3';
+
+if (process.argv[2]) {
+    process.env.RADICADO_OBJETIVO = process.argv[2];
+}
+
 require('./llenar-asistencia.js');

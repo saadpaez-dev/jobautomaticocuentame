@@ -1586,9 +1586,26 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
         return;
     }
 
-    // Filtrar por mes seleccionado (o mostrar todos si no coincide exactamente)
-    const ramsDelMes = listaRams.filter(r => (r.data.mes || '').toUpperCase() === (mesAtencion || '').toUpperCase());
-    const poolRams = ramsDelMes.length > 0 ? ramsDelMes : listaRams;
+    // Determinar objetivo si viene de ejecución directa o agente
+    const radicadoObjetivo = (process.env.RADICADO_OBJETIVO || '').trim();
+    let poolRams = listaRams;
+
+    if (radicadoObjetivo && radicadoObjetivo !== 'null' && radicadoObjetivo !== 'TODOS') {
+        console.log(c.cyan(`\n  🎯 Radicado objetivo solicitado: ${radicadoObjetivo}`));
+        const encontrados = listaRams.filter(r => 
+            (r.data.radicado || '').trim().toUpperCase() === radicadoObjetivo.toUpperCase() ||
+            (r.filename || '').toUpperCase().includes(radicadoObjetivo.toUpperCase()) ||
+            (r.data.codigoUds || '').toString().trim() === radicadoObjetivo
+        );
+        if (encontrados.length > 0) {
+            poolRams = encontrados;
+        } else {
+            console.log(c.amarillo(`  ⚠️ No se encontró coincidencia directa para "${radicadoObjetivo}". Se usarán los RAMs de la lista.`));
+        }
+    } else if (mesAtencion) {
+        const ramsDelMes = listaRams.filter(r => (r.data.mes || '').toUpperCase() === (mesAtencion || '').toUpperCase());
+        if (ramsDelMes.length > 0) poolRams = ramsDelMes;
+    }
 
     console.log(c.cyan(`\n  📋 LISTADO DE RAMS ENCONTRADOS (${poolRams.length}):`));
     console.log(c.gris('  --------------------------------------------------------------------------------'));
@@ -1603,27 +1620,43 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
         console.log(c.gris('  --------------------------------------------------------------------------------'));
     });
 
-    console.log(c.amarillo('\n  T. 🌟 SINCRONIZAR TODOS LOS RAMS PENDIENTES'));
-    console.log(c.amarillo('  A. ⚡ FORZAR SINCRONIZACIÓN DE TODOS (Incluso los ya sincronizados)'));
-    console.log(c.amarillo('  0. Regresar al menú'));
-
-    const resp = readline.question(c.negrita('\n  > Selecciona la opción o número(s) separados por coma: ')).trim().toUpperCase();
-    if (resp === '0' || !resp) return;
-
     let seleccionados = [];
-    if (resp === 'T') {
-        seleccionados = poolRams.filter(r => r.data.estado !== 'SINCRONIZADO');
-        if (seleccionados.length === 0) {
-            console.log(c.verde('\n  ✅ Todos los RAMs encontrados ya se encuentran SINCRONIZADOS.'));
-            const forzar = readline.keyInYNStrict(c.amarillo('  ¿Deseas forzar la resincronización de todos? '));
-            if (forzar) seleccionados = poolRams;
-            else return;
+
+    // Modo directo / automatizado (sin pausar en readline)
+    if (process.env.MODO_RAM_DIRECTO === 'FASE3' || process.argv.includes('--cola')) {
+        if (radicadoObjetivo && radicadoObjetivo !== 'null' && radicadoObjetivo !== 'TODOS') {
+            console.log(c.verde(`\n  ⚡ Modo automatizado: Procesando radicado objetivo ${radicadoObjetivo}...`));
+            seleccionados = poolRams;
+        } else {
+            console.log(c.verde(`\n  ⚡ Modo automatizado: Procesando todos los RAMs pendientes...`));
+            seleccionados = poolRams.filter(r => r.data.estado !== 'SINCRONIZADO');
+            if (seleccionados.length === 0) {
+                console.log(c.verde('\n  ✅ Todos los RAMs encontrados ya están sincronizados. No hay pendientes.'));
+                return;
+            }
         }
-    } else if (resp === 'A') {
-        seleccionados = poolRams;
     } else {
-        const indices = resp.split(/[, ]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= poolRams.length);
-        seleccionados = indices.map(i => poolRams[i - 1]);
+        console.log(c.amarillo('\n  T. 🌟 SINCRONIZAR TODOS LOS RAMS PENDIENTES'));
+        console.log(c.amarillo('  A. ⚡ FORZAR SINCRONIZACIÓN DE TODOS (Incluso los ya sincronizados)'));
+        console.log(c.amarillo('  0. Regresar al menú'));
+
+        const resp = readline.question(c.negrita('\n  > Selecciona la opción o número(s) separados por coma: ')).trim().toUpperCase();
+        if (resp === '0' || !resp) return;
+
+        if (resp === 'T') {
+            seleccionados = poolRams.filter(r => r.data.estado !== 'SINCRONIZADO');
+            if (seleccionados.length === 0) {
+                console.log(c.verde('\n  ✅ Todos los RAMs encontrados ya se encuentran SINCRONIZADOS.'));
+                const forzar = readline.keyInYNStrict(c.amarillo('  ¿Deseas forzar la resincronización de todos? '));
+                if (forzar) seleccionados = poolRams;
+                else return;
+            }
+        } else if (resp === 'A') {
+            seleccionados = poolRams;
+        } else {
+            const indices = resp.split(/[, ]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= poolRams.length);
+            seleccionados = indices.map(i => poolRams[i - 1]);
+        }
     }
 
     if (seleccionados.length === 0) {
