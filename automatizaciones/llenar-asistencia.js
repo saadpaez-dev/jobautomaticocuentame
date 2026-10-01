@@ -58,6 +58,118 @@ function filtrarServiciosPorAsociacion(servOptions, ascNombre, tipoServicio) {
     return options;
 }
 
+/**
+ * Captura un pantallazo oficial del RAM antes de guardar en Cuéntame
+ * y lo sincroniza guardándolo en jobautomatico, app-cuentame y enviándolo al servidor web (Render / local).
+ */
+async function capturarPantallazoRAMAntesDeGuardar({ workPage, contentFrame, asociacion, jardin, codigoUds, mesAtencion, anio = 2026 }) {
+    try {
+        console.log(c.cyan(`    📸 Capturando pantallazo oficial del RAM antes de guardar...`));
+        
+        const sanitizarNombreArchivo = (txt) => (txt || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '_');
+        
+        const asocClean = sanitizarNombreArchivo(asociacion);
+        const jardinClean = sanitizarNombreArchivo(jardin);
+        const mesClean = sanitizarNombreArchivo(mesAtencion || 'Octubre');
+        const codClean = codigoUds ? String(codigoUds).trim() : '';
+
+        const filename = `RAM_${jardinClean}_${mesClean}_${anio}.png`;
+        const filenameCod = codClean ? `RAM_${codClean}_${mesClean}_${anio}.png` : null;
+        const filenameSimple = `RAM_${jardinClean}.png`;
+
+        const dirs = [
+            path.join(__dirname, '..', 'docs', 'reportes', 'ram', asocClean),
+            path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'reportes', 'ram', asocClean),
+            path.join(__dirname, '..', 'docs', 'pantallazos', asocClean),
+            path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'pantallazos', asocClean)
+        ];
+
+        for (const d of dirs) {
+            try {
+                if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+            } catch(e) {}
+        }
+
+        // Scroll a la tabla para que se visualicen los beneficiarios
+        try {
+            await contentFrame.evaluate(() => {
+                const t = document.querySelector('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid, table[id*="Grid"]');
+                if (t) t.scrollIntoView({ behavior: 'instant', block: 'center' });
+            }).catch(() => {});
+            await workPage.waitForTimeout(400);
+        } catch(e) {}
+
+        let buffer = null;
+        try {
+            const tabla = contentFrame.locator('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid, table[id*="Grid"]').first();
+            if (await tabla.count() > 0 && await tabla.isVisible()) {
+                buffer = await tabla.screenshot();
+            }
+        } catch(e) {}
+
+        if (!buffer) {
+            buffer = await workPage.screenshot({ fullPage: true });
+        }
+
+        // Guardar en carpetas locales de jobautomatico y app-cuentame
+        const pathPrincipal = path.join(dirs[0], filename);
+        fs.writeFileSync(pathPrincipal, buffer);
+
+        for (let i = 1; i < dirs.length; i++) {
+            try {
+                fs.writeFileSync(path.join(dirs[i], filename), buffer);
+                if (filenameCod) fs.writeFileSync(path.join(dirs[i], filenameCod), buffer);
+                fs.writeFileSync(path.join(dirs[i], filenameSimple), buffer);
+            } catch(e) {}
+        }
+        if (filenameCod) {
+            try { fs.writeFileSync(path.join(dirs[0], filenameCod), buffer); } catch(e) {}
+        }
+        try { fs.writeFileSync(path.join(dirs[0], filenameSimple), buffer); } catch(e) {}
+
+        console.log(c.verde(`    💾 Pantallazo RAM guardado en disco: ${filename}`));
+
+        // Enviar vía HTTP al servidor web (Render / local) para que esté disponible inmediatamente en el portal
+        const base64Data = buffer.toString('base64');
+        const postPayload = JSON.stringify({
+            asociacion,
+            jardin,
+            codigoUds: codClean,
+            mes: mesAtencion,
+            anio,
+            filename,
+            imagenBase64: base64Data
+        });
+
+        const targets = [
+            'http://127.0.0.1:3000/api/admin/subir-pantallazo-ram',
+            'https://portal-cuentame.onrender.com/api/admin/subir-pantallazo-ram'
+        ];
+
+        for (const targetUrl of targets) {
+            try {
+                const httpModule = targetUrl.startsWith('https') ? require('https') : require('http');
+                const req = httpModule.request(targetUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(postPayload)
+                    },
+                    timeout: 8000
+                });
+                req.on('error', () => {}); // Silencioso si no conecta
+                req.write(postPayload);
+                req.end();
+            } catch(e) {}
+        }
+
+        return { success: true, filename, path: pathPrincipal };
+    } catch(err) {
+        console.error(c.amarillo(`    ⚠️ No se pudo tomar el pantallazo previo al guardado: ${err.message}`));
+        return { success: false, error: err.message };
+    }
+}
+
 async function main() {
   const USUARIO = process.env.CUENTAME_USUARIO;
   const PASSWORD = process.env.CUENTAME_PASSWORD;
@@ -435,6 +547,17 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                     }
 
                     console.log(c.verde(`    ✔️ Se procesaron ${ninosActivos} ninos activos y se marcaron ${checksMarcados} asistencias.`));
+
+                    // 📸 Tomar pantallazo del RAM antes de guardar y sincronizar con el portal
+                    await capturarPantallazoRAMAntesDeGuardar({
+                        workPage,
+                        contentFrame,
+                        asociacion: asc.nombreCorto,
+                        jardin: uds.text,
+                        codigoUds: uds.value,
+                        mesAtencion,
+                        anio: 2026
+                    });
 
                     console.log('    💾 Guardando asistencia...');
                     const disco = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
@@ -1134,6 +1257,17 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                     console.log(c.verde(`    ✅ ${tarea.tipoAccion} aplicada para ${tarea.nino.nombreCompleto} (Días: ${tarea.dias.join(', ')})`));
                 }
 
+                // 📸 Tomar pantallazo del RAM antes de guardar y sincronizar con el portal
+                await capturarPantallazoRAMAntesDeGuardar({
+                    workPage: mainPage,
+                    contentFrame,
+                    asociacion: ascNombre,
+                    jardin: jardinSel.nombreUds,
+                    codigoUds: jardinSel.codigoUds,
+                    mesAtencion,
+                    anio: 2026
+                });
+
                 // Guardar cambios en Cuéntame
                 console.log(c.amarillo('    💾 Guardando cambios de asistencia en Cuéntame...'));
                 const btnGuardar = contentFrame.locator('input[value*="Guardar" i], input[title*="Guardar" i], a:has(img[src*="save"]), input[src*="save"], button:has-text("Guardar")').first();
@@ -1301,6 +1435,17 @@ async function modificarAsistenciaIndividual(workPage, contentFrame, elegida, me
             console.log(c.amarillo('    👉 Los cambios estan en pantalla. Selecciona el siguiente nino...'));
             continue;
         } else if (finIdx === 1) {
+            // 📸 Tomar pantallazo del RAM antes de guardar y sincronizar con el portal
+            await capturarPantallazoRAMAntesDeGuardar({
+                workPage,
+                contentFrame,
+                asociacion: asc.nombreCorto,
+                jardin: elegida.uds.text,
+                codigoUds: elegida.uds.value,
+                mesAtencion,
+                anio: 2026
+            });
+
             // Guardar
             console.log('    💾 Guardando asistencia...');
             const discoNuevo = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i]').first();
@@ -1783,6 +1928,17 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
 
                 console.log(c.verde(`    ✔️ Procesados ${ninosProcesados} niños activos.`));
                 console.log(c.verde(`    ✔️ Asistencias marcadas: ${asistenciasMarcadas} | Inasistencias aplicadas: ${faltasAplicadas}`));
+
+                // 📸 Tomar pantallazo del RAM antes de guardar y sincronizar con el portal
+                await capturarPantallazoRAMAntesDeGuardar({
+                    workPage: mainPage,
+                    contentFrame,
+                    asociacion: ramItem.asociacion,
+                    jardin: ramItem.jardin,
+                    codigoUds: ramItem.codigoUds,
+                    mesAtencion: ramItem.mes || mesAtencion,
+                    anio: ramItem.anio || 2026
+                });
 
                 // Guardar cambios (clic en disco)
                 console.log(c.amarillo('    💾 Guardando RAM en Cuéntame (clic en Guardar)...'));

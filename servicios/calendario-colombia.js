@@ -162,11 +162,16 @@ function verificarDiaJardin(year, monthIndex, day) {
  * Retorna el calendario completo de un mes dado para jardín ICBF
  */
 function obtenerCalendarioMesJardin(year, mesNombreOIndex) {
-    let monthIndex = typeof mesNombreOIndex === 'number' 
-        ? mesNombreOIndex 
-        : NOMBRES_MESES.findIndex(m => m.toLowerCase() === String(mesNombreOIndex).toLowerCase());
+    let monthIndex = -1;
+    if (typeof mesNombreOIndex === 'number') {
+        monthIndex = mesNombreOIndex;
+    } else if (mesNombreOIndex !== undefined && mesNombreOIndex !== null && !isNaN(parseInt(mesNombreOIndex, 10)) && String(mesNombreOIndex).trim().length <= 2) {
+        monthIndex = parseInt(mesNombreOIndex, 10);
+    } else if (mesNombreOIndex) {
+        monthIndex = NOMBRES_MESES.findIndex(m => m.toLowerCase() === String(mesNombreOIndex).toLowerCase());
+    }
     
-    if (monthIndex === -1) monthIndex = new Date().getMonth();
+    if (monthIndex < 0 || monthIndex > 11) monthIndex = new Date().getMonth();
 
     const nombreMes = NOMBRES_MESES[monthIndex];
     const totalDias = new Date(year, monthIndex + 1, 0).getDate();
