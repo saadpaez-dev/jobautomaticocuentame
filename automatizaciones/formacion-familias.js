@@ -134,11 +134,10 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   const frame = page.frameLocator('iframe').last();
 
   console.log('  👉 Clic en el boton Nuevo (+)...');
-  await Promise.all([
-    page.waitForLoadState('domcontentloaded'),
-    frame.locator('#btnNuevo, input[type="image"][src*="nuevo"], input[type="image"][title*="Nuevo"]').first().click()
-  ]);
-  await page.waitForTimeout(800);
+  const btnNuevo = frame.locator('#btnNuevo, input[type="image"][src*="nuevo"], input[type="image"][title*="Nuevo"], a#btnNuevo').first();
+  await btnNuevo.waitFor({ state: 'visible', timeout: 15000 });
+  await btnNuevo.click();
+  await page.waitForTimeout(1500);
 
   console.log(`  👉 Buscando UDS: ${jardin.nombre}...`);
   await seleccionarUnidad(page, frame, jardin.codigo);

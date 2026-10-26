@@ -84,10 +84,10 @@ async function capturarPantallazoRAMAntesDeGuardar({ workPage, contentFrame, aso
         
         const sanitizarNombreArchivo = (txt) => (txt || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '_');
         
-        const asocClean = sanitizarNombreArchivo(asociacion);
-        const jardinClean = sanitizarNombreArchivo(jardin);
-        const mesClean = sanitizarNombreArchivo(mesAtencion || 'Octubre');
         const codClean = codigoUds ? String(codigoUds).trim() : '';
+        const asocClean = sanitizarNombreArchivo(asociacion) || 'GENERAL';
+        const jardinClean = sanitizarNombreArchivo(jardin) || (codClean ? `UDS_${codClean}` : 'UDS');
+        const mesClean = sanitizarNombreArchivo(mesAtencion || 'Octubre');
 
         const filename = `RAM_${jardinClean}_${mesClean}_${anio}.png`;
         const filenameCod = codClean ? `RAM_${codClean}_${mesClean}_${anio}.png` : null;
@@ -1225,7 +1225,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 }
 
                 // Habilitar edición (Clic en el lápiz si existe)
-                const lapiz = contentFrame.locator('input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"]').first();
+                const lapiz = contentFrame.locator('a#btnEditar, input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"]').first();
                 if (await lapiz.count() > 0 && await lapiz.isVisible()) {
                     await lapiz.click();
                     await mainPage.waitForTimeout(800);
@@ -1781,25 +1781,30 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                                 }).catch(() => {});
 
                                 // Espera determinista al término del PostBack
+                                await mainPage.waitForTimeout(400);
                                 await esperarPostBackASPNet(contentFrame, 6000);
                             }
+                            return true;
                         }
                     } catch(e) {
                         console.log(c.gris(`    (Filtro ${keyword}: ${e.message})`));
                     }
+                    return false;
                 };
 
-                await selectDropdown('Direcciones', 'Primera Infancia');
+                // 1. Regional (Bogotá D.C. = 3)
                 await selectDropdown('Regional', 'Bogota');
-                await selectDropdown('Centro', 'USAQUEN');
-                await selectDropdown('Vigencia', (ascObj.vigenciaContrato || '2026').toString());
-                await selectDropdown('Contrato', ascObj.numeroContrato ? ascObj.numeroContrato.toString() : 1);
-                await selectDropdown('Mes', ramData.mes || mesAtencion);
-                await selectDropdown('Estado', 'Todos');
-                await esperarPostBackASPNet(contentFrame, 3000);
 
-                // Servicio
-                const servicioLocator = contentFrame.locator('select[id*="Servicio"]').first();
+                // 2. Vigencia (Contratos ICBF activos bajo vigencia 2024)
+                const vigenciaSeleccionada = (ascObj.vigenciaContrato || '2024').toString();
+                await selectDropdown('Vigencia', vigenciaSeleccionada);
+
+                // 3. Contrato
+                const contratoObjetivo = ascObj.numeroContrato ? ascObj.numeroContrato.toString() : 1;
+                await selectDropdown('Contrato', contratoObjetivo);
+
+                // 4. Servicio
+                const servicioLocator = contentFrame.locator('select[id*="ddlNombreServicio"], select[id*="Servicio"]').first();
                 if (await servicioLocator.count() > 0) {
                     let servOpts = [];
                     for (let r = 0; r < 40; r++) {
@@ -1819,20 +1824,24 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
 
                     if (servValidos.length > 0) {
                         const chosenServ = servValidos[0];
-                        console.log(c.gris(`    [Filtro] Seleccionando Servicio: ${chosenServ.text}`));
-                        await servicioLocator.selectOption(chosenServ.value, { timeout: 5000 }).catch(() => {});
-                        await servicioLocator.evaluate(el => {
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                            if (typeof __doPostBack === 'function') {
-                                try { __doPostBack(el.name || el.id, ''); } catch(e) {}
-                            }
-                        }).catch(() => {});
-                        await mainPage.waitForTimeout(500);
+                        const curServ = await servicioLocator.evaluate(s => s.value);
+                        if (curServ !== chosenServ.value) {
+                            console.log(c.gris(`    [Filtro] Seleccionando Servicio: ${chosenServ.text}`));
+                            await servicioLocator.selectOption(chosenServ.value, { timeout: 5000 }).catch(() => {});
+                            await servicioLocator.evaluate(el => {
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                                if (typeof __doPostBack === 'function') {
+                                    try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                                }
+                            }).catch(() => {});
+                            await mainPage.waitForTimeout(400);
+                            await esperarPostBackASPNet(contentFrame, 6000);
+                        }
                     }
                 }
 
-                // UDS
-                const uLoc = contentFrame.locator(`select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]`).first();
+                // 5. UDS
+                const uLoc = contentFrame.locator('select[id*="ddlIdContratoUnidadServicioNombreUds"], select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]').first();
                 if (await uLoc.count() > 0) {
                     let udsValue = null;
                     const codigoSearch = String(ramData.codigoUds || '').trim();
@@ -1857,22 +1866,30 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     }
 
                     if (udsValue) {
-                        console.log(c.gris(`    [Filtro] Seleccionando UDS: ${ramData.jardin}`));
-                        await uLoc.selectOption(udsValue, { timeout: 5000 }).catch(() => {});
-                        await uLoc.evaluate(el => {
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                            if (typeof __doPostBack === 'function') {
-                                try { __doPostBack(el.name || el.id, ''); } catch(e) {}
-                            }
-                        }).catch(() => {});
-                        await mainPage.waitForTimeout(500);
+                        const curUds = await uLoc.evaluate(s => s.value);
+                        if (curUds !== udsValue) {
+                            console.log(c.gris(`    [Filtro] Seleccionando UDS: ${ramData.jardin}`));
+                            await uLoc.selectOption(udsValue, { timeout: 5000 }).catch(() => {});
+                            await uLoc.evaluate(el => {
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                                if (typeof __doPostBack === 'function') {
+                                    try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                                }
+                            }).catch(() => {});
+                            await mainPage.waitForTimeout(400);
+                            await esperarPostBackASPNet(contentFrame, 6000);
+                        }
                     } else {
                         console.log(c.rojo(`    ❌ No se encontró la UDS "${ramData.jardin}" (${ramData.codigoUds}) en el dropdown.`));
                         continue;
                     }
                 }
 
-                // Clic en la Lupa para consultar beneficiarios
+                // 6. Mes y Estado
+                await selectDropdown('ddlMes', ramData.mes || mesAtencion);
+                await selectDropdown('ddlEstado', 'Todos');
+
+                // 7. Clic en la Lupa para consultar beneficiarios
                 console.log(c.gris('    👉 Clic en Lupa para consultar beneficiarios...'));
                 const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i]').first();
                 if (await lupa.count() > 0 && await lupa.isVisible()) {
@@ -1881,7 +1898,8 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first();
                     if (await genericBtn.count() > 0) await genericBtn.click();
                 }
-                await esperarPostBackASPNet(contentFrame, 8000);
+                await mainPage.waitForTimeout(500);
+                await esperarPostBackASPNet(contentFrame, 12000);
 
                 contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
@@ -1983,6 +2001,10 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                 });
 
                 const ninosProcesados = resultadoMarcado.ninos;
+                if (ninosProcesados === 0) {
+                    console.log(c.rojo(`    ⚠️ No se encontraron niños activos en la tabla de Cuéntame para "${ramData.jardin}". Omitiendo guardado.`));
+                    continue;
+                }
                 const asistenciasMarcadas = resultadoMarcado.marcadas;
                 const faltasAplicadas = resultadoMarcado.faltas;
 
@@ -1993,11 +2015,11 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                 await capturarPantallazoRAMAntesDeGuardar({
                     workPage: mainPage,
                     contentFrame,
-                    asociacion: ramItem.asociacion,
-                    jardin: ramItem.jardin,
-                    codigoUds: ramItem.codigoUds,
-                    mesAtencion: ramItem.mes || mesAtencion,
-                    anio: ramItem.anio || 2026
+                    asociacion: ramData.asociacion || ascObj.nombreCorto,
+                    jardin: ramData.jardin,
+                    codigoUds: ramData.codigoUds,
+                    mesAtencion: ramData.mes || mesAtencion,
+                    anio: ramData.anio || 2026
                 });
 
                 // Guardar cambios (clic en disco) auditando la respuesta del servidor
