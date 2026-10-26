@@ -82,6 +82,112 @@ function lanzarSincronizacion(radicado) {
     return { ok: true, pid: proc.pid };
 }
 
+// ─── Lanzar Formación a Familias en terminal visible ─────────────────────────
+function lanzarFormacion(payload, cmdId = 'auto') {
+    const colaDir = path.join(ROOT, 'logs', 'cola_comandos');
+    if (!fs.existsSync(colaDir)) fs.mkdirSync(colaDir, { recursive: true });
+    const payloadPath = path.join(colaDir, `formacion_${cmdId}.json`);
+    fs.writeFileSync(payloadPath, JSON.stringify(payload, null, 2), 'utf8');
+
+    const desc = payload.jardin || (Array.isArray(payload.jardines) ? `${payload.jardines.length} jardines` : payload.asociacion || 'Todas');
+    log('info', `🎓 Lanzando robot de Formación a Familias (${desc})...`);
+
+    const args = ['/c', 'start', 'FORMACION A FAMILIAS - CUENTAME', 'cmd.exe', '/k', 'node', 'automatizaciones/formacion-familias.js', '--payload', payloadPath];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', `No se pudo abrir terminal de Formación: ${err.message}`));
+    proc.unref();
+
+    log('ok', `Terminal de Formación a Familias abierta en pantalla (PID ${proc.pid})`);
+    return { ok: true, pid: proc.pid };
+}
+
+// ─── Lanzar Captura de Pantallazos Oficiales en terminal visible ──────────────
+function lanzarCapturaPantallazo(payload = {}, cmdId = 'auto') {
+    log('info', `📸 Lanzando robot de Captura de Pantallazos en Cuéntame...`);
+
+    const scriptPath = path.join(ROOT, 'automatizaciones', 'capturar-pantallazo-jardin.js');
+    let cliCmd = `node "${scriptPath}"`;
+
+    if (payload.masivo) {
+        cliCmd += ' --masivo';
+    } else if (payload.asociacion) {
+        cliCmd += ` --asociacion "${payload.asociacion}"`;
+        if (payload.jardin) {
+            cliCmd += ` --jardin "${payload.jardin}"`;
+        }
+    }
+    if (payload.forzar !== false) {
+        cliCmd += ' --forzar';
+    }
+
+    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZOS - CUENTAME', 'cmd.exe', '/k', cliCmd];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', `No se pudo abrir terminal de Pantallazos: ${err.message}`));
+    proc.unref();
+
+    log('ok', `Terminal de Captura de Pantallazos abierta en pantalla (PID ${proc.pid})`);
+    return { ok: true, pid: proc.pid };
+}
+
+// ─── Lanzar Sincronización de Base de Pantallazos hacia la Nube ──────────────
+function lanzarSincronizacionBasePantallazos(cmdId = 'auto') {
+    log('info', `🔄 Lanzando sincronizador de base de pantallazos PC -> Render...`);
+
+    const scriptPath = path.join(ROOT, 'servicios', 'sincronizar-base-pantallazos.js');
+    const args = ['/c', 'start', 'SINCRONIZANDO BASE DE PANTALLAZOS', 'cmd.exe', '/k', 'node', scriptPath];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', `No se pudo abrir terminal de sincronización: ${err.message}`));
+    proc.unref();
+
+    log('ok', `Terminal de Sincronización de Pantallazos abierta en pantalla (PID ${proc.pid})`);
+    return { ok: true, pid: proc.pid };
+}
+
+// ─── Despachar cualquier orden recibida de la Nube ───────────────────────────
+async function despacharComando(cmd) {
+    if (!cmd || !cmd.id) return;
+    const accion = cmd.accion || 'EJECUTAR_RAM';
+
+    if (accion === 'EJECUTAR_RAM') {
+        log('ok', `⚡ [LATENCIA 0] ¡Orden RAM recibida! Radicado: ${cmd.radicado || 'TODOS'}`);
+        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de RAM en PC...');
+        lanzarSincronizacion(cmd.radicado);
+        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de ejecución de RAM abierta en PC.');
+    } else if (accion === 'EJECUTAR_FORMACION') {
+        log('ok', `🎓 [LATENCIA 0] ¡Orden de FORMACIÓN A FAMILIAS recibida!`);
+        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Formación a Familias en PC...');
+        lanzarFormacion(cmd.payload || {}, cmd.id);
+        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Formación a Familias abierta en PC.');
+    } else if (accion === 'CAPTURAR_PANTALLAZO') {
+        log('ok', `📸 [LATENCIA 0] ¡Orden de CAPTURA DE PANTALLAZO recibida!`);
+        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando captura de pantallazos en Cuéntame...');
+        lanzarCapturaPantallazo(cmd.payload || {}, cmd.id);
+        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Captura de Pantallazos abierta en PC.');
+    } else if (accion === 'SINCRONIZAR_BASE_PANTALLAZOS') {
+        log('ok', `🔄 [LATENCIA 0] ¡Orden de SINCRONIZACIÓN DE BASE DE PANTALLAZOS recibida!`);
+        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Sincronizando pantallazos con Render...');
+        lanzarSincronizacionBasePantallazos(cmd.id);
+        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Sincronizador activo en PC.');
+    } else {
+        log('warn', `Acción desconocida recibida: ${accion}`);
+    }
+}
+
 // ─── Comunicación con la Nube (Render): Tiempo Real (SSE) + Fallback ────────
 let streamReq = null;
 let reconectarTimeout = null;
@@ -165,10 +271,7 @@ async function procesarBloqueSSE(bloque) {
         try {
             const cmd = JSON.parse(dataStr);
             if (cmd && cmd.id) {
-                log('ok', `⚡ [LATENCIA 0] ¡Orden recibida en tiempo real desde celular/web! Radicado: ${cmd.radicado || 'TODOS'}`);
-                await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot en PC (latencia 0)...');
-                lanzarSincronizacion(cmd.radicado);
-                await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de ejecución abierta en PC.');
+                await despacharComando(cmd);
             }
         } catch(e) {
             log('err', `Error procesando comando SSE: ${e.message}`);
@@ -196,16 +299,7 @@ async function consultarComandosEnNube() {
 
         if (data && data.comandos && data.comandos.length > 0) {
             for (const cmd of data.comandos) {
-                log('ok', `📱 ¡Orden de ejecución recibida desde el Móvil / Portal Web! Radicado: ${cmd.radicado || 'TODOS'}`);
-                
-                // 1. Marcar como en proceso en la nube
-                await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot en PC...');
-
-                // 2. Disparar sincronización
-                lanzarSincronizacion(cmd.radicado);
-
-                // 3. Marcar como ejecutando
-                await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de ejecución abierta en PC.');
+                await despacharComando(cmd);
             }
         }
     } catch(e) {
@@ -278,6 +372,26 @@ const server = http.createServer((req, res) => {
             mensaje: `✅ Robot de sincronización iniciado. Revisa la nueva terminal que se abrió en tu computador.`,
             radicado: radicado || 'TODOS_LOS_PENDIENTES',
             pid: resultado.pid,
+        });
+    }
+
+    // ── GET /api/capturar-pantallazo ──
+    if (ruta === '/api/capturar-pantallazo' && req.method === 'GET') {
+        const resultado = lanzarCapturaPantallazo(query);
+        return responderJSON(res, 200, {
+            ok: true,
+            mensaje: '📸 Robot de captura de pantallazos iniciado en terminal local.',
+            pid: resultado.pid
+        });
+    }
+
+    // ── GET /api/sincronizar-pantallazos ──
+    if (ruta === '/api/sincronizar-pantallazos' && req.method === 'GET') {
+        const resultado = lanzarSincronizacionBasePantallazos();
+        return responderJSON(res, 200, {
+            ok: true,
+            mensaje: '🔄 Sincronizador de base de pantallazos iniciado en terminal local.',
+            pid: resultado.pid
         });
     }
 

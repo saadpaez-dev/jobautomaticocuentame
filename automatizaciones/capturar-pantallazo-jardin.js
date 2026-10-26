@@ -625,6 +625,13 @@ async function main() {
     console.log(c.rojo(`║  ❌ Con observaciones / errores:     ${String(errores).padEnd(23)}║`));
     console.log(c.negrita(c.verde(`╚══════════════════════════════════════════════════════════════╝\n`)));
     console.log(c.cyan(`📁 Los archivos están listos en: c:\\Dev\\app-cuentame\\docs\\pantallazos\\\n`));
+
+    try {
+        const { sincronizarBasePantallazos } = require('../servicios/sincronizar-base-pantallazos');
+        console.log(c.cyan('🔄 Sincronizando nuevos pantallazos con la nube de Render...'));
+        await sincronizarBasePantallazos();
+    } catch(e) {}
+
     process.exit(0);
 }
 

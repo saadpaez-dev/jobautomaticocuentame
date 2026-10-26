@@ -378,7 +378,27 @@ async function main() {
   const { jardines, porAsociacion } = leerJardines(RUTA_EXCEL);
   console.log(c.verde(`\n📋 Excel leido: ${jardines.length} jardines en ${Object.keys(porAsociacion).length} asociaciones`));
 
-  const config = configurarObservaciones();
+  // Soporte de ejecución automática desatendida vía payload JSON (desde portal web / agente)
+  let payloadModoAuto = null;
+  const payloadArgIdx = process.argv.indexOf('--payload');
+  if (payloadArgIdx !== -1 && process.argv[payloadArgIdx + 1]) {
+    try {
+      const pPath = process.argv[payloadArgIdx + 1];
+      if (fs.existsSync(pPath)) {
+        payloadModoAuto = JSON.parse(fs.readFileSync(pPath, 'utf8'));
+        console.log(c.cyan(`\n🤖 MODO AUTOMÁTICO ACTIVADO desde orden web: ${payloadModoAuto.comandoId || 'Lote'}`));
+      }
+    } catch (e) {
+      console.error(c.rojo('Error cargando payload de formación:'), e.message);
+    }
+  }
+
+  const config = payloadModoAuto
+    ? {
+        hoy: payloadModoAuto.fecha || fechaHoy(),
+        observaciones: payloadModoAuto.observaciones || OBSERVACIONES_DEFAULT
+      }
+    : configurarObservaciones();
 
   let browser = null;
   let page = null;
@@ -392,68 +412,114 @@ async function main() {
     console.log(c.negrita(c.cyan('  ======================================================\n')));
 
     let jardinesAProcesar = [];
-
-    const opcionesAlcance = ['Procesar TODAS las asociaciones', 'Seleccionar UNA asociacion especifica'];
-    const alcanceIdx = readline.keyInSelect(opcionesAlcance, c.negrita('  > Escoja el alcance de esta ejecucion: '), { cancel: 'Salir' });
-
-    if (alcanceIdx === -1) {
-        break;
-    }
-
-    let asociacionSeleccionada = null;
-
-    if (alcanceIdx === 0) {
-        jardinesAProcesar = jardines;
-    } else {
-        const asociacionesNames = Object.keys(porAsociacion);
-        const ascIdx = readline.keyInSelect(asociacionesNames, c.negrita('  > Escoja la asociacion: '), { cancel: 'Cancelar' });
-        if (ascIdx === -1) continue;
-
-        asociacionSeleccionada = asociacionesNames[ascIdx];
-        const jardinesAsoc = porAsociacion[asociacionSeleccionada];
-
-        const opcionesJardin = ['TODOS los jardines de esta asociacion', 'Seleccionar UN jardin especifico'];
-        const jardIdx = readline.keyInSelect(opcionesJardin, c.negrita(`  > Alcance para ${asociacionSeleccionada}: `), { cancel: 'Atras' });
-        if (jardIdx === -1) continue;
-
-        if (jardIdx === 0) {
-            jardinesAProcesar = jardinesAsoc.jardines;
-        } else {
-            const jardinesNames = jardinesAsoc.jardines.map(j => `${j.nombre} (${j.codigo})`);
-            const jIdx = readline.keyInSelect(jardinesNames, c.negrita('  > Escoja el jardin: '), { cancel: 'Atras' });
-            if (jIdx === -1) continue;
-            jardinesAProcesar = [jardinesAsoc.jardines[jIdx]];
-        }
-    }
-
     const temasPorAsociacion = {};
-    if (alcanceIdx === 0) {
-        console.log(c.cyan('\n  📋 Ha elegido Procesar TODAS las asociaciones.'));
-        console.log(c.gris('  A continuacion, escoja el TEMA DE FORMACION para CADA una:'));
-        const asociacionesNames = Object.keys(porAsociacion);
-        for (const asc of asociacionesNames) {
-            console.log(c.amarillo(`\n  Asociacion: ${asc}`));
-            const tIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita(`  > TEMA para ${asc}: `), { cancel: false });
-            temasPorAsociacion[asc] = TEMAS_FORMACION[tIdx];
-        }
-        console.log(c.verde('\n  ✅ Temas seleccionados correctamente.'));
+    let opcionesProcesamiento = { procesarTodosNinos: true };
+
+    if (payloadModoAuto) {
+      // 1. Determinar jardines a procesar desde el payload
+      if (Array.isArray(payloadModoAuto.jardines) && payloadModoAuto.jardines.length > 0) {
+        jardinesAProcesar = payloadModoAuto.jardines.map(j => {
+          const matchExcel = jardines.find(x => String(x.codigo).trim() === String(j.codigoUds || j.codigo).trim());
+          return matchExcel || {
+            nombre: j.jardin || j.nombre,
+            codigo: j.codigoUds || j.codigo,
+            asociacion: j.asociacion
+          };
+        });
+      } else if (payloadModoAuto.asociacion === 'TODAS') {
+        jardinesAProcesar = jardines;
+      } else if (payloadModoAuto.jardin && payloadModoAuto.asociacion) {
+        const asocClean = removeAccentsStr(payloadModoAuto.asociacion);
+        const jarClean = removeAccentsStr(payloadModoAuto.jardin);
+        const match = jardines.find(x => removeAccentsStr(x.asociacion).includes(asocClean) && removeAccentsStr(x.nombre).includes(jarClean));
+        jardinesAProcesar = match ? [match] : [{
+          nombre: payloadModoAuto.jardin,
+          codigo: payloadModoAuto.codigoUds || '',
+          asociacion: payloadModoAuto.asociacion
+        }];
+      } else if (payloadModoAuto.asociacion) {
+        const asocClean = removeAccentsStr(payloadModoAuto.asociacion);
+        jardinesAProcesar = jardines.filter(x => removeAccentsStr(x.asociacion).includes(asocClean));
+      }
+
+      // 2. Asignar tema
+      const temaElegido = payloadModoAuto.tema || TEMAS_FORMACION[0];
+      const asociacionesNames = Object.keys(porAsociacion);
+      for (const asc of asociacionesNames) {
+        temasPorAsociacion[asc] = temaElegido;
+      }
+      if (payloadModoAuto.asociacion) {
+        temasPorAsociacion[payloadModoAuto.asociacion] = temaElegido;
+      }
+
+      // 3. Opciones de procesamiento
+      opcionesProcesamiento = {
+        procesarTodosNinos: payloadModoAuto.todosLosNinos !== false
+      };
+      console.log(c.verde(`  📋 Jardines a procesar por orden: ${jardinesAProcesar.length}`));
+      console.log(c.cyan(`  🎯 Tema seleccionado: ${temaElegido}`));
+      console.log(c.gris(`  📅 Fecha: ${config.hoy} | Horas: ${payloadModoAuto.horas || HORAS_FORMACION}`));
+
     } else {
-        console.log();
-        const temaIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita('  > Escoja el TEMA DE FORMACION para esta tarea: '), { cancel: 'Cancelar tarea' });
-        if (temaIdx === -1) continue;
-        temasPorAsociacion[asociacionSeleccionada] = TEMAS_FORMACION[temaIdx];
+      const opcionesAlcance = ['Procesar TODAS las asociaciones', 'Seleccionar UNA asociacion especifica'];
+      const alcanceIdx = readline.keyInSelect(opcionesAlcance, c.negrita('  > Escoja el alcance de esta ejecucion: '), { cancel: 'Salir' });
+
+      if (alcanceIdx === -1) {
+          break;
+      }
+
+      let asociacionSeleccionada = null;
+
+      if (alcanceIdx === 0) {
+          jardinesAProcesar = jardines;
+      } else {
+          const asociacionesNames = Object.keys(porAsociacion);
+          const ascIdx = readline.keyInSelect(asociacionesNames, c.negrita('  > Escoja la asociacion: '), { cancel: 'Cancelar' });
+          if (ascIdx === -1) continue;
+
+          asociacionSeleccionada = asociacionesNames[ascIdx];
+          const jardinesAsoc = porAsociacion[asociacionSeleccionada];
+
+          const opcionesJardin = ['TODOS los jardines de esta asociacion', 'Seleccionar UN jardin especifico'];
+          const jardIdx = readline.keyInSelect(opcionesJardin, c.negrita(`  > Alcance para ${asociacionSeleccionada}: `), { cancel: 'Atras' });
+          if (jardIdx === -1) continue;
+
+          if (jardIdx === 0) {
+              jardinesAProcesar = jardinesAsoc.jardines;
+          } else {
+              const jardinesNames = jardinesAsoc.jardines.map(j => `${j.nombre} (${j.codigo})`);
+              const jIdx = readline.keyInSelect(jardinesNames, c.negrita('  > Escoja el jardin: '), { cancel: 'Atras' });
+              if (jIdx === -1) continue;
+              jardinesAProcesar = [jardinesAsoc.jardines[jIdx]];
+          }
+      }
+
+      if (alcanceIdx === 0) {
+          console.log(c.cyan('\n  📋 Ha elegido Procesar TODAS las asociaciones.'));
+          console.log(c.gris('  A continuacion, escoja el TEMA DE FORMACION para CADA una:'));
+          const asociacionesNames = Object.keys(porAsociacion);
+          for (const asc of asociacionesNames) {
+              console.log(c.amarillo(`\n  Asociacion: ${asc}`));
+              const tIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita(`  > TEMA para ${asc}: `), { cancel: false });
+              temasPorAsociacion[asc] = TEMAS_FORMACION[tIdx];
+          }
+          console.log(c.verde('\n  ✅ Temas seleccionados correctamente.'));
+      } else {
+          console.log();
+          const temaIdx = readline.keyInSelect(TEMAS_FORMACION, c.negrita('  > Escoja el TEMA DE FORMACION para esta tarea: '), { cancel: 'Cancelar tarea' });
+          if (temaIdx === -1) continue;
+          temasPorAsociacion[asociacionSeleccionada] = TEMAS_FORMACION[temaIdx];
+      }
+
+      console.log();
+      const opcionesNinos = ['Aplicar a TODOS los ninos del jardin', 'Seleccionar ninos ESPECIFICOS (manual)'];
+      const ninosIdx = readline.keyInSelect(opcionesNinos, c.negrita('  > Alcance de beneficiarios: '), { cancel: 'Cancelar tarea' });
+      if (ninosIdx === -1) continue;
+
+      opcionesProcesamiento = {
+          procesarTodosNinos: (ninosIdx === 0)
+      };
     }
-
-    console.log();
-    const opcionesNinos = ['Aplicar a TODOS los ninos del jardin', 'Seleccionar ninos ESPECIFICOS (manual)'];
-    const ninosIdx = readline.keyInSelect(opcionesNinos, c.negrita('  > Alcance de beneficiarios: '), { cancel: 'Cancelar tarea' });
-    if (ninosIdx === -1) continue;
-    
-    const procesarTodosNinos = (ninosIdx === 0);
-
-    const opcionesProcesamiento = {
-        procesarTodosNinos: procesarTodosNinos
-    };
 
     if (!browser) {
       console.log(c.cyan('\n  🌐 Inicializando entorno de navegador...\n'));
@@ -546,6 +612,10 @@ async function main() {
 
     console.log(c.verde(`\n  ✅ Tarea finalizada. Exitosos: ${exitososActual.length} | Fallidos: ${fallidosActual.length}\n`));
     
+    if (payloadModoAuto) {
+        break; // En modo automático finaliza inmediatamente
+    }
+
     const opcionesFin = ['Iniciar OTRA tarea de Formacion a Familias', 'Volver al Menu Principal (AutoTrabajo)'];
     const finIdx = readline.keyInSelect(opcionesFin, c.negrita('  > Que deseas hacer ahora?: '), { cancel: false });
     if (finIdx === 1) {
