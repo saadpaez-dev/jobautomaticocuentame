@@ -62,6 +62,22 @@ function filtrarServiciosPorAsociacion(servOptions, ascNombre, tipoServicio) {
  * Captura un pantallazo oficial del RAM antes de guardar en Cuéntame
  * y lo sincroniza guardándolo en jobautomatico, app-cuentame y enviándolo al servidor web (Render / local).
  */
+/**
+ * Espera determinista y sin tiempos muertos para los eventos UpdatePanel / PostBack de ASP.NET en Cuéntame.
+ * Monitorea el PageRequestManager nativo directamente dentro del frame de trabajo.
+ */
+async function esperarPostBackASPNet(contentFrame, timeoutMs = 8000) {
+    try {
+        await contentFrame.waitForFunction(() => {
+            if (typeof Sys === 'undefined' || !Sys.WebForms || !Sys.WebForms.PageRequestManager) return true;
+            try {
+                const prm = Sys.WebForms.PageRequestManager.getInstance();
+                return !prm.get_isInAsyncPostBack();
+            } catch(e) { return true; }
+        }, { timeout: timeoutMs }).catch(() => {});
+    } catch(e) {}
+}
+
 async function capturarPantallazoRAMAntesDeGuardar({ workPage, contentFrame, asociacion, jardin, codigoUds, mesAtencion, anio = 2026 }) {
     try {
         console.log(c.cyan(`    📸 Capturando pantallazo oficial del RAM antes de guardar...`));
@@ -1725,14 +1741,14 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                         const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
                         if (await sel.count() === 0) return;
                         
-                        for (let r = 0; r < 30; r++) {
-                            const disabled = await sel.evaluate(s => s.disabled).catch(() => true);
-                            if (!disabled) break;
-                            await mainPage.waitForTimeout(100);
-                        }
+                        // Esperar a que el selector esté habilitado y tenga opciones
+                        await contentFrame.waitForFunction((kw) => {
+                            const el = document.querySelector(`select[id*="${kw}"]`);
+                            return el && !el.disabled && el.options && el.options.length > 0;
+                        }, keyword, { timeout: 8000 }).catch(() => {});
 
                         let valueToSelect = null;
-                        for (let retry = 0; retry < 30; retry++) {
+                        for (let retry = 0; retry < 25; retry++) {
                             if (typeof textOrIndex === 'string') {
                                 const targetText = removeAccentsStr(textOrIndex);
                                 valueToSelect = await sel.evaluate((s, t) => {
@@ -1764,16 +1780,13 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                                     }
                                 }).catch(() => {});
 
-                                await mainPage.waitForTimeout(150);
-                                await mainPage.waitForFunction(() => {
-                                    if (typeof Sys === 'undefined' || !Sys.WebForms || !Sys.WebForms.PageRequestManager) return true;
-                                    var prm = Sys.WebForms.PageRequestManager.getInstance();
-                                    return !prm.get_isInAsyncPostBack();
-                                }, { timeout: 5000 }).catch(() => {});
-                                await mainPage.waitForTimeout(300);
+                                // Espera determinista al término del PostBack
+                                await esperarPostBackASPNet(contentFrame, 6000);
                             }
                         }
-                    } catch(e) {}
+                    } catch(e) {
+                        console.log(c.gris(`    (Filtro ${keyword}: ${e.message})`));
+                    }
                 };
 
                 await selectDropdown('Direcciones', 'Primera Infancia');
@@ -1783,7 +1796,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                 await selectDropdown('Contrato', ascObj.numeroContrato ? ascObj.numeroContrato.toString() : 1);
                 await selectDropdown('Mes', ramData.mes || mesAtencion);
                 await selectDropdown('Estado', 'Todos');
-                await mainPage.waitForTimeout(400);
+                await esperarPostBackASPNet(contentFrame, 3000);
 
                 // Servicio
                 const servicioLocator = contentFrame.locator('select[id*="Servicio"]').first();
@@ -1868,98 +1881,112 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first();
                     if (await genericBtn.count() > 0) await genericBtn.click();
                 }
-                await mainPage.waitForTimeout(1000);
+                await esperarPostBackASPNet(contentFrame, 8000);
 
                 contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+
+                // Esperar a que la tabla aparezca en el DOM
+                const tablaBeneficiarios = contentFrame.locator('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid, table.rgMasterTable, table[id*="Grid"]').first();
+                await tablaBeneficiarios.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
 
                 // Habilitar edición (Clic en el lápiz)
                 console.log(c.gris('    👉 Clic en el Lápiz para habilitar edición...'));
                 const lapiz = contentFrame.locator('input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"]').first();
                 if (await lapiz.count() > 0 && await lapiz.isVisible()) {
                     await lapiz.click();
-                    await mainPage.waitForTimeout(800);
+                    await esperarPostBackASPNet(contentFrame, 8000);
                 }
 
-                // Buscar las filas de niños
-                const rows = await contentFrame.locator('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr').all();
-                console.log(c.gris(`    📋 Filas en la tabla: ${rows.length}`));
+                // Marcado atómico y determinista por lotes (< 50ms)
+                console.log(c.gris('    ⚡ Marcando asistencias e inasistencias en lote (Modo Determinista)...'));
+                const resultadoMarcado = await contentFrame.evaluate(({ diasHabiles, inasistenciasList }) => {
+                    const norm = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
 
-                let ninosProcesados = 0;
-                let faltasAplicadas = 0;
-                let asistenciasMarcadas = 0;
-
-                // Mapa de inasistencias por documento y por nombre
-                const inasistenciasMapDoc = new Map();
-                const inasistenciasMapNom = new Map();
-                for (const item of (ramData.inasistencias || [])) {
-                    if (item.documento) inasistenciasMapDoc.set(String(item.documento).trim(), new Set(item.dias || []));
-                    if (item.nombreCompleto) inasistenciasMapNom.set(removeAccentsStr(item.nombreCompleto), new Set(item.dias || []));
-                }
-
-                for (const row of rows) {
-                    const rowText = await row.innerText();
-                    if (!rowText.includes('Activo')) continue;
-
-                    ninosProcesados++;
-                    const rowTextNorm = removeAccentsStr(rowText);
-
-                    // Buscar si este niño tiene faltas reportadas
-                    let diasFaltasDelNino = new Set();
-                    for (const [doc, setDias] of inasistenciasMapDoc.entries()) {
-                        if (rowText.includes(doc)) {
-                            diasFaltasDelNino = setDias;
-                            break;
-                        }
+                    const mapDoc = {};
+                    const mapNom = {};
+                    for (const item of inasistenciasList) {
+                        if (item.documento) mapDoc[String(item.documento).trim()] = item.dias || [];
+                        if (item.nombreCompleto) mapNom[norm(item.nombreCompleto)] = item.dias || [];
                     }
-                    if (diasFaltasDelNino.size === 0) {
-                        for (const [nom, setDias] of inasistenciasMapNom.entries()) {
-                            const partes = nom.split(' ').filter(p => p.length > 2);
-                            if (partes.length >= 2 && partes.every(p => rowTextNorm.includes(p))) {
-                                diasFaltasDelNino = setDias;
+
+                    const setHabiles = new Set(diasHabiles);
+                    const rows = Array.from(document.querySelectorAll('table[id*="grdConsulta"] tbody tr, table[id*="gvLista"] tbody tr, table[id*="GridView"] tbody tr, table.mGrid tbody tr, table.rgMasterTable tbody tr, table[id*="Grid"] tbody tr'));
+
+                    let ninos = 0;
+                    let marcadas = 0;
+                    let faltas = 0;
+
+                    for (const row of rows) {
+                        const text = row.innerText || '';
+                        if (!text.includes('Activo')) continue;
+
+                        ninos++;
+                        const textNorm = norm(text);
+
+                        // Identificar inasistencias del niño
+                        let faltasDelNino = new Set();
+                        for (const doc in mapDoc) {
+                            if (text.includes(doc)) {
+                                faltasDelNino = new Set(mapDoc[doc]);
                                 break;
                             }
                         }
-                    }
-
-                    const checkboxes = await row.locator('input[type="checkbox"]').all();
-
-                    // Procesar días 1 al 31
-                    for (let d = 1; d <= 31; d++) {
-                        const chkIndex = d - 1;
-                        if (chkIndex >= checkboxes.length) break;
-
-                        const chk = checkboxes[chkIndex];
-                        const isEnabled = await chk.isEnabled().catch(() => false);
-                        if (!isEnabled) continue;
-
-                        const isChecked = await chk.isChecked().catch(() => false);
-                        const esDiaHabil = cal.diasHabiles.includes(d);
-
-                        if (!esDiaHabil) {
-                            // DÍA INHÁBIL (Festivo, Fin de semana, Último Viernes) -> SIEMPRE DESMARCADO
-                            if (isChecked) {
-                                await chk.uncheck({ force: true }).catch(() => chk.click());
+                        if (faltasDelNino.size === 0) {
+                            for (const nom in mapNom) {
+                                const parts = nom.split(' ').filter(p => p.length > 2);
+                                if (parts.length >= 2 && parts.every(p => textNorm.includes(p))) {
+                                    faltasDelNino = new Set(mapNom[nom]);
+                                    break;
+                                }
                             }
-                        } else {
-                            // DÍA HÁBIL
-                            if (diasFaltasDelNino.has(d)) {
-                                // FALTA REPORTADA POR LA MADRE -> DESMARCAR
-                                if (isChecked) {
-                                    await chk.uncheck({ force: true }).catch(() => chk.click());
-                                    faltasAplicadas++;
+                        }
+
+                        const checkboxes = Array.from(row.querySelectorAll('input[type="checkbox"]'));
+                        for (let d = 1; d <= 31; d++) {
+                            const idx = d - 1;
+                            if (idx >= checkboxes.length) break;
+
+                            const chk = checkboxes[idx];
+                            if (!chk || chk.disabled) continue;
+
+                            const esHabil = setHabiles.has(d);
+                            const esFalta = faltasDelNino.has(d);
+
+                            if (!esHabil) {
+                                // Día inhábil -> desmarcar
+                                if (chk.checked) {
+                                    chk.checked = false;
+                                    chk.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            } else if (esFalta) {
+                                // Inasistencia -> desmarcar
+                                if (chk.checked) {
+                                    chk.checked = false;
+                                    chk.dispatchEvent(new Event('change', { bubbles: true }));
+                                    faltas++;
                                 }
                             } else {
-                                // ASISTIÓ (Por defecto positivo) -> MARCAR
-                                if (!isChecked) {
-                                    await chk.check({ force: true }).catch(() => chk.click());
-                                    asistenciasMarcadas++;
+                                // Asistencia -> marcar
+                                if (!chk.checked) {
+                                    chk.checked = true;
+                                    chk.dispatchEvent(new Event('change', { bubbles: true }));
+                                    marcadas++;
                                 }
                             }
                         }
                     }
-                }
 
-                console.log(c.verde(`    ✔️ Procesados ${ninosProcesados} niños activos.`));
+                    return { ninos, marcadas, faltas };
+                }, {
+                    diasHabiles: cal.diasHabiles,
+                    inasistenciasList: ramData.inasistencias || []
+                });
+
+                const ninosProcesados = resultadoMarcado.ninos;
+                const asistenciasMarcadas = resultadoMarcado.marcadas;
+                const faltasAplicadas = resultadoMarcado.faltas;
+
+                console.log(c.verde(`    ✔️ Procesados ${ninosProcesados} niños activos en < 50ms.`));
                 console.log(c.verde(`    ✔️ Asistencias marcadas: ${asistenciasMarcadas} | Inasistencias aplicadas: ${faltasAplicadas}`));
 
                 // 📸 Tomar pantallazo del RAM antes de guardar y sincronizar con el portal
@@ -1973,26 +2000,87 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     anio: ramItem.anio || 2026
                 });
 
-                // Guardar cambios (clic en disco)
-                console.log(c.amarillo('    💾 Guardando RAM en Cuéntame (clic en Guardar)...'));
+                // Guardar cambios (clic en disco) auditando la respuesta del servidor
+                console.log(c.amarillo('    💾 Guardando RAM en Cuéntame (clic en Guardar con auditoría de respuesta)...'));
                 const disco = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], input[value*="Guardar" i]').first();
+                
+                let guardadoConfirmado = false;
+                let mensajeServidor = '';
+
+                // Escuchar posibles dialogs/alerts nativos de Cuéntame
+                const onDialog = async (dialog) => {
+                    const msg = dialog.message();
+                    console.log(c.gris(`    [Cuéntame Dialog] ${msg}`));
+                    mensajeServidor = msg;
+                    if (msg.toLowerCase().includes('satisfactoria') || msg.toLowerCase().includes('exito') || msg.toLowerCase().includes('guardad') || msg.toLowerCase().includes('correcto')) {
+                        guardadoConfirmado = true;
+                    }
+                    await dialog.accept().catch(() => {});
+                };
+                mainPage.on('dialog', onDialog);
+
+                // Escuchar la respuesta HTTP del postback de guardado
+                const respuestaPromise = mainPage.waitForResponse(resp => {
+                    const urlU = resp.url().toUpperCase();
+                    return urlU.includes('REGISTROASISTENCIA') && resp.request().method() === 'POST';
+                }, { timeout: 20000 }).catch(() => null);
+
                 if (await disco.count() > 0 && await disco.isVisible()) {
                     await disco.click();
                 } else {
                     const genericSave = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible').last();
                     if (await genericSave.count() > 0) await genericSave.click();
                 }
-                await mainPage.waitForTimeout(1500);
-                console.log(c.verde('    ✅ Guardado exitoso en Cuéntame.'));
 
-                // Actualizar estado en el archivo JSON
-                ramData.estado = 'SINCRONIZADO';
-                ramData.fechaSincronizacion = new Date().toISOString();
+                // Esperar a que la petición de red termine
+                const respNet = await respuestaPromise;
+                if (respNet) {
+                    console.log(c.gris(`    [Auditoría REA] Servidor Cuéntame respondió: HTTP ${respNet.status()}`));
+                    if (respNet.status() === 200) {
+                        guardadoConfirmado = true;
+                    }
+                }
+
+                // Esperar a que el UpdatePanel termine el postback
+                await esperarPostBackASPNet(contentFrame, 15000);
+                mainPage.off('dialog', onDialog);
+
+                // Revisar si en el DOM se renderizó algún mensaje de error o éxito
+                const alertaDOM = await contentFrame.evaluate(() => {
+                    const els = Array.from(document.querySelectorAll('.alert, [id*="lblMensaje"], [id*="lblError"], [id*="lblResult"], .modal-body, .toast-body, .ui-dialog-content'));
+                    for (const el of els) {
+                        const t = (el.innerText || '').trim();
+                        if (t) return t;
+                    }
+                    return '';
+                }).catch(() => '');
+
+                if (alertaDOM) {
+                    mensajeServidor = alertaDOM;
+                    if (alertaDOM.toLowerCase().includes('error') || alertaDOM.toLowerCase().includes('invalido') || alertaDOM.toLowerCase().includes('fall')) {
+                        guardadoConfirmado = false;
+                        console.log(c.rojo(`    ❌ Cuéntame reportó un error al guardar: "${alertaDOM}"`));
+                    } else if (alertaDOM.toLowerCase().includes('satisfactoria') || alertaDOM.toLowerCase().includes('exito') || alertaDOM.toLowerCase().includes('guardad')) {
+                        guardadoConfirmado = true;
+                    }
+                }
+
+                if (!guardadoConfirmado) {
+                    console.log(c.rojo(`    ❌ No se pudo confirmar el guardado exitoso en Cuéntame. Se mantendrá PENDIENTE para revisión.`));
+                    ramData.estado = 'ERROR_GUARDADO';
+                    ramData.errorDetalle = mensajeServidor || 'Sin confirmación de guardado en el servidor';
+                } else {
+                    console.log(c.verde(`    ✅ Guardado verificado y confirmado exitosamente en Cuéntame.`));
+                    ramData.estado = 'SINCRONIZADO';
+                    ramData.fechaSincronizacion = new Date().toISOString();
+                }
+
                 ramData.resumenSincronizacion = {
                     ninosProcesados,
                     asistenciasMarcadas,
                     faltasAplicadas,
-                    diasHabilesMes: cal.totalDiasHabiles
+                    diasHabilesMes: cal.totalDiasHabiles,
+                    mensajeServidor: mensajeServidor || 'HTTP 200 OK'
                 };
 
                 const jsonActualizado = JSON.stringify(ramData, null, 2);
@@ -2007,7 +2095,11 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     } catch(e) {}
                 }
 
-                console.log(c.verde(`    🎉 [RADICADO ${ramData.radicado}] Actualizado a 'SINCRONIZADO'.`));
+                if (guardadoConfirmado) {
+                    console.log(c.verde(`    🎉 [RADICADO ${ramData.radicado}] Actualizado a 'SINCRONIZADO'.`));
+                } else {
+                    console.log(c.amarillo(`    ⚠️ [RADICADO ${ramData.radicado}] Guardado falló o no se confirmó.`));
+                }
 
                 // Notificar actualización al portal en la nube (Render)
                 try {

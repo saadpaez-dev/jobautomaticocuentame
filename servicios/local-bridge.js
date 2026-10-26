@@ -82,7 +82,100 @@ function lanzarSincronizacion(radicado) {
     return { ok: true, pid: proc.pid };
 }
 
-// ─── Comunicación con la Nube (Render): Recibir órdenes desde el móvil ───────
+// ─── Comunicación con la Nube (Render): Tiempo Real (SSE) + Fallback ────────
+let streamReq = null;
+let reconectarTimeout = null;
+
+function conectarStreamRender() {
+    if (streamReq) {
+        try { streamReq.destroy(); } catch(e) {}
+        streamReq = null;
+    }
+
+    try {
+        const streamUrl = new url.URL(`${RENDER_API}/api/admin/agente/stream`);
+        log('info', `Conectando canal de eventos en tiempo real (SSE) con Render...`);
+
+        streamReq = https.get(streamUrl, (res) => {
+            if (res.statusCode !== 200) {
+                log('warn', `Canal SSE no disponible (HTTP ${res.statusCode}). Reintentando en 5s...`);
+                programarReconexion();
+                return;
+            }
+
+            log('ok', `⚡ Conexión en TIEMPO REAL establecida con Render (Latencia Cero).`);
+
+            let buffer = '';
+            res.on('data', (chunk) => {
+                buffer += chunk.toString();
+                const lineas = buffer.split('\n\n');
+                buffer = lineas.pop(); // guardar fragmento incompleto
+
+                for (const bloque of lineas) {
+                    if (!bloque.trim()) continue;
+                    procesarBloqueSSE(bloque);
+                }
+            });
+
+            res.on('end', () => {
+                log('warn', `Canal SSE cerrado por el servidor. Reconectando en 4s...`);
+                programarReconexion();
+            });
+
+            res.on('error', (err) => {
+                log('warn', `Error en canal SSE: ${err.message}. Reconectando...`);
+                programarReconexion();
+            });
+        });
+
+        streamReq.on('error', (err) => {
+            log('warn', `Fallo de conexión SSE (${err.message}). Activo fallback de consulta periódica.`);
+            programarReconexion();
+        });
+
+        streamReq.setTimeout(45000, () => {
+            log('warn', `Timeout en canal SSE sin datos. Reiniciando stream...`);
+            if (streamReq) streamReq.destroy();
+        });
+
+    } catch(e) {
+        log('err', `Error iniciando stream SSE: ${e.message}`);
+        programarReconexion();
+    }
+}
+
+function programarReconexion() {
+    if (reconectarTimeout) clearTimeout(reconectarTimeout);
+    reconectarTimeout = setTimeout(conectarStreamRender, 5000);
+}
+
+async function procesarBloqueSSE(bloque) {
+    const lineas = bloque.split('\n');
+    let evento = 'message';
+    let dataStr = '';
+
+    for (const l of lineas) {
+        if (l.startsWith('event:')) evento = l.substring(6).trim();
+        else if (l.startsWith('data:')) dataStr = l.substring(5).trim();
+    }
+
+    if (evento === 'ping') return;
+
+    if (evento === 'comando' && dataStr) {
+        try {
+            const cmd = JSON.parse(dataStr);
+            if (cmd && cmd.id) {
+                log('ok', `⚡ [LATENCIA 0] ¡Orden recibida en tiempo real desde celular/web! Radicado: ${cmd.radicado || 'TODOS'}`);
+                await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot en PC (latencia 0)...');
+                lanzarSincronizacion(cmd.radicado);
+                await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de ejecución abierta en PC.');
+            }
+        } catch(e) {
+            log('err', `Error procesando comando SSE: ${e.message}`);
+        }
+    }
+}
+
 async function consultarComandosEnNube() {
     if (revisandoComandos) return;
     revisandoComandos = true;
@@ -227,8 +320,11 @@ server.listen(PUERTO, HOST, () => {
     console.log(c.gris(`  ─────────────────────────────────────────────────────────`));
     console.log(c.gris(`  Log de actividad en vivo:\n`));
 
-    // Iniciar polling a Render cada 3 segundos
-    setInterval(consultarComandosEnNube, 3000);
-    // Primera consulta inmediata
+    // 1. Iniciar conexión SSE en TIEMPO REAL con Render (Latencia Cero)
+    conectarStreamRender();
+
+    // 2. Consulta periódica como respaldo (cada 12 segundos)
+    setInterval(consultarComandosEnNube, 12000);
+    // Y una primera consulta inmediata de respaldo
     consultarComandosEnNube();
 });
