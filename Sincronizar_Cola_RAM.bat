@@ -1,5 +1,5 @@
 @echo off
-title SINCRONIZAR COLA DE RAMS - CUENTAME ICBF
+title SINCRONIZAR COLA DE RAM - CUENTAME ICBF
 cd /d "%~dp0"
 echo ====================================================================
 echo    ROBOT SINCRONIZADOR DE RAMS - PORTAL CUENTAME A PLATAFORMA ICBF
@@ -12,4 +12,9 @@ if not "%~1"=="" (
     echo [COLA] Sincronizando todos los RAMs pendientes...
     node automatizaciones/sincronizar-cola-ram.js
 )
-pause
+echo.
+echo ====================================================================
+echo    Proceso finalizado. Cerrando esta ventana en 2 segundos...
+echo ====================================================================
+timeout /t 2 /nobreak >nul
+exit

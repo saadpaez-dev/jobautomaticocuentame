@@ -39,6 +39,7 @@ const c = {
 // ─── Estado: proceso en ejecución ───────────────────────────────────────────
 let procesoActivo = null;
 let revisandoComandos = false;
+let ultimaSincronizacion = { radicado: null, timestamp: 0 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function responderJSON(res, statusCode, body) {
@@ -60,6 +61,16 @@ function log(nivel, msg) {
 
 // ─── Lanzar sincronizar-cola-ram.js en una terminal nueva visible ─────────────
 function lanzarSincronizacion(radicado) {
+    const ahora = Date.now();
+    const tiempoDesdeUltima = ahora - ultimaSincronizacion.timestamp;
+
+    // Si ya se lanzó la misma orden o una sincronización en los últimos 20 segundos, evitar duplicar terminal
+    if (tiempoDesdeUltima < 20000 && (ultimaSincronizacion.radicado === radicado || !radicado || !ultimaSincronizacion.radicado)) {
+        log('warn', `⚠️ Orden RAM duplicada o ya en proceso (${radicado || 'TODOS'}). Se omite apertura de terminal repetida.`);
+        return { ok: true, duplicado: true, pid: null };
+    }
+
+    ultimaSincronizacion = { radicado, timestamp: ahora };
     const batPath = path.join(ROOT, 'Sincronizar_Cola_RAM.bat');
 
     log('info', `Lanzando sincronización RAM${radicado ? ` radicado: ${radicado}` : ' (todos los pendientes)'}...`);
@@ -92,7 +103,7 @@ function lanzarFormacion(payload, cmdId = 'auto') {
     const desc = payload.jardin || (Array.isArray(payload.jardines) ? `${payload.jardines.length} jardines` : payload.asociacion || 'Todas');
     log('info', `🎓 Lanzando robot de Formación a Familias (${desc})...`);
 
-    const args = ['/c', 'start', 'FORMACION A FAMILIAS - CUENTAME', 'cmd.exe', '/k', 'node', 'automatizaciones/formacion-familias.js', '--payload', payloadPath];
+    const args = ['/c', 'start', 'FORMACION A FAMILIAS - CUENTAME', 'cmd.exe', '/c', 'node', 'automatizaciones/formacion-familias.js', '--payload', payloadPath];
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
@@ -125,7 +136,7 @@ function lanzarCapturaPantallazo(payload = {}, cmdId = 'auto') {
         cliCmd += ' --forzar';
     }
 
-    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZOS - CUENTAME', 'cmd.exe', '/k', cliCmd];
+    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZOS - CUENTAME', 'cmd.exe', '/c', cliCmd];
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
@@ -144,7 +155,7 @@ function lanzarSincronizacionBasePantallazos(cmdId = 'auto') {
     log('info', `🔄 Lanzando sincronizador de base de pantallazos PC -> Render...`);
 
     const scriptPath = path.join(ROOT, 'servicios', 'sincronizar-base-pantallazos.js');
-    const args = ['/c', 'start', 'SINCRONIZANDO BASE DE PANTALLAZOS', 'cmd.exe', '/k', 'node', scriptPath];
+    const args = ['/c', 'start', 'SINCRONIZANDO BASE DE PANTALLAZOS', 'cmd.exe', '/c', 'node', scriptPath];
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
