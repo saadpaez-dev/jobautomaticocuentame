@@ -2157,17 +2157,22 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                         estado: 'SINCRONIZADO',
                         fechaSincronizacion: ramData.fechaSincronizacion
                     });
-                    const reqSync = https.request('https://portal-cuentame.onrender.com/api/admin/actualizar-estado-ram', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Content-Length': Buffer.byteLength(postPayload)
-                        },
-                        timeout: 5000
+                    await new Promise((resolve) => {
+                        const reqSync = https.request('https://portal-cuentame.onrender.com/api/admin/actualizar-estado-ram', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Content-Length': Buffer.byteLength(postPayload)
+                            },
+                            timeout: 10000
+                        }, (res) => {
+                            res.on('data', () => {});
+                            res.on('end', () => resolve());
+                        });
+                        reqSync.on('error', () => resolve());
+                        reqSync.write(postPayload);
+                        reqSync.end();
                     });
-                    reqSync.on('error', () => {});
-                    reqSync.write(postPayload);
-                    reqSync.end();
                 } catch(e) {}
 
                 // Recargar página para siguiente UDS
