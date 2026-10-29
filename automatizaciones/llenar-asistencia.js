@@ -1693,7 +1693,33 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
         porAsoc.get(asocNombre).push(r);
     }
 
-    for (const [asocNom, items] of porAsoc.entries()) {
+    // Detectar si el navegador ya tiene una asociación activa y ponerla de primera
+    let asocActivaActual = '';
+    try {
+        const headerText = await mainPage.evaluate(() => {
+            const cab = document.querySelector('#CabeceraPrincipal, div.ui-layout-north, table#CabeceraPrincipal');
+            return cab ? cab.innerText : (document.body ? document.body.innerText.slice(0, 1000) : '');
+        }).catch(() => '');
+        const headerNorm = removeAccentsStr(headerText);
+        for (const k of porAsoc.keys()) {
+            if (headerNorm.includes(removeAccentsStr(k))) {
+                asocActivaActual = k;
+                break;
+            }
+        }
+    } catch(e) {}
+
+    const entriesAsoc = Array.from(porAsoc.entries());
+    if (asocActivaActual) {
+        entriesAsoc.sort((a, b) => {
+            if (a[0] === asocActivaActual) return -1;
+            if (b[0] === asocActivaActual) return 1;
+            return 0;
+        });
+        console.log(c.verde(`\n  ⭐ Asociación activa detectada en navegador: "${asocActivaActual}". Se procesará primero sin cerrar sesión.`));
+    }
+
+    for (const [asocNom, items] of entriesAsoc) {
         const ascObj = asociaciones.find(a => removeAccentsStr(a.nombreCorto).includes(removeAccentsStr(asocNom)) || removeAccentsStr(asocNom).includes(removeAccentsStr(a.nombreCorto))) || {
             nombreCorto: asocNom,
             numeroContrato: items[0].data.numeroContrato || null

@@ -116,16 +116,21 @@ async function loginYLlegarARoles(page, credenciales) {
                                     contenidoTras.includes('incorrecto');
 
       if (credencialesInvalidas) {
-        if (intentoActual >= MAX_INTENTOS) {
-          throw new Error(
-            `🔒 Login fallido ${MAX_INTENTOS} veces seguidas. Se detuvo el proceso para EVITAR EL BLOQUEO de la cuenta.\n` +
-            '   ➡️  Verifica que el usuario y contrasena en el archivo .env sean correctos.'
-          );
+        console.log(c.rojo(`\n  ❌ Credenciales de .env rechazadas por Cuéntame ("Usuario o clave incorrecta").`));
+        console.log(c.amarillo(`  ⚠️  Para evitar el bloqueo de tu cuenta ICBF, se detuvieron los reintentos automáticos.`));
+        console.log(c.cyan(`  👉 Por favor ingresa tu usuario y contraseña actual manualmente en la ventana de Edge abierta.`));
+        console.log(c.gris(`  ⏳ Esperando a que inicies sesión en Edge (tiempo límite: 2 minutos)...`));
+        try {
+            await page.waitForFunction(() => {
+                const text = (document.body ? document.body.innerText : '').toUpperCase();
+                const url = window.location.href;
+                return url.includes('Roles.aspx') || url.includes('MasterPrincipal') || text.includes('SELECCIONE LA ENTIDAD') || text.includes('SE HA ENVIADO UN CODIGO') || text.includes('INGRESE SU CODIGO');
+            }, { timeout: 120000 });
+            console.log(c.verde(`  ✅ Inicio de sesión manual detectado exitosamente. Continuando con el proceso automático...\n`));
+            break;
+        } catch(eWait) {
+            throw new Error('Tiempo de espera agotado para el inicio de sesión manual.');
         }
-        console.log(c.rojo(`  ❌ Credenciales incorrectas. Intento ${intentoActual} de ${MAX_INTENTOS}.`));
-        console.log(c.amarillo(`  ⚠️  CUIDADO: ${MAX_INTENTOS - intentoActual} intento(s) restante(s) antes del bloqueo.`));
-        await page.waitForTimeout(500);
-        continue;
       }
 
       break;
