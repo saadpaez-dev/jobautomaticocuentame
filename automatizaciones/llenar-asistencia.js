@@ -165,17 +165,27 @@ async function capturarPantallazoRAMAntesDeGuardar({ workPage, contentFrame, aso
         for (const targetUrl of targets) {
             try {
                 const httpModule = targetUrl.startsWith('https') ? require('https') : require('http');
-                const req = httpModule.request(targetUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Content-Length': Buffer.byteLength(postPayload)
-                    },
-                    timeout: 8000
+                await new Promise((resolve) => {
+                    const req = httpModule.request(targetUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Content-Length': Buffer.byteLength(postPayload)
+                        },
+                        timeout: 12000
+                    }, (res) => {
+                        res.resume();
+                        if (res.statusCode >= 200 && res.statusCode < 300) {
+                            const destino = targetUrl.includes('render') ? 'Portal Web (Render)' : 'Servidor Local (PC)';
+                            console.log(c.verde(`    ☁️ Pantallazo RAM sincronizado exitosamente con ${destino}.`));
+                        }
+                        resolve();
+                    });
+                    req.on('error', () => resolve());
+                    req.on('timeout', () => { req.destroy(); resolve(); });
+                    req.write(postPayload);
+                    req.end();
                 });
-                req.on('error', () => {}); // Silencioso si no conecta
-                req.write(postPayload);
-                req.end();
             } catch(e) {}
         }
 
