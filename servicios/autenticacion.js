@@ -460,7 +460,7 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
         // Verificar si nos boto al login al intentar ir a DefaultF.aspx
         const newPageText = removeAccents(await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => ''));
         if ((newPageText.includes('INICIAR SESION') && !newPageText.includes('SELECCIONE LA ENTIDAD')) || newPageText.includes('OLVIDASTE TU CONTRASE')) {
-            console.log(c.rojo(`  ❌ La sesion expiro. Se requiere iniciar sesion nuevamente.`));
+            console.log(c.cyan(`  ℹ️  La sesión anterior en Cuéntame expiró por inactividad. Renovando sesión automáticamente...`));
             return false;
         }
 
@@ -538,6 +538,15 @@ async function obtenerNavegador() {
         console.log(c.cyan('\n  🔍 Buscando navegador en Modo Humano (Puerto 9333)...'));
         const browser = await chromium.connectOverCDP('http://localhost:9333');
         console.log(c.verde('  ✅ Conectado al navegador del usuario exitosamente.'));
+        try {
+            const context0 = browser.contexts()[0];
+            const p0 = context0 ? (context0.pages().find(p => p.url().includes('rubonline')) || context0.pages()[0]) : null;
+            if (p0) {
+                await p0.bringToFront();
+                const s = await context0.newCDPSession(p0);
+                await s.send('Page.bringToFront');
+            }
+        } catch(e) {}
         
         const context = browser.contexts()[0];
         let cuentamePage = context.pages().find(p => p.url().includes('rubonline.icbf.gov.co'));
