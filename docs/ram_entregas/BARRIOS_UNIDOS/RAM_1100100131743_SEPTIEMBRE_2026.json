@@ -1,0 +1,263 @@
+{
+  "radicado": "RAM-2026-SEP-1743-1208",
+  "asociacion": "BARRIOS UNIDOS",
+  "jardin": "MUÑECOS Y FIGURAS",
+  "codigoUds": "1100100131743",
+  "madre": "MIRYAM LUCIA LOVERA LOSADA",
+  "mes": "Septiembre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-09-30T17:53:01.208Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 88,
+    "ninosConInasistencias": 20,
+    "diasHabilesMes": 21
+  },
+  "inasistencias": [
+    {
+      "documento": "1014747714",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        7,
+        9,
+        10,
+        11,
+        14,
+        15,
+        16,
+        17,
+        18,
+        21,
+        22,
+        23,
+        24,
+        28,
+        29,
+        30
+      ],
+      "totalFaltas": 16
+    },
+    {
+      "documento": "1020851544",
+      "nombreCompleto": "ISABEL ALEGRIA ALVARDO GARCIA",
+      "dias": [
+        16
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1025333564",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        9,
+        29,
+        30
+      ],
+      "totalFaltas": 3
+    },
+    {
+      "documento": "1028411091",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        28,
+        29
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1028703416",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        18,
+        21,
+        28,
+        29,
+        30
+      ],
+      "totalFaltas": 10
+    },
+    {
+      "documento": "1029871611",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        2,
+        23
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1031859546",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        23,
+        24
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1033125343",
+      "nombreCompleto": "JEICOB ISAAC CASTILLO DUQUE",
+      "dias": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "totalFaltas": 4
+    },
+    {
+      "documento": "1044510352",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        18,
+        21,
+        29,
+        30
+      ],
+      "totalFaltas": 9
+    },
+    {
+      "documento": "1097923092",
+      "nombreCompleto": "DANIEL MATEO AMADO ECHAVARRIA",
+      "dias": [
+        24
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1103764299",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        8,
+        9
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1171713712",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        1,
+        8,
+        9,
+        10,
+        11,
+        14,
+        15
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1216983300",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        7,
+        21
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1233932333",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        7,
+        21
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1243764783",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        1,
+        2,
+        3,
+        4,
+        7,
+        8,
+        9,
+        10,
+        11,
+        14
+      ],
+      "totalFaltas": 10
+    },
+    {
+      "documento": "1243764784",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        1,
+        2,
+        3,
+        4,
+        7,
+        8,
+        9,
+        10,
+        11,
+        14
+      ],
+      "totalFaltas": 10
+    },
+    {
+      "documento": "7580007",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        7,
+        14
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1020850322",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        30
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1025334784",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        28
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1103528369",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        16
+      ],
+      "totalFaltas": 1
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T17:53:01.208Z",
+      "faltasReportadasEnEsteEnvio": 88
+    }
+  ],
+  "fechaSincronizacion": "2026-09-30T17:59:00.262Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 13,
+    "asistenciasMarcadas": 267,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21
+  }
+}

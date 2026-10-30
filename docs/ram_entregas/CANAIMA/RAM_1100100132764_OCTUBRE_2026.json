@@ -1,0 +1,36 @@
+{
+  "radicado": "RAM-2026-OCT-2764-1436",
+  "asociacion": "CANAIMA",
+  "jardin": "EL BEBE",
+  "codigoUds": "1100100132764",
+  "madre": "LUZ MARINA MAYORGA",
+  "mes": "Octubre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 0,
+  "resumen": {
+    "totalInasistencias": 0,
+    "ninosConInasistencias": 0,
+    "diasHabilesMes": 20
+  },
+  "inasistencias": [],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL_LOTE_ADMIN",
+      "fecha": "2026-10-26T17:13:11.422Z",
+      "faltasReportadasEnEsteEnvio": 0
+    }
+  ],
+  "errorDetalle": "Sin confirmación de guardado en el servidor",
+  "resumenSincronizacion": {
+    "ninosProcesados": 11,
+    "asistenciasMarcadas": 0,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 20,
+    "mensajeServidor": "La información ha sido guardada."
+  },
+  "fechaSincronizacion": "2026-10-30T03:49:38.385Z"
+}

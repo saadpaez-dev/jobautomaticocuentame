@@ -1,0 +1,88 @@
+{
+  "radicado": "RAM-2026-SEP-0742-5131",
+  "asociacion": "BUENAVISTA",
+  "jardin": "ESCALEMOS SONRIENDO",
+  "codigoUds": "110011120742",
+  "madre": "LUZ DARY MOTIVAR GARCIA",
+  "mes": "Septiembre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-09-30T21:03:35.131Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 13,
+    "ninosConInasistencias": 5,
+    "diasHabilesMes": 21
+  },
+  "inasistencias": [
+    {
+      "documento": "1020852301",
+      "nombreCompleto": "ALANNA LUCIA HOYOS GUERRA",
+      "dias": [
+        2,
+        3,
+        18,
+        24,
+        28
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332822",
+      "nombreCompleto": "ANTONELLA CALDERON CASTANEDA",
+      "dias": [
+        21,
+        28
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1216983068",
+      "nombreCompleto": "DRIAN FERNANDO FERNANDEZ BORJA",
+      "dias": [
+        21,
+        28
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1238349996",
+      "nombreCompleto": "ANTONELLA ROBLES PAJARO",
+      "dias": [
+        21,
+        28
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1243762771",
+      "nombreCompleto": "DANIEL MATIAS SANDOVAL ELLES",
+      "dias": [
+        2,
+        14
+      ],
+      "totalFaltas": 2
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T21:02:38.744Z",
+      "faltasReportadasEnEsteEnvio": 13
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T21:03:35.131Z",
+      "faltasReportadasEnEsteEnvio": 10
+    }
+  ],
+  "fechaSincronizacion": "2026-09-30T21:06:05.519Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 13,
+    "asistenciasMarcadas": 260,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21
+  }
+}

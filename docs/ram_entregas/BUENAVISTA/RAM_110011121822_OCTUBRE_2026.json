@@ -1,0 +1,27 @@
+{
+  "radicado": "RAM-2026-OCT-1822-1436",
+  "asociacion": "BUENAVISTA",
+  "jardin": "EL SOLECITO",
+  "codigoUds": "110011121822",
+  "madre": "ILMA JANETH RODRIGUEZ BARRERA",
+  "mes": "Octubre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "estado": "PENDIENTE_SINCRONIZACION",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 0,
+  "resumen": {
+    "totalInasistencias": 0,
+    "ninosConInasistencias": 0,
+    "diasHabilesMes": 20
+  },
+  "inasistencias": [],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL_LOTE_ADMIN",
+      "fecha": "2026-10-26T17:13:11.422Z",
+      "faltasReportadasEnEsteEnvio": 0
+    }
+  ]
+}

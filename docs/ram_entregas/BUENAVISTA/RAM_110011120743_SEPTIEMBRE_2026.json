@@ -1,0 +1,34 @@
+{
+  "radicado": "RAM-2026-SEP-0743-4237",
+  "asociacion": "BUENAVISTA",
+  "jardin": "ABEJITAS 1",
+  "codigoUds": "110011120743",
+  "madre": "CLAUDIA CASTRO",
+  "mes": "Septiembre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-09-30T00:01:24.237Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 0,
+    "ninosConInasistencias": 0,
+    "diasHabilesMes": 21
+  },
+  "inasistencias": [],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T00:01:24.237Z",
+      "faltasReportadasEnEsteEnvio": 0
+    }
+  ],
+  "fechaSincronizacion": "2026-09-30T15:24:45.536Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 13,
+    "asistenciasMarcadas": 273,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21
+  }
+}

@@ -50,7 +50,14 @@ const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 // ---------------------------------------------------------------------------
 // CONFIGURACION - ajusta estas rutas a como esten organizadas tus carpetas
 // ---------------------------------------------------------------------------
-const RUTA_EXCEL = "G:\\Mi unidad\\CUENTAME\\0 GENERAL\\GENERAL.xlsx";
+const RUTA_EXCEL_CANDIDATAS = [
+  process.env.RUTA_EXCEL_GENERAL,
+  "G:\\Mi unidad\\CUENTAME\\0 GENERAL\\GENERAL.xlsx",
+  path.join(__dirname, "..", "GENERAL.xlsx"),
+  process.env.RUTA_EXCEL,
+].filter(Boolean);
+
+const RUTA_EXCEL = RUTA_EXCEL_CANDIDATAS.find((r) => fs.existsSync(r)) || "G:\\Mi unidad\\CUENTAME\\0 GENERAL\\GENERAL.xlsx";
 const HOJA_DATOS = "contabilidad";
 const RUTA_PLANTILLA = path.join(__dirname, "plantilla_cuenta_cobro.docx");
 const CARPETA_SALIDA_BASE = path.join(__dirname, "..", "reportes", "cuentas-cobro");
@@ -80,8 +87,31 @@ function sanitizarNombre(texto) {
 }
 
 function formatearPesos(valor) {
-  // Formato colombiano: punto como separador de miles, ej: 78.195
-  return Math.round(Number(valor)).toLocaleString("es-CO");
+  if (!valor && valor !== 0) return "0";
+  if (typeof valor === "object") {
+    valor = valor.result !== undefined && valor.result !== null ? valor.result : (valor.text || 0);
+  }
+  let str = String(valor).trim().replace(/[$'\s]/g, "");
+  // Si viene con formato colombiano (ej: 130.325 o 130.325,00)
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(str)) {
+    str = str.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d+(,\d+)?$/.test(str)) {
+    str = str.replace(",", ".");
+  }
+  const num = Number(str);
+  return Number.isFinite(num) ? Math.round(num).toLocaleString("es-CO") : String(valor);
+}
+
+function obtenerValorCelda(celda) {
+  if (!celda) return "";
+  const val = celda.value;
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object") {
+    if (val.result !== undefined && val.result !== null) return String(val.result).trim();
+    if (val.text !== undefined && val.text !== null) return String(val.text).trim();
+    if (val.richText) return val.richText.map((t) => t.text).join("").trim();
+  }
+  return String(celda.text || val).trim();
 }
 
 function log(mensaje) {
@@ -95,25 +125,31 @@ function log(mensaje) {
 }
 
 /**
- * Calcula el mes/fecha del encabezado con la fecha REAL del dia en que se
- * corre el script (ya no depende de columnas del Excel). El MES y ANO son
- * los de hoy; el DIA siempre es el ULTIMO dia de ese mes (dia de cierre/
- * envio), sin importar que dia del mes se corra el script.
- * Ej: si hoy es 27 de julio de 2026, la cuenta de cobro sale con
- * "30 de Julio de 2026" (julio tiene 31 dias... el ultimo dia real de cada
- * mes se calcula automaticamente, incluyendo febrero en anos bisiestos).
+ * Calcula los datos del periodo (DIA, MesTexto, ANIO, Mes, MESMAYUS)
+ * para la fecha dada. El DIA siempre es el ULTIMO dia de ese mes (cierre/envio).
  */
-function obtenerMesActual() {
-  const hoy = new Date();
-  const Mes = MESES_ES[hoy.getMonth()];
-  const ultimoDiaDelMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+function obtenerDatosPeriodo(fechaReferencia) {
+  const d = fechaReferencia || new Date();
+  const mesIndex = d.getMonth();
+  const anio = d.getFullYear();
+  const mesTexto = MESES_ES[mesIndex];
+  const ultimoDiaDelMes = new Date(anio, mesIndex + 1, 0).getDate();
   return {
     DIA: String(ultimoDiaDelMes),
-    MesTexto: Mes,
-    ANIO: String(hoy.getFullYear()),
-    Mes: Mes,
-    MESMAYUS: Mes.toUpperCase(),
+    MesTexto: mesTexto,
+    ANIO: String(anio),
+    Mes: mesTexto,
+    MESMAYUS: mesTexto.toUpperCase(),
   };
+}
+
+function obtenerMesActual() {
+  return obtenerDatosPeriodo(new Date());
+}
+
+function obtenerMesAnterior() {
+  const hoy = new Date();
+  return obtenerDatosPeriodo(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1));
 }
 
 // ---------------------------------------------------------------------------
@@ -186,19 +222,22 @@ async function leerAsociaciones() {
   const asociaciones = [];
   hoja.eachRow((fila, numeroFila) => {
     if (numeroFila === 1) return; // encabezado
-    const eas = fila.getCell(encabezados["EAS"]).text.trim();
+    const eas = obtenerValorCelda(fila.getCell(encabezados["EAS"]));
     if (!eas) return; // fila vacia = fin de datos
+
+    const celdaPagos = fila.getCell(encabezados["PAGOS"]);
+    const valPagos = celdaPagos.value !== undefined && celdaPagos.value !== null ? celdaPagos.value : celdaPagos.text;
 
     asociaciones.push({
       EAS: eas,
-      NIT: String(fila.getCell(encabezados["NIT"]).text).trim(),
-      CORREO: encabezados["CORREO"] ? String(fila.getCell(encabezados["CORREO"]).text).trim() : "",
-      UDS: String(fila.getCell(encabezados["UDS"]).text).trim(),
-      PAGOS: formatearPesos(fila.getCell(encabezados["PAGOS"]).text),
-      LETRAS: fila.getCell(encabezados["LETRAS"]).text.trim(),
-      CONSECUTIVO: String(fila.getCell(encabezados["CONSECUTIVO"]).text).trim(),
-      DIALOGO: fila.getCell(encabezados["DIALOGO"]).text.trim(),
-      CUENTA: fila.getCell(encabezados["CUENTA"]).text.trim(),
+      NIT: String(obtenerValorCelda(fila.getCell(encabezados["NIT"]))).trim(),
+      CORREO: encabezados["CORREO"] ? String(obtenerValorCelda(fila.getCell(encabezados["CORREO"]))).trim() : "",
+      UDS: String(obtenerValorCelda(fila.getCell(encabezados["UDS"]))).trim(),
+      PAGOS: formatearPesos(valPagos),
+      LETRAS: String(obtenerValorCelda(fila.getCell(encabezados["LETRAS"]))).trim(),
+      CONSECUTIVO: String(obtenerValorCelda(fila.getCell(encabezados["CONSECUTIVO"]))).trim(),
+      DIALOGO: String(obtenerValorCelda(fila.getCell(encabezados["DIALOGO"]))).trim(),
+      CUENTA: String(obtenerValorCelda(fila.getCell(encabezados["CUENTA"]))).trim(),
       // Mes, MESMAYUS, DIA, MesTexto, ANIO ya NO se leen de Excel:
       // se calculan automaticamente con la fecha real del dia en que se corre el script.
     });
@@ -277,19 +316,85 @@ async function main() {
     return;
   }
 
-  console.log("");
-  console.log(c.cyan("[1] Generar para TODAS las asociaciones"));
-  console.log(c.cyan("[2] Seleccionar UNA asociacion especifica"));
+  // ---------------------------------------------------------------------------
+  // Seleccion del periodo / mes a cobrar
+  // ---------------------------------------------------------------------------
+  const mesAntInfo = obtenerMesAnterior();
+  const mesActInfo = obtenerMesActual();
+
+  console.log(c.amarillo("\n📅 Selecciona el periodo / mes de cobro:"));
+  console.log(c.cyan(`[1] Mes anterior: ${mesAntInfo.MesTexto} ${mesAntInfo.ANIO} (Recomendado - Cierre de mes)`));
+  console.log(c.cyan(`[2] Mes actual: ${mesActInfo.MesTexto} ${mesActInfo.ANIO}`));
+  console.log(c.cyan(`[3] Seleccionar otro mes personalizado...`));
   console.log(c.cyan("[0] Salir"));
+
+  const opcionMesRaw = readlineSync.question("\n  > Escoja una opcion [Enter = 1]: ");
+  const opcionMes = (opcionMesRaw ? opcionMesRaw.trim() : "") || "1";
+
+  let fechaActual;
+  if (opcionMes === "0") {
+    console.log("Saliendo...");
+    return;
+  } else if (opcionMes === "2") {
+    fechaActual = mesActInfo;
+  } else if (opcionMes === "3") {
+    console.log("\nMeses disponibles:");
+    MESES_ES.forEach((m, idx) => console.log(`  ${idx + 1}. ${m}`));
+    const mIdx = parseInt(readlineSync.question("\n  > Ingrese el numero del mes (1-12): "), 10);
+    const anioDefault = new Date().getFullYear();
+    const anioInput = parseInt(readlineSync.question(`  > Ingrese el año [${anioDefault}]: `) || String(anioDefault), 10);
+    if (isNaN(mIdx) || mIdx < 1 || mIdx > 12) {
+      console.log(c.rojo("Mes invalido. Usando mes anterior por defecto."));
+      fechaActual = mesAntInfo;
+    } else {
+      fechaActual = obtenerDatosPeriodo(new Date(anioInput, mIdx - 1, 1));
+    }
+  } else {
+    fechaActual = mesAntInfo;
+  }
+
+  console.log(c.verde(`\n  ✅ Periodo configurado: ${fechaActual.MesTexto} de ${fechaActual.ANIO} (Fecha de corte: ${fechaActual.DIA} de ${fechaActual.MesTexto} de ${fechaActual.ANIO})`));
+
+  const asocActivaRaw = process.env.ASOCIACION_ACTIVA;
+  let asocActiva = null;
+  if (asocActivaRaw) {
+    try {
+      asocActiva = JSON.parse(asocActivaRaw);
+    } catch (e) {}
+  }
+
+  console.log("");
+  if (asocActiva) {
+    console.log(c.verde(`  ⭐ Asociacion activa en sesión: ${asocActiva.nombreCorto}`));
+    console.log(c.cyan(`[1] Generar SOLO para ${asocActiva.nombreCorto}`));
+    console.log(c.cyan("[2] Generar para TODAS las asociaciones"));
+    console.log(c.cyan("[3] Seleccionar otra asociacion de la lista"));
+    console.log(c.cyan("[0] Salir"));
+  } else {
+    console.log(c.cyan("[1] Generar para TODAS las asociaciones"));
+    console.log(c.cyan("[2] Seleccionar UNA asociacion especifica"));
+    console.log(c.cyan("[0] Salir"));
+  }
   
-  const alcance = readlineSync.question("\n  > Escoja una opcion [1, 2, 0]: ");
+  const alcance = readlineSync.question("\n  > Escoja una opcion: ");
   
   if (alcance === "0") {
     console.log("Saliendo...");
     return;
   }
   
-  if (alcance === "2") {
+  if (asocActiva && alcance === "1") {
+    const encontrada = asociaciones.find(
+      (a) =>
+        (asocActiva.nit && a.NIT === String(asocActiva.nit).trim()) ||
+        a.EAS.toUpperCase().includes(asocActiva.nombreCorto.toUpperCase())
+    );
+    if (encontrada) {
+      asociaciones = [encontrada];
+    } else {
+      console.log(c.amarillo(`  ⚠️ No se encontró "${asocActiva.nombreCorto}" en contabilidad. Mostrando lista...`));
+    }
+  } else if ((!asocActiva && alcance === "2") || (asocActiva && alcance === "3")) {
     console.log("");
     asociaciones.forEach((a, i) => {
       console.log(c.cyan(`[${i + 1}] ${a.EAS}`));
@@ -307,7 +412,6 @@ async function main() {
     asociaciones = [asociaciones[asocIdx - 1]];
   }
 
-  const fechaActual = obtenerMesActual();
   const { Mes, ANIO } = fechaActual;
   const carpetaSalida = path.join(CARPETA_SALIDA_BASE, `${Mes}-${ANIO}`);
   fs.mkdirSync(carpetaSalida, { recursive: true });

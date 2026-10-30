@@ -1,0 +1,96 @@
+{
+  "radicado": "RAM-2026-SEP-0748-8701",
+  "asociacion": "BUENAVISTA",
+  "jardin": "MIS PEQUEÑOS TRAVIESOS",
+  "codigoUds": "110011120748",
+  "madre": "DIANA PATRICIA BELLO NAVA",
+  "mes": "Septiembre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-10-01T21:31:18.701Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 12,
+    "ninosConInasistencias": 7,
+    "diasHabilesMes": 21
+  },
+  "inasistencias": [
+    {
+      "documento": "1025333069",
+      "nombreCompleto": "KYLIAN DAVID RIOS MENDEZ",
+      "dias": [
+        24
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1028959209",
+      "nombreCompleto": "DANIMAR MERCEDES MARTINEZ PEDROZO",
+      "dias": [
+        28
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1033125221",
+      "nombreCompleto": "MARIA FERNANDA MARTINEZ GUTIERREZ",
+      "dias": [
+        2
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1050463313",
+      "nombreCompleto": "GAEL ANDRES LOBOS BELLO",
+      "dias": [
+        3,
+        9,
+        22,
+        24
+      ],
+      "totalFaltas": 4
+    },
+    {
+      "documento": "1079887937",
+      "nombreCompleto": "ALANA SOFIA MARTINEZ MARTINEZ",
+      "dias": [
+        2,
+        8
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1100699900",
+      "nombreCompleto": "NATHAN MUNOZ SEVERICHE",
+      "dias": [
+        18
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1233927674",
+      "nombreCompleto": "VIERICK ALEXI MEZA LOPEZ",
+      "dias": [
+        23,
+        24
+      ],
+      "totalFaltas": 2
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-01T21:31:18.701Z",
+      "faltasReportadasEnEsteEnvio": 12
+    }
+  ],
+  "fechaSincronizacion": "2026-10-01T21:33:24.596Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 13,
+    "asistenciasMarcadas": 261,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21
+  }
+}

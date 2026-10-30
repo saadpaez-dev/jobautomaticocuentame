@@ -1,0 +1,185 @@
+{
+  "radicado": "RAM-2026-OCT-0742-5855",
+  "asociacion": "BUENAVISTA",
+  "jardin": "ESCALEMOS SONRIENDO",
+  "codigoUds": "110011120742",
+  "madre": "LUZ DARY MOTIVAR GARCIA",
+  "mes": "Octubre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-10-30T03:41:35.855Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 65,
+    "ninosConInasistencias": 13,
+    "diasHabilesMes": 20
+  },
+  "inasistencias": [
+    {
+      "documento": "1020851852",
+      "nombreCompleto": "ISAIAS PAJARO RAMIREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852301",
+      "nombreCompleto": "ALANNA LUCIA HOYOS GUERRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852475",
+      "nombreCompleto": "MATHIAS FELIPE HERNANDEZ HERNANDEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1021515782",
+      "nombreCompleto": "EMMA LUCIA CHAVEZ PAJARO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332822",
+      "nombreCompleto": "ANTONELLA CALDERON CASTANEDA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1031859587",
+      "nombreCompleto": "MATHIAS DAVID FRANCHI GUERRERO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033124764",
+      "nombreCompleto": "JUAN SEBASTIAN PIRA HUERTAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1073531933",
+      "nombreCompleto": "PEDRO JOSE CHRISTOPHER HERNANDEZ FRAGACHAN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1074019408",
+      "nombreCompleto": "NICOLAS ATENCIA FERIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1205974491",
+      "nombreCompleto": "EMILIANO GAEL TIMAURE ARANGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1216983068",
+      "nombreCompleto": "DRIAN FERNANDO FERNANDEZ BORJA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1238349996",
+      "nombreCompleto": "ANTONELLA ROBLES PAJARO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1243762771",
+      "nombreCompleto": "DANIEL MATIAS SANDOVAL ELLES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-30T03:41:35.855Z",
+      "faltasReportadasEnEsteEnvio": 65
+    }
+  ],
+  "fechaSincronizacion": "2026-10-30T03:42:01.593Z"
+}

@@ -1,0 +1,105 @@
+{
+  "radicado": "RAM-2026-SEP-0751-2838",
+  "asociacion": "BUENAVISTA",
+  "jardin": "MIS TESORITOS",
+  "codigoUds": "110011120751",
+  "madre": "GLADYS AURORA CRUZ QUIROGA",
+  "mes": "Septiembre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-09-30T21:05:12.838Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 28,
+    "ninosConInasistencias": 6,
+    "diasHabilesMes": 21
+  },
+  "inasistencias": [
+    {
+      "documento": "1016122016",
+      "nombreCompleto": "NICO LUCIO GRUNZWEIG BARRERA",
+      "dias": [
+        1,
+        2,
+        3,
+        4,
+        7,
+        8,
+        9,
+        10,
+        11,
+        14,
+        15,
+        16,
+        17,
+        18,
+        21,
+        22,
+        23,
+        24
+      ],
+      "totalFaltas": 18
+    },
+    {
+      "documento": "1020852301",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        2,
+        3,
+        18,
+        24,
+        28
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332822",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        28
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1216983068",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        28
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1238349996",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        28
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1243762771",
+      "nombreCompleto": "Beneficiario",
+      "dias": [
+        2,
+        14
+      ],
+      "totalFaltas": 2
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T21:05:12.838Z",
+      "faltasReportadasEnEsteEnvio": 28
+    }
+  ],
+  "fechaSincronizacion": "2026-09-30T21:07:16.547Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 13,
+    "asistenciasMarcadas": 0,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21
+  }
+}

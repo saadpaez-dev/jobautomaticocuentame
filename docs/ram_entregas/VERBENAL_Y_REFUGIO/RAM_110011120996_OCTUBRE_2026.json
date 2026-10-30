@@ -1,0 +1,195 @@
+{
+  "radicado": "RAM-2026-OCT-0996-5872",
+  "asociacion": "VERBENAL Y REFUGIO",
+  "jardin": "CAPULLO MAGICO",
+  "codigoUds": "110011120996",
+  "madre": "GLORIA ESPERANZA GUTIERREZ",
+  "mes": "Octubre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-10-30T03:14:15.872Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 65,
+    "ninosConInasistencias": 13,
+    "diasHabilesMes": 20
+  },
+  "inasistencias": [
+    {
+      "documento": "1004202361",
+      "nombreCompleto": "THIAGO ALBERTO LOPEZ NAVA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1013700111",
+      "nombreCompleto": "SANTIAGO MOSCOTE CONTRERAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020849468",
+      "nombreCompleto": "EMMA SOFIA SALAS ZAPATA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333693",
+      "nombreCompleto": "IAN DANIEL MONTENEGRO ARAUJO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410818",
+      "nombreCompleto": "DANNA ISABELLA GARCIA COLMENAREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033124986",
+      "nombreCompleto": "AARON DE JESUS MEDINA GALAN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1066479213",
+      "nombreCompleto": "MARIA CELESTE SIERRA SIERRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1070027747",
+      "nombreCompleto": "ASHLY SOFIA CALLE ROMERO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1094290520",
+      "nombreCompleto": "EMANUEL ALEXANDER CANAS VALENCIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1104139315",
+      "nombreCompleto": "KYLLIAM CARRILLO CARDENAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1241591269",
+      "nombreCompleto": "EMMA VALENTINA SARMIENTO CARDENAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1249968323",
+      "nombreCompleto": "DIEGO ANDRES CAMARGO CHAMORRO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1249969271",
+      "nombreCompleto": "EVANGELINE NINO VELOZA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-29T21:26:35.258Z",
+      "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-29T21:27:42.960Z",
+      "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-30T03:14:15.872Z",
+      "faltasReportadasEnEsteEnvio": 65
+    }
+  ],
+  "fechaSincronizacion": "2026-10-30T03:16:20.571Z"
+}

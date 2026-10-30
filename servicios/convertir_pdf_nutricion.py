@@ -262,6 +262,24 @@ def procesar_un_pdf(pdf_path, db_master):
     asociacion = ninos[0].get('asociacion') or header_info['asociacion']
 
     generar_excel_oficial(asociacion, {jardin_nombre: ninos}, output_excel)
+
+    # Sincronizar automáticamente a las carpetas de reportes de nutrición para el Portal Web
+    import shutil
+    asoc_clean = asociacion.strip().upper() if asociacion else ''
+    if asoc_clean:
+        rutas_portal = [
+            os.path.join(ROOT_DIR, 'docs', 'reportes', 'nutricion', asoc_clean),
+            os.path.join(os.path.dirname(ROOT_DIR), 'app-cuentame', 'docs', 'reportes', 'nutricion', asoc_clean)
+        ]
+        for rp in rutas_portal:
+            try:
+                os.makedirs(rp, exist_ok=True)
+                dest = os.path.join(rp, filename)
+                shutil.copyfile(output_excel, dest)
+                print(f"     🚀 Alineado para descarga en Portal: {dest}")
+            except Exception as eCopy:
+                pass
+
     return True
 
 def main():

@@ -1,0 +1,88 @@
+{
+  "radicado": "RAM-2026-SEP-1003-0971",
+  "asociacion": "VERBENAL Y REFUGIO",
+  "jardin": "MOMENTOS FELICES",
+  "codigoUds": "110011121003",
+  "madre": "MARIA CRISTINA NARANJO GUERRERO",
+  "mes": "Septiembre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-09-30T19:59:10.971Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 13,
+    "ninosConInasistencias": 5,
+    "diasHabilesMes": 21
+  },
+  "inasistencias": [
+    {
+      "documento": "1020852067",
+      "nombreCompleto": "JHANNA ISABELLA RIOS COLINA",
+      "dias": [
+        1,
+        2,
+        3,
+        4,
+        7,
+        8,
+        9,
+        10
+      ],
+      "totalFaltas": 8
+    },
+    {
+      "documento": "1104441968",
+      "nombreCompleto": "AMANDA LUNA DELGADO ACUNA",
+      "dias": [
+        29
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1104443646",
+      "nombreCompleto": "JAIME MIGUEL JIMENEZ ALBORES",
+      "dias": [
+        11,
+        23
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1187466920",
+      "nombreCompleto": "JHAN DAVID ARAGON HERAZO",
+      "dias": [
+        11
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1233930091",
+      "nombreCompleto": "MICHAEL ANDRES GONALEZ ALVARADO",
+      "dias": [
+        9
+      ],
+      "totalFaltas": 1
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T19:58:33.667Z",
+      "faltasReportadasEnEsteEnvio": 9
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T19:59:10.971Z",
+      "faltasReportadasEnEsteEnvio": 13
+    }
+  ],
+  "fechaSincronizacion": "2026-09-30T20:00:51.601Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 13,
+    "asistenciasMarcadas": 259,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21
+  }
+}

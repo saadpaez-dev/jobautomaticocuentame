@@ -1,0 +1,185 @@
+{
+  "radicado": "RAM-2026-OCT-1003-8225",
+  "asociacion": "VERBENAL Y REFUGIO",
+  "jardin": "MOMENTOS FELICES",
+  "codigoUds": "110011121003",
+  "madre": "MARIA CRISTINA NARANJO GUERRERO",
+  "mes": "Octubre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-10-30T03:36:08.225Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 65,
+    "ninosConInasistencias": 13,
+    "diasHabilesMes": 20
+  },
+  "inasistencias": [
+    {
+      "documento": "1020850154",
+      "nombreCompleto": "JOSHUA ALID MERCADO ARGUMEDO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850756",
+      "nombreCompleto": "ANGEL ALID ARGUMEDO ROBLES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852050",
+      "nombreCompleto": "ARIANNA SALOME LOPEZ MERCADO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852067",
+      "nombreCompleto": "JHANNA ISABELLA RIOS COLINA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020853221",
+      "nombreCompleto": "JHON CARLO ROJANO LOPEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1021403973",
+      "nombreCompleto": "EVELYN ARLETH CANATE DEL VALLE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1043198637",
+      "nombreCompleto": "MARIA VICTORIA CANATE DEL VALLE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1104441968",
+      "nombreCompleto": "AMANDA LUNA DELGADO ACUNA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1104443646",
+      "nombreCompleto": "JAIME MIGUEL JIMENEZ ALBORES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1187466920",
+      "nombreCompleto": "JHAN DAVID ARAGON HERAZO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233930091",
+      "nombreCompleto": "MICHAEL ANDRES GONALEZ ALVARADO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1249068494",
+      "nombreCompleto": "EMMANUEL JESUS BALLESTEROS PATERNINA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "2209202248",
+      "nombreCompleto": "ANTHONELLA GERALDINE SANCHEZ SOLORZANO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-30T03:36:08.225Z",
+      "faltasReportadasEnEsteEnvio": 65
+    }
+  ],
+  "fechaSincronizacion": "2026-10-30T03:36:50.864Z"
+}

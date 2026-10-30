@@ -1,0 +1,68 @@
+{
+  "radicado": "RAM-2026-SEP-0755-8768",
+  "asociacion": "BUENAVISTA",
+  "jardin": "MIS PEQUEÑAS TORTUGAS 2",
+  "codigoUds": "110011120755",
+  "madre": "MARIA TRANSITO RUIZ",
+  "mes": "Septiembre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-09-30T17:13:18.768Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 5,
+    "ninosConInasistencias": 4,
+    "diasHabilesMes": 21
+  },
+  "inasistencias": [
+    {
+      "documento": "7580007",
+      "nombreCompleto": "IGNACIO JAVIER OJEDA PEREZ",
+      "dias": [
+        7,
+        14
+      ],
+      "totalFaltas": 2
+    },
+    {
+      "documento": "1020850322",
+      "nombreCompleto": "ANTONELLA CORREA MEDINA",
+      "dias": [
+        30
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1025334784",
+      "nombreCompleto": "EVAN JERONIMO HURTADO ZULOETA",
+      "dias": [
+        28
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1103528369",
+      "nombreCompleto": "JOSUE DAVID ECHEVERRY LEON",
+      "dias": [
+        16
+      ],
+      "totalFaltas": 1
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T17:13:18.768Z",
+      "faltasReportadasEnEsteEnvio": 5
+    }
+  ],
+  "fechaSincronizacion": "2026-09-30T17:59:42.970Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 13,
+    "asistenciasMarcadas": 0,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21
+  }
+}

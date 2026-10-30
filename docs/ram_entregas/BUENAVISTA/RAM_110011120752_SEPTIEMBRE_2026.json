@@ -1,0 +1,59 @@
+{
+  "radicado": "RAM-2026-SEP-0752-5162",
+  "asociacion": "BUENAVISTA",
+  "jardin": "MAFALDA",
+  "codigoUds": "110011120752",
+  "madre": "GLORIA CECILIA JIMENEZ ALDANA",
+  "mes": "Septiembre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-09-30T15:18:45.162Z",
+  "estado": "SINCRONIZADO",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 13,
+  "resumen": {
+    "totalInasistencias": 3,
+    "ninosConInasistencias": 3,
+    "diasHabilesMes": 21
+  },
+  "inasistencias": [
+    {
+      "documento": "1014746868",
+      "nombreCompleto": "KEVIN MATEO MUNOZ SARMIENTO",
+      "dias": [
+        3
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1020852030",
+      "nombreCompleto": "EVELYN ARANZA JUNCO SANABRIA",
+      "dias": [
+        8
+      ],
+      "totalFaltas": 1
+    },
+    {
+      "documento": "1033126261",
+      "nombreCompleto": "ANDRES DAVID TRIANA MALDONADO",
+      "dias": [
+        24
+      ],
+      "totalFaltas": 1
+    }
+  ],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-09-30T15:18:45.162Z",
+      "faltasReportadasEnEsteEnvio": 3
+    }
+  ],
+  "fechaSincronizacion": "2026-09-30T15:25:06.894Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 13,
+    "asistenciasMarcadas": 270,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21
+  }
+}

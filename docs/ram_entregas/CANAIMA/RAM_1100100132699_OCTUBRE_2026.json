@@ -1,0 +1,27 @@
+{
+  "radicado": "RAM-2026-OCT-2699-1437",
+  "asociacion": "CANAIMA",
+  "jardin": "MARAVILLAS",
+  "codigoUds": "1100100132699",
+  "madre": "MYRIAM CECILIA CONTRERAS VARGAS",
+  "mes": "Octubre",
+  "anio": 2026,
+  "tipoReporte": "MENSUAL",
+  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "estado": "PENDIENTE_SINCRONIZACION",
+  "asistenciasPorDefecto": true,
+  "totalNinos": 0,
+  "resumen": {
+    "totalInasistencias": 0,
+    "ninosConInasistencias": 0,
+    "diasHabilesMes": 20
+  },
+  "inasistencias": [],
+  "historialEnvios": [
+    {
+      "tipoReporte": "MENSUAL_LOTE_ADMIN",
+      "fecha": "2026-10-26T17:13:11.422Z",
+      "faltasReportadasEnEsteEnvio": 0
+    }
+  ]
+}
