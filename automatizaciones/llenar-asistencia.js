@@ -1621,12 +1621,14 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
         const encontrados = listaRams.filter(r => 
             (r.data.radicado || '').trim().toUpperCase() === radicadoObjetivo.toUpperCase() ||
             (r.filename || '').toUpperCase().includes(radicadoObjetivo.toUpperCase()) ||
-            (r.data.codigoUds || '').toString().trim() === radicadoObjetivo
+            (r.data.codigoUds || '').toString().trim() === radicadoObjetivo ||
+            (r.data.codigoUds && radicadoObjetivo.includes(String(r.data.codigoUds).slice(-4)))
         );
         if (encontrados.length > 0) {
             poolRams = encontrados;
         } else {
-            console.log(c.amarillo(`  ⚠️ No se encontró coincidencia directa para "${radicadoObjetivo}". Se usarán los RAMs de la lista.`));
+            console.log(c.amarillo(`  ⚠️ No se encontró coincidencia directa para "${radicadoObjetivo}". Filtrando pendientes...`));
+            poolRams = listaRams.filter(r => r.data.estado !== 'SINCRONIZADO');
         }
     } else if (mesAtencion) {
         const ramsDelMes = listaRams.filter(r => (r.data.mes || '').toUpperCase() === (mesAtencion || '').toUpperCase());
@@ -1855,12 +1857,20 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     let servValidos = filtrarServiciosPorAsociacion(servOpts, ascObj.nombreCorto, tipoServ);
                     if (servValidos.length === 0) servValidos = servOpts;
 
-                    if (servValidos.length > 0) {
-                        const chosenServ = servValidos[0];
+                    // Reordenar para que los de tipo válido vayan primero, pero tener todos como candidatos
+                    const candidatosServ = [...servValidos, ...servOpts.filter(s => !servValidos.some(v => v.value === s.value))];
+
+                    const uLoc = contentFrame.locator('select[id*="ddlIdContratoUnidadServicioNombreUds"], select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]').first();
+                    let udsValue = null;
+                    const codigoSearch = String(ramData.codigoUds || '').trim();
+                    const nombreSearch = removeAccentsStr(ramData.jardin || '');
+
+                    // Probar cada servicio candidato hasta encontrar la UDS
+                    for (const serv of candidatosServ) {
                         const curServ = await servicioLocator.evaluate(s => s.value);
-                        if (curServ !== chosenServ.value) {
-                            console.log(c.gris(`    [Filtro] Seleccionando Servicio: ${chosenServ.text}`));
-                            await servicioLocator.selectOption(chosenServ.value, { timeout: 5000 }).catch(() => {});
+                        if (curServ !== serv.value) {
+                            console.log(c.gris(`    [Filtro] Seleccionando Servicio: ${serv.text}`));
+                            await servicioLocator.selectOption(serv.value, { timeout: 5000 }).catch(() => {});
                             await servicioLocator.evaluate(el => {
                                 el.dispatchEvent(new Event('change', { bubbles: true }));
                                 if (typeof __doPostBack === 'function') {
@@ -1870,32 +1880,27 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                             await mainPage.waitForTimeout(400);
                             await esperarPostBackASPNet(contentFrame, 6000);
                         }
-                    }
-                }
 
-                // 5. UDS
-                const uLoc = contentFrame.locator('select[id*="ddlIdContratoUnidadServicioNombreUds"], select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]').first();
-                if (await uLoc.count() > 0) {
-                    let udsValue = null;
-                    const codigoSearch = String(ramData.codigoUds || '').trim();
-                    const nombreSearch = removeAccentsStr(ramData.jardin || '');
+                        // Verificar si la UDS está en las opciones de este servicio
+                        for (let r = 0; r < 20; r++) {
+                            udsValue = await uLoc.evaluate((s, { code, name }) => {
+                                const validOpts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"));
+                                if (validOpts.length === 0) return null;
 
-                    for (let r = 0; r < 60; r++) {
-                        udsValue = await uLoc.evaluate((s, { code, name }) => {
-                            const validOpts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"));
-                            if (validOpts.length === 0) return null;
+                                const opt = validOpts.find(o => {
+                                    const textNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                                    return (code && textNorm.includes(code)) ||
+                                           (name && textNorm.includes(name)) ||
+                                           (name && name.includes(textNorm));
+                                });
+                                return opt ? opt.value : null;
+                            }, { code: codigoSearch, name: nombreSearch });
 
-                            const opt = validOpts.find(o => {
-                                const textNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-                                return (code && textNorm.includes(code)) ||
-                                       (name && textNorm.includes(name)) ||
-                                       (name && name.includes(textNorm));
-                            });
-                            return opt ? opt.value : null;
-                        }, { code: codigoSearch, name: nombreSearch });
+                            if (udsValue) break;
+                            await mainPage.waitForTimeout(100);
+                        }
 
-                        if (udsValue) break;
-                        await mainPage.waitForTimeout(100);
+                        if (udsValue) break; // UDS encontrada en este servicio
                     }
 
                     if (udsValue) {
@@ -1913,7 +1918,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                             await esperarPostBackASPNet(contentFrame, 6000);
                         }
                     } else {
-                        console.log(c.rojo(`    ❌ No se encontró la UDS "${ramData.jardin}" (${ramData.codigoUds}) en el dropdown.`));
+                        console.log(c.rojo(`    ❌ No se encontró la UDS "${ramData.jardin}" (${ramData.codigoUds}) en ninguno de los servicios disponibles.`));
                         continue;
                     }
                 }

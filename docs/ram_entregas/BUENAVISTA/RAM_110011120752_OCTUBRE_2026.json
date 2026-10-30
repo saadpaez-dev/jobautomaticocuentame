@@ -8,7 +8,7 @@
   "anio": 2026,
   "tipoReporte": "MENSUAL",
   "fechaReporte": "2026-10-30T16:02:41.902Z",
-  "estado": "PENDIENTE_SINCRONIZACION",
+  "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
   "totalNinos": 13,
   "resumen": {
@@ -182,5 +182,6 @@
       "fecha": "2026-10-30T16:02:41.902Z",
       "faltasReportadasEnEsteEnvio": 67
     }
-  ]
+  ],
+  "fechaSincronizacion": "2026-10-30T18:41:22.236Z"
 }
