@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-0751-1435",
+  "radicado": "RAM-2026-OCT-0751-6624",
   "asociacion": "BUENAVISTA",
   "jardin": "MIS TESORITOS",
   "codigoUds": "110011120751",
@@ -7,21 +7,179 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-10-30T16:14:06.624Z",
   "estado": "PENDIENTE_SINCRONIZACION",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 66,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1011269094",
+      "nombreCompleto": "CLAYTON SANTIAGO GUTIERREZ MEJIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333803",
+      "nombreCompleto": "DOMINIK GONZALEZ URREGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020851006",
+      "nombreCompleto": "EMILI CAROLINA RUIZ GRADO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125423",
+      "nombreCompleto": "IAN SEBASTIAN PEREZ RAMOS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850773",
+      "nombreCompleto": "LIAM JERONIMO FIERRO ROMERO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1023047015",
+      "nombreCompleto": "LUCIANA SALOME SABOGAL DIAZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        20
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1025332949",
+      "nombreCompleto": "MATIAS STEVE GONZALEZ URREGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1016122016",
+      "nombreCompleto": "NICO LUCIO GRUNZWEIG BARRERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1015489161",
+      "nombreCompleto": "SALOME VILLANUEVA LOPEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1014749226",
+      "nombreCompleto": "SARA LUCIANA CORTEZ JIMENEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1010253586",
+      "nombreCompleto": "THOMAS ANDRES HERNANDEZ BALLEN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1145739076",
+      "nombreCompleto": "VAYOLET CELESTE CHITIVA POLANCO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850658",
+      "nombreCompleto": "ZOE EMILIANA BOHORQUEZ YARA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
-      "tipoReporte": "MENSUAL_LOTE_ADMIN",
-      "fecha": "2026-10-26T17:13:11.422Z",
-      "faltasReportadasEnEsteEnvio": 0
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-30T16:14:06.624Z",
+      "faltasReportadasEnEsteEnvio": 66
     }
   ]
 }

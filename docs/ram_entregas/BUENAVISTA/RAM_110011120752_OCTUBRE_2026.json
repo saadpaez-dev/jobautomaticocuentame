@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-0752-1435",
+  "radicado": "RAM-2026-OCT-0752-1902",
   "asociacion": "BUENAVISTA",
   "jardin": "MAFALDA",
   "codigoUds": "110011120752",
@@ -7,21 +7,180 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-10-30T16:02:41.902Z",
   "estado": "PENDIENTE_SINCRONIZACION",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 67,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1033126261",
+      "nombreCompleto": "ANDRES DAVID TRIANA MALDONADO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033124749",
+      "nombreCompleto": "BETHCY SAMANTHA CORTES BARRERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333366",
+      "nombreCompleto": "CELESTE MORENO MARTIN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852827",
+      "nombreCompleto": "CLHOE ISABELLA TIBADUIZA PRADA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1020852030",
+      "nombreCompleto": "EVELYN ARANZA JUNCO SANABRIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025334168",
+      "nombreCompleto": "KEVIN ALEJANDRO AGUILERA TIMOTE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        22
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1014746868",
+      "nombreCompleto": "KEVIN MATEO MUNOZ SARMIENTO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1022170018",
+      "nombreCompleto": "KEVIN TORRES BARRERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1046819512",
+      "nombreCompleto": "KIARA VALENTINA CASTRO EPIEYU",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852895",
+      "nombreCompleto": "LIAN MOISES CARRILLO MIRANDA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1116510469",
+      "nombreCompleto": "LILIANIS SAMARIA CARRILLO MIRANDA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033124748",
+      "nombreCompleto": "MELANY SAMARA CORTES BARRERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333686",
+      "nombreCompleto": "SAMUEL NAHIN CASTRO EPIEYU",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
-      "tipoReporte": "MENSUAL_LOTE_ADMIN",
-      "fecha": "2026-10-26T17:13:11.422Z",
-      "faltasReportadasEnEsteEnvio": 0
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-30T16:02:41.902Z",
+      "faltasReportadasEnEsteEnvio": 67
     }
   ]
 }

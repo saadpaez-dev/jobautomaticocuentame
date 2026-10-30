@@ -1809,15 +1809,8 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                             if (curVal !== valueToSelect) {
                                 console.log(c.gris(`    [Filtro] Seleccionando ${keyword}: ${valueToSelect}`));
                                 await sel.selectOption(valueToSelect, { timeout: 5000 }).catch(() => {});
-                                await sel.evaluate(el => {
-                                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                                    if (typeof __doPostBack === 'function') {
-                                        try { __doPostBack(el.name || el.id, ''); } catch(e) {}
-                                    }
-                                }).catch(() => {});
-
-                                // Espera determinista al término del PostBack
-                                await mainPage.waitForTimeout(400);
+                                // Espera determinista al término del PostBack automático
+                                await mainPage.waitForTimeout(500);
                                 await esperarPostBackASPNet(contentFrame, 6000);
                             }
                             return true;
@@ -1827,6 +1820,9 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     }
                     return false;
                 };
+
+                // 0. Dirección / Área Misional (Primera Infancia)
+                await selectDropdown('Direcciones', 'Primera Infancia');
 
                 // 1. Regional (Bogotá D.C. = 3)
                 await selectDropdown('Regional', 'Bogota');
@@ -2060,7 +2056,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
 
                 // Guardar cambios (clic en disco) auditando la respuesta del servidor
                 console.log(c.amarillo('    💾 Guardando RAM en Cuéntame (clic en Guardar con auditoría de respuesta)...'));
-                const disco = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], input[value*="Guardar" i]').first();
+                const disco = contentFrame.locator('a#btnGuardar, input[type="image"][id*="btnGuardar" i], img[title*="Guardar" i], img[alt*="Guardar" i], input[value*="Guardar" i]').first();
                 
                 let guardadoConfirmado = false;
                 let mensajeServidor = '';
@@ -2086,7 +2082,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                 if (await disco.count() > 0 && await disco.isVisible()) {
                     await disco.click();
                 } else {
-                    const genericSave = contentFrame.locator('a:has(img[src*="save.png"]):visible, input[type="image"]:visible, img[src*="save"]:visible').last();
+                    const genericSave = contentFrame.locator('a:has(img[src*="save"]):visible, input[src*="save"]:visible, a:has(img[title*="Guardar" i]):visible, a:has(img[alt*="Guardar" i]):visible').first();
                     if (await genericSave.count() > 0) await genericSave.click();
                 }
 

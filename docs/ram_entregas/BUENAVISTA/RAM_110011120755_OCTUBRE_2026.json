@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-0755-1437",
+  "radicado": "RAM-2026-OCT-0755-8150",
   "asociacion": "BUENAVISTA",
   "jardin": "MIS PEQUEÑAS TORTUGAS 2",
   "codigoUds": "110011120755",
@@ -7,21 +7,181 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-10-30T16:05:38.150Z",
   "estado": "PENDIENTE_SINCRONIZACION",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 68,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1025334046",
+      "nombreCompleto": "ALISON SOFIA MARTINEZ SOSA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1020850322",
+      "nombreCompleto": "ANTONELLA CORREA MEDINA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333016",
+      "nombreCompleto": "ASHLEY SOFIA CRUZ DAZA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125984",
+      "nombreCompleto": "CRISTOFER ROJAS ANGULO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "22022024107",
+      "nombreCompleto": "DARYL ELI DUARTE SANCHEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        27
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1020852258",
+      "nombreCompleto": "EHIDAN MATIAS PORTURA ZAMORA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333786",
+      "nombreCompleto": "ELIAM MATHEO MARTINEZ POLANCO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025334784",
+      "nombreCompleto": "EVAN JERONIMO HURTADO ZULOETA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850897",
+      "nombreCompleto": "IAM STEBAN ZAMORA PORTURA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "7580007",
+      "nombreCompleto": "IGNACIO JAVIER OJEDA PEREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        26
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1103528369",
+      "nombreCompleto": "JOSUE DAVID ECHEVERRY LEON",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852373",
+      "nombreCompleto": "KYLIAN AARON AMARALES PELEY",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028411099",
+      "nombreCompleto": "LIA ISABELLA TORREGROZA BOHORQUEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
-      "tipoReporte": "MENSUAL_LOTE_ADMIN",
-      "fecha": "2026-10-26T17:13:11.422Z",
-      "faltasReportadasEnEsteEnvio": 0
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-30T16:05:38.150Z",
+      "faltasReportadasEnEsteEnvio": 68
     }
   ]
 }

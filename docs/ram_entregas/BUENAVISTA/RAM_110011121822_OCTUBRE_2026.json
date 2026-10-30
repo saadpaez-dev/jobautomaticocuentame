@@ -1,27 +1,352 @@
 {
-  "radicado": "RAM-2026-OCT-1822-1436",
+  "radicado": "RAM-2026-OCT-1822-0758",
   "asociacion": "BUENAVISTA",
   "jardin": "EL SOLECITO",
   "codigoUds": "110011121822",
-  "madre": "ILMA JANETH RODRIGUEZ BARRERA",
+  "madre": "DANIELA CORONADO RODRÍGUEZ",
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-10-30T16:13:10.758Z",
   "estado": "PENDIENTE_SINCRONIZACION",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 26,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 142,
+    "ninosConInasistencias": 26,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1028410908",
+      "nombreCompleto": "ALAN DAVID AMEZQUITA RODRIGUEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850544",
+      "nombreCompleto": "ANDER JOSE HERRERA LOPEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333495",
+      "nombreCompleto": "ANDRES DAVID ALVAREZ DIAZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1071173073",
+      "nombreCompleto": "CRISTOPHER DANIEL PATINO HUERTAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        19
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1028959277",
+      "nombreCompleto": "DAMIAN GAEL BRITO VALENCIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        21
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1028410866",
+      "nombreCompleto": "DANIEL ALEJANDRO VIVAS OJEDA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1051682002",
+      "nombreCompleto": "ELIAN ALFONSO NAVARRO SOSA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1243763163",
+      "nombreCompleto": "ELIOTT BURBANO MARTINEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        21
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1020851380",
+      "nombreCompleto": "GAEL ALEJANDRO PENA PEREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850547",
+      "nombreCompleto": "GIANNA ANTONELLA MARTINEZ CASTILLO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        20
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1032946620",
+      "nombreCompleto": "HEILY SAMARA PUCHIGAY VARGAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1019167777",
+      "nombreCompleto": "JECSIMAR VALENTINA RODRIGUEZ MATA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1021515687",
+      "nombreCompleto": "JERONIMO MEJIA DORIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        19,
+        23,
+        26
+      ],
+      "totalFaltas": 8
+    },
+    {
+      "documento": "1243764284",
+      "nombreCompleto": "JERONIMO PULECIO PRIETO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        21,
+        29
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1020853124",
+      "nombreCompleto": "KYLIAN ALEXANDER HURTADO BAUTISTA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "8052856",
+      "nombreCompleto": "LUANNA ALESSIA MICHELENA CASTELLANO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        26
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1141531988",
+      "nombreCompleto": "LUIS ALEJANDRO BRITO PRIETO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        21
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1028410948",
+      "nombreCompleto": "MIA CELESTE SALGADO ROJANO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020851675",
+      "nombreCompleto": "NICOLETTE ALEXANDRA GUERRA SANCHEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852401",
+      "nombreCompleto": "NOAH GAEL DIAZ BAUTISTA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852092",
+      "nombreCompleto": "NOAH MARTIN CELIS BAUTISTA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332875",
+      "nombreCompleto": "SHARITH VALENATINA ROA ROJAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033126619",
+      "nombreCompleto": "THIAGO EMMANUEL RAMIREZ ROJAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332845",
+      "nombreCompleto": "THIAGO SANABRIA NINO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1026606187",
+      "nombreCompleto": "THIAGO SANCHEZ ARAUJO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850167",
+      "nombreCompleto": "ZOE LUCIANA OVIEDO DURAN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
-      "tipoReporte": "MENSUAL_LOTE_ADMIN",
-      "fecha": "2026-10-26T17:13:11.422Z",
-      "faltasReportadasEnEsteEnvio": 0
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-30T16:13:10.758Z",
+      "faltasReportadasEnEsteEnvio": 142
     }
   ]
 }
