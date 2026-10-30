@@ -3,3 +3,5 @@ node_modules/
 logs/
 scratch/
 servicios/__pycache__/
+
+reportes/
