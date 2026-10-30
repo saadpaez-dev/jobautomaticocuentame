@@ -1761,6 +1761,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
             for (let i = 0; i < items.length; i++) {
                 const ramItem = items[i];
                 const ramData = ramItem.data;
+                try {
                 const cal = calendario.obtenerCalendarioMesJardin(ramData.anio || 2026, ramData.mes || mesAtencion);
 
                 console.log(c.amarillo(`\n  ----------------------------------------------------`));
@@ -1941,14 +1942,19 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
 
                 // Habilitar edición (Clic en el lápiz)
                 console.log(c.gris('    👉 Clic en el Lápiz para habilitar edición...'));
+                contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
                 const lapiz = contentFrame.locator('input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"]').first();
                 if (await lapiz.count() > 0 && await lapiz.isVisible()) {
-                    await lapiz.click();
+                    await lapiz.click().catch(() => {});
+                    await mainPage.waitForTimeout(1000);
+                    contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
                     await esperarPostBackASPNet(contentFrame, 8000);
+                    contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
                 }
 
                 // Marcado atómico y determinista por lotes (< 50ms)
                 console.log(c.gris('    ⚡ Marcando asistencias e inasistencias en lote (Modo Determinista)...'));
+                contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
                 const resultadoMarcado = await contentFrame.evaluate(({ diasHabiles, inasistenciasList }) => {
                     const norm = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
 
@@ -2180,6 +2186,9 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                         reqSync.end();
                     });
                 } catch(e) {}
+                } catch(errUds) {
+                    console.log(c.rojo(`    ❌ Error sincronizando UDS ${ramData ? ramData.jardin : i}: ${errUds.message}`));
+                }
 
                 // Recargar página para siguiente UDS
                 if (i < items.length - 1) {
