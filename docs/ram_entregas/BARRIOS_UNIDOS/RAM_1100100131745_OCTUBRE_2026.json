@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-1745-1439",
+  "radicado": "RAM-2026-OCT-1745-0505",
   "asociacion": "BARRIOS UNIDOS",
   "jardin": "PITUFOS II",
   "codigoUds": "1100100131745",
@@ -7,28 +7,190 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-02T02:00:00.505Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 65,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1020242754",
+      "nombreCompleto": "ANA SOFIA LOPEZ DUARTE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1249969438",
+      "nombreCompleto": "ESTEBAN SIERRA BENAVIDES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852087",
+      "nombreCompleto": "HECTOR EDUARDO LASTRA BRITO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125702",
+      "nombreCompleto": "HELENA TOCORA MORENO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033126132",
+      "nombreCompleto": "ISAAC DAVID CASTILLO RIOS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125654",
+      "nombreCompleto": "JACOBO ALFONSO SALAMANCA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333570",
+      "nombreCompleto": "JEREMY BERTEL BUELVAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033124667",
+      "nombreCompleto": "JULIETA PRADA SANTIAGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852659",
+      "nombreCompleto": "LIAM SEBASTIAN FERNANDEZ TRESPALACIO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020851616",
+      "nombreCompleto": "NICOLAS MATIAS CARO BRINEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332688",
+      "nombreCompleto": "PABLO EMILIO SOTELO OSPINA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332860",
+      "nombreCompleto": "SALOME HERNANDEZ RICARDO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125566",
+      "nombreCompleto": "SANTIAGO OSPINA MURCIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T02:00:00.505Z",
+      "faltasReportadasEnEsteEnvio": 65
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:15:57.076Z",
+  "fechaSincronizacion": "2026-11-02T02:07:21.131Z",
   "resumenSincronizacion": {
     "ninosProcesados": 13,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 65,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }

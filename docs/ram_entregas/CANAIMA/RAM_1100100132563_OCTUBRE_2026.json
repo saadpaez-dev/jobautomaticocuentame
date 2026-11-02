@@ -1,27 +1,384 @@
 {
-  "radicado": "RAM-2026-OCT-2563-1439",
+  "radicado": "RAM-2026-OCT-2563-2298",
   "asociacion": "CANAIMA",
   "jardin": "ESTRELLITAS DEL FUTURO",
   "codigoUds": "1100100132563",
-  "madre": "NIDIA EMILCE NIETO ARIZA",
+  "madre": "MYRIAM TORRES BENAVIDES",
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
-  "estado": "PENDIENTE_SINCRONIZACION",
+  "fechaReporte": "2026-11-02T00:32:22.298Z",
+  "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 25,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 148,
+    "ninosConInasistencias": 25,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1125814265",
+      "nombreCompleto": "ALAYAN DE JESUS ALDANA PARDO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        23,
+        26
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1020853530",
+      "nombreCompleto": "AMY MARIANA MALAVER CERON",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        21,
+        22,
+        26
+      ],
+      "totalFaltas": 8
+    },
+    {
+      "documento": "1103127369",
+      "nombreCompleto": "ANAY SOFIA ESCUDERO PEREZ",
+      "dias": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1025332974",
+      "nombreCompleto": "ANTONIO ALEHANDRO LOPEZ AGRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020851240",
+      "nombreCompleto": "AZAHARA GABRIELA CHIRINO DIAZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028729696",
+      "nombreCompleto": "CELESTE MOLINA TOVAR",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "17072023554",
+      "nombreCompleto": "CRISTHOFER ELIAS CANAMO CASTELLANOS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        22,
+        26
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1063316100",
+      "nombreCompleto": "DANIEL VARGAS BLANQUISSET",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        13,
+        26,
+        27
+      ],
+      "totalFaltas": 8
+    },
+    {
+      "documento": "1050463006",
+      "nombreCompleto": "DANNY MEJIA ARRIETA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233701073",
+      "nombreCompleto": "EMANUEL JOSUE GUEVARA REYES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1037676416",
+      "nombreCompleto": "EMMA JARAMILLO ACUNA",
+      "dias": [
+        1,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1104444077",
+      "nombreCompleto": "EMMANUEL ORTEGA NUNEZ",
+      "dias": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        8,
+        9,
+        26
+      ],
+      "totalFaltas": 8
+    },
+    {
+      "documento": "1025334350",
+      "nombreCompleto": "HELLEN IMBRECHE AMARIS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125032",
+      "nombreCompleto": "ISAAC MANUEL VILLALBA CENTENO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        22
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1175719172",
+      "nombreCompleto": "KEIVIS JESUS MELEAN MOSQUERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1050743413",
+      "nombreCompleto": "KILIAM BALDOVINO GUZMAN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332811",
+      "nombreCompleto": "LUIS ANGEL ARRIETA BERRIO",
+      "dias": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1019161462",
+      "nombreCompleto": "LUIS ANGEL RAMIREZ GUZMAN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        23
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1025332774",
+      "nombreCompleto": "MARIA VICTORIA RODRIGUEZ RODRIGUEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        16,
+        26
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1249968481",
+      "nombreCompleto": "MATIAS TOVAR ESQUIVEL",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1016121557",
+      "nombreCompleto": "MELANY SAMARA URREA OSPINA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1019851817",
+      "nombreCompleto": "ORIANA SILVA ESCOBAR",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1103865331",
+      "nombreCompleto": "SAMIR DE JESUS DOMINGUEZ ESCUDERO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        22
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1249968482",
+      "nombreCompleto": "SAMUEL TOVAR ESQUIVEL",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1026603206",
+      "nombreCompleto": "XOEL MANUEL DIAZ CAUSADO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-31T03:17:58.206Z",
+      "faltasReportadasEnEsteEnvio": 148
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-31T03:49:07.522Z",
+      "faltasReportadasEnEsteEnvio": 148
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-31T03:49:11.415Z",
+      "faltasReportadasEnEsteEnvio": 148
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-31T03:49:15.389Z",
+      "faltasReportadasEnEsteEnvio": 148
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T00:32:22.298Z",
+      "faltasReportadasEnEsteEnvio": 148
     }
-  ]
+  ],
+  "fechaSincronizacion": "2026-11-02T00:36:06.860Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 25,
+    "asistenciasMarcadas": 0,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 20,
+    "mensajeServidor": "La información ha sido guardada."
+  }
 }

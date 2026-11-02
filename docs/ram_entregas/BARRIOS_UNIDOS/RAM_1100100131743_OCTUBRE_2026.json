@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-1743-1437",
+  "radicado": "RAM-2026-OCT-1743-8970",
   "asociacion": "BARRIOS UNIDOS",
   "jardin": "MUÑECOS Y FIGURAS",
   "codigoUds": "1100100131743",
@@ -7,28 +7,199 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-02T02:02:08.970Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 69,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1025334034",
+      "nombreCompleto": "AIDHARA MORALES HERRERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1014907178",
+      "nombreCompleto": "ALISHA JIREH GARCIA GOMEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1097923092",
+      "nombreCompleto": "DANIEL MATEO AMADO ECHAVARRIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        26
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1116451105",
+      "nombreCompleto": "IAN NICOLAS ROMERO PALACIOS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125343",
+      "nombreCompleto": "JEICOB ISAAC CASTILLO DUQUE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1054576471",
+      "nombreCompleto": "JUAN FELIPE RODRIGUEZ MONCADA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        16
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1034323659",
+      "nombreCompleto": "JULIANA SARITH SUESCUN GUTIERREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025334101",
+      "nombreCompleto": "LITH SAMARA BUITRAGO SUAEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1115752095",
+      "nombreCompleto": "MIA ANTHONELLA FUENTES GUTIERREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        26
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1027303730",
+      "nombreCompleto": "MOISES ROJAS VIVAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        26
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1233929724",
+      "nombreCompleto": "NOA VICTORIA MELO PARRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028959619",
+      "nombreCompleto": "RENATA SALOME BARRIOS PACHECO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1249968811",
+      "nombreCompleto": "RODRIGO ANTONIO BARRIOS PACHECO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T01:24:13.627Z",
+      "faltasReportadasEnEsteEnvio": 69
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T02:02:08.970Z",
+      "faltasReportadasEnEsteEnvio": 69
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:15:47.191Z",
+  "fechaSincronizacion": "2026-11-02T02:07:04.069Z",
   "resumenSincronizacion": {
     "ninosProcesados": 13,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 5,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }

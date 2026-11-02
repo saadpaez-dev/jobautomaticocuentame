@@ -102,7 +102,24 @@ async function capturarPantallazoRAMAntesDeGuardar({ workPage, contentFrame, aso
 
         for (const d of dirs) {
             try {
-                if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+                if (!fs.existsSync(d)) {
+                    fs.mkdirSync(d, { recursive: true });
+                } else {
+                    // 🗑️ Borrar pantallazos anteriores de este jardín/UDS para mantener solo el más actual
+                    const existentes = fs.readdirSync(d);
+                    for (const arch of existentes) {
+                        const archUp = arch.toUpperCase();
+                        if (!archUp.startsWith('RAM_')) continue;
+                        const coincideCod = codClean && archUp.includes(codClean.toUpperCase());
+                        const coincideJar = jardinClean && archUp.includes(jardinClean.toUpperCase());
+                        if (coincideCod || coincideJar) {
+                            try {
+                                fs.unlinkSync(path.join(d, arch));
+                                console.log(c.gris(`    🗑️ Pantallazo anterior eliminado: ${arch}`));
+                            } catch(err) {}
+                        }
+                    }
+                }
             } catch(e) {}
         }
 

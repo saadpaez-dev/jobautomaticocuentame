@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-2764-1436",
+  "radicado": "RAM-2026-OCT-2764-1602",
   "asociacion": "CANAIMA",
   "jardin": "EL BEBE",
   "codigoUds": "1100100132764",
@@ -7,30 +7,257 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-01T18:00:11.602Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 11,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 65,
+    "ninosConInasistencias": 11,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1014747895",
+      "nombreCompleto": "DANNA VALENTINA MUNOZ ZAMUDIO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1014747945",
+      "nombreCompleto": "ANTONELLA RODRIGUEZ NOGUERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1014748657",
+      "nombreCompleto": "MAXIMO SUAREZ CHAMBUCO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        21
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1016972883",
+      "nombreCompleto": "GABRIEL ARIAS NARANJO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        21
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1025333328",
+      "nombreCompleto": "LUCIANA VALENTINA VARGAS CORTES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410969",
+      "nombreCompleto": "LUCIANA TORDECILLA ESPITIA",
+      "dias": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        8,
+        9,
+        13
+      ],
+      "totalFaltas": 8
+    },
+    {
+      "documento": "1032516347",
+      "nombreCompleto": "SALOME CASTANO DUARTE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033124802",
+      "nombreCompleto": "JUAN PABLO ARIAS SAIZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        16,
+        21
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1033125631",
+      "nombreCompleto": "LUISA MILAGROS DIAZ CASTILLO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        19,
+        20,
+        21
+      ],
+      "totalFaltas": 8
+    },
+    {
+      "documento": "1033126216",
+      "nombreCompleto": "KAELL DIAZ VILORIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033126325",
+      "nombreCompleto": "SARAH MICHELLE GUERRERO DIAZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "SEMANAL",
+      "fecha": "2026-10-31T03:19:29.864Z",
+      "faltasReportadasEnEsteEnvio": 44
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:50:12.502Z",
+      "faltasReportadasEnEsteEnvio": 99
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:50:47.322Z",
+      "faltasReportadasEnEsteEnvio": 102
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:53:42.602Z",
+      "faltasReportadasEnEsteEnvio": 102
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:53:53.989Z",
+      "faltasReportadasEnEsteEnvio": 58
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:55:26.505Z",
+      "faltasReportadasEnEsteEnvio": 60
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:55:30.080Z",
+      "faltasReportadasEnEsteEnvio": 60
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:55:54.815Z",
+      "faltasReportadasEnEsteEnvio": 61
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:56:25.425Z",
+      "faltasReportadasEnEsteEnvio": 62
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:56:27.876Z",
+      "faltasReportadasEnEsteEnvio": 62
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:56:33.503Z",
+      "faltasReportadasEnEsteEnvio": 62
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:56:58.990Z",
+      "faltasReportadasEnEsteEnvio": 63
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:57:30.140Z",
+      "faltasReportadasEnEsteEnvio": 64
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T17:57:32.828Z",
+      "faltasReportadasEnEsteEnvio": 64
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T18:00:06.684Z",
+      "faltasReportadasEnEsteEnvio": 64
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T18:00:10.328Z",
+      "faltasReportadasEnEsteEnvio": 65
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-01T18:00:11.602Z",
+      "faltasReportadasEnEsteEnvio": 65
     }
   ],
-  "errorDetalle": "Sin confirmación de guardado en el servidor",
+  "fechaSincronizacion": "2026-11-01T18:00:45.631Z",
   "resumenSincronizacion": {
     "ninosProcesados": 11,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 1,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
-  },
-  "fechaSincronizacion": "2026-10-30T03:49:38.385Z"
+  }
 }

@@ -1,27 +1,536 @@
 {
-  "radicado": "RAM-2026-OCT-2699-1437",
+  "radicado": "RAM-2026-OCT-2699-8276",
   "asociacion": "CANAIMA",
   "jardin": "MARAVILLAS",
   "codigoUds": "1100100132699",
-  "madre": "MYRIAM CECILIA CONTRERAS VARGAS",
+  "madre": "CLAUDIA PATRICIA SILVA",
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
-  "estado": "PENDIENTE_SINCRONIZACION",
+  "fechaReporte": "2026-11-02T00:36:38.276Z",
+  "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 39,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 202,
+    "ninosConInasistencias": 39,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1028959968",
+      "nombreCompleto": "ABBY VALERIA CONTRERAS RODRIGUEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020851272",
+      "nombreCompleto": "ADHARA TORRES ROCHA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        21
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1020852361",
+      "nombreCompleto": "ALLAN ISAAC GUZMAN BASTIDAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233929291",
+      "nombreCompleto": "ANNIE EVANGELINE PICHIMATA RODRIGUEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1011268321",
+      "nombreCompleto": "ASHER MARCELO SALAS CORDERO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        28
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1070026829",
+      "nombreCompleto": "ASLY SALOME BARRERA NUNEZ",
+      "dias": [
+        2,
+        5,
+        6,
+        7,
+        8,
+        9,
+        13
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1031861931",
+      "nombreCompleto": "BRIANGELYS ALEXANDRA ALVAREZ ANCHEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1084948809",
+      "nombreCompleto": "DAMIAN DE JESUS OSPINO DE LA MATA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020851661",
+      "nombreCompleto": "DANA SALOME CASTELLANOS MONDRAGON",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1121562729",
+      "nombreCompleto": "DANIEL DE JESUS GARCIA CASTELLANOS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025569259",
+      "nombreCompleto": "DANNA VALENTINA BURGOS THOMAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125741",
+      "nombreCompleto": "DANNA VALENTINA ORTIZ PINILLA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025334801",
+      "nombreCompleto": "DYLAN MANUEL GUTIERREZ GONZALEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        29
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "21022024216",
+      "nombreCompleto": "EITHAN JOSE TORRS MENDEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1029871011",
+      "nombreCompleto": "ELIAM PAUL CASTELLANO ORTEGA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        23
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1019164386",
+      "nombreCompleto": "EMILY ALEJANDRA RIVERA PARRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1127221034",
+      "nombreCompleto": "ERICKA ALANA MORRISON SANTANA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852051",
+      "nombreCompleto": "GIANMARCO VARGAS SANTOS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "240320212553",
+      "nombreCompleto": "GISEL SARAY BRICENO MANZANILLA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1021402909",
+      "nombreCompleto": "IAN MATEO AGUDELO BUSTOS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        22
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1020850818",
+      "nombreCompleto": "IDALIDIS SOFIA CASTELLANOS SANTIAGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1023992966",
+      "nombreCompleto": "KALETH SAMAEL PEREZ MENDEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1010253321",
+      "nombreCompleto": "KYLIAM STANDLY RODRIGUEZ NINO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1037488116",
+      "nombreCompleto": "LIAM CAMILO PATERNINA VEJARANO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1030056268",
+      "nombreCompleto": "LIAM GAEL VERVECIA HERNANDEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125587",
+      "nombreCompleto": "LIAM THOMAS TALERO VILLAMARIN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033126525",
+      "nombreCompleto": "LUCCA ROJAS ZAPATA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1014749225",
+      "nombreCompleto": "MARIA JOSE SANCHEZ CAICEDO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1018522982",
+      "nombreCompleto": "MARIA VICTORIA ESTRADA FLOREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1035988423",
+      "nombreCompleto": "MARIAN ESTEFANIA ROJAS TORRES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020852322",
+      "nombreCompleto": "MATHEO DANIEL COLINA NAVARRO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1401202290",
+      "nombreCompleto": "MATHEO JOSE ALVAREZ PEROZO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1114559109",
+      "nombreCompleto": "MAXIMILIANO RAMIREZ BALLESTEROS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1014748465",
+      "nombreCompleto": "MIA ALEXANDRA DE LA HOZ CONTRERAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233923541",
+      "nombreCompleto": "RAYNELIS ALEJANDRA CASTILLO VARGAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1243762196",
+      "nombreCompleto": "SAMIR ANDRES GONZALEZ SEGOVIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1014747706",
+      "nombreCompleto": "SARA LISETH LANCHEROS GOMEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1170965910",
+      "nombreCompleto": "SARAY VALENTINA SALGADO GARCIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033124503",
+      "nombreCompleto": "SUMMER MORENO ROJAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T00:23:04.958Z",
+      "faltasReportadasEnEsteEnvio": 195
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T00:23:37.568Z",
+      "faltasReportadasEnEsteEnvio": 196
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T00:27:47.876Z",
+      "faltasReportadasEnEsteEnvio": 199
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T00:29:29.715Z",
+      "faltasReportadasEnEsteEnvio": 201
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T00:36:38.276Z",
+      "faltasReportadasEnEsteEnvio": 202
     }
-  ]
+  ],
+  "fechaSincronizacion": "2026-11-02T00:37:50.154Z",
+  "resumenSincronizacion": {
+    "ninosProcesados": 39,
+    "asistenciasMarcadas": 0,
+    "faltasAplicadas": 1,
+    "diasHabilesMes": 20,
+    "mensajeServidor": "La información ha sido guardada."
+  }
 }

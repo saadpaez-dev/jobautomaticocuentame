@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-1647-1435",
+  "radicado": "RAM-2026-OCT-1647-7912",
   "asociacion": "BARRIOS UNIDOS",
   "jardin": "EL COMBO DE LOS PATICOS",
   "codigoUds": "1100100131647",
@@ -7,28 +7,191 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-02T02:02:47.912Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 66,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1028411091",
+      "nombreCompleto": "AMY VALERIA LOPEZ GOMEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        23
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1243764784",
+      "nombreCompleto": "BRIANSH VALERIA LOPEZ ESPINEL",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "230920222286",
+      "nombreCompleto": "CHLOE ANDREILYS MOGOLLON CARDONA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332538",
+      "nombreCompleto": "DAFNE SALOME PINEROS GOMEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410638",
+      "nombreCompleto": "DANNA SOFIA GARCIA SARABIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1249968945",
+      "nombreCompleto": "ELIAS SANTIAGO MONTIEL LOPEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033126803",
+      "nombreCompleto": "EMILIANO TUNAROSA YOMAYUSA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1044396424",
+      "nombreCompleto": "ISMAEL DAVID SILVA REYES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1137733154",
+      "nombreCompleto": "KATHALEYA DEL VALLE CRESPO CAMARGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1243764783",
+      "nombreCompleto": "MARIA ANGELICA LOPEZ ESPINEL",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332500",
+      "nombreCompleto": "NELLYS LUCIANA MENDEZ OCHOA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020851871",
+      "nombreCompleto": "ROSNIER JEREMIAS VARGAS MENDOZA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410680",
+      "nombreCompleto": "VAIIOLETH JULIANA MURILLO RAMIREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T02:02:47.912Z",
+      "faltasReportadasEnEsteEnvio": 66
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:15:29.856Z",
+  "fechaSincronizacion": "2026-11-02T02:06:29.613Z",
   "resumenSincronizacion": {
     "ninosProcesados": 13,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 66,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }

@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-1558-1435",
+  "radicado": "RAM-2026-OCT-1558-1750",
   "asociacion": "BARRIOS UNIDOS",
   "jardin": "MI PEQUEÑO MUNDO",
   "codigoUds": "1100100131558",
@@ -7,28 +7,195 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-02T02:03:21.750Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 65,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1028410999",
+      "nombreCompleto": "ALANA CELINA VASQUEZ SUAREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025334523",
+      "nombreCompleto": "EMILY SALOME ZABALA NAVARRETE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410850",
+      "nombreCompleto": "EMMA YISEEL LARA GUERRERO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1077095135",
+      "nombreCompleto": "ISIS DAILIN GUTIERREZ ROJAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1029870958",
+      "nombreCompleto": "JHOICER SAMUEL LOZANO HERNANDEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1243764619",
+      "nombreCompleto": "JOSEPH SAMUEL AYALA BUITRAGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "260420220123",
+      "nombreCompleto": "KEVIN JAVIER CHAVEZ ARRIETA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1032195209",
+      "nombreCompleto": "KIARA SOFIA OVISPO VALERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "8181725",
+      "nombreCompleto": "LUISANNY JIMENA TRONCOSO MENDOZA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410625",
+      "nombreCompleto": "MAIA SALOME MUNOZ RINCON",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028703840",
+      "nombreCompleto": "MASSIMO ALFONSO LUCENA SUAREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410702",
+      "nombreCompleto": "MATEO PEREZ MARZOLA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025334563",
+      "nombreCompleto": "MATHIAS CONTRERAS HERNANDEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T01:15:55.288Z",
+      "faltasReportadasEnEsteEnvio": 60
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T02:03:21.750Z",
+      "faltasReportadasEnEsteEnvio": 65
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:15:03.196Z",
+  "fechaSincronizacion": "2026-11-02T02:05:38.309Z",
   "resumenSincronizacion": {
     "ninosProcesados": 13,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 17,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }

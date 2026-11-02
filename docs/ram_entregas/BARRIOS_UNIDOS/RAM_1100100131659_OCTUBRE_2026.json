@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-1659-1437",
+  "radicado": "RAM-2026-OCT-1659-2410",
   "asociacion": "BARRIOS UNIDOS",
   "jardin": "EL LUCERITO",
   "codigoUds": "1100100131659",
@@ -7,28 +7,171 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-02T02:04:22.410Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 11,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 55,
+    "ninosConInasistencias": 11,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1042982849",
+      "nombreCompleto": "BRIANA ISABELA AYALA DURAN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1240698588",
+      "nombreCompleto": "CRISTIN MILENA CHARRIS NIEBLES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1012479190",
+      "nombreCompleto": "EIMY JISETH MORALES FUENTES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025334971",
+      "nombreCompleto": "EVELYN VALERIA LOPEZ ROPERO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020849580",
+      "nombreCompleto": "JHOSTIN DANIEL URIBE VARGAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1050104697",
+      "nombreCompleto": "JHUSSEF JERONIMO GARCIA ROJAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1109497367",
+      "nombreCompleto": "LIAN MATIAS RODRIGUEZ GOMEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "08012023181",
+      "nombreCompleto": "LUCIANO ALESSANDRO MONTOYA ARRIECHE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1256218326",
+      "nombreCompleto": "MARIANA VICTORIA BERNAL PINEDA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1042982424",
+      "nombreCompleto": "NAZLY VALENTINA AYALA DURAN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1249968682",
+      "nombreCompleto": "YULIANNYS MARIA ACOSTA BORGES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T01:19:34.743Z",
+      "faltasReportadasEnEsteEnvio": 45
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T02:04:22.410Z",
+      "faltasReportadasEnEsteEnvio": 55
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:15:38.415Z",
+  "fechaSincronizacion": "2026-11-02T02:06:46.827Z",
   "resumenSincronizacion": {
     "ninosProcesados": 11,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 5,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }

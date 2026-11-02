@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-0411-1433",
+  "radicado": "RAM-2026-OCT-0411-1480",
   "asociacion": "BARRIOS UNIDOS",
   "jardin": "EL SALTARIN",
   "codigoUds": "1100100020411",
@@ -7,24 +7,196 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-02T02:03:51.480Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 70,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1016609775",
+      "nombreCompleto": "ADIEL JOSE NAVARRO CUENCA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020853755",
+      "nombreCompleto": "ALAHIA CAROLAY CASTRO ESCORCIA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333634",
+      "nombreCompleto": "ALAN JACOB CORTES GUATAQUIRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1140941037",
+      "nombreCompleto": "BRIANNA MONTSERRAT VILLAMIZAR ROJAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028729935",
+      "nombreCompleto": "CRISTOPHER ISAAC GONZALEZ PEREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "11062021393",
+      "nombreCompleto": "DANNA FIORELLA VILLAMIZAR ROJAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1046348884",
+      "nombreCompleto": "GERANNYS LUCIA ORTIZ PENALOZA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033124516",
+      "nombreCompleto": "JHON ANGEL TRUJILLO MUNOZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        22
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1020849533",
+      "nombreCompleto": "MARIANYELIS CAROLINA PENALOZA NEGRETE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020853297",
+      "nombreCompleto": "MEREDITH CELESTE HERRERA DIAZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        20
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "101020222097",
+      "nombreCompleto": "REINALYS NOHEMY PATINO BENITEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        21
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1028958582",
+      "nombreCompleto": "SALOME SOFIA PEREZ SEVILLA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233927588",
+      "nombreCompleto": "THIAGO MIKELL NIVIA CORTES",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T01:18:48.270Z",
+      "faltasReportadasEnEsteEnvio": 70
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T02:03:51.480Z",
+      "faltasReportadasEnEsteEnvio": 70
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:14:53.761Z",
+  "fechaSincronizacion": "2026-11-02T02:05:21.216Z",
   "resumenSincronizacion": {
     "ninosProcesados": 13,
     "asistenciasMarcadas": 0,

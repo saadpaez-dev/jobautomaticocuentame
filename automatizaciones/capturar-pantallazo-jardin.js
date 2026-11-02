@@ -294,6 +294,22 @@ async function capturarJardin({ page, ascObj, jardinObj, forzar = false }) {
 
     const CHUNK_SIZE = 20;
 
+    // 🗑️ Borrar pantallazos anteriores de este jardín en disco antes de generar los nuevos
+    [dirJob, dirApp].forEach(d => {
+        if (!fs.existsSync(d)) return;
+        try {
+            const archivos = fs.readdirSync(d);
+            for (const a of archivos) {
+                if (a.startsWith(`Pantallazo_${nombreLimpio}`) && (a.endsWith('.png') || a.endsWith('.jpg'))) {
+                    try {
+                        fs.unlinkSync(path.join(d, a));
+                        console.log(c.gris(`    🗑️ Pantallazo anterior eliminado: ${a}`));
+                    } catch(e) {}
+                }
+            }
+        } catch(e) {}
+    });
+
     if (totalNinos <= CHUNK_SIZE) {
         // 11. Disparar Captura única estándar
         await page.setViewportSize({ width: 1400, height: 900 });

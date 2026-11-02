@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-1598-1439",
+  "radicado": "RAM-2026-OCT-1598-4157",
   "asociacion": "BARRIOS UNIDOS",
   "jardin": "PRINCIPITOS DE AMOR",
   "codigoUds": "1100100131598",
@@ -7,28 +7,154 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-02T02:01:04.157Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 10,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 50,
+    "ninosConInasistencias": 10,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1249968221",
+      "nombreCompleto": "ABBY LISSETH MACEA URREGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233925743",
+      "nombreCompleto": "DEILI LUZMAR ORTIZ LISCANO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1078474024",
+      "nombreCompleto": "EDDY JOEL MURILLO OLEA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1064128093",
+      "nombreCompleto": "FREINER ANTONIO MONTERO LOPEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332759",
+      "nombreCompleto": "IAN STIVEN ANGULO MUETE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410813",
+      "nombreCompleto": "KILLYAM ANDRES SILVA BRITO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1062819484",
+      "nombreCompleto": "LIAMAR AMAYA GALLEGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333103",
+      "nombreCompleto": "MIA ANTONELLA RUIZ BUITRAGO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850251",
+      "nombreCompleto": "STIVEN MATIA VARGAS PARRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1243761553",
+      "nombreCompleto": "VIOLETT LAUREANO VARGAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T02:01:04.157Z",
+      "faltasReportadasEnEsteEnvio": 50
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:15:11.391Z",
+  "fechaSincronizacion": "2026-11-02T02:05:55.261Z",
   "resumenSincronizacion": {
     "ninosProcesados": 10,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 50,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }

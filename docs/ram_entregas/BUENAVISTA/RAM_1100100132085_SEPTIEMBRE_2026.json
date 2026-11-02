@@ -183,11 +183,12 @@
       "faltasReportadasEnEsteEnvio": 60
     }
   ],
-  "fechaSincronizacion": "2026-09-30T17:26:57.722Z",
+  "fechaSincronizacion": "2026-10-31T02:43:30.512Z",
   "resumenSincronizacion": {
-    "ninosProcesados": 13,
-    "asistenciasMarcadas": 9,
-    "faltasAplicadas": 51,
-    "diasHabilesMes": 21
+    "ninosProcesados": 12,
+    "asistenciasMarcadas": 1,
+    "faltasAplicadas": 0,
+    "diasHabilesMes": 21,
+    "mensajeServidor": "La información ha sido guardada."
   }
 }

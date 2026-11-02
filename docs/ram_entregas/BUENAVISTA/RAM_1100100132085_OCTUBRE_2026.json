@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-2085-1436",
+  "radicado": "RAM-2026-OCT-2085-5671",
   "asociacion": "BUENAVISTA",
   "jardin": "OSITO PANDA",
   "codigoUds": "1100100132085",
@@ -7,28 +7,188 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-10-31T02:42:35.671Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 12,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 70,
+    "ninosConInasistencias": 12,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1028703416",
+      "nombreCompleto": "AINHOA STHEER GUTKNECHT GARCIA",
+      "dias": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        8,
+        9,
+        13,
+        14
+      ],
+      "totalFaltas": 9
+    },
+    {
+      "documento": "1020501095",
+      "nombreCompleto": "ALAIA OSORIO GONZALEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125077",
+      "nombreCompleto": "AMELIA LUCIA NAVARRO ROMERO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020853932",
+      "nombreCompleto": "ANTONELLA LOPEZ VILARDY",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1029871611",
+      "nombreCompleto": "HANEUL ARRIETA GONZALEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333564",
+      "nombreCompleto": "HELEN ANTONELA VANEGAS CASTRO",
+      "dias": [
+        1,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1216983300",
+      "nombreCompleto": "LUCIANA MENDIETA RANGEL",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1103764299",
+      "nombreCompleto": "MARIA PAULA RUIZ PEREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        13,
+        14,
+        19
+      ],
+      "totalFaltas": 8
+    },
+    {
+      "documento": "1020851749",
+      "nombreCompleto": "MARIAN ANDREA VILORIA ESIS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        13,
+        14
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1031859546",
+      "nombreCompleto": "MEGAN GISELLE MORILLO VELASQUEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233932333",
+      "nombreCompleto": "SAMARA MENDIETA RANGEL",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1171713712",
+      "nombreCompleto": "YURELIS CRISBEL PEREZ CASTILLO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-10-31T02:42:35.671Z",
+      "faltasReportadasEnEsteEnvio": 70
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:16:11.416Z",
+  "fechaSincronizacion": "2026-10-31T02:43:13.346Z",
   "resumenSincronizacion": {
     "ninosProcesados": 12,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 70,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }

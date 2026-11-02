@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-1619-1434",
+  "radicado": "RAM-2026-OCT-1619-7056",
   "asociacion": "BARRIOS UNIDOS",
   "jardin": "LOS CISNES",
   "codigoUds": "1100100131619",
@@ -7,28 +7,192 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-02T02:00:37.056Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 67,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1033126594",
+      "nombreCompleto": "AARON MATIAS MUNOZ CETINA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1249968406",
+      "nombreCompleto": "ALAN MATHIAS URREGO PARRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333166",
+      "nombreCompleto": "BRANDON STIVEN TAPIA MUNOZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        13,
+        14
+      ],
+      "totalFaltas": 7
+    },
+    {
+      "documento": "1020849551",
+      "nombreCompleto": "EMILY FERNANDA CARDENAS NOGUERA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125653",
+      "nombreCompleto": "EZEQUIEL JEREMIAS OTAIZA TOVAR",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332895",
+      "nombreCompleto": "JAIDER DANIEL PACHECO DE ARMAS",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020849770",
+      "nombreCompleto": "JHOAN MATEO PINEDA VEGA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1018522203",
+      "nombreCompleto": "LIAM MATHIAS GOMEZ MUNOZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332689",
+      "nombreCompleto": "MARIANA CARDENAS MARTINEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025332719",
+      "nombreCompleto": "NICOLLE SAMANTA PINEDA BELTRAN",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1014911061",
+      "nombreCompleto": "THIAGO ALEXANDER MORTIGO GUTIERREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028410892",
+      "nombreCompleto": "VALENTINA URREGO RODRIGUEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333641",
+      "nombreCompleto": "ZOE GABRIELA REYES SIERRA",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-02T02:00:37.056Z",
+      "faltasReportadasEnEsteEnvio": 67
     }
   ],
-  "fechaSincronizacion": "2026-10-30T16:15:20.788Z",
+  "fechaSincronizacion": "2026-11-02T02:06:12.066Z",
   "resumenSincronizacion": {
     "ninosProcesados": 13,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 67,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }
