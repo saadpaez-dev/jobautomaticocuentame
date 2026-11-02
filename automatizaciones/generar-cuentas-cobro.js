@@ -305,6 +305,13 @@ function convertirAPdf(rutaDocx, carpetaSalida) {
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
+const argMesCLI = process.argv.find(a => a.startsWith('--mes='));
+const mesCLI = argMesCLI ? argMesCLI.split('=')[1].trim() : null;
+const argAsocCLI = process.argv.find(a => a.startsWith('--asociacion='));
+const asocCLI = argAsocCLI ? argAsocCLI.split('=')[1].trim() : null;
+const esEnviarCorreoCLI = process.argv.includes('--enviar-correo');
+const esAutoExit = process.argv.includes('--auto-exit') || (mesCLI !== null || asocCLI !== null);
+
 async function main() {
   log("Iniciando generacion de cuentas de cobro y paz y salvo...");
 
@@ -322,35 +329,56 @@ async function main() {
   const mesAntInfo = obtenerMesAnterior();
   const mesActInfo = obtenerMesActual();
 
+  let fechaActual;
+  if (mesCLI) {
+      const mLower = mesCLI.toLowerCase();
+      if (mLower === 'anterior') {
+          fechaActual = mesAntInfo;
+      } else if (mLower === 'actual') {
+          fechaActual = mesActInfo;
+      } else {
+          const idxMes = MESES_ES.findIndex(m => m.toLowerCase() === mLower);
+          const anio = (new Date()).getFullYear();
+          if (idxMes !== -1) {
+              fechaActual = obtenerDatosPeriodo(new Date(anio, idxMes, 1));
+          } else {
+              fechaActual = mesAntInfo;
+          }
+      }
+      console.log(c.verde(`\n  🚀 MODO AUTOMATICO DESDE PORTAL WEB:`));
+      console.log(c.verde(`     Periodo configurado: ${fechaActual.MesTexto} de ${fechaActual.ANIO}\n`));
+  }
+
   console.log(c.amarillo("\n📅 Selecciona el periodo / mes de cobro:"));
   console.log(c.cyan(`[1] Mes anterior: ${mesAntInfo.MesTexto} ${mesAntInfo.ANIO} (Recomendado - Cierre de mes)`));
   console.log(c.cyan(`[2] Mes actual: ${mesActInfo.MesTexto} ${mesActInfo.ANIO}`));
   console.log(c.cyan(`[3] Seleccionar otro mes personalizado...`));
   console.log(c.cyan("[0] Salir"));
 
-  const opcionMesRaw = readlineSync.question("\n  > Escoja una opcion [Enter = 1]: ");
-  const opcionMes = (opcionMesRaw ? opcionMesRaw.trim() : "") || "1";
+  if (!fechaActual) {
+      const opcionMesRaw = readlineSync.question("\n  > Escoja una opcion [Enter = 1]: ");
+      const opcionMes = (opcionMesRaw ? opcionMesRaw.trim() : "") || "1";
 
-  let fechaActual;
-  if (opcionMes === "0") {
-    console.log("Saliendo...");
-    return;
-  } else if (opcionMes === "2") {
-    fechaActual = mesActInfo;
-  } else if (opcionMes === "3") {
-    console.log("\nMeses disponibles:");
-    MESES_ES.forEach((m, idx) => console.log(`  ${idx + 1}. ${m}`));
-    const mIdx = parseInt(readlineSync.question("\n  > Ingrese el numero del mes (1-12): "), 10);
-    const anioDefault = new Date().getFullYear();
-    const anioInput = parseInt(readlineSync.question(`  > Ingrese el año [${anioDefault}]: `) || String(anioDefault), 10);
-    if (isNaN(mIdx) || mIdx < 1 || mIdx > 12) {
-      console.log(c.rojo("Mes invalido. Usando mes anterior por defecto."));
-      fechaActual = mesAntInfo;
-    } else {
-      fechaActual = obtenerDatosPeriodo(new Date(anioInput, mIdx - 1, 1));
-    }
-  } else {
-    fechaActual = mesAntInfo;
+      if (opcionMes === "0") {
+        console.log("Saliendo...");
+        return;
+      } else if (opcionMes === "2") {
+        fechaActual = mesActInfo;
+      } else if (opcionMes === "3") {
+        console.log("\nMeses disponibles:");
+        MESES_ES.forEach((m, idx) => console.log(`  ${idx + 1}. ${m}`));
+        const mIdx = parseInt(readlineSync.question("\n  > Ingrese el numero del mes (1-12): "), 10);
+        const anioDefault = new Date().getFullYear();
+        const anioInput = parseInt(readlineSync.question(`  > Ingrese el año [${anioDefault}]: `) || String(anioDefault), 10);
+        if (isNaN(mIdx) || mIdx < 1 || mIdx > 12) {
+          console.log(c.rojo("Mes invalido. Usando mes anterior por defecto."));
+          fechaActual = mesAntInfo;
+        } else {
+          fechaActual = obtenerDatosPeriodo(new Date(anioInput, mIdx - 1, 1));
+        }
+      } else {
+        fechaActual = mesAntInfo;
+      }
   }
 
   console.log(c.verde(`\n  ✅ Periodo configurado: ${fechaActual.MesTexto} de ${fechaActual.ANIO} (Fecha de corte: ${fechaActual.DIA} de ${fechaActual.MesTexto} de ${fechaActual.ANIO})`));
@@ -376,14 +404,32 @@ async function main() {
     console.log(c.cyan("[0] Salir"));
   }
   
-  const alcance = readlineSync.question("\n  > Escoja una opcion: ");
+  let alcance = "1";
+  if (asocCLI) {
+      if (asocCLI.toUpperCase() === 'TODAS' || asocCLI.toUpperCase() === 'ALL') {
+          console.log(c.verde(`  ✅ Generando para TODAS las asociaciones (${asociaciones.length} asociaciones).`));
+      } else {
+          const match = asociaciones.find(a => 
+              a.EAS.toUpperCase().includes(asocCLI.toUpperCase()) ||
+              (a.NIT && a.NIT === asocCLI)
+          );
+          if (match) {
+              asociaciones = [match];
+              console.log(c.verde(`  ✅ Generando SOLO para: ${match.EAS}`));
+          } else {
+              console.log(c.amarillo(`  ⚠️ No se encontró "${asocCLI}". Se procesarán todas.`));
+          }
+      }
+  } else {
+      alcance = readlineSync.question("\n  > Escoja una opcion: ");
+  }
   
   if (alcance === "0") {
     console.log("Saliendo...");
     return;
   }
   
-  if (asocActiva && alcance === "1") {
+  if (!asocCLI && asocActiva && alcance === "1") {
     const encontrada = asociaciones.find(
       (a) =>
         (asocActiva.nit && a.NIT === String(asocActiva.nit).trim()) ||
@@ -394,7 +440,7 @@ async function main() {
     } else {
       console.log(c.amarillo(`  ⚠️ No se encontró "${asocActiva.nombreCorto}" en contabilidad. Mostrando lista...`));
     }
-  } else if ((!asocActiva && alcance === "2") || (asocActiva && alcance === "3")) {
+  } else if (!asocCLI && ((!asocActiva && alcance === "2") || (asocActiva && alcance === "3"))) {
     console.log("");
     asociaciones.forEach((a, i) => {
       console.log(c.cyan(`[${i + 1}] ${a.EAS}`));
@@ -457,6 +503,21 @@ async function main() {
 
   guardarConsecutivos(consecutivos);
 
+  // Replicar archivos generados a app-cuentame para descarga desde el portal
+  try {
+      const portalCuentasDir = path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'reportes', 'cuentas-cobro', `${Mes}-${ANIO}`);
+      if (fs.existsSync(path.dirname(path.dirname(path.dirname(portalCuentasDir))))) {
+          if (!fs.existsSync(portalCuentasDir)) fs.mkdirSync(portalCuentasDir, { recursive: true });
+          const archivosGen = fs.readdirSync(carpetaSalida);
+          archivosGen.forEach(fn => {
+              fs.copyFileSync(path.join(carpetaSalida, fn), path.join(portalCuentasDir, fn));
+          });
+          console.log(c.verde(`  🌐 Cuentas de Cobro sincronizadas con el Portal Web: docs/reportes/cuentas-cobro/${Mes}-${ANIO}/`));
+      }
+  } catch(ePortal) {
+      console.log(c.amarillo(`  ⚠️ No se pudo copiar al portal: ${ePortal.message}`));
+  }
+
   log(
     `Listo. ${generados}/${asociaciones.length} documentos generados en: ${carpetaSalida}` +
     (convertidosPdf > 0 ? ` (${convertidosPdf} tambien en PDF)` : "")
@@ -474,6 +535,42 @@ async function preguntarYEnviar(resultados) {
   if (enviables.length === 0) {
     console.log("\nNo hay PDFs generados para enviar (revisa que tengas LibreOffice instalado).");
     return;
+  }
+
+  if (esEnviarCorreoCLI) {
+      console.log(c.verde("\n🚀 MODO AUTOMATICO: Enviando cuentas de cobro por correo electrónico a todas las asociaciones generadas..."));
+      if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+        console.log("❌ Faltan GMAIL_USER / GMAIL_APP_PASSWORD en tu .env, no se puede enviar.");
+        return;
+      }
+      let enviadosAuto = 0;
+      for (const r of enviables) {
+        if (!r.CORREO) {
+          log(`AVISO: ${r.EAS} no tiene CORREO en el Excel, se omite.`);
+          continue;
+        }
+        try {
+          await enviarCorreo(GMAIL_USER, GMAIL_APP_PASSWORD, {
+            to: r.CORREO,
+            subject: `Cuenta de cobro y paz y salvo - ${r.Mes} ${r.ANIO}`,
+            text: `Buenos dias,\n\nAdjunto la cuenta de cobro N ${r.CONSECUTIVO} y el paz y salvo correspondientes al mes de ${r.Mes}.\n\nCordialmente.`,
+            attachments: [{ filename: path.basename(r.rutaPdf), path: r.rutaPdf }],
+          });
+          enviadosAuto++;
+          log(`ENVIADO -> ${r.CORREO}`);
+        } catch (errorEnvio) {
+          log(`ERROR enviando a ${r.CORREO}: ${errorEnvio.message}`);
+        }
+      }
+      log(`Correos enviados automáticamente: ${enviadosAuto}/${enviables.length}`);
+      if (esAutoExit) process.exit(0);
+      return;
+  }
+
+  if (esAutoExit) {
+      console.log(c.verde("\n🏁 Cuentas de cobro generadas exitosamente (sin envío de correo)."));
+      process.exit(0);
+      return;
   }
 
   const rl = readline.createInterface({ input: stdin, output: stdout });

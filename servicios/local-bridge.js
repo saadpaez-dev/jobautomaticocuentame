@@ -193,6 +193,31 @@ function lanzarActualizacionReportes(payload = {}, cmdId = 'auto') {
     return { ok: true, pid: proc.pid };
 }
 
+// ─── Lanzar Generación de Cuentas de Cobro y Paz y Salvo ─────────────
+function lanzarGeneracionCuentasCobro(payload = {}, cmdId = 'auto') {
+    const mes = payload.mes || 'anterior';
+    const asoc = payload.asociacion || 'TODAS';
+    const enviarMail = payload.enviarCorreo ? ' --enviar-correo' : '';
+    
+    log('info', '🧾 Lanzando robot de Cuentas de Cobro y Paz y Salvo (Periodo: ' + mes + ', Asociación: ' + asoc + ', Correo: ' + (payload.enviarCorreo ? 'SI' : 'NO') + ')...');
+
+    const scriptPath = path.join(ROOT, 'automatizaciones', 'generar-cuentas-cobro.js');
+    const cliCmd = 'node "' + scriptPath + '" --mes="' + mes + '" --asociacion="' + asoc + '"' + enviarMail + ' --auto-exit';
+
+    const args = ['/c', 'start', 'CUENTAS DE COBRO Y PAZ Y SALVO', 'cmd.exe', '/c', cliCmd];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', 'No se pudo abrir terminal de Cuentas de Cobro: ' + err.message));
+    proc.unref();
+
+    log('ok', 'Terminal de Cuentas de Cobro abierta en pantalla (PID ' + proc.pid + ')');
+    return { ok: true, pid: proc.pid };
+}
+
 // ─── Despachar cualquier orden recibida de la Nube ───────────────────────────
 async function despacharComando(cmd) {
     if (!cmd || !cmd.id) return;
@@ -218,6 +243,11 @@ async function despacharComando(cmd) {
         await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando descarga y actualización de reportes en Cuéntame...');
         lanzarActualizacionReportes(cmd.payload || {}, cmd.id);
         await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Reportes y BD abierta en PC.');
+    } else if (accion === 'GENERAR_CUENTAS_COBRO' || accion === 'CUENTAS_COBRO') {
+        log('ok', '🧾 [LATENCIA 0] ¡Orden de GENERACIÓN DE CUENTAS DE COBRO recibida!');
+        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Cuentas de Cobro en PC...');
+        lanzarGeneracionCuentasCobro(cmd.payload || {}, cmd.id);
+        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Cuentas de Cobro abierta en PC.');
     } else if (accion === 'SINCRONIZAR_BASE_PANTALLAZOS') {
         log('ok', `🔄 [LATENCIA 0] ¡Orden de SINCRONIZACIÓN DE BASE DE PANTALLAZOS recibida!`);
         await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Sincronizando pantallazos con Render...');
