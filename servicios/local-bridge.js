@@ -173,13 +173,12 @@ function lanzarSincronizacionBasePantallazos(cmdId = 'auto') {
 function lanzarActualizacionReportes(payload = {}, cmdId = 'auto') {
     log('info', '📊 Lanzando robot de Actualización de BD y Reportes en Cuéntame...');
 
-    const scriptPath = path.join(ROOT, 'automatizaciones', 'descargar-reportes.js');
+    const batPath = path.join(ROOT, 'Descargar_Reportes_BD.bat');
     const opcion = payload.opcion || 5;
     const asoc = payload.asociacion || 'TODAS';
     const autoPush = payload.autoPush !== false ? '--auto-push' : '';
-    const cliCmd = 'node "' + scriptPath + '" --opcion=' + opcion + ' --asociacion="' + asoc + '" ' + autoPush + ' --auto-exit';
 
-    const args = ['/c', 'start', 'ACTUALIZANDO BD Y REPORTES - CUENTAME', 'cmd.exe', '/c', cliCmd];
+    const args = ['/c', 'start', 'ACTUALIZANDO BD Y REPORTES - CUENTAME', 'cmd.exe', '/c', batPath, `--opcion=${opcion}`, `--asociacion=${asoc}`, autoPush, '--auto-exit'].filter(Boolean);
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
@@ -197,14 +196,12 @@ function lanzarActualizacionReportes(payload = {}, cmdId = 'auto') {
 function lanzarGeneracionCuentasCobro(payload = {}, cmdId = 'auto') {
     const mes = payload.mes || 'anterior';
     const asoc = payload.asociacion || 'TODAS';
-    const enviarMail = payload.enviarCorreo ? ' --enviar-correo' : '';
+    const enviarMail = payload.enviarCorreo ? '--enviar-correo' : '';
     
     log('info', '🧾 Lanzando robot de Cuentas de Cobro y Paz y Salvo (Periodo: ' + mes + ', Asociación: ' + asoc + ', Correo: ' + (payload.enviarCorreo ? 'SI' : 'NO') + ')...');
 
-    const scriptPath = path.join(ROOT, 'automatizaciones', 'generar-cuentas-cobro.js');
-    const cliCmd = 'node "' + scriptPath + '" --mes="' + mes + '" --asociacion="' + asoc + '"' + enviarMail + ' --auto-exit';
-
-    const args = ['/c', 'start', 'CUENTAS DE COBRO Y PAZ Y SALVO', 'cmd.exe', '/c', cliCmd];
+    const batPath = path.join(ROOT, 'Generar_Cuentas_Cobro.bat');
+    const args = ['/c', 'start', 'CUENTAS DE COBRO Y PAZ Y SALVO', 'cmd.exe', '/c', batPath, `--mes=${mes}`, `--asociacion=${asoc}`, enviarMail, '--auto-exit'].filter(Boolean);
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
