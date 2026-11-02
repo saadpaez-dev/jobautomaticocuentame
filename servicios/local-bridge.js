@@ -169,6 +169,30 @@ function lanzarSincronizacionBasePantallazos(cmdId = 'auto') {
     return { ok: true, pid: proc.pid };
 }
 
+// ─── Lanzar Descarga y Actualización de Reportes / BD ──────────────
+function lanzarActualizacionReportes(payload = {}, cmdId = 'auto') {
+    log('info', '📊 Lanzando robot de Actualización de BD y Reportes en Cuéntame...');
+
+    const scriptPath = path.join(ROOT, 'automatizaciones', 'descargar-reportes.js');
+    const opcion = payload.opcion || 5;
+    const asoc = payload.asociacion || 'TODAS';
+    const autoPush = payload.autoPush !== false ? '--auto-push' : '';
+    const cliCmd = 'node "' + scriptPath + '" --opcion=' + opcion + ' --asociacion="' + asoc + '" ' + autoPush + ' --auto-exit';
+
+    const args = ['/c', 'start', 'ACTUALIZANDO BD Y REPORTES - CUENTAME', 'cmd.exe', '/c', cliCmd];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', 'No se pudo abrir terminal de Reportes: ' + err.message));
+    proc.unref();
+
+    log('ok', 'Terminal de Actualización de BD abierta en pantalla (PID ' + proc.pid + ')');
+    return { ok: true, pid: proc.pid };
+}
+
 // ─── Despachar cualquier orden recibida de la Nube ───────────────────────────
 async function despacharComando(cmd) {
     if (!cmd || !cmd.id) return;
@@ -189,6 +213,11 @@ async function despacharComando(cmd) {
         await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando captura de pantallazos en Cuéntame...');
         lanzarCapturaPantallazo(cmd.payload || {}, cmd.id);
         await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Captura de Pantallazos abierta en PC.');
+    } else if (accion === 'ACTUALIZAR_REPORTES' || accion === 'ACTUALIZAR_BASE_DATOS') {
+        log('ok', '📊 [LATENCIA 0] ¡Orden de ACTUALIZACIÓN DE BASE DE DATOS Y REPORTES recibida!');
+        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando descarga y actualización de reportes en Cuéntame...');
+        lanzarActualizacionReportes(cmd.payload || {}, cmd.id);
+        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Reportes y BD abierta en PC.');
     } else if (accion === 'SINCRONIZAR_BASE_PANTALLAZOS') {
         log('ok', `🔄 [LATENCIA 0] ¡Orden de SINCRONIZACIÓN DE BASE DE PANTALLAZOS recibida!`);
         await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Sincronizando pantallazos con Render...');

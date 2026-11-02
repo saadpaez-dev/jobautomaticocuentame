@@ -82,6 +82,12 @@ async function main() {
   const { porAsociacion } = leerJardines(RUTA_EXCEL);
   
   const esAutoComparar = process.argv.includes('--auto-comparar');
+  const argOpcion = process.argv.find(a => a.startsWith('--opcion='));
+  const opcionCLI = argOpcion ? parseInt(argOpcion.split('=')[1], 10) : null;
+  const argAsoc = process.argv.find(a => a.startsWith('--asociacion='));
+  const asocCLI = argAsoc ? argAsoc.split('=')[1] : null;
+  const esAutoPush = process.argv.includes('--auto-push');
+  const esAutoExit = process.argv.includes('--auto-exit') || (opcionCLI !== null);
 
   while (true) {
   let asociaciones = Object.values(porAsociacion);
@@ -89,7 +95,36 @@ async function main() {
   let reportesAProcesar = [];
   let esActualizarMaster = false;
 
-  if (esAutoComparar) {
+  if (opcionCLI !== null) {
+      console.log(c.cyan('\n  🚀 MODO AUTOMATICO DESDE PORTAL WEB / CLI:'));
+      console.log(c.verde(`     Ejecutando Opción ${opcionCLI} con asociación: ${asocCLI || 'TODAS'}...\n`));
+      let opc = opcionCLI;
+      if (opc === 5) {
+          esActualizarMaster = true;
+          reportesAProcesar = [1];
+      } else if (opc === 6) {
+          esActualizarMaster = true;
+          reportesAProcesar = [2];
+      } else if (opc === 7) {
+          esActualizarMaster = true;
+          reportesAProcesar = [3];
+      } else if (opc === 8) {
+          esActualizarMaster = true;
+          reportesAProcesar = [1, 2, 3];
+      } else {
+          reportesAProcesar = [opc];
+      }
+
+      if (asocCLI && asocCLI.toUpperCase() !== 'TODAS' && asocCLI.toUpperCase() !== 'ALL') {
+          const matchAsc = asociaciones.find(a => 
+              (a.nombreCorto || '').toUpperCase() === asocCLI.toUpperCase() ||
+              (a.nombre || '').toUpperCase().includes(asocCLI.toUpperCase())
+          );
+          asociacionesSeleccionadas = matchAsc ? [matchAsc] : asociaciones;
+      } else {
+          asociacionesSeleccionadas = asociaciones;
+      }
+  } else if (esAutoComparar) {
       console.log(c.cyan('\n  🚀 MODO AUTOMATICO PARA COMPARACION:'));
       console.log(c.verde('     Descargando automaticamente Reporte 1 (Beneficiarios Vinculados) y Reporte 2 (Seguimiento Nutricional)...\n'));
       reportesAProcesar = [1, 2];
@@ -219,6 +254,16 @@ async function main() {
 
         console.log(c.verde(`  ✅ Toma seleccionada: ${seleccionToma}`));
       } else if (opcionReporte === 3 && !esAutoComparar) {
+        const argMesAtencion = process.argv.find(a => a.startsWith('--mes=') || a.startsWith('--mes-atencion='));
+        const mesAtencionAuto = argMesAtencion ? argMesAtencion.split('=')[1] : null;
+        if (mesAtencionAuto) {
+            mesAtencion = mesAtencionAuto;
+            console.log(c.verde(`  ✅ Mes de atención seleccionado: ${mesAtencion}`));
+        } else if (esActualizarMaster || opcionCLI !== null) {
+            const mesesAuto = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            mesAtencion = mesesAuto[(new Date()).getMonth()];
+            console.log(c.verde(`  ✅ Mes de atención automático (Actual): ${mesAtencion}`));
+        } else {
         console.log(c.cyan('\n  📋 Selecciona el Mes de Atencion:'));
         const meses = [
           'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -233,10 +278,11 @@ async function main() {
           if (isNaN(opcionMes)) opcionMes = -1;
         }
         mesAtencion = meses[opcionMes - 1];
+        }
       }
 
       let prepararExcel = false;
-      if (!esAutoComparar && (opcionReporte === 1 || opcionReporte === 2)) {
+      if (!esAutoComparar && !esActualizarMaster && opcionCLI === null && (opcionReporte === 1 || opcionReporte === 2)) {
           console.log(c.cyan('\n  📋 Que accion realizar con el reporte descargado?'));
           console.log(c.amarillo(`  1. Dejar por defecto (Original)`));
           console.log(c.amarillo(`  2. Preparar reporte (Elimina col A-F, ordena A-Z y agrega filtro)`));
@@ -1027,7 +1073,7 @@ if (!chk) chk = matchedLabel;
       const portalDir = path.join(__dirname, '..', '..', 'app-cuentame');
       if (fs.existsSync(portalDir) && esActualizarMaster) {
           console.log(c.cyan('\n  🌐 ¿Deseas subir la actualización al Portal Web en línea (GitHub / Render)?'));
-          const subir = readline.question(c.negrita('  > Presiona ENTER para SI, o escribe "n" para omitir: ')).trim().toLowerCase();
+          const subir = esAutoPush ? 's' : readline.question(c.negrita('  > Presiona ENTER para SI, o escribe "n" para omitir: ')).trim().toLowerCase();
           if (subir === '' || subir === 's' || subir === 'si' || subir === 'y') {
               console.log(c.verde('  🚀 Subiendo actualización a GitHub y Render...'));
               const { execSync } = require('child_process');
@@ -1047,7 +1093,7 @@ if (!chk) chk = matchedLabel;
   }
 
   console.log(c.verde('\n  ✅ Descargas de reportes completadas con exito.'));
-  if (esAutoComparar) {
+  if (esAutoComparar || esAutoExit) {
       break;
   }
 
