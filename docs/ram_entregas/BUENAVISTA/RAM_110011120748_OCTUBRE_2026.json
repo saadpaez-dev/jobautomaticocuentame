@@ -1,5 +1,5 @@
 {
-  "radicado": "RAM-2026-OCT-0748-1435",
+  "radicado": "RAM-2026-OCT-0748-9143",
   "asociacion": "BUENAVISTA",
   "jardin": "MIS PEQUEÑOS TRAVIESOS",
   "codigoUds": "110011120748",
@@ -7,28 +7,192 @@
   "mes": "Octubre",
   "anio": 2026,
   "tipoReporte": "MENSUAL",
-  "fechaReporte": "2026-10-26T17:13:11.422Z",
+  "fechaReporte": "2026-11-04T02:12:29.143Z",
   "estado": "SINCRONIZADO",
   "asistenciasPorDefecto": true,
-  "totalNinos": 0,
+  "totalNinos": 13,
   "resumen": {
-    "totalInasistencias": 0,
-    "ninosConInasistencias": 0,
+    "totalInasistencias": 67,
+    "ninosConInasistencias": 13,
     "diasHabilesMes": 20
   },
-  "inasistencias": [],
+  "inasistencias": [
+    {
+      "documento": "1079887937",
+      "nombreCompleto": "ALANA SOFIA MARTINEZ MARTINEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        27
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1028959239",
+      "nombreCompleto": "BREINER ARLEY MORA RODRIGUEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1028959209",
+      "nombreCompleto": "DANIMAR MERCEDES MARTINEZ PEDROZO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "7103863",
+      "nombreCompleto": "EDILIANNYS JOHANNA MARTINEZ TORO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1050463313",
+      "nombreCompleto": "GAEL ANDRES LOBOS BELLO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1025333069",
+      "nombreCompleto": "KYLIAN DAVID RIOS MENDEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1033125221",
+      "nombreCompleto": "MARIA FERNANDA MARTINEZ GUTIERREZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233922953",
+      "nombreCompleto": "MICHELL NOEMI TORO LUJANO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        23
+      ],
+      "totalFaltas": 6
+    },
+    {
+      "documento": "1100699900",
+      "nombreCompleto": "NATHAN MUNOZ SEVERICHE",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850444",
+      "nombreCompleto": "ROSA YINETH SUA FERNANDEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1011266148",
+      "nombreCompleto": "SEBASTIAN ANDRES RODRIGUEZ CASTRO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1020850290",
+      "nombreCompleto": "THIAGO ALEXANDER CAMARGO HUESO",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    },
+    {
+      "documento": "1233927674",
+      "nombreCompleto": "VIERICK ALEXI MEZA LOPEZ",
+      "dias": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "totalFaltas": 5
+    }
+  ],
   "historialEnvios": [
     {
       "tipoReporte": "MENSUAL_LOTE_ADMIN",
       "fecha": "2026-10-26T17:13:11.422Z",
       "faltasReportadasEnEsteEnvio": 0
+    },
+    {
+      "tipoReporte": "MENSUAL",
+      "fecha": "2026-11-04T02:12:29.143Z",
+      "faltasReportadasEnEsteEnvio": 67
     }
   ],
-  "fechaSincronizacion": "2026-10-31T03:50:07.690Z",
+  "fechaSincronizacion": "2026-11-04T02:13:25.766Z",
   "resumenSincronizacion": {
     "ninosProcesados": 13,
     "asistenciasMarcadas": 0,
-    "faltasAplicadas": 0,
+    "faltasAplicadas": 67,
     "diasHabilesMes": 20,
     "mensajeServidor": "La información ha sido guardada."
   }

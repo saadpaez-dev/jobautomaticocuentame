@@ -412,7 +412,7 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
             console.log('  📝 Llenando filtros del RAM...');
             const selectDropdown = async (keyword, textOrIndex) => {
             try {
-                const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
+                const sel = contentFrame.locator(`select[id*="${keyword}" i], select[name*="${keyword}" i]`).first();
                 
                 // Esperar hasta que el select aparezca (max 10 segs)
                 let attempts = 0;
@@ -431,8 +431,20 @@ async function ejecutarFase1(asociaciones, mesAtencion) {
                 for (let retry = 0; retry < 40; retry++) {
                     if (typeof textOrIndex === 'string') {
                         valueToSelect = await sel.evaluate((s, t) => {
-                            const opt = Array.from(s.options).find(o => o.text.toUpperCase().includes(t.toUpperCase()));
-                            return opt ? opt.value : null;
+                            const opts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
+                            const tNorm = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                            let opt = opts.find(o => {
+                                const oNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                                return oNorm.includes(tNorm) || tNorm.includes(oNorm);
+                            });
+                            if (opt) return opt.value;
+                            const mapaMeses = { 'ENERO': '1', 'FEBRERO': '2', 'MARZO': '3', 'ABRIL': '4', 'MAYO': '5', 'JUNIO': '6', 'JULIO': '7', 'AGOSTO': '8', 'SEPTIEMBRE': '9', 'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12' };
+                            const numMes = mapaMeses[tNorm] || '';
+                            if (numMes) {
+                                opt = opts.find(o => String(o.value).trim() === numMes || o.text.trim().startsWith(numMes));
+                                if (opt) return opt.value;
+                            }
+                            return null;
                         }, textOrIndex);
                     } else if (typeof textOrIndex === 'number') {
                         valueToSelect = await sel.evaluate(s => {
@@ -1072,7 +1084,7 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                 // Llenar filtros de RAM
                 const selectDropdown = async (keyword, textOrIndex) => {
                     try {
-                        const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
+                        const sel = contentFrame.locator(`select[id*="${keyword}" i], select[name*="${keyword}" i]`).first();
                         if (await sel.count() === 0) return;
                         
                         for (let r = 0; r < 30; r++) {
@@ -1086,11 +1098,20 @@ async function ejecutarFase2(asociaciones, mesAtencion) {
                             if (typeof textOrIndex === 'string') {
                                 const targetText = removeAccentsStr(textOrIndex);
                                 valueToSelect = await sel.evaluate((s, t) => {
-                                    const opt = Array.from(s.options).find(o => {
-                                        const tNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-                                        return tNorm.includes(t) || t.includes(tNorm);
+                                    const opts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "");
+                                    const tNorm = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                                    let opt = opts.find(o => {
+                                        const oNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                                        return oNorm.includes(tNorm) || tNorm.includes(oNorm);
                                     });
-                                    return opt ? opt.value : null;
+                                    if (opt) return opt.value;
+                                    const mapaMeses = { 'ENERO': '1', 'FEBRERO': '2', 'MARZO': '3', 'ABRIL': '4', 'MAYO': '5', 'JUNIO': '6', 'JULIO': '7', 'AGOSTO': '8', 'SEPTIEMBRE': '9', 'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12' };
+                                    const numMes = mapaMeses[tNorm] || '';
+                                    if (numMes) {
+                                        opt = opts.find(o => String(o.value).trim() === numMes || o.text.trim().startsWith(numMes));
+                                        if (opt) return opt.value;
+                                    }
+                                    return null;
                                 }, targetText);
                             }
                             if (valueToSelect) break;
@@ -1794,25 +1815,50 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
 
                 const selectDropdown = async (keyword, textOrIndex) => {
                     try {
-                        const sel = contentFrame.locator(`select[id*="${keyword}"]`).first();
-                        if (await sel.count() === 0) return;
+                        const sel = contentFrame.locator(`select[id*="${keyword}" i], select[name*="${keyword}" i]`).first();
+                        if (await sel.count() === 0) {
+                            console.log(c.amarillo(`    ⚠️ [Filtro] Selector select para "${keyword}" no encontrado en el DOM.`));
+                            return false;
+                        }
                         
                         // Esperar a que el selector esté habilitado y tenga opciones
                         await contentFrame.waitForFunction((kw) => {
-                            const el = document.querySelector(`select[id*="${kw}"]`);
+                            const el = document.querySelector(`select[id*="${kw}" i], select[name*="${kw}" i]`);
                             return el && !el.disabled && el.options && el.options.length > 0;
                         }, keyword, { timeout: 8000 }).catch(() => {});
 
                         let valueToSelect = null;
-                        for (let retry = 0; retry < 25; retry++) {
+                        for (let retry = 0; retry < 30; retry++) {
                             if (typeof textOrIndex === 'string') {
                                 const targetText = removeAccentsStr(textOrIndex);
                                 valueToSelect = await sel.evaluate((s, t) => {
-                                    const opt = Array.from(s.options).find(o => {
-                                        const tNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-                                        return tNorm.includes(t) || t.includes(tNorm);
+                                    const opts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"));
+                                    if (opts.length === 0) return null;
+
+                                    // 1. Coincidencia por texto normalizado
+                                    const tNorm = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                                    let opt = opts.find(o => {
+                                        const oNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                                        return oNorm.includes(tNorm) || tNorm.includes(oNorm);
                                     });
-                                    return opt ? opt.value : null;
+                                    if (opt) return opt.value;
+
+                                    // 2. Coincidencia específica para Meses (ej. Octubre = 10, Noviembre = 11)
+                                    const mapaMeses = {
+                                        'ENERO': '1', 'FEBRERO': '2', 'MARZO': '3', 'ABRIL': '4', 'MAYO': '5', 'JUNIO': '6',
+                                        'JULIO': '7', 'AGOSTO': '8', 'SEPTIEMBRE': '9', 'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12'
+                                    };
+                                    const numMes = mapaMeses[tNorm] || (mapaMeses[tNorm.slice(0, 3)] || '');
+                                    if (numMes) {
+                                        opt = opts.find(o => {
+                                            const v = String(o.value).trim();
+                                            const txt = o.text.trim();
+                                            return v === numMes || txt.startsWith(numMes + ' ') || txt.startsWith(numMes + '-') || txt.startsWith(numMes + '.');
+                                        });
+                                        if (opt) return opt.value;
+                                    }
+
+                                    return null;
                                 }, targetText);
                             } else if (typeof textOrIndex === 'number') {
                                 valueToSelect = await sel.evaluate(s => {
@@ -1821,7 +1867,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                                 });
                             }
                             if (valueToSelect) break;
-                            await mainPage.waitForTimeout(100);
+                            await mainPage.waitForTimeout(150);
                         }
 
                         if (valueToSelect) {
@@ -1829,11 +1875,19 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                             if (curVal !== valueToSelect) {
                                 console.log(c.gris(`    [Filtro] Seleccionando ${keyword}: ${valueToSelect}`));
                                 await sel.selectOption(valueToSelect, { timeout: 5000 }).catch(() => {});
-                                // Espera determinista al término del PostBack automático
+                                await sel.evaluate(el => {
+                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                    if (typeof __doPostBack === 'function') {
+                                        try { __doPostBack(el.name || el.id, ''); } catch(e) {}
+                                    }
+                                }).catch(() => {});
                                 await mainPage.waitForTimeout(500);
                                 await esperarPostBackASPNet(contentFrame, 6000);
                             }
                             return true;
+                        } else {
+                            const opcionesDisponibles = await sel.evaluate(s => Array.from(s.options).map(o => `${o.value}: ${o.text}`).slice(0, 15)).catch(() => []);
+                            console.log(c.amarillo(`    ⚠️ [Filtro] No se encontró valor para "${keyword}" (${textOrIndex}). Opciones en el select: [${opcionesDisponibles.join(', ')}]`));
                         }
                     } catch(e) {
                         console.log(c.gris(`    (Filtro ${keyword}: ${e.message})`));
@@ -1941,8 +1995,20 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                 }
 
                 // 6. Mes y Estado
-                await selectDropdown('ddlMes', ramData.mes || mesAtencion);
-                await selectDropdown('ddlEstado', 'Todos');
+                const mesASeleccionar = ramData.mes || mesAtencion || 'Octubre';
+                console.log(c.cyan(`    📅 Configurando Mes de atención: "${mesASeleccionar}"...`));
+                await selectDropdown('Mes', mesASeleccionar);
+                await selectDropdown('Estado', 'Todos');
+
+                // 6.1 Verificar que el Mes haya quedado efectivamente seleccionado antes de consultar
+                const mesSel = contentFrame.locator('select[id*="Mes" i], select[name*="Mes" i]').first();
+                if (await mesSel.count() > 0) {
+                    const mesVal = await mesSel.evaluate(s => s.value).catch(() => '');
+                    if (!mesVal || mesVal === '0' || mesVal === '-1' || mesVal === '') {
+                        console.log(c.amarillo(`    ⚠️ Verificación: Mes sigue sin seleccionar (${mesVal}). Forzando reintento con "${mesASeleccionar}"...`));
+                        await selectDropdown('Mes', mesASeleccionar);
+                    }
+                }
 
                 // 7. Clic en la Lupa para consultar beneficiarios
                 console.log(c.gris('    👉 Clic en Lupa para consultar beneficiarios...'));

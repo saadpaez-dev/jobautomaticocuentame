@@ -17,5 +17,5 @@ if errorlevel 1 (
     echo ====================================================================
     echo    Actualizacion completada exitosamente.
     echo ====================================================================
-    timeout /t 5
+    pause
 )
