@@ -5,6 +5,8 @@
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+const fs = require('fs');
+const path = require('path');
 const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
@@ -60,6 +62,95 @@ const opcionesMotivo = [
     "Traslado de municipio"
 ];
 
+function normalizarFechaRetiro(str) {
+    if (!str) {
+        const d = new Date();
+        return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+    }
+    const s = String(str).trim();
+    const meses = { ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06', jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12' };
+    const mDe = s.match(/^(\d{1,2})\s+de\s+([A-Za-z]+)\s+de\s+(\d{4})/i);
+    if (mDe) {
+        const dia = String(mDe[1]).padStart(2, '0');
+        const mesKey = mDe[2].toLowerCase().substring(0, 3);
+        const mes = meses[mesKey] || '11';
+        return dia + '/' + mes + '/' + mDe[3];
+    }
+    const mIso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (mIso) {
+        return String(mIso[3]).padStart(2, '0') + '/' + String(mIso[2]).padStart(2, '0') + '/' + mIso[1];
+    }
+    const mSlash = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (mSlash) {
+        return String(mSlash[1]).padStart(2, '0') + '/' + String(mSlash[2]).padStart(2, '0') + '/' + mSlash[3];
+    }
+    return s;
+}
+
+async function notificarDesvinculacionSincronizada(tarea) {
+    const https = require('https');
+    const RENDER_API = process.env.PORTAL_URL || 'https://portal-cuentame.onrender.com';
+    const postData = JSON.stringify({
+        ticket: tarea.ticket,
+        documento: tarea.nino.documento,
+        nino: tarea.nino.nombreCompleto,
+        asociacion: tarea.asociacion.nombreCorto,
+        jardin: tarea.jardin.nombreUds,
+        fechaRetiro: tarea.fechaRetiro,
+        motivo: tarea.motivo,
+        comandoId: tarea.comandoId
+    });
+
+    try {
+        const u = new URL(`${RENDER_API}/api/admin/marcar-desvinculacion-sincronizada`);
+        await new Promise((resolve) => {
+            const req = https.request(u, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData)
+                },
+                timeout: 8000
+            }, (res) => {
+                res.on('data', () => {});
+                res.on('end', resolve);
+            });
+            req.on('error', (e) => {
+                console.log(c.gris(`    (No se pudo notificar a Render: ${e.message})`));
+                resolve();
+            });
+            req.on('timeout', () => { req.abort(); resolve(); });
+            req.write(postData);
+            req.end();
+        });
+        console.log(c.verde(`    🌐 Estado sincronizado con Render y BD Master actualizada.`));
+    } catch(e) {}
+}
+
+function retirarNinoDeBaseDatosLocal(documento) {
+    if (!documento) return;
+    try {
+        const bdPath = path.join(__dirname, '..', 'data', 'BD_MASTER_BENEFICIARIOS.json');
+        if (fs.existsSync(bdPath)) {
+            let bd = JSON.parse(fs.readFileSync(bdPath, 'utf8'));
+            const antes = bd.length;
+            bd = bd.filter(b => String(b.documento).trim() !== String(documento).trim());
+            if (bd.length < antes) {
+                fs.writeFileSync(bdPath, JSON.stringify(bd, null, 2), 'utf8');
+                console.log(c.verde(`    💾 BD Master local actualizada: ${bd.length} beneficiarios restantes.`));
+            }
+        }
+        const appBdPath = path.join(__dirname, '..', '..', 'app-cuentame', 'BD_MASTER_BENEFICIARIOS.json');
+        if (fs.existsSync(appBdPath)) {
+            let appBd = JSON.parse(fs.readFileSync(appBdPath, 'utf8'));
+            appBd = appBd.filter(b => String(b.documento).trim() !== String(documento).trim());
+            fs.writeFileSync(appBdPath, JSON.stringify(appBd, null, 2), 'utf8');
+        }
+    } catch (e) {
+        console.log(c.gris(`    (Error actualizando BD Master local: ${e.message})`));
+    }
+}
+
 async function main() {
     const USUARIO = process.env.CUENTAME_USUARIO;
     const PASSWORD = process.env.CUENTAME_PASSWORD;
@@ -85,6 +176,30 @@ async function main() {
     console.log(c.cyan('====================================================================\n'));
 
     const tareasPreparadas = [];
+
+    // Soporte de ejecución automática desatendida vía payload JSON (desde portal web / agente local)
+    let payloadModoAuto = null;
+    const autoExit = process.argv.includes('--auto-exit');
+
+    for (let i = 0; i < process.argv.length; i++) {
+        const arg = process.argv[i];
+        if (arg.startsWith('--payload=')) {
+            const pPath = arg.substring(10).replace(/^"(.*)"$/, '$1');
+            if (fs.existsSync(pPath)) {
+                try { payloadModoAuto = JSON.parse(fs.readFileSync(pPath, 'utf8')); } catch (e) {
+                    console.error('Error leyendo payload:', e.message);
+                }
+            }
+        } else if (arg === '--payload' && process.argv[i + 1]) {
+            const pPath = process.argv[i + 1].replace(/^"(.*)"$/, '$1');
+            if (fs.existsSync(pPath)) {
+                try { payloadModoAuto = JSON.parse(fs.readFileSync(pPath, 'utf8')); } catch (e) {
+                    console.error('Error leyendo payload:', e.message);
+                }
+            }
+        }
+    }
+
     let baseAsc = null;
     let asociacionForzada = false;
     let fechaGlobal = null;
@@ -98,6 +213,56 @@ async function main() {
         } catch (e) {}
     }
 
+    
+    if (payloadModoAuto) {
+        console.log(c.cyan('===================================================================='));
+        console.log(c.cyan('   🤖 MODO AUTOMÁTICO (Orden recibida del Portal / Agente Local PC)'));
+        console.log(c.cyan('====================================================================\n'));
+
+        const rawItems = Array.isArray(payloadModoAuto) 
+            ? payloadModoAuto 
+            : (Array.isArray(payloadModoAuto.desvinculaciones) ? payloadModoAuto.desvinculaciones : [payloadModoAuto]);
+
+        for (const item of rawItems) {
+            const itemAsoc = item.asociacion || '';
+            const asocNorm = removeAccentsStr(itemAsoc);
+            let ascElegida = asociaciones.find(a => removeAccentsStr(a.nombreCorto).includes(asocNorm) || asocNorm.includes(removeAccentsStr(a.nombreCorto)));
+            if (!ascElegida) ascElegida = asociaciones[0];
+
+            const jardinesLocal = obtenerJardinesDeAsociacion(ascElegida.nombreCorto);
+            const codItem = String(item.codigoUds || item.codigo || '').trim();
+            const nomItem = removeAccentsStr(item.jardin || item.nombreUds || '');
+            let jardinElegido = jardinesLocal.find(j => (codItem && String(j.codigoUds).trim() === codItem) || removeAccentsStr(j.nombreUds).includes(nomItem) || nomItem.includes(removeAccentsStr(j.nombreUds)));
+            if (!jardinElegido) {
+                jardinElegido = {
+                    nombreUds: item.jardin || item.nombreUds || 'UDS',
+                    codigoUds: item.codigoUds || '',
+                    modalidad: 'HCB'
+                };
+            }
+
+            const fechaRetiro = normalizarFechaRetiro(item.fechaRetiro || item.fechaEfectiva);
+            const motivoRetiro = item.motivo || "Retiro voluntario del programa";
+            const ninoObj = {
+                nombreCompleto: item.nino || item.nombreCompleto || item.nombre || '',
+                documento: String(item.documento || '').trim(),
+                tipoDoc: item.tipoDoc || 'RC'
+            };
+
+            tareasPreparadas.push({
+                asociacion: ascElegida,
+                jardin: jardinElegido,
+                nino: ninoObj,
+                fechaRetiro,
+                motivo: motivoRetiro,
+                ticket: item.ticket || `RET-${Date.now().toString().slice(-6)}`,
+                comandoId: payloadModoAuto.comandoId || item.comandoId || null
+            });
+
+            console.log(c.verde(`  📋 Orden cargada: ${ninoObj.nombreCompleto} (Doc: ${ninoObj.documento}) | UDS: ${jardinElegido.nombreUds} (${ascElegida.nombreCorto})`));
+            console.log(c.gris(`     -> Fecha: ${fechaRetiro} | Motivo: ${motivoRetiro}`));
+        }
+    } else {
     // --- FASE 1: PREPARACION OFF-LINE INTERACTIVA ---
     while (true) {
         if (!baseAsc) {
@@ -253,6 +418,7 @@ async function main() {
         const continuarMas = readline.question(c.negrita('\n  > Deseas agregar desvinculaciones en otro jardin o asociacion? (s/n) [por defecto n]: ')).trim();
         if (continuarMas.toLowerCase() !== 's') break;
     }
+    }
 
     if (tareasPreparadas.length === 0) {
         console.log(c.amarillo('\n  ⚠️ No se preparo ninguna tarea. Volviendo al menu principal...'));
@@ -268,10 +434,12 @@ async function main() {
         console.log(`     -> Fecha: ${t.fechaRetiro} | Motivo: ${t.motivo}`);
     });
 
-    const confirm = readline.question(c.negrita('\n  > Confirmar y ejecutar desvinculaciones automaticamente en Cuentame? (ENTER = Si, n = Cancelar): ')).trim();
-    if (confirm.toLowerCase() === 'n') {
-        console.log(c.amarillo('  ⚠️ Operacion cancelada por el usuario.'));
-        return;
+    if (!payloadModoAuto) {
+        const confirm = readline.question(c.negrita('\n  > Confirmar y ejecutar desvinculaciones automaticamente en Cuentame? (ENTER = Si, n = Cancelar): ')).trim();
+        if (confirm.toLowerCase() === 'n') {
+            console.log(c.amarillo('  ⚠️ Operacion cancelada por el usuario.'));
+            return;
+        }
     }
 
     // --- FASE 2: EJECUCION AUTOMATICA EN CUENTAME ---
@@ -532,6 +700,8 @@ async function main() {
                             if (txt.trim()) console.log(c.cyan(`    📌 Respuesta Cuentame: ${txt.trim()}`));
                         }
                         console.log(c.verde(`    ✅ Desvinculacion exitosa: ${tarea.nino.nombreCompleto}`));
+                        await notificarDesvinculacionSincronizada(tarea);
+                        retirarNinoDeBaseDatosLocal(tarea.nino.documento);
                     }
                 }
 
@@ -543,6 +713,11 @@ async function main() {
     }
 
     console.log(c.verde('\n  🎉 LOTE DE DESVINCULACIONES PROCESADO CON EXITO EN CUENTAME.\n'));
+    if (payloadModoAuto && autoExit) {
+        console.log(c.gris('  Cerrando terminal en 3 segundos...'));
+        await new Promise(r => setTimeout(r, 3000));
+        process.exit(0);
+    }
 }
 
 if (require.main === module) {

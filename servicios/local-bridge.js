@@ -215,6 +215,31 @@ function lanzarGeneracionCuentasCobro(payload = {}, cmdId = 'auto') {
     return { ok: true, pid: proc.pid };
 }
 
+// ─── Lanzar Desvinculación de Beneficiarios en terminal visible ─────────────
+function lanzarDesvinculacion(payload = {}, cmdId = 'auto') {
+    const colaDir = path.join(ROOT, 'logs', 'cola_comandos');
+    if (!fs.existsSync(colaDir)) fs.mkdirSync(colaDir, { recursive: true });
+    const payloadPath = path.join(colaDir, `desvinculacion_${cmdId}.json`);
+    fs.writeFileSync(payloadPath, JSON.stringify(payload, null, 2), 'utf8');
+
+    const desc = payload.nino ? `${payload.nino} (${payload.documento || ''})` : (payload.jardin || 'Beneficiario');
+    log('info', `❌ Lanzando robot de Desvinculación de Beneficiarios (${desc})...`);
+
+    const batPath = path.join(ROOT, 'Desvincular_Beneficiario.bat');
+    const args = ['/c', 'start', 'DESVINCULANDO BENEFICIARIO - CUENTAME', 'cmd.exe', '/c', batPath, `--payload=${payloadPath}`, '--auto-exit'];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', `No se pudo abrir terminal de Desvinculación: ${err.message}`));
+    proc.unref();
+
+    log('ok', `Terminal de Desvinculación abierta en pantalla (PID ${proc.pid})`);
+    return { ok: true, pid: proc.pid };
+}
+
 // ─── Despachar cualquier orden recibida de la Nube ───────────────────────────
 async function despacharComando(cmd) {
     if (!cmd || !cmd.id) return;
@@ -245,6 +270,11 @@ async function despacharComando(cmd) {
         await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Cuentas de Cobro en PC...');
         lanzarGeneracionCuentasCobro(cmd.payload || {}, cmd.id);
         await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Cuentas de Cobro abierta en PC.');
+        } else if (accion === 'EJECUTAR_DESVINCULACION' || accion === 'DESVINCULAR_BENEFICIARIO') {
+        log('ok', `❌ [LATENCIA 0] ¡Orden de DESVINCULACIÓN recibida! Niño: ${cmd.payload?.nino || ''} (${cmd.payload?.documento || ''})`);
+        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de desvinculación en PC...');
+        lanzarDesvinculacion(cmd.payload || {}, cmd.id);
+        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de desvinculación abierta en PC.');
     } else if (accion === 'SINCRONIZAR_BASE_PANTALLAZOS') {
         log('ok', `🔄 [LATENCIA 0] ¡Orden de SINCRONIZACIÓN DE BASE DE PANTALLAZOS recibida!`);
         await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Sincronizando pantallazos con Render...');
@@ -439,6 +469,17 @@ const server = http.createServer((req, res) => {
             mensaje: `✅ Robot de sincronización iniciado. Revisa la nueva terminal que se abrió en tu computador.`,
             radicado: radicado || 'TODOS_LOS_PENDIENTES',
             pid: resultado.pid,
+        });
+    }
+
+        // ── GET / POST /api/desvincular-beneficiario ──
+    if (ruta === '/api/desvincular-beneficiario' || ruta === '/api/ejecutar-desvinculacion') {
+        const cmdId = 'local_' + Date.now();
+        const resultado = lanzarDesvinculacion(query, cmdId);
+        return responderJSON(res, 200, {
+            ok: true,
+            mensaje: '❌ Robot de desvinculación iniciado en terminal local.',
+            pid: resultado.pid
         });
     }
 
