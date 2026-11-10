@@ -1069,6 +1069,31 @@ if (!chk) chk = matchedLabel;
 
       console.log(c.verde('  ✨ Base de Datos Master actualizada y alineada con el Portal Web!'));
 
+      // Si es PAQUETE COMPLETO (Opción 8) o se solicitó explícitamente con pantallazos:
+      if (opcionCLI === 8 || process.argv.includes('--con-pantallazos')) {
+          console.log(c.negrita(c.cyan('\n======================================================')));
+          console.log(c.negrita(c.cyan('  📸 ACTUALIZANDO PANTALLAZOS OFICIALES (PAQUETE COMPLETO)')));
+          console.log(c.negrita(c.cyan('======================================================')));
+          console.log(c.verde(`  • Capturando Pantallazos de Beneficiarios Activos de cada UDS`));
+          console.log(c.verde(`  • Capturando Pantallazos de Asistencia RAM de cada UDS`));
+          try {
+              const { capturarPantallazosCompletos } = require('../servicios/capturador-masivo-pantallazos');
+              const argMes = process.argv.find(a => a.startsWith('--mes=') || a.startsWith('--mes-atencion='));
+              const mesFinal = argMes ? argMes.split('=')[1] : 'Noviembre';
+
+              await capturarPantallazosCompletos({
+                  page: mainPage,
+                  asociaciones: asociacionesSeleccionadas,
+                  mesAtencion: mesFinal,
+                  capturarBeneficiarios: true,
+                  capturarRAM: true,
+                  forzar: true
+              });
+          } catch(errPant) {
+              console.error(c.rojo(`  ❌ Error durante la captura de pantallazos: ${errPant.message}`));
+          }
+      }
+
       // Preguntar si desea sincronizar y desplegar a GitHub / Render
       const portalDir = path.join(__dirname, '..', '..', 'app-cuentame');
       if (fs.existsSync(portalDir) && esActualizarMaster) {

@@ -176,9 +176,11 @@ function lanzarActualizacionReportes(payload = {}, cmdId = 'auto') {
     const batPath = path.join(ROOT, 'Descargar_Reportes_BD.bat');
     const opcion = payload.opcion || 5;
     const asoc = payload.asociacion || 'TODAS';
+    const mesParam = payload.mes ? `--mes=${payload.mes}` : '';
+    const pantallazosParam = (payload.incluirPantallazos || opcion === 8) ? '--con-pantallazos' : '';
     const autoPush = payload.autoPush !== false ? '--auto-push' : '';
 
-    const args = ['/c', 'start', 'ACTUALIZANDO BD Y REPORTES - CUENTAME', 'cmd.exe', '/c', batPath, `--opcion=${opcion}`, `--asociacion=${asoc}`, autoPush, '--auto-exit'].filter(Boolean);
+    const args = ['/c', 'start', 'ACTUALIZANDO BD Y REPORTES - CUENTAME', 'cmd.exe', '/c', batPath, `--opcion=${opcion}`, `--asociacion=${asoc}`, mesParam, pantallazosParam, autoPush, '--auto-exit'].filter(Boolean);
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
