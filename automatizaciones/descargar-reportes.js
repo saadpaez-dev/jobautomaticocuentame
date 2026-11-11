@@ -217,39 +217,52 @@ async function main() {
       }
   }
 
+  function normalizarMesesToma(input) {
+      if (!input || input === '0' || String(input).toUpperCase().includes('ALL') || String(input).toUpperCase().includes('TODO')) {
+          return '(Select All)';
+      }
+      const MAPA = {
+          '1': 'Enero', '01': 'Enero', 'ENE': 'Enero', 'ENERO': 'Enero',
+          '2': 'Febrero', '02': 'Febrero', 'FEB': 'Febrero', 'FEBRERO': 'Febrero',
+          '3': 'Marzo', '03': 'Marzo', 'MAR': 'Marzo', 'MARZO': 'Marzo',
+          '4': 'Abril', '04': 'Abril', 'ABR': 'Abril', 'ABRIL': 'Abril',
+          '5': 'Mayo', '05': 'Mayo', 'MAY': 'Mayo', 'MAYO': 'Mayo',
+          '6': 'Junio', '06': 'Junio', 'JUN': 'Junio', 'JUNIO': 'Junio',
+          '7': 'Julio', '07': 'Julio', 'JUL': 'Julio', 'JULIO': 'Julio',
+          '8': 'Agosto', '08': 'Agosto', 'AGO': 'Agosto', 'AGOSTO': 'Agosto',
+          '9': 'Septiembre', '09': 'Septiembre', 'SEP': 'Septiembre', 'SEPTIEMBRE': 'SEPTIEMBRE',
+          '10': 'Octubre', 'OCT': 'Octubre', 'OCTUBRE': 'Octubre',
+          '11': 'Noviembre', 'NOV': 'Noviembre', 'NOVIEMBRE': 'Noviembre',
+          '12': 'Diciembre', 'DIC': 'Diciembre', 'DICIEMBRE': 'Diciembre'
+      };
+      const tokens = String(input).split(/[,;.\s/|-]+/).map(t => t.trim()).filter(Boolean);
+      const meses = tokens.map(t => {
+          const key = t.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return MAPA[key] || t;
+      });
+      return Array.from(new Set(meses)).join(',');
+  }
+
   const argMesToma = process.argv.find(a => a.startsWith('--mes-toma='));
-  const mesTomaAuto = argMesToma ? argMesToma.split('=')[1] : null;
+  const mesTomaAuto = argMesToma ? normalizarMesesToma(argMesToma.split('=')[1]) : null;
 
   for (const opcionReporte of reportesAProcesar) {
       let seleccionToma = mesTomaAuto || '(Select All)';
       let mesAtencion = '(Select All)';
       
       if (opcionReporte === 2 && !mesTomaAuto) {
-        console.log(c.cyan('\n  📋 Selecciona el mes de Toma (o varios meses):'));
-        console.log(c.gris('   1. Enero      2. Febrero    3. Marzo       4. Abril'));
-        console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
-        console.log(c.gris('   9. Septiembre 10. Octubre   11. Noviembre 12. Diciembre'));
-        console.log(c.gris('   0. Todos los meses (Select All)\n'));
-        console.log(c.gris('  (Puedes ingresar numeros como "5,6,7" o el nombre de los meses)'));
-
-        const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto 0 (Todos)]: ')).trim();
-        
-        if (respuestaToma !== '' && respuestaToma !== '0') {
-            const mapaMeses = {
-                '1': 'Enero', '2': 'Febrero', '3': 'Marzo', '4': 'Abril',
-                '5': 'Mayo', '6': 'Junio', '7': 'Julio', '8': 'Agosto',
-                '9': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
-            };
-
-            const partes = respuestaToma.split(/[,;\s]+/);
-            const mesesConvertidos = partes.map(p => {
-                const cleanKey = p.trim();
-                return mapaMeses[cleanKey] || cleanKey;
-            });
-
-            seleccionToma = mesesConvertidos.join(',');
-        } else {
+        if (opcionCLI !== null) {
             seleccionToma = '(Select All)';
+        } else {
+            console.log(c.cyan('\n  📋 Selecciona el mes de Toma (o varios meses):'));
+            console.log(c.gris('   1. Enero      2. Febrero    3. Marzo       4. Abril'));
+            console.log(c.gris('   5. Mayo       6. Junio      7. Julio       8. Agosto'));
+            console.log(c.gris('   9. Septiembre 10. Octubre   11. Noviembre 12. Diciembre'));
+            console.log(c.gris('   0. Todos los meses (Select All)\n'));
+            console.log(c.gris('  (Puedes ingresar numeros como "8,9,10,11" o "8.9.10.11" o nombres de meses)'));
+
+            const respuestaToma = readline.question(c.negrita('\n  > Ingresa la Toma [por defecto 0 (Todos)]: ')).trim();
+            seleccionToma = normalizarMesesToma(respuestaToma);
         }
 
         console.log(c.verde(`  ✅ Toma seleccionada: ${seleccionToma}`));
@@ -590,64 +603,116 @@ async function main() {
 
         const seleccionarSSRSMulti = async (id, valueOrText) => {
             try {
+                const valorFinalDeseado = normalizarMesesToma(valueOrText);
                 const btn = reportFrame.locator(`#${id}_ddDropDownButton`);
                 await btn.waitFor({ state: 'visible', timeout: 5000 });
                 await btn.click({ force: true, timeout: 5000 }).catch(() => btn.evaluate(b => b.click()));
                 
                 const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
                 await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
-                
-                await reportPage.waitForTimeout(800);
+                await reportPage.waitForTimeout(600);
 
-                if (valueOrText === '(Check All)') {
-                    await divDropdown.evaluate(div => {
-                        const checkboxes = div.querySelectorAll('input[type="checkbox"]');
-                        checkboxes.forEach(chk => { if (!chk.checked) chk.click(); });
+                const divDropDownId = `${id}_divDropDown`;
+                const txtValueId = `${id}_txtValue`;
+
+                await reportFrame.evaluate(async ({ divDropDownId, txtValueId, valorFinalDeseado }) => {
+                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+                    const delay = ms => new Promise(res => setTimeout(res, ms));
+
+                    const div = document.getElementById(divDropDownId);
+                    if (!div) return;
+
+                    const labels = Array.from(div.querySelectorAll('label'));
+                    if (labels.length === 0) return;
+
+                    const isSelectAll = (valorFinalDeseado === '(Select All)' || valorFinalDeseado === '(Check All)');
+                    const targetVals = valorFinalDeseado.split(',').map(v => removeAccents(v)).filter(Boolean);
+
+                    const getCheckbox = (lbl) => {
+                        let chk = document.getElementById(lbl.htmlFor);
+                        if (!chk) chk = lbl.querySelector('input[type="checkbox"]');
+                        if (!chk && lbl.previousElementSibling && lbl.previousElementSibling.type === 'checkbox') chk = lbl.previousElementSibling;
+                        if (!chk && lbl.parentElement) chk = lbl.parentElement.querySelector('input[type="checkbox"]');
+                        return chk;
+                    };
+
+                    const selectAllLabel = labels.find(l => {
+                        const t = removeAccents(l.innerText);
+                        return t.includes('SELECT ALL') || t.includes('SELECCIONAR TODO') || t.includes('CHECK ALL');
                     });
-                } else {
-                    const valores = valueOrText.split(',').map(v => v.trim());
-                    
-                    await divDropdown.evaluate(async (div, vals) => {
-const delay = ms => new Promise(res => setTimeout(res, ms));
-                        const labels = Array.from(div.querySelectorAll('label'));
-                        
-                        // Si no es (Select All), desmarcar (Select All) si esta marcado
-                        if (!vals.includes('(Select All)')) {
-                            const selectAllLabel = labels.find(l => l.innerText.includes('(Select All)'));
-                            if (selectAllLabel) {
-                                let chk = document.getElementById(selectAllLabel.htmlFor);
-if (!chk) chk = selectAllLabel.querySelector('input[type="checkbox"]');
-if (!chk && selectAllLabel.previousElementSibling && selectAllLabel.previousElementSibling.type === 'checkbox') chk = selectAllLabel.previousElementSibling;
-if (!chk) chk = selectAllLabel;
-                                if (chk && chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
+
+                    if (isSelectAll) {
+                        if (selectAllLabel) {
+                            const chk = getCheckbox(selectAllLabel);
+                            if (chk && !chk.checked) {
+                                chk.scrollIntoView({ block: 'nearest' });
+                                chk.click();
+                                await delay(300);
+                            }
+                        } else {
+                            for (const lbl of labels) {
+                                const chk = getCheckbox(lbl);
+                                if (chk && !chk.checked) {
+                                    chk.click();
+                                    await delay(100);
+                                }
                             }
                         }
-                        
-                        // Marcar los especificos
-                        for (const val of vals) {
-                            const label = labels.find(l => l.innerText.toUpperCase().includes(val.toUpperCase()));
-                            if (label) {
-                                let chk = document.getElementById(label.htmlFor);
-if (!chk) chk = label.querySelector('input[type="checkbox"]');
-if (!chk && label.previousElementSibling && label.previousElementSibling.type === 'checkbox') chk = label.previousElementSibling;
-if (!chk) chk = label;
-                                if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
+                    } else {
+                        if (selectAllLabel) {
+                            const chkSelectAll = getCheckbox(selectAllLabel);
+                            if (chkSelectAll && chkSelectAll.checked) {
+                                chkSelectAll.scrollIntoView({ block: 'nearest' });
+                                chkSelectAll.click();
+                                await delay(300);
                             }
                         }
-                    }, valores);
-                    
-                    await reportPage.waitForTimeout(500); // Dar respiro al DOM
+
+                        for (const lbl of labels) {
+                            const txt = removeAccents(lbl.innerText);
+                            if (txt.includes('SELECT ALL') || txt.includes('SELECCIONAR TODO') || txt.includes('CHECK ALL')) continue;
+
+                            const coincide = targetVals.some(t => txt === t || txt.startsWith(t) || txt.includes(t) || t.includes(txt));
+                            const chk = getCheckbox(lbl);
+                            if (chk) {
+                                if (coincide && !chk.checked) {
+                                    chk.scrollIntoView({ block: 'nearest' });
+                                    chk.click();
+                                    if (!chk.checked) {
+                                        chk.checked = true;
+                                        chk.dispatchEvent(new Event('change', { bubbles: true }));
+                                    }
+                                    await delay(150);
+                                } else if (!coincide && chk.checked) {
+                                    chk.scrollIntoView({ block: 'nearest' });
+                                    chk.click();
+                                    if (chk.checked) {
+                                        chk.checked = false;
+                                        chk.dispatchEvent(new Event('change', { bubbles: true }));
+                                    }
+                                    await delay(150);
+                                }
+                            }
+                        }
+                    }
+
+                    await delay(300);
+                }, { divDropDownId, txtValueId, valorFinalDeseado });
+
+                await reportFrame.locator('body').click().catch(() => {});
+                await reportPage.waitForTimeout(600); 
+
+                const txtInput = reportFrame.locator(`#${txtValueId}`);
+                let valEnPantalla = '';
+                if (await txtInput.count() > 0) {
+                    valEnPantalla = await txtInput.inputValue().catch(() => '');
                 }
-                
-                await reportFrame.locator('body').click();
-                await reportPage.waitForTimeout(800); 
+
+                console.log(c.verde(`    ✅ [Filtro Multi] "${id}" -> ${valEnPantalla || valorFinalDeseado}`));
+                return true;
             } catch (e) {
-                try {
-                    const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
-                    const labels = await divDropdown.locator('label').allInnerTexts();
-                    console.log(c.amarillo(`      ⚠️ No se pudo seleccionar "${valueOrText}". Opciones vistas: ${labels.join(', ')}`));
-                } catch(ign) {}
                 console.log(c.rojo(`    ⚠️ Error al seleccionar multiple en ${id}: ${e.message}`));
+                return false;
             }
         };
 
@@ -655,99 +720,159 @@ if (!chk) chk = label;
             try {
                 const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
                 const targetLabel = removeAccents(labelText);
+                const valorFinalDeseado = (targetLabel.includes('TOMA') || targetLabel.includes('MES')) ? normalizarMesesToma(valueOrText) : valueOrText;
 
-                const okClicked = await reportFrame.evaluate(({ targetLabel }) => {
+                // Paso 1: Encontrar el botón y dropdown asociados a este label específico
+                const controlInfo = await reportFrame.evaluate(({ targetLabel }) => {
                     const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
                     const allElements = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
-                    let matchedTd = null;
+                    let matchedEl = null;
 
                     for (const el of allElements) {
                         const txt = removeAccents(el.innerText);
                         if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
-                            if (el.innerText.length < 100) {
-                                matchedTd = el.closest('td') || el;
+                            if (el.innerText.length < 80) {
+                                matchedEl = el;
                                 break;
                             }
                         }
                     }
 
-                    if (!matchedTd) return false;
+                    if (!matchedEl) return null;
 
-                    let btn = matchedTd.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
-                    if (!btn && matchedTd.nextElementSibling) {
-                        btn = matchedTd.nextElementSibling.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
+                    const container = matchedEl.closest('tr') || matchedEl.closest('td') || matchedEl.parentElement;
+                    let btn = container.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
+                    if (!btn && matchedEl.closest('td') && matchedEl.closest('td').nextElementSibling) {
+                        btn = matchedEl.closest('td').nextElementSibling.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
                     }
-                    if (!btn && matchedTd.parentElement) {
-                        btn = matchedTd.parentElement.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
+                    if (!btn && matchedEl.parentElement && matchedEl.parentElement.parentElement) {
+                        btn = matchedEl.parentElement.parentElement.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
                     }
 
                     if (btn) {
-                        btn.click();
-                        return true;
+                        const baseId = btn.id.replace('_ddDropDownButton', '');
+                        return { btnId: btn.id, baseId };
                     }
-                    return false;
+                    return null;
                 }, { targetLabel });
 
-                if (okClicked) {
-                    await mainPage.waitForTimeout(900);
-                    
-                    await reportFrame.evaluate(async ({ valueOrText }) => {
-                        const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-                        const delay = ms => new Promise(res => setTimeout(res, ms));
-                        const openDropdown = document.querySelector('div[id*="divDropDown"][style*="visible"], div[id*="divDropDown"]:not([style*="display: none"])');
-                        if (!openDropdown) return;
+                if (!controlInfo) {
+                    console.log(c.amarillo(`    ⚠️ No se encontró el control dropdown para "${labelText}"`));
+                    return false;
+                }
 
-                        const labels = Array.from(openDropdown.querySelectorAll('label'));
-                        
-                        if (valueOrText === '(Select All)' || valueOrText === '(Check All)') {
-                            const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
-                            if (selectAll) {
-                                let chk = document.getElementById(selectAll.htmlFor);
-if (!chk) chk = selectAll.querySelector('input[type="checkbox"]');
-if (!chk && selectAll.previousElementSibling && selectAll.previousElementSibling.type === 'checkbox') chk = selectAll.previousElementSibling;
-if (!chk) chk = selectAll;
-                                if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
+                const { btnId, baseId } = controlInfo;
+                const divDropDownId = `${baseId}_divDropDown`;
+                const txtValueId = `${baseId}_txtValue`;
+
+                // Paso 2: Abrir el dropdown
+                const btnLoc = reportFrame.locator(`#${btnId}`);
+                await btnLoc.click({ force: true, timeout: 5000 }).catch(() => btnLoc.evaluate(b => b.click()));
+                await reportPage.waitForTimeout(700);
+
+                // Paso 3: Interactuar con los checkboxes en el divDropDown exacto
+                await reportFrame.evaluate(async ({ divDropDownId, txtValueId, valorFinalDeseado }) => {
+                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+                    const delay = ms => new Promise(res => setTimeout(res, ms));
+
+                    const div = document.getElementById(divDropDownId);
+                    if (!div) return;
+
+                    const labels = Array.from(div.querySelectorAll('label'));
+                    if (labels.length === 0) return;
+
+                    const isSelectAll = (valorFinalDeseado === '(Select All)' || valorFinalDeseado === '(Check All)');
+                    const targetVals = valorFinalDeseado.split(',').map(v => removeAccents(v)).filter(Boolean);
+
+                    const getCheckbox = (lbl) => {
+                        let chk = document.getElementById(lbl.htmlFor);
+                        if (!chk) chk = lbl.querySelector('input[type="checkbox"]');
+                        if (!chk && lbl.previousElementSibling && lbl.previousElementSibling.type === 'checkbox') chk = lbl.previousElementSibling;
+                        if (!chk && lbl.parentElement) chk = lbl.parentElement.querySelector('input[type="checkbox"]');
+                        return chk;
+                    };
+
+                    const selectAllLabel = labels.find(l => {
+                        const t = removeAccents(l.innerText);
+                        return t.includes('SELECT ALL') || t.includes('SELECCIONAR TODO') || t.includes('CHECK ALL');
+                    });
+
+                    if (isSelectAll) {
+                        if (selectAllLabel) {
+                            const chk = getCheckbox(selectAllLabel);
+                            if (chk && !chk.checked) {
+                                chk.scrollIntoView({ block: 'nearest' });
+                                chk.click();
+                                await delay(300);
                             }
                         } else {
-                            const vals = String(valueOrText).split(',').map(v => removeAccents(v));
-                            
-                            if (!vals.includes('SELECT ALL')) {
-                                const selectAll = labels.find(l => removeAccents(l.innerText).includes('SELECT ALL'));
-                                if (selectAll) {
-                                    let chk = document.getElementById(selectAll.htmlFor);
-if (!chk) chk = selectAll.querySelector('input[type="checkbox"]');
-if (!chk && selectAll.previousElementSibling && selectAll.previousElementSibling.type === 'checkbox') chk = selectAll.previousElementSibling;
-if (!chk) chk = selectAll;
-                                    if (chk && chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
-                                }
-                            }
-
-                            for (const val of vals) {
-                                const matchedLabel = labels.find(l => {
-                                    const txt = removeAccents(l.innerText);
-                                    return txt.includes(val) || val.includes(txt);
-                                });
-                                if (matchedLabel) {
-                                    let chk = document.getElementById(matchedLabel.htmlFor);
-if (!chk) chk = matchedLabel.querySelector('input[type="checkbox"]');
-if (!chk && matchedLabel.previousElementSibling && matchedLabel.previousElementSibling.type === 'checkbox') chk = matchedLabel.previousElementSibling;
-if (!chk) chk = matchedLabel;
-                                    if (chk && !chk.checked) { chk.scrollIntoView({block:'center'}); chk.click(); await delay(600); }
+                            for (const lbl of labels) {
+                                const chk = getCheckbox(lbl);
+                                if (chk && !chk.checked) {
+                                    chk.click();
+                                    await delay(100);
                                 }
                             }
                         }
-                    }, { valueOrText });
+                    } else {
+                        // Desmarcar Select All si está marcado
+                        if (selectAllLabel) {
+                            const chkSelectAll = getCheckbox(selectAllLabel);
+                            if (chkSelectAll && chkSelectAll.checked) {
+                                chkSelectAll.scrollIntoView({ block: 'nearest' });
+                                chkSelectAll.click();
+                                await delay(300);
+                            }
+                        }
 
-                    await mainPage.waitForTimeout(400);
-                    await reportFrame.locator('body').click().catch(() => {});
-                    await mainPage.waitForTimeout(400);
-                    console.log(c.verde(`    ✅ [Filtro Multi] "${labelText}" -> ${valueOrText}`));
-                    return true;
+                        // Marcar/desmarcar cada elemento
+                        for (const lbl of labels) {
+                            const txt = removeAccents(lbl.innerText);
+                            if (txt.includes('SELECT ALL') || txt.includes('SELECCIONAR TODO') || txt.includes('CHECK ALL')) continue;
+
+                            const coincide = targetVals.some(t => txt === t || txt.startsWith(t) || txt.includes(t) || t.includes(txt));
+                            const chk = getCheckbox(lbl);
+                            if (chk) {
+                                if (coincide && !chk.checked) {
+                                    chk.scrollIntoView({ block: 'nearest' });
+                                    chk.click();
+                                    if (!chk.checked) {
+                                        chk.checked = true;
+                                        chk.dispatchEvent(new Event('change', { bubbles: true }));
+                                    }
+                                    await delay(150);
+                                } else if (!coincide && chk.checked) {
+                                    chk.scrollIntoView({ block: 'nearest' });
+                                    chk.click();
+                                    if (chk.checked) {
+                                        chk.checked = false;
+                                        chk.dispatchEvent(new Event('change', { bubbles: true }));
+                                    }
+                                    await delay(150);
+                                }
+                            }
+                        }
+                    }
+
+                    await delay(300);
+                }, { divDropDownId, txtValueId, valorFinalDeseado });
+
+                // Paso 4: Cerrar popup
+                await reportFrame.locator('body').click().catch(() => {});
+                await reportPage.waitForTimeout(600);
+
+                const txtInput = reportFrame.locator(`#${txtValueId}`);
+                let valEnPantalla = '';
+                if (await txtInput.count() > 0) {
+                    valEnPantalla = await txtInput.inputValue().catch(() => '');
                 }
+
+                console.log(c.verde(`    ✅ [Filtro Multi] "${labelText}" -> ${valEnPantalla || valorFinalDeseado}`));
+                return true;
             } catch(e) {
                 console.log(c.amarillo(`    ⚠️ [Filtro Multi] "${labelText}": ${e.message}`));
+                return false;
             }
-            return false;
         };
 
         const obtenerReportFrame = async (targetPage) => {
@@ -848,7 +973,7 @@ if (!chk) chk = matchedLabel;
             await mainPage.waitForTimeout(900);
 
             // 8. Toma (Mes)
-            await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma) || await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma);
+            await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma) || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
             await mainPage.waitForTimeout(900);
             
             // 9. TODAS LAS TOMAS
