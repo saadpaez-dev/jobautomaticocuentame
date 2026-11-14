@@ -13,6 +13,7 @@
 
 const xlsx = require('xlsx');
 const fs = require('fs');
+const { leerLibroExcelSeguro } = require('./reparar-excel');
 const path = require('path');
 
 // ────────────────────────────────────────────────────────────────
@@ -290,7 +291,7 @@ function analizarExcel(rutaEntrada) {
         throw new Error(`El archivo no existe: ${rutaEntrada}`);
     }
 
-    const wb = xlsx.readFile(rutaEntrada, { cellDates: true });
+    const wb = leerLibroExcelSeguro(rutaEntrada, { cellDates: true });
     let asociacion = '';
     let uds = '';
     const todos = [];

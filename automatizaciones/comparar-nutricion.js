@@ -209,6 +209,7 @@ function extraerNinosNutricion(filePath) {
         let idxComp = hList.findIndex(h => h.includes('NOMBRE COMPLETO'));
         let idxUds = getUdsColIdx(hList);
         let idxTallaInf = hList.findIndex(h => h.includes('TALLA INFERIOR'));
+        let idxTomaMes = hList.findIndex(h => h.includes('TOMA MENSUAL') || h === 'TOMA' || (h.includes('NUMERO') && h.includes('TOMA')) || (h.includes('MES') && !h.includes('EDAD') && !h.includes('LACTANCIA')));
 
         if (idxDoc === -1) idxDoc = 10;
 
@@ -233,20 +234,25 @@ function extraerNinosNutricion(filePath) {
 
             const uds = (idxUds !== -1 ? String(row[idxUds] || '').trim() : '') || sheetName;
             const valTallaInf = idxTallaInf !== -1 ? String(row[idxTallaInf] || '').trim().toUpperCase() : '';
+            const rawToma = idxTomaMes !== -1 ? String(row[idxTomaMes] || '').trim() : '';
+            const tomaLabel = rawToma ? `Toma ${rawToma}` : 'Toma Actual';
+            const keyDuplicado = rawToma ? `${docNorm}___${rawToma.toUpperCase()}` : docNorm;
 
             totalRegistros++;
             docsNutricion.add(docNorm);
 
-            if (!conteoDocsMap.has(docNorm)) {
-                conteoDocsMap.set(docNorm, {
+            if (!conteoDocsMap.has(keyDuplicado)) {
+                conteoDocsMap.set(keyDuplicado, {
                     documentoRaw: docRaw,
                     documento: docNorm,
                     nombreCompleto: nombreCompleto || 'SIN NOMBRE',
                     jardin: uds,
+                    tomaMes: rawToma,
+                    tomaLabel: tomaLabel,
                     count: 1
                 });
             } else {
-                const info = conteoDocsMap.get(docNorm);
+                const info = conteoDocsMap.get(keyDuplicado);
                 info.count++;
                 if ((!info.nombreCompleto || info.nombreCompleto === 'SIN NOMBRE') && nombreCompleto) {
                     info.nombreCompleto = nombreCompleto;
@@ -364,7 +370,7 @@ async function generarReporteExcelFaltantes(faltantes, duplicados, tallaInferior
     // Hoja 2: Beneficiarios con Doble Toma (Duplicados)
     if (duplicados.length > 0) {
         const wsDup = workbook.addWorksheet('Doble Toma (Duplicados)');
-        wsDup.mergeCells('A1:F1');
+        wsDup.mergeCells('A1:G1');
         const tCellDup = wsDup.getCell('A1');
         tCellDup.value = 'BENEFICIARIOS CON DOBLE TOMA EN EL REPORTE DE NUTRICION';
         tCellDup.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFF' } };
@@ -372,7 +378,7 @@ async function generarReporteExcelFaltantes(faltantes, duplicados, tallaInferior
         tCellDup.alignment = { horizontal: 'center', vertical: 'middle' };
         wsDup.getRow(1).height = 30;
 
-        const headersDup = ['#', 'Numero de Documento', 'Nombre Completo del Beneficiario', 'Unidad de Servicio (Jardin)', 'Tomas Registradas en el Mes', 'Observacion'];
+        const headersDup = ['#', 'Numero de Documento', 'Nombre Completo del Beneficiario', 'Unidad de Servicio (Jardin)', 'Toma / Mes', 'Tomas Registradas', 'Observacion'];
         const hRowDup = wsDup.getRow(3);
         headersDup.forEach((h, i) => {
             const cell = hRowDup.getCell(i + 1);
@@ -388,12 +394,14 @@ async function generarReporteExcelFaltantes(faltantes, duplicados, tallaInferior
             row.getCell(2).value = item.documentoRaw;
             row.getCell(3).value = item.nombreCompleto;
             row.getCell(4).value = item.jardin;
-            row.getCell(5).value = item.count;
-            row.getCell(6).value = `El beneficiario tiene ${item.count} tomas registradas en el mes (Doble toma)`;
+            row.getCell(5).value = item.tomaLabel || item.tomaMes || 'N/A';
+            row.getCell(6).value = item.count;
+            row.getCell(7).value = `El beneficiario tiene ${item.count} tomas registradas en la misma toma/mes (${item.tomaLabel || item.tomaMes})`;
             
             row.getCell(1).alignment = { horizontal: 'center' };
             row.getCell(2).alignment = { horizontal: 'center' };
             row.getCell(5).alignment = { horizontal: 'center' };
+            row.getCell(6).alignment = { horizontal: 'center' };
         });
 
         wsDup.columns.forEach((col, idx) => {
@@ -492,36 +500,70 @@ async function generarReporteExcelFaltantes(faltantes, duplicados, tallaInferior
     await workbook.xlsx.writeFile(pathReportes);
     await workbook.xlsx.writeFile(pathDocs);
 
+    // Abrir automaticamente el Explorador de Windows destacando el archivo del reporte
+    try {
+        const fileToSelect = path.resolve(pathReportes).replace(/\//g, '\\');
+        require('child_process').exec(`explorer.exe /select,"${fileToSelect}"`);
+    } catch (e) {}
+
     return pathReportes;
+}
+
+function escanearReportesEnCarpeta(reportesDir) {
+    let archivos = [];
+    if (!fs.existsSync(reportesDir)) return archivos;
+    const scan = (dir) => {
+        try {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                if (entry.name.startsWith('~') || entry.name.startsWith('Reporte_Faltantes_')) continue;
+                const full = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    scan(full);
+                } else if (entry.name.endsWith('.xlsx') || entry.name.endsWith('.xls') || entry.name.endsWith('.csv')) {
+                    const rel = path.relative(reportesDir, full);
+                    archivos.push({ nombre: rel, ruta: full, mtime: fs.statSync(full).mtimeMs });
+                }
+            }
+        } catch (e) {}
+    };
+    scan(reportesDir);
+    return archivos;
 }
 
 function pedirParejaReportes() {
     const reportesDir = path.join(__dirname, '..', 'reportes');
-    let archivos = [];
-    if (fs.existsSync(reportesDir)) {
-        archivos = fs.readdirSync(reportesDir).filter(f => !f.startsWith('~') && !f.startsWith('Reporte_Faltantes_') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
-    }
+    let listaArchivos = escanearReportesEnCarpeta(reportesDir);
 
-    if (archivos.length === 0) {
+    const isActivos = (name) => {
+        const l = name.toLowerCase();
+        return (l.includes('beneficiario') || l.includes('activo')) && !l.includes('faltantes') && !l.includes('master');
+    };
+    const isNutricion = (name) => {
+        const l = name.toLowerCase();
+        return (l.includes('nutricion') || (l.includes('peso') && !l.includes('formato_') && !l.includes('reporte_pesotalla'))) && !l.includes('faltantes');
+    };
+
+    if (listaArchivos.length === 0) {
         console.log(c.rojo('\n  ❌ No se encontraron archivos de reportes en la carpeta "reportes".'));
         console.log(c.amarillo('     Primero descarga los reportes desde la Opcion 2 de AutoTrabajo.\n'));
         return null;
     }
 
-    let idxActivosDef = archivos.findIndex(f => f.toLowerCase().includes('beneficiario') || f.toLowerCase().includes('activo'));
-    let idxNutricionDef = archivos.findIndex(f => f.toLowerCase().includes('nutricion') || f.toLowerCase().includes('peso'));
+    let idxActivosDef = listaArchivos.findIndex(f => isActivos(f.nombre));
+    let idxNutricionDef = listaArchivos.findIndex(f => isNutricion(f.nombre));
 
     if (idxActivosDef === -1) idxActivosDef = 0;
-    if (idxNutricionDef === -1) idxNutricionDef = archivos.length > 1 ? 1 : 0;
+    if (idxNutricionDef === -1) idxNutricionDef = listaArchivos.length > 1 ? 1 : 0;
 
     const sugerenciaStr = `${idxActivosDef + 1},${idxNutricionDef + 1}`;
 
     console.log(c.cyan(`\n  📂 Archivos de reportes disponibles en "reportes":`));
-    archivos.forEach((nombre, i) => {
+    listaArchivos.forEach((item, i) => {
         let tag = '';
-        if (i === idxActivosDef) tag += c.verde(' [Activos]');
-        if (i === idxNutricionDef) tag += c.cyan(' [Nutricion]');
-        console.log(`  ${i + 1}. ${nombre}${tag}`);
+        if (isActivos(item.nombre)) tag += c.verde(' [Activos]');
+        else if (isNutricion(item.nombre)) tag += c.cyan(' [Nutricion]');
+        console.log(`  ${i + 1}. ${item.nombre}${tag}`);
     });
 
     console.log(c.cyan(`\n  💡 Seleccion por comas:`));
@@ -553,20 +595,20 @@ function pedirParejaReportes() {
         }
     }
 
-    if (numActivos < 1 || numActivos > archivos.length || numNutricion < 1 || numNutricion > archivos.length) {
+    if (numActivos < 1 || numActivos > listaArchivos.length || numNutricion < 1 || numNutricion > listaArchivos.length) {
         console.log(c.rojo('\n  ❌ Numeros de seleccion fuera de rango.'));
         return null;
     }
 
-    const archivoActivos = archivos[numActivos - 1];
-    const archivoNutricion = archivos[numNutricion - 1];
+    const archivoActivos = listaArchivos[numActivos - 1];
+    const archivoNutricion = listaArchivos[numNutricion - 1];
 
-    console.log(c.verde(`\n  ✅ Beneficiarios Activos: ${archivoActivos}`));
-    console.log(c.verde(`  ✅ Seguimiento Nutricional: ${archivoNutricion}`));
+    console.log(c.verde(`\n  ✅ Beneficiarios Activos: ${archivoActivos.nombre}`));
+    console.log(c.verde(`  ✅ Seguimiento Nutricional: ${archivoNutricion.nombre}`));
 
     return {
-        rutaActivos: path.join(reportesDir, archivoActivos),
-        rutaNutricion: path.join(reportesDir, archivoNutricion)
+        rutaActivos: archivoActivos.ruta,
+        rutaNutricion: archivoNutricion.ruta
     };
 }
 
@@ -574,18 +616,37 @@ function obtenerUltimaParejaReportes() {
     const reportesDir = path.join(__dirname, '..', 'reportes');
     if (!fs.existsSync(reportesDir)) return null;
 
-    const archivos = fs.readdirSync(reportesDir)
-        .filter(f => !f.startsWith('~') && !f.startsWith('Reporte_Faltantes_') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')))
-        .map(f => ({
-            nombre: f,
-            mtime: fs.statSync(path.join(reportesDir, f)).mtimeMs
-        }))
-        .sort((a, b) => b.mtime - a.mtime);
+    const isActivos = (name) => {
+        const l = name.toLowerCase();
+        return (l.includes('beneficiario') || l.includes('activo')) && !l.includes('faltantes') && !l.includes('master');
+    };
+    const isNutricion = (name) => {
+        const l = name.toLowerCase();
+        return (l.includes('nutricion') || (l.includes('peso') && !l.includes('formato_') && !l.includes('reporte_pesotalla'))) && !l.includes('faltantes');
+    };
+
+    const archivos = escanearReportesEnCarpeta(reportesDir).sort((a, b) => b.mtime - a.mtime);
 
     if (archivos.length === 0) return null;
 
-    const archivoActivos = archivos.find(a => a.nombre.toLowerCase().includes('beneficiario') || a.nombre.toLowerCase().includes('activo'));
-    const archivoNutricion = archivos.find(a => a.nombre.toLowerCase().includes('nutricion') || a.nombre.toLowerCase().includes('peso'));
+    const masReciente = archivos[0];
+    const matchAsoc = masReciente.nombre.match(/(?:Beneficiarios|Nutricion|Asistencia)_([A-Za-z0-9_-]+)\.xlsx/i);
+    const asocReciente = matchAsoc ? matchAsoc[1] : '';
+
+    let archivoActivos = null;
+    let archivoNutricion = null;
+
+    if (asocReciente) {
+        archivoActivos = archivos.find(a => isActivos(a.nombre) && a.nombre.includes(asocReciente));
+        archivoNutricion = archivos.find(a => isNutricion(a.nombre) && a.nombre.includes(asocReciente));
+    }
+
+    if (!archivoActivos) {
+        archivoActivos = archivos.find(a => isActivos(a.nombre));
+    }
+    if (!archivoNutricion) {
+        archivoNutricion = archivos.find(a => isNutricion(a.nombre));
+    }
 
     if (!archivoActivos || !archivoNutricion) return null;
 
@@ -594,8 +655,8 @@ function obtenerUltimaParejaReportes() {
     console.log(c.verde(`     • Seguimiento Nutricional: ${archivoNutricion.nombre}`));
 
     return {
-        rutaActivos: path.join(reportesDir, archivoActivos.nombre),
-        rutaNutricion: path.join(reportesDir, archivoNutricion.nombre)
+        rutaActivos: archivoActivos.ruta,
+        rutaNutricion: archivoNutricion.ruta
     };
 }
 
@@ -724,7 +785,7 @@ async function main() {
             if (duplicados.length > 0) {
                 console.log(c.amarillo('  ⚠️ NOMBRES DE LOS BENEFICIARIOS CON DOBLE TOMA (DUPLICADOS EN NUTRICION):\n'));
                 duplicados.forEach((d, idx) => {
-                    console.log(`  ${idx + 1}. Documento: ${c.bold(d.documentoRaw.padEnd(12))} | Nombre: ${c.amarillo(d.nombreCompleto)} | UDS: ${c.cyan(d.jardin)} | Tomas: ${c.bold(d.count + ' registros en el mes')}`);
+                    console.log(`  ${idx + 1}. Documento: ${c.bold(d.documentoRaw.padEnd(12))} | Nombre: ${c.amarillo(d.nombreCompleto)} | UDS: ${c.cyan(d.jardin)} | Tomas: ${c.bold(d.count + ' registros (' + (d.tomaLabel || d.tomaMes || 'Misma Toma') + ')')}`);
                 });
                 console.log('');
             }
@@ -748,8 +809,8 @@ async function main() {
             const optFinal = readline.question(c.negrita('  > Selecciona una opcion (0-2): ')).trim();
             if (optFinal === '1') {
                 try {
-                    const { exec } = require('child_process');
-                    exec(`explorer "${path.dirname(rutaExcelGenerado)}"`);
+                    const fileToSelect = path.resolve(rutaExcelGenerado).replace(/\//g, '\\');
+                    require('child_process').exec(`explorer.exe /select,"${fileToSelect}"`);
                 } catch(e) {}
                 break;
             } else if (optFinal === '2') {

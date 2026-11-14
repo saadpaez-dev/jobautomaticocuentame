@@ -37,6 +37,7 @@ function distribuirReporteAPortal(opcionReporte, asc, savePath) {
   const asocFolder = (asc.nombreCorto || '').toUpperCase().trim();
   if (!asocFolder) return;
 
+  const prefijoBase = path.basename(savePath).split('_')[0]; // Beneficiarios, Nutricion, Asistencia, Unidades
   const carpetasDestino = [
     path.join(__dirname, '..', 'docs', 'reportes', tipoCarpeta, asocFolder),
     path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'reportes', tipoCarpeta, asocFolder)
@@ -46,6 +47,15 @@ function distribuirReporteAPortal(opcionReporte, asc, savePath) {
     try {
       if (fs.existsSync(path.dirname(path.dirname(dir)))) {
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+        // Eliminar versiones previas de este tipo de reporte para no acumular historicos
+        try {
+          const archivosPrevios = fs.readdirSync(dir).filter(f => f.startsWith(`${prefijoBase}_`) && f.endsWith('.xlsx'));
+          archivosPrevios.forEach(p => {
+            try { fs.unlinkSync(path.join(dir, p)); } catch(e) {}
+          });
+        } catch(e) {}
+
         const destFile = path.join(dir, path.basename(savePath));
         fs.copyFileSync(savePath, destFile);
         console.log(c.verde(`    🚀 Reporte alineado para descarga en Portal: docs/reportes/${tipoCarpeta}/${asocFolder}/${path.basename(savePath)}`));
@@ -94,6 +104,7 @@ async function main() {
   let asociacionesSeleccionadas = [];
   let reportesAProcesar = [];
   let esActualizarMaster = false;
+  let archivosDescargados = [];
 
   if (opcionCLI !== null) {
       console.log(c.cyan('\n  🚀 MODO AUTOMATICO DESDE PORTAL WEB / CLI:'));
@@ -1133,8 +1144,26 @@ async function main() {
         reportPage.setDefaultTimeout(30000); // restaurar
         
         const prefijo = opcionReporte === 1 ? 'Beneficiarios' : (opcionReporte === 2 ? 'Nutricion' : (opcionReporte === 4 ? 'Unidades' : 'Asistencia'));
-        const fileName = `${prefijo}_${asc.nombreCorto.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
-        const savePath = path.join(reportesDir, fileName);
+        let tipoCarpeta = 'activos';
+        if (opcionReporte === 2) tipoCarpeta = 'nutricion';
+        if (opcionReporte === 3 || prefijo === 'Asistencia') tipoCarpeta = 'ram';
+        if (opcionReporte === 4) tipoCarpeta = 'unidades';
+
+        const asocClean = asc.nombreCorto.replace(/[^a-z0-9]/gi, '_');
+        const fileName = `${prefijo}_${asocClean}.xlsx`;
+        
+        const destFolder = path.join(reportesDir, tipoCarpeta, asocClean);
+        if (!fs.existsSync(destFolder)) fs.mkdirSync(destFolder, { recursive: true });
+
+        // Eliminar versiones previas de este reporte para no acumular historicos
+        try {
+            const archivosPrevios = fs.readdirSync(destFolder).filter(f => f.startsWith(`${prefijo}_`) && f.endsWith('.xlsx'));
+            archivosPrevios.forEach(p => {
+                try { fs.unlinkSync(path.join(destFolder, p)); } catch(e) {}
+            });
+        } catch(e) {}
+
+        const savePath = path.join(destFolder, fileName);
         try {
             await download.saveAs(savePath);
             console.log(c.verde(`    ✅ Descargado exitosamente: ${fileName}`));
@@ -1172,6 +1201,11 @@ async function main() {
         
         // Alinear y distribuir de inmediato al Portal Web (docs/reportes/<tipo>/<ASOCIACION>/)
         distribuirReporteAPortal(opcionReporte, asc, savePath);
+
+        if (fs.existsSync(savePath)) {
+            archivosDescargados.push(savePath);
+            console.log(c.verde(`    📁 Carpeta de guardado: ${path.dirname(savePath)}\n`));
+        }
         
       } catch (error) {
         console.error(c.rojo(`\n  ❌ Ocurrio un error con ${asc.nombreCorto}:`), error.message);
@@ -1243,18 +1277,38 @@ async function main() {
   }
 
   console.log(c.verde('\n  ✅ Descargas de reportes completadas con exito.'));
+
+  // Abrir automaticamente el Explorador de Windows ubicando el reporte descargado
+  if (archivosDescargados.length > 0) {
+      try {
+          const ultimo = archivosDescargados[archivosDescargados.length - 1];
+          const fileToSelect = path.resolve(ultimo).replace(/\//g, '\\');
+          require('child_process').exec(`explorer.exe /select,"${fileToSelect}"`);
+      } catch (e) {}
+  }
+
   if (esAutoComparar || esAutoExit) {
       break;
   }
 
   console.log(c.cyan('\n======================================================'));
   console.log(c.cyan('  📋 ¿Qué deseas hacer ahora?'));
-  console.log(c.amarillo('  0. 🏠 Volver al Menú Principal (AutoTrabajo / Start)'));
   console.log(c.amarillo('  1. 🔄 Descargar otro reporte'));
+  console.log(c.amarillo('  2. 📂 Abrir carpeta de reportes en Explorador'));
+  console.log(c.amarillo('  0. 🏠 Volver al Menú Principal (AutoTrabajo / Start)'));
   console.log(c.cyan('======================================================'));
   
-  const respFinal = readline.question(c.negrita('\n  > Ingresa tu opcion (0 o 1) [por defecto 0]: ')).trim();
-  if (respFinal === '' || respFinal === '0' || respFinal.toLowerCase() === 'n') {
+  const respFinal = readline.question(c.negrita('\n  > Ingresa tu opcion (0, 1 o 2) [por defecto 0]: ')).trim();
+  if (respFinal === '1') {
+      continue;
+  } else if (respFinal === '2') {
+      try {
+          const ultimo = archivosDescargados.length > 0 ? archivosDescargados[archivosDescargados.length - 1] : reportesDir;
+          const fileToSelect = path.resolve(ultimo).replace(/\//g, '\\');
+          require('child_process').exec(`explorer.exe /select,"${fileToSelect}"`);
+      } catch (e) {}
+      break;
+  } else {
       console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
       break;
   }

@@ -60,15 +60,18 @@ function normalizarDoc(val) {
 function normalizarFecha(val) {
     if (!val) return '';
     if (typeof val === 'number') {
+        if (val < 1000) return ''; // Prevenir que numeros de toma (1, 2, 3...) se interpreten como 01/01/1900
         const dateObj = xlsx.SSF.parse_date_code(val);
         if (dateObj) {
             const d = String(dateObj.d).padStart(2, '0');
             const m = String(dateObj.m).padStart(2, '0');
             const y = dateObj.y;
+            if (y === 1900 || y < 1950) return '';
             return `${d}/${m}/${y}`;
         }
     }
     const str = String(val).trim();
+    if (str.includes('1900')) return '';
     const parts = str.split(/[\/-]/);
     if (parts.length === 3) {
         let d = parts[0].padStart(2, '0');
@@ -79,6 +82,7 @@ function normalizarFecha(val) {
             m = parts[1].padStart(2, '0');
             d = parts[2].padStart(2, '0');
         }
+        if (y === '1900') return '';
         return `${d}/${m}/${y}`;
     }
     return str;
@@ -112,45 +116,62 @@ function parseFechaTimestamp(val) {
 
 function detectarMapaColumnas(headers) {
     const mapa = {
-        eas: -1,             // La EAS se extrae del encabezado global E2/E3
-        uds: 6,              // Col G (index 6)
-        documento: 10,       // Col K (index 10)
-        pApellido: 11,       // Col L (index 11)
-        sApellido: 12,       // Col M (index 12)
-        pNombre: 13,         // Col N (index 13)
-        sNombre: 14,         // Col O (index 14)
-        sexo: 15,            // Col P (index 15)
-        fechaNacimiento: 17, // Col R (index 17)
-        fechaIngreso: 18,    // Col S (index 18)
-        fechaToma: 19,       // Col T (index 19 - Fecha Valoracion Nutricional)
-        perimetro: 37,       // Col AL (index 37 - Perimetro Braquial)
-        peso: 43,            // Col AR (index 43 - Peso kg)
-        talla: 44,           // Col AS (index 44 - Talla cm)
-        estado: 65           // Col BN (index 65)
+        eas: -1,             // La EAS se extrae del encabezado global o columna
+        uds: -1,
+        documento: -1,
+        pApellido: -1,
+        sApellido: -1,
+        pNombre: -1,
+        sNombre: -1,
+        sexo: -1,
+        fechaNacimiento: -1,
+        fechaIngreso: -1,
+        fechaToma: -1,
+        perimetro: -1,
+        peso: -1,
+        talla: -1,
+        estado: -1
     };
 
     headers.forEach((h, idx) => {
         const clean = removeAccents(String(h || '')).trim().toUpperCase();
 
-        if (clean.includes('UNIDAD DE SERVICIO') || clean.includes('NOMBRE UNIDAD') || clean.includes('NOMBRE UDS') || clean.includes('JARDIN')) {
+        if ((clean.includes('ENTIDAD CONTRATISTA') || clean.includes('NOMBRE EAS')) && !clean.includes('NUMERO') && !clean.includes('DOCUMENTO')) {
+            mapa.eas = idx;
+        } else if ((clean.includes('UNIDAD DE SERVICIO') || clean.includes('NOMBRE UNIDAD') || clean.includes('NOMBRE UDS') || clean.includes('JARDIN')) && !clean.includes('REGIONAL') && !clean.includes('MUNICIPIO') && !clean.includes('CODIGO')) {
             mapa.uds = idx;
-        } else if (clean.includes('NUMERO DOCUMENTO') || clean.includes('DOCUMENTO BENEFICIARIO') || clean.includes('NUIP')) {
+        } else if ((clean.includes('DOCUMENTO') && (clean.includes('BENEFICIARIO') || clean.includes('NINO') || clean.includes('NIÑO'))) || clean.includes('NUIP') || (clean.includes('NUMERO DOCUMENTO') && !clean.includes('ACUDIENTE') && !clean.includes('RESPONSABLE') && !clean.includes('CONTRATISTA'))) {
             mapa.documento = idx;
-        } else if (clean.includes('PRIMER APELLIDO')) {
+        } else if (clean.includes('PRIMER APELLIDO') && !clean.includes('ACUDIENTE') && !clean.includes('RESPONSABLE') && !clean.includes('MADRE') && !clean.includes('PADRE')) {
             mapa.pApellido = idx;
-        } else if (clean.includes('SEGUNDO APELLIDO')) {
+        } else if (clean.includes('SEGUNDO APELLIDO') && !clean.includes('ACUDIENTE') && !clean.includes('RESPONSABLE') && !clean.includes('MADRE') && !clean.includes('PADRE')) {
             mapa.sApellido = idx;
-        } else if (clean.includes('PRIMER NOMBRE')) {
+        } else if (clean.includes('PRIMER NOMBRE') && !clean.includes('ACUDIENTE') && !clean.includes('RESPONSABLE') && !clean.includes('MADRE') && !clean.includes('PADRE')) {
             mapa.pNombre = idx;
-        } else if (clean.includes('SEGUNDO NOMBRE')) {
+        } else if (clean.includes('SEGUNDO NOMBRE') && !clean.includes('ACUDIENTE') && !clean.includes('RESPONSABLE') && !clean.includes('MADRE') && !clean.includes('PADRE')) {
             mapa.sNombre = idx;
-        } else if (clean.includes('NACIMIENTO') || clean.includes('FEC_NAC')) {
+        } else if ((clean.includes('NACIMIENTO') || clean.includes('FEC_NAC')) && !clean.includes('ACUDIENTE')) {
             mapa.fechaNacimiento = idx;
-        } else if (clean.includes('INGRESO AL PROGRAMA') || clean.includes('FECHA INGRESO') || clean.includes('VINCULACION')) {
+        } else if (
+            (clean.includes('INGRESO AL PROGRAMA') || 
+             clean.includes('FECHA INGRESO') || 
+             clean.includes('INGRESO AL SERVICIO') || 
+             clean.includes('INGRESO A LA MODALIDAD') || 
+             (clean.includes('FECHA') && clean.includes('ATENCION')) || 
+             (clean.includes('FECHA') && clean.includes('VINCULACION'))
+            ) && 
+            !clean.includes('TOMA') && 
+            !clean.includes('NUMERO') && 
+            !clean.includes('CREACION') && 
+            !clean.includes('MODIFICACION') && 
+            !clean.includes('REGISTRO') && 
+            !clean.includes('ACUDIENTE') && 
+            !clean.includes('RESPONSABLE')
+        ) {
             mapa.fechaIngreso = idx;
-        } else if (clean === 'SEXO' || clean.includes('GENERO')) {
+        } else if ((clean === 'SEXO' || clean.includes('GENERO') || clean.includes('SEXO DEL BENEFICIARIO')) && !clean.includes('ACUDIENTE')) {
             mapa.sexo = idx;
-        } else if (clean.includes('ESTADO BENEFICIARIO') || clean === 'ESTADO') {
+        } else if ((clean.includes('ESTADO BENEFICIARIO') || clean === 'ESTADO') && !clean.includes('NUTRICIONAL')) {
             mapa.estado = idx;
         } else if (clean.includes('VALORACION') || clean.includes('FECHA TOMA') || clean.includes('FECHA VALORACION') || clean.includes('FECHA DE LA TOMA')) {
             if (!clean.includes('REGISTRO') && !clean.includes('MODIFICACION') && !clean.includes('A LA FECHA')) {
@@ -164,6 +185,21 @@ function detectarMapaColumnas(headers) {
             mapa.talla = idx;
         }
     });
+
+    // Fallback especifico para Reporte Nutricional estandar: Columna S (index 18) es Fecha Ingreso al programa
+    if (mapa.fechaIngreso === -1 && headers.length > 18) {
+        const h18 = removeAccents(String(headers[18] || '')).trim().toUpperCase();
+        if (h18.includes('INGRESO')) {
+            mapa.fechaIngreso = 18;
+        }
+    }
+
+    if (mapa.uds === -1) mapa.uds = 6;
+    if (mapa.documento === -1) mapa.documento = 10;
+    if (mapa.pApellido === -1) mapa.pApellido = 11;
+    if (mapa.sApellido === -1) mapa.sApellido = 12;
+    if (mapa.pNombre === -1) mapa.pNombre = 13;
+    if (mapa.sNombre === -1) mapa.sNombre = 14;
 
     return mapa;
 }
@@ -275,6 +311,8 @@ function parsearReporteNutricional(rutaArchivo) {
         const uVal = removeAccents(val).toUpperCase();
 
         if (val.length > 5 && 
+            !/^\d+$/.test(val) &&
+            val.replace(/[^A-Za-z]/g, '').length >= 5 &&
             !uVal.includes('DESNUTRICION') && 
             !uVal.includes('DIAGNOSTICO') && 
             !uVal.includes('PESO') && 
@@ -344,6 +382,11 @@ function parsearReporteNutricional(rutaArchivo) {
     if (headerRowIdx === -1 || !mapa) {
         headerRowIdx = 0;
         mapa = detectarMapaColumnas(rows[0] ? rows[0].map(c => String(c).trim()) : []);
+    }
+
+    if (mapa.eas !== -1 && rows[headerRowIdx + 1]?.[mapa.eas]) {
+        const valEas = String(rows[headerRowIdx + 1][mapa.eas]).trim().toUpperCase();
+        if (valEas.length > 4 && !/^\d+$/.test(valEas)) easGlobal = valEas;
     }
 
     const agrupadoPorUds = {};
@@ -509,6 +552,132 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutri
     return workbook;
 }
 
+function formatearFechaArchivo(filePath) {
+    if (!filePath || !fs.existsSync(filePath)) return null;
+    try {
+        const stats = fs.statSync(filePath);
+        const d = stats.mtime;
+        const pad = (n) => String(n).padStart(2, '0');
+        let horas = d.getHours();
+        const ampm = horas >= 12 ? 'PM' : 'AM';
+        horas = horas % 12 || 12;
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(horas)}:${pad(d.getMinutes())} ${ampm}`;
+    } catch(e) {
+        return null;
+    }
+}
+
+function buscarReportesLocalesAsociacion(asc) {
+    const reportesDir = path.join(__dirname, '..', 'reportes');
+    const docsReportesDir = path.join(__dirname, '..', 'docs', 'reportes');
+    const nombreCorto = (asc.nombreCorto || '').toUpperCase().trim();
+    const asocClean = nombreCorto.replace(/[^A-Z0-9_-]/gi, '_');
+
+    const posiblesNutricion = [
+        path.join(reportesDir, 'nutricion', asocClean, `Nutricion_${asocClean}.xlsx`),
+        path.join(reportesDir, 'nutricion', `Nutricion_${asocClean}.xlsx`),
+        path.join(reportesDir, `Nutricion_${asocClean}.xlsx`),
+        path.join(docsReportesDir, 'nutricion', asocClean, `Nutricion_${asocClean}.xlsx`)
+    ];
+
+    const posiblesActivos = [
+        path.join(reportesDir, 'activos', asocClean, `Beneficiarios_${asocClean}.xlsx`),
+        path.join(reportesDir, 'activos', `Beneficiarios_${asocClean}.xlsx`),
+        path.join(reportesDir, `Beneficiarios_${asocClean}.xlsx`),
+        path.join(docsReportesDir, 'activos', asocClean, `Beneficiarios_${asocClean}.xlsx`)
+    ];
+
+    let rutaNutricion = posiblesNutricion.find(p => fs.existsSync(p)) || null;
+    let rutaActivos = posiblesActivos.find(p => fs.existsSync(p)) || null;
+
+    if (!rutaNutricion && fs.existsSync(path.join(reportesDir, 'nutricion'))) {
+        const scanDir = (dir) => {
+            try {
+                const files = fs.readdirSync(dir, { withFileTypes: true });
+                for (const f of files) {
+                    const full = path.join(dir, f.name);
+                    if (f.isDirectory()) scanDir(full);
+                    else if (f.name.endsWith('.xlsx') && f.name.toUpperCase().includes('NUTRICION') && (f.name.toUpperCase().includes(asocClean) || dir.toUpperCase().includes(asocClean))) {
+                        if (!rutaNutricion) rutaNutricion = full;
+                    }
+                }
+            } catch (e) {}
+        };
+        scanDir(path.join(reportesDir, 'nutricion'));
+    }
+
+    if (!rutaActivos && fs.existsSync(path.join(reportesDir, 'activos'))) {
+        const scanDir = (dir) => {
+            try {
+                const files = fs.readdirSync(dir, { withFileTypes: true });
+                for (const f of files) {
+                    const full = path.join(dir, f.name);
+                    if (f.isDirectory()) scanDir(full);
+                    else if (f.name.endsWith('.xlsx') && f.name.toUpperCase().includes('BENEFICIARIOS') && (f.name.toUpperCase().includes(asocClean) || dir.toUpperCase().includes(asocClean))) {
+                        if (!rutaActivos) rutaActivos = full;
+                    }
+                }
+            } catch (e) {}
+        };
+        scanDir(path.join(reportesDir, 'activos'));
+    }
+
+    return {
+        rutaNutricion,
+        fechaNutricion: rutaNutricion ? formatearFechaArchivo(rutaNutricion) : null,
+        rutaActivos,
+        fechaActivos: rutaActivos ? formatearFechaArchivo(rutaActivos) : null
+    };
+}
+
+function pedirAsociacionSiNoExiste() {
+    let RUTA_EXCEL = process.env.RUTA_EXCEL;
+    if (!RUTA_EXCEL || !fs.existsSync(RUTA_EXCEL)) {
+        const localExcel = path.join(__dirname, '..', 'GENERAL_BOTS.xlsx');
+        if (fs.existsSync(localExcel)) RUTA_EXCEL = localExcel;
+        else RUTA_EXCEL = 'C:\\GENERAL_BOTS.xlsx';
+    }
+    if (!fs.existsSync(RUTA_EXCEL)) return null;
+
+    try {
+        const { leerJardines } = require('../servicios/excel-reader');
+        const { porAsociacion } = leerJardines(RUTA_EXCEL);
+        const asociaciones = Object.values(porAsociacion);
+        if (asociaciones.length === 0) return null;
+
+        console.log(c.amarillo('  Selecciona la asociacion con la que vas a trabajar:\n'));
+        asociaciones.forEach((asc, idx) => {
+            console.log(`  ${c.cyan(idx + 1)}. ${asc.nombreCorto}`);
+        });
+        console.log(`  ${c.rojo('0')}. Volver al panel principal\n`);
+
+        const resp = readline.question(c.negrita('  > Ingresa el numero de la asociacion: ')).trim();
+        const idx = parseInt(resp, 10);
+        if (isNaN(idx) || idx < 1 || idx > asociaciones.length) return null;
+        return asociaciones[idx - 1];
+    } catch (e) {
+        return null;
+    }
+}
+
+function descargarReporteNutricion(asc) {
+    console.log(c.cyan(`\n  📥 Conectando con Cuentame para descargar el Reporte de Nutricion de ${c.bold(asc.nombreCorto)}...\n`));
+    try {
+        const { spawnSync } = require('child_process');
+        const scriptReportes = path.join(__dirname, 'descargar-reportes.js');
+        const resultado = spawnSync(process.execPath, [
+            scriptReportes,
+            '--opcion=2',
+            `--asociacion=${asc.nombreCorto}`,
+            '--auto-exit'
+        ], { stdio: 'inherit' });
+        return resultado.status === 0;
+    } catch (e) {
+        console.log(c.rojo(`  ❌ Error ejecutando descarga de reportes: ${e.message}`));
+        return false;
+    }
+}
+
 async function main() {
     console.log(c.cyan('\n========================================================================'));
     console.log(c.negrita(' 📝 PRE-LLENAR FORMATOS INDEPENDIENTES DE PESO Y TALLA (POR JARDIN)'));
@@ -521,22 +690,96 @@ async function main() {
     }
 
     while (true) {
-        console.log(c.gris('Arrastra y suelta el Reporte Nutricional o de Activos descargado de Cuentame.\n'));
+        let ascSeleccionada = null;
+        if (process.env.ASOCIACION_ACTIVA) {
+            try { ascSeleccionada = JSON.parse(process.env.ASOCIACION_ACTIVA); } catch (e) {}
+        }
+        if (!ascSeleccionada) {
+            ascSeleccionada = pedirAsociacionSiNoExiste();
+            if (!ascSeleccionada) {
+                console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
+                break;
+            }
+        }
 
-        const inputPathRaw = readline.question(c.negrita('  > Arrastra el archivo Excel del Reporte Nutricional aqui (o 0 para salir): '));
-        const inputPath = inputPathRaw.trim().replace(/^["']|["']$/g, '');
+        let reportes = buscarReportesLocalesAsociacion(ascSeleccionada);
+        let inputPath = null;
 
-        if (inputPath === '0') {
+        console.log(c.verde(`  🏢 Asociacion Activa: ${c.bold(ascSeleccionada.nombreCorto)}`));
+        console.log(c.cyan('\n  📋 Selecciona el origen del reporte para generar los formatos:\n'));
+
+        const tieneNutricion = !!reportes.rutaNutricion;
+        const tieneActivos = !!reportes.rutaActivos;
+        let defaultOpt = tieneNutricion ? '1' : '2';
+
+        if (tieneNutricion) {
+            console.log(c.amarillo(`  1. 📂 Usar Reporte de Nutricion local en BD ${c.verde('[Recomendado]')}`));
+            console.log(c.gris(`     -> ${path.basename(reportes.rutaNutricion)} (Actualizado: ${reportes.fechaNutricion})`));
+        } else {
+            console.log(c.gris(`  1. 📂 Usar Reporte de Nutricion local en BD (No encontrado aun para esta asociacion)`));
+        }
+
+        console.log(c.amarillo(`  2. 🔄 Actualizar / Descargar reporte de Nutricion desde Cuentame ahora`));
+        console.log(c.gris(`     -> Conecta el robot a Cuentame para descargar el reporte mas reciente`));
+
+        if (tieneActivos) {
+            console.log(c.amarillo(`  3. 📋 Usar Reporte de Beneficiarios Activos local en BD`));
+            console.log(c.gris(`     -> ${path.basename(reportes.rutaActivos)} (Actualizado: ${reportes.fechaActivos})`));
+        } else {
+            console.log(c.gris(`  3. 📋 Usar Reporte de Beneficiarios Activos local en BD (No disponible)`));
+        }
+
+        console.log(c.amarillo(`  4. 📁 Arrastrar o seleccionar un archivo Excel manualmente`));
+        console.log(c.rojo(`  0. 🏠 Volver al panel principal (AutoTrabajo / Start)\n`));
+
+        const opcionOrigen = readline.question(c.negrita(`  > Selecciona una opcion (0-4) [por defecto ${defaultOpt}]: `)).trim();
+        const seleccion = opcionOrigen === '' ? defaultOpt : opcionOrigen;
+
+        if (seleccion === '0') {
             console.log(c.verde('\n  👋 Volviendo al panel principal (AutoTrabajo)...\n'));
             break;
         }
 
-        if (!inputPath || !fs.existsSync(inputPath)) {
-            console.log(c.rojo('\n  ❌ El archivo especificado no existe. Intentalo de nuevo.\n'));
+        if (seleccion === '1') {
+            if (reportes.rutaNutricion) {
+                inputPath = reportes.rutaNutricion;
+            } else {
+                console.log(c.amarillo(`\n  ⚠️ No se encontro un reporte local de Nutricion para ${ascSeleccionada.nombreCorto}.`));
+                console.log(c.cyan('     Puedes descargarlo desde Cuentame usando la opcion 2.\n'));
+                continue;
+            }
+        } else if (seleccion === '2') {
+            descargarReporteNutricion(ascSeleccionada);
+            reportes = buscarReportesLocalesAsociacion(ascSeleccionada);
+            if (reportes.rutaNutricion) {
+                console.log(c.verde(`\n  ✅ Reporte de Nutricion listo para usar: ${path.basename(reportes.rutaNutricion)}`));
+                inputPath = reportes.rutaNutricion;
+            } else {
+                console.log(c.rojo(`\n  ❌ No se encontro el archivo tras la descarga. Verifica si hubo un error en Cuentame.\n`));
+                continue;
+            }
+        } else if (seleccion === '3') {
+            if (reportes.rutaActivos) {
+                inputPath = reportes.rutaActivos;
+            } else {
+                console.log(c.amarillo(`\n  ⚠️ No se encontro un reporte local de Beneficiarios Activos para ${ascSeleccionada.nombreCorto}.\n`));
+                continue;
+            }
+        } else if (seleccion === '4') {
+            const inputPathRaw = readline.question(c.negrita('\n  > Arrastra el archivo Excel del Reporte aqui (o 0 para volver): '));
+            const manualPath = inputPathRaw.trim().replace(/^["']|["']$/g, '');
+            if (manualPath === '0') continue;
+            if (!manualPath || !fs.existsSync(manualPath)) {
+                console.log(c.rojo('\n  ❌ El archivo especificado no existe. Intentalo de nuevo.\n'));
+                continue;
+            }
+            inputPath = manualPath;
+        } else {
+            console.log(c.rojo('\n  ❌ Opcion invalida. Intenta nuevamente.\n'));
             continue;
         }
 
-        console.log(c.cyan('\n  ⏳ Analizando reporte y organizando beneficiarios por Jardin (UDS)...'));
+        console.log(c.cyan(`\n  ⏳ Analizando reporte "${path.basename(inputPath)}" y organizando beneficiarios por Jardin (UDS)...`));
 
         try {
             const agrupado = parsearReporteNutricional(inputPath);
@@ -592,8 +835,12 @@ async function main() {
 
                 console.log(c.verde(`\n  🚀 Generando formatos pre-llenados (maximo 13 ninos por archivo)...\n`));
 
-                const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla');
-                const dirReportes = path.join(__dirname, '..', 'reportes');
+                const primerUds = udsAProcesar[0];
+                const rawEas = (agrupado[primerUds]?.nombreEas || easDetectada || 'GENERAL');
+                const asocClean = rawEas.replace(/[^a-zA-Z0-9 _-]/g, '_').replace(/\s+/g, '_').toUpperCase().trim();
+
+                const dirDocs = path.join(__dirname, '..', 'docs', 'peso y talla', 'formato pre llenado', asocClean);
+                const dirReportes = path.join(__dirname, '..', 'reportes', 'formato pre llenado', asocClean);
 
                 if (!fs.existsSync(dirDocs)) fs.mkdirSync(dirDocs, { recursive: true });
                 if (!fs.existsSync(dirReportes)) fs.mkdirSync(dirReportes, { recursive: true });
@@ -631,19 +878,43 @@ async function main() {
                         const wbPrellenado = await generarFormatoPesoYTallaUds(datosSubUds, plantillaPath, incluirNutricion);
                         const nombreClean = limpiarNombreArchivo(nombreUds);
                         const sufijoParte = totalPartes > 1 ? `_Parte${numParte}` : '';
-                        const fileBaseName = `Formato_Peso_Talla_${nombreClean}${sufijoParte}_${fechaHoy}.xlsx`;
+                        const fileBaseName = `Formato_Peso_Talla_${nombreClean}${sufijoParte}.xlsx`;
 
                         const pathDocs = path.join(dirDocs, fileBaseName);
                         const pathReportes = path.join(dirReportes, fileBaseName);
+                        const dirAppPortal = path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'reportes', 'formato pre llenado', asocClean);
+                        if (!fs.existsSync(dirAppPortal)) {
+                            try { fs.mkdirSync(dirAppPortal, { recursive: true }); } catch(e) {}
+                        }
+
+                        // Reemplazar versiones anteriores de este jardin para no acumular historicos
+                        [dirDocs, dirReportes, dirAppPortal].forEach(dir => {
+                            if (fs.existsSync(dir)) {
+                                try {
+                                    const viejos = fs.readdirSync(dir).filter(f => 
+                                        f.startsWith(`Formato_Peso_Talla_${nombreClean}${sufijoParte}`) && f.endsWith('.xlsx')
+                                    );
+                                    viejos.forEach(v => {
+                                        try { fs.unlinkSync(path.join(dir, v)); } catch(e) {}
+                                    });
+                                } catch(e) {}
+                            }
+                        });
 
                         await wbPrellenado.xlsx.writeFile(pathDocs);
                         await wbPrellenado.xlsx.writeFile(pathReportes);
+                        if (fs.existsSync(dirAppPortal)) {
+                            try { await wbPrellenado.xlsx.writeFile(path.join(dirAppPortal, fileBaseName)); } catch(e) {}
+                        }
 
-                        console.log(c.gris(`     -> Guardado (${ninosChunk.length} ninos): docs/peso y talla/${fileBaseName}`));
+                        console.log(c.gris(`     -> Guardado (${ninosChunk.length} ninos): formato pre llenado/${asocClean}/${fileBaseName}`));
                     }
                 }
 
-                console.log(c.verde('\n  🎉 Formatos de Peso y Talla generados exitosamente!'));
+                console.log(c.verde(`\n  🎉 Formatos de Peso y Talla generados exitosamente en: "formato pre llenado/${asocClean}"`));
+                try {
+                    require('child_process').exec(`explorer.exe "${dirDocs}"`);
+                } catch (e) {}
             }
 
         } catch (err) {

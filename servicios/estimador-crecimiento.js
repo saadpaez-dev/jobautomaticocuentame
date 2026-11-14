@@ -18,6 +18,7 @@
 
 const xlsx = require('xlsx');
 const fs = require('fs');
+const { leerLibroExcelSeguro } = require('./reparar-excel');
 
 function normalizar(txt) {
     return String(txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
@@ -92,7 +93,7 @@ function extraerTomas(row) {
  */
 function leerTomasPorNino(rutaEntrada) {
     if (!fs.existsSync(rutaEntrada)) throw new Error(`El archivo no existe: ${rutaEntrada}`);
-    const wb = xlsx.readFile(rutaEntrada, { cellDates: true });
+    const wb = leerLibroExcelSeguro(rutaEntrada, { cellDates: true });
 
     const ninos = [];
     for (const nombreHoja of wb.SheetNames) {

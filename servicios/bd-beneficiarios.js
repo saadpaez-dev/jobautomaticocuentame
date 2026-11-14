@@ -57,7 +57,7 @@ function consolidarBaseDatos() {
     if (fs.existsSync(legacyExcel)) fs.unlinkSync(legacyExcel);
     if (fs.existsSync(legacyJson)) fs.unlinkSync(legacyJson);
 
-    // Buscar archivos tanto en RUTA_REPORTES como en docs/reportes/activos
+    // Buscar archivos en RUTA_REPORTES, reportes/activos/ y docs/reportes/activos
     let archivosEncontrados = [];
     if (fs.existsSync(RUTA_REPORTES)) {
         const directos = fs.readdirSync(RUTA_REPORTES).filter(f => 
@@ -66,17 +66,22 @@ function consolidarBaseDatos() {
         directos.forEach(f => archivosEncontrados.push({ archivo: f, path: path.join(RUTA_REPORTES, f) }));
     }
 
-    // Buscar también en docs/reportes/activos/<ASOCIACION> si existen allí
-    const docsActivos = path.join(__dirname, '..', 'docs', 'reportes', 'activos');
-    if (fs.existsSync(docsActivos)) {
-        const subdirs = fs.readdirSync(docsActivos);
-        for (const sub of subdirs) {
-            const subPath = path.join(docsActivos, sub);
-            if (fs.statSync(subPath).isDirectory()) {
-                const subFiles = fs.readdirSync(subPath).filter(f => f.startsWith('Beneficiarios_') && f.endsWith('.xlsx'));
-                for (const sf of subFiles) {
-                    if (!archivosEncontrados.some(a => a.archivo === sf)) {
-                        archivosEncontrados.push({ archivo: sf, path: path.join(subPath, sf) });
+    const carpetasActivos = [
+        path.join(RUTA_REPORTES, 'activos'),
+        path.join(__dirname, '..', 'docs', 'reportes', 'activos')
+    ];
+
+    for (const baseActivos of carpetasActivos) {
+        if (fs.existsSync(baseActivos)) {
+            const subdirs = fs.readdirSync(baseActivos);
+            for (const sub of subdirs) {
+                const subPath = path.join(baseActivos, sub);
+                if (fs.statSync(subPath).isDirectory()) {
+                    const subFiles = fs.readdirSync(subPath).filter(f => f.startsWith('Beneficiarios_') && f.endsWith('.xlsx'));
+                    for (const sf of subFiles) {
+                        if (!archivosEncontrados.some(a => a.archivo === sf)) {
+                            archivosEncontrados.push({ archivo: sf, path: path.join(subPath, sf) });
+                        }
                     }
                 }
             }

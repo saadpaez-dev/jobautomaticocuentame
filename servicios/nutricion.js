@@ -470,12 +470,59 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         // 3. Situaciones adicionales
         await safeFillSelect('desnutricion aguda moderada o severa', 'NO TIENE DESNUTRICI');
 
+        // Determinar fecha de nacimiento y edad en meses para reglas de validacion ICBF/Cuentame
+        let fechaNac = datos.fechaNacimiento || '';
+        if (!fechaNac) {
+            const fTemp = await getFrame();
+            fechaNac = await fTemp.evaluate(() => {
+                const el = document.querySelector('span[id*="lblFechaNacimiento"], span[id*="lblNacimiento"], span[id*="lblFecNac"]');
+                if (el && /\d{2}\/\d{2}\/\d{4}/.test(el.innerText)) {
+                    const m = el.innerText.match(/\d{2}\/\d{2}\/\d{4}/);
+                    if (m) return m[0];
+                }
+                const elements = Array.from(document.querySelectorAll('td, span, label, b, strong'));
+                for (const elem of elements) {
+                    const txt = elem.innerText || '';
+                    if (txt.toLowerCase().includes('nacimiento') || txt.toLowerCase().includes('fecha nac')) {
+                        const mSelf = txt.match(/\d{2}\/\d{2}\/\d{4}/);
+                        if (mSelf) return mSelf[0];
+                        const next = elem.nextElementSibling;
+                        if (next && next.innerText) {
+                            const mNext = next.innerText.match(/\d{2}\/\d{2}\/\d{4}/);
+                            if (mNext) return mNext[0];
+                        }
+                    }
+                }
+                return '';
+            }).catch(() => '');
+        }
+
+        let edadMeses = null;
+        if (fechaNac && datos.fecha) {
+            const parseF = (str) => {
+                const parts = str.split(/[\/-]/).map(Number);
+                if (parts[0] > 1000) return new Date(parts[0], parts[1] - 1, parts[2]);
+                return new Date(parts[2], parts[1] - 1, parts[0]);
+            };
+            const fNac = parseF(fechaNac);
+            const fToma = parseF(datos.fecha);
+            if (!isNaN(fNac.getTime()) && !isNaN(fToma.getTime())) {
+                edadMeses = (fToma.getFullYear() - fNac.getFullYear()) * 12 + (fToma.getMonth() - fNac.getMonth());
+                if (fToma.getDate() < fNac.getDate()) edadMeses--;
+            }
+        }
+        if (edadMeses !== null) {
+            console.log(c.cyan(`    ℹ️ Edad calculada al momento de la toma: ${edadMeses} meses (${(edadMeses / 12).toFixed(1)} años) [Nac: ${fechaNac || 'N/D'}]`));
+        }
+
         if (!hasHistory) {
             // 4. Lactancia
-            await safeFillSelect('Recibe leche materna?', 'Si');
+            const esMayor2Anos = (edadMeses !== null && edadMeses >= 24);
+            const recibeLeche = esMayor2Anos ? 'No' : 'Si';
+            await safeFillSelect('Recibe leche materna?', recibeLeche);
             
-            const valExclusiva = Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
-            const valTotal = Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
+            const valExclusiva = esMayor2Anos ? '6' : Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
+            const valTotal = esMayor2Anos ? '12' : Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
             
             // Campos originales de lactancia
             await safeFillText('exclusiva (meses)', valExclusiva);
@@ -506,15 +553,20 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
 
             // A2. Lactancia (Mayor / Menor 6 meses) - Nombres con errores tipograficos del ICBF
             try {
+                const esMenor6Meses = (edadMeses !== null && edadMeses < 6);
+                const esMayor2Anos = (edadMeses !== null && edadMeses >= 24);
+
                 const ddlMayor = f.locator('select[id*="ddlRecibeLechaMeternaMayorSeisMesesPI"]').first();
                 if (await ddlMayor.count() > 0 && await ddlMayor.isVisible() && !await ddlMayor.isDisabled()) {
-                    await ddlMayor.selectOption({ label: 'Si' }, { timeout: 1500 }).catch(()=>{});
-                    console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): recibe leche materna (Mayor 6 meses)'));
+                    const optMayor = esMayor2Anos ? 'No' : (esMenor6Meses ? 'No' : 'Si');
+                    await ddlMayor.selectOption({ label: optMayor }, { timeout: 1500 }).catch(()=>{});
+                    console.log(c.verde(`    ✅ [Lista] Lleno (modo seguro): recibe leche materna (Mayor 6 meses) = ${optMayor}`));
                 }
                 const ddlMenor = f.locator('select[id*="ddlRecibeLecheMaternaMenorSeisMesesPI"], select[id*="ddlRecibeLechaMaternaMenor"]').first();
                 if (await ddlMenor.count() > 0 && await ddlMenor.isVisible() && !await ddlMenor.isDisabled()) {
-                    await ddlMenor.selectOption({ label: 'Si' }, { timeout: 1500 }).catch(()=>{});
-                    console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): recibe leche materna (Menor 6 meses)'));
+                    const optMenor = esMenor6Meses ? 'Si' : 'No';
+                    await ddlMenor.selectOption({ label: optMenor }, { timeout: 1500 }).catch(()=>{});
+                    console.log(c.verde(`    ✅ [Lista] Lleno (modo seguro): recibe leche materna (Menor 6 meses) = ${optMenor}`));
                 }
             } catch(e) {}
             await page.waitForTimeout(200);
@@ -537,13 +589,32 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         try {
             const numPb = parseFloat(String(datos.perimetro || '').replace(',', '.'));
             const pbEsValido = !isNaN(numPb) && numPb >= 5.0 && numPb <= 30.0;
+            // Normativa ICBF: Perimetro Braquial solo aplica entre 6 y 59 meses de edad (menores de 5 anos)
+            const aplicaPerimetro = (edadMeses === null || (edadMeses >= 6 && edadMeses < 60));
 
             let fechaUso = datos.fecha;
 
-            // Detectar Fecha de Inicio de Atencion en el formulario de Cuentame
+            // Detectar Fecha de Inicio de Atencion en el formulario de Cuentame usando DOM estandar
             const fechaInicioAtencion = await f.evaluate(() => {
-                const el = document.querySelector('span[id*="lblFechaAtencion"], span[id*="lblFechaIngreso"], span[id*="lblFechaInicio"], td:has-text("inicio de atencion") + td, td:has-text("Inicio de Atención") + td, label:has-text("Inicio de Atención") + span');
-                return el ? el.innerText.trim() : '';
+                const idEl = document.querySelector('span[id*="lblFechaAtencion"], span[id*="lblFechaIngreso"], span[id*="lblFechaInicio"], span[id*="lblRelacion"]');
+                if (idEl && idEl.innerText && /\d{2}\/\d{2}\/\d{4}/.test(idEl.innerText)) {
+                    const m = idEl.innerText.match(/\d{2}\/\d{2}\/\d{4}/);
+                    if (m) return m[0];
+                }
+                const elements = Array.from(document.querySelectorAll('td, span, label, b, strong'));
+                for (const el of elements) {
+                    const txt = el.innerText || '';
+                    if (txt.toLowerCase().includes('inicio de atenci') || txt.toLowerCase().includes('inicio atenci') || txt.toLowerCase().includes('relaci')) {
+                        const mSelf = txt.match(/\d{2}\/\d{2}\/\d{4}/);
+                        if (mSelf) return mSelf[0];
+                        const next = el.nextElementSibling;
+                        if (next && next.innerText) {
+                            const mNext = next.innerText.match(/\d{2}\/\d{2}\/\d{4}/);
+                            if (mNext) return mNext[0];
+                        }
+                    }
+                }
+                return '';
             }).catch(() => '');
 
             if (fechaInicioAtencion && /^\d{2}\/\d{2}\/\d{4}$/.test(fechaInicioAtencion) && datos.fecha && /^\d{2}\/\d{2}\/\d{4}$/.test(datos.fecha)) {
@@ -560,14 +631,21 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             }
 
             if (fechaUso && !fechaUso.includes('1900')) {
-                await f.evaluate((fDate) => {
+                await f.evaluate(({ fDate, history, syncPbDate }) => {
                     const dateInputSelectors = [
                         '#cphCont_cuwFechaValoracionNuricional_txtFecha',
-                        'input[id*="cuwFechaValoracionNuricional_txtFecha"]',
-                        'input[id*="cuwFechaVerificaVacunas_txtFecha"]',
-                        '#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha',
-                        'input[id*="cuwFechaMedicionPerimetroBraquial_txtFecha"]'
+                        'input[id*="cuwFechaValoracionNuricional_txtFecha"]'
                     ];
+                    if (syncPbDate) {
+                        dateInputSelectors.push(
+                            '#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha',
+                            'input[id*="cuwFechaMedicionPerimetroBraquial_txtFecha"]'
+                        );
+                    }
+                    // NUNCA tocar la fecha de verificacion de vacunas si el nino ya tiene historial
+                    if (!history) {
+                        dateInputSelectors.push('input[id*="cuwFechaVerificaVacunas_txtFecha"]');
+                    }
                     dateInputSelectors.forEach(sel => {
                         const inp = document.querySelector(sel);
                         if (inp) {
@@ -580,38 +658,40 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                             }
                         }
                     });
-                }, fechaUso).catch(() => {});
+
+                    // Verificacion de seguridad: si algun radio de vacunacion esta deseleccionado en un formulario donde se requiere
+                    ['rbTieneCarnetVacunacion', 'rbTieneDosisEdad', 'rbTieneCarnetCrecimiento'].forEach(namePart => {
+                        const radios = Array.from(document.querySelectorAll(`input[type="radio"][id*="${namePart}"]`));
+                        if (radios.length > 0 && !radios.some(r => r.checked)) {
+                            const radioSi = radios.find(r => r.value === '1' || r.id.endsWith('_0')) || radios[0];
+                            if (radioSi && !radioSi.disabled) {
+                                radioSi.checked = true;
+                                radioSi.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                    });
+                }, { fDate: fechaUso, history: hasHistory, syncPbDate: aplicaPerimetro }).catch(() => {});
                 console.log(c.verde(`    ✅ [Texto] Sincronizadas Fechas con Fecha de la Toma Nutricional (${fechaUso})`));
                 await page.waitForTimeout(400); // Esperar a que terminen los AJAX postbacks de las fechas
             }
 
-            if (datos.perimetro && !pbEsValido) {
+            if (!aplicaPerimetro) {
+                console.log(c.gris(`    ℹ️ Perimetro Braquial NO aplica por normativa ICBF (Edad: ${edadMeses !== null ? edadMeses + ' meses' : 'fuera de rango 6-59 meses'}). Se deja vacio.`));
+                await f.evaluate(() => {
+                    const el = document.querySelector('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]');
+                    if (el) el.value = '';
+                    const dt = document.querySelector('#cphCont_cuwFechaMedicionPerimetroBraquial_txtFecha, input[id*="cuwFechaMedicionPerimetroBraquial_txtFecha"]');
+                    if (dt) dt.value = '';
+                }).catch(() => {});
+            } else if (datos.perimetro && !pbEsValido) {
                 console.log(c.amarillo(`    ⚠️ Perimetro Braquial en Excel ("${datos.perimetro}") esta fuera de rango valido (5-30 cm) → Se omite.`));
             } else if (datos.perimetro && pbEsValido) {
                 const pbStr = numPb.toString();
-
-                await f.evaluate((val) => {
-                    const el = document.querySelector('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]');
-                    if (el) {
-                        el.disabled = false;
-                        el.value = val;
-                        el.dispatchEvent(new Event('input', { bubbles: true }));
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                        el.dispatchEvent(new Event('blur', { bubbles: true }));
-                    }
-                }, pbStr).catch(() => {});
-
                 const inpPb = f.locator('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]').first();
-                if (await inpPb.count() > 0) {
-                    await inpPb.fill(pbStr, { force: true }).catch(() => {});
+                if (await inpPb.count() > 0 && !await inpPb.isDisabled()) {
+                    await inpPb.fill(pbStr).catch(() => {});
+                    console.log(c.verde(`    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial = ${pbStr} cm`));
                 }
-
-                const finalVal = await f.evaluate(() => {
-                    const el = document.querySelector('#cphCont_txtMedicionPerimetroBraquial, input[id*="txtMedicionPerimetroBraquial"]');
-                    return el ? el.value : '';
-                }).catch(() => '');
-
-                console.log(c.verde(`    ✅ [Texto] Lleno (modo seguro): Perimetro Braquial = ${finalVal || pbStr} cm`));
             }
         } catch(e) { 
             console.log(c.rojo('    ❌ [Texto] Error perimetro: ' + e.message.substring(0, 50))); 

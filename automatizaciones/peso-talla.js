@@ -31,17 +31,62 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
     const rootReportesDir = path.join(__dirname, '..', 'reportes');
     const docsReportesDir = path.join(__dirname, '..', 'Docs', 'reportes');
 
-    if (!fs.existsSync(rootReportesDir)) fs.mkdirSync(rootReportesDir, { recursive: true });
-    if (!fs.existsSync(docsReportesDir)) fs.mkdirSync(docsReportesDir, { recursive: true });
+    // Determinar el nombre del mes de la toma
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    let nombreMes = '';
+    for (const item of ninosProcesados) {
+        if (item.fecha && String(item.fecha).includes('/')) {
+            const parts = String(item.fecha).trim().split('/');
+            if (parts.length === 3) {
+                const mIdx = parseInt(parts[1], 10) - 1;
+                if (mIdx >= 0 && mIdx < 12) {
+                    nombreMes = meses[mIdx];
+                    break;
+                }
+            }
+        }
+    }
+    if (!nombreMes) {
+        nombreMes = meses[new Date().getMonth()];
+    }
 
-    const now = new Date();
-    const fechaHoy = now.toISOString().slice(0, 10);
-    const horaHoy = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+    const carpetaGeneralToma = `toma ${nombreMes}`;
+    const safeAsoc = (asociacionNombre || 'General')
+        .replace(/[^a-zA-Z0-9 _-]/g, '_')
+        .replace(/\s+/g, '_')
+        .toUpperCase()
+        .trim() || 'GENERAL';
+
+    const rootTargetDir = path.join(rootReportesDir, carpetaGeneralToma, safeAsoc);
+    const docsTargetDir = path.join(docsReportesDir, carpetaGeneralToma, safeAsoc);
+    const appPortalDir = path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'reportes', carpetaGeneralToma, safeAsoc);
+
+    if (!fs.existsSync(rootTargetDir)) fs.mkdirSync(rootTargetDir, { recursive: true });
+    if (!fs.existsSync(docsTargetDir)) fs.mkdirSync(docsTargetDir, { recursive: true });
+    if (!fs.existsSync(appPortalDir)) {
+        try { fs.mkdirSync(appPortalDir, { recursive: true }); } catch(e) {}
+    }
+
     const safeUds = (udsNombre || 'UDS').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 25);
-    const fileName = `Reporte_PesoTalla_${safeUds}_${fechaHoy}_${horaHoy}.xlsx`;
+    const fileName = `Reporte_PesoTalla_${safeUds}.xlsx`;
 
-    const rootFilePath = path.join(rootReportesDir, fileName);
-    const docsFilePath = path.join(docsReportesDir, fileName);
+    // Reemplazar versiones anteriores de este jardin para no acumular historicos
+    [rootTargetDir, docsTargetDir, appPortalDir].forEach(dir => {
+        if (fs.existsSync(dir)) {
+            try {
+                const viejos = fs.readdirSync(dir).filter(f => 
+                    f.startsWith(`Reporte_PesoTalla_${safeUds}`) && f.endsWith('.xlsx')
+                );
+                viejos.forEach(v => {
+                    try { fs.unlinkSync(path.join(dir, v)); } catch(e) {}
+                });
+            } catch(e) {}
+        }
+    });
+
+    const rootFilePath = path.join(rootTargetDir, fileName);
+    const docsFilePath = path.join(docsTargetDir, fileName);
+    const appPortalFilePath = path.join(appPortalDir, fileName);
 
     const rows = ninosProcesados.map((item, index) => ({
         '#': index + 1,
@@ -73,10 +118,13 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
     xlsx.utils.book_append_sheet(wb, ws, 'Resultados Procesamiento');
     xlsx.writeFile(wb, rootFilePath);
     xlsx.writeFile(wb, docsFilePath);
+    if (fs.existsSync(path.dirname(appPortalFilePath))) {
+        try { xlsx.writeFile(wb, appPortalFilePath); } catch(e) {}
+    }
 
     // Abrir automaticamente el Explorador de Windows destacando el archivo del reporte
     try {
-        require('child_process').exec(`explorer.exe /select,"${rootFilePath}"`);
+        require('child_process').exec(`explorer.exe /select,"${docsFilePath}"`);
     } catch (e) {}
 
     let exitosos = 0;
@@ -84,8 +132,9 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
     let noEncontrados = 0;
 
     ninosProcesados.forEach(item => {
-        if (item.estado.includes('EXITOSO') || item.estado.includes('GUARDADO')) exitosos++;
-        else if (item.estado.includes('DUPLICADO')) duplicados++;
+        const est = (item.estado || '').toUpperCase();
+        if (est.includes('EXITOS') || (est.includes('GUARDADO') && !est.includes('ERROR'))) exitosos++;
+        else if (est.includes('DUPLICADO') || est.includes('OMITIDO')) duplicados++;
         else noEncontrados++;
     });
 
@@ -96,9 +145,9 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
         console.log(c.rojo(`No encontrados / Con error: ${noEncontrados}`));
     }
     console.log(c.cyan(`\nReporte Excel generado exitosamente en:`));
-    console.log(c.negrita(`"${rootFilePath}"\n`));
+    console.log(c.negrita(`"${docsFilePath}"\n`));
 
-    return rootFilePath;
+    return docsFilePath;
 }
 
 function removeAccents(str) {
@@ -306,20 +355,16 @@ function buscarCoincidenciaSegura(ninoTarget, listaNinos) {
 
     const tokensApellidos = apellidosTarget.split(/\s+/).filter(t => t.length > 1);
 
-    // 2. PASO 2: CONFIRMAR DESPUES POR APELLIDOS (Match by Last Names)
+    const tokensNombres = nombresTarget.split(/\s+/).filter(t => t.length > 1);
+
+    // 2. PASO 2: COINCIDENCIA POR APELLIDOS COMPLETOS + NOMBRE
     if (tokensApellidos.length > 0) {
         const candidatosPorApellido = listaNinos.filter(n => {
             const nombreCuentame = removeAccents(n.nombreCompleto).toUpperCase();
             return tokensApellidos.every(ape => nombreCuentame.includes(ape));
         });
 
-        if (candidatosPorApellido.length === 1) {
-            return { nino: candidatosPorApellido[0], metodo: 'APELLIDOS' };
-        }
-
-        // 3. PASO 3: SI HAY VARIOS CON EL MISMO APELLIDO, DESAMBIGUAR FINALMENTE POR NOMBRE
-        if (candidatosPorApellido.length > 1) {
-            const tokensNombres = nombresTarget.split(/\s+/).filter(t => t.length > 1);
+        if (candidatosPorApellido.length > 0) {
             if (tokensNombres.length > 0) {
                 const candidatoPorNombre = candidatosPorApellido.find(n => {
                     const nombreCuentame = removeAccents(n.nombreCompleto).toUpperCase();
@@ -328,27 +373,23 @@ function buscarCoincidenciaSegura(ninoTarget, listaNinos) {
                 if (candidatoPorNombre) {
                     return { nino: candidatoPorNombre, metodo: 'APELLIDOS_Y_NOMBRE' };
                 }
+            } else if (candidatosPorApellido.length === 1) {
+                return { nino: candidatosPorApellido[0], metodo: 'APELLIDOS' };
             }
-            return { nino: candidatosPorApellido[0], metodo: 'APELLIDOS' };
         }
     }
 
-    // Fallback: Probar coincidencia por primer apellido
-    if (tokensApellidos.length > 0) {
+    // 3. Fallback: Primer apellido + Nombre (NUNCA por primer apellido solo, para evitar cruces con otros ninos)
+    if (tokensApellidos.length > 0 && tokensNombres.length > 0) {
         const primerApellido = tokensApellidos[0];
         const candidatosPrimerApe = listaNinos.filter(n => removeAccents(n.nombreCompleto).toUpperCase().includes(primerApellido));
 
-        if (candidatosPrimerApe.length === 1) {
-            return { nino: candidatosPrimerApe[0], metodo: 'PRIMER_APELLIDO' };
-        } else if (candidatosPrimerApe.length > 1) {
-            const tokensNombres = nombresTarget.split(/\s+/).filter(t => t.length > 1);
-            const candidatoPorNombre = candidatosPrimerApe.find(n => {
-                const nombreCuentame = removeAccents(n.nombreCompleto).toUpperCase();
-                return tokensNombres.some(nom => nombreCuentame.includes(nom));
-            });
-            if (candidatoPorNombre) {
-                return { nino: candidatoPorNombre, metodo: 'PRIMER_APELLIDO_Y_NOMBRE' };
-            }
+        const candidatoPorNombre = candidatosPrimerApe.find(n => {
+            const nombreCuentame = removeAccents(n.nombreCompleto).toUpperCase();
+            return tokensNombres.some(nom => nombreCuentame.includes(nom));
+        });
+        if (candidatoPorNombre) {
+            return { nino: candidatoPorNombre, metodo: 'PRIMER_APELLIDO_Y_NOMBRE' };
         }
     }
 
@@ -463,6 +504,54 @@ async function main() {
   console.log(c.cyan('   âš–ï¸  REGISTRO DE PESO Y TALLA (FASE 1)'));
   console.log(c.cyan('======================================================\n'));
 
+  // Soporte para ejecución desatendida / automatizada mediante payload o argumentos CLI
+  let payloadModoAuto = null;
+  for (let i = 0; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    if (arg.startsWith('--payload=')) {
+      const pPath = arg.substring(10).replace(/^"(.*)"$/, '$1');
+      if (fs.existsSync(pPath)) {
+        try { payloadModoAuto = JSON.parse(fs.readFileSync(pPath, 'utf8')); } catch (e) {}
+      }
+    } else if (arg === '--payload' && process.argv[i + 1]) {
+      const pPath = process.argv[i + 1].replace(/^"(.*)"$/, '$1');
+      if (fs.existsSync(pPath)) {
+        try { payloadModoAuto = JSON.parse(fs.readFileSync(pPath, 'utf8')); } catch (e) {}
+      }
+    }
+  }
+
+  if (!payloadModoAuto) {
+    const getArg = (name) => {
+      const prefix = '--' + name + '=';
+      const item = process.argv.find(a => a.startsWith(prefix));
+      if (item) return item.substring(prefix.length).replace(/^"(.*)"$/, '$1');
+      const idx = process.argv.indexOf('--' + name);
+      if (idx !== -1 && process.argv[idx + 1]) return process.argv[idx + 1].replace(/^"(.*)"$/, '$1');
+      return null;
+    };
+    const asocArg = getArg('asociacion');
+    const jardinArg = getArg('jardin');
+    const docArg = getArg('documento');
+    const modoArg = getArg('modo');
+    if (asocArg || jardinArg || docArg || modoArg) {
+      payloadModoAuto = {
+        asociacion: asocArg,
+        nombreUds: jardinArg,
+        documento: docArg,
+        modo: modoArg || 'masivo'
+      };
+    }
+  }
+
+  if (payloadModoAuto) {
+    console.log(c.verde('\n[ROBOT] Payload de automatización detectado:'));
+    console.log(c.cyan('  Modo: ' + (payloadModoAuto.modo || 'masivo').toUpperCase()));
+    if (payloadModoAuto.asociacion) console.log(c.cyan('  Asociación: ' + payloadModoAuto.asociacion));
+    if (payloadModoAuto.nombreUds) console.log(c.cyan('  UDS / Jardín: ' + payloadModoAuto.nombreUds));
+    if (payloadModoAuto.documento) console.log(c.cyan('  Beneficiario: ' + payloadModoAuto.documento));
+  }
+
   let browser = null;
   let context = null;
   let page = null;
@@ -503,8 +592,21 @@ async function main() {
       console.log(c.rojo('  0. Volver al panel principal (AutoTrabajo / Start)'));
       
       let respBenef = '';
-      while (!['0', '1', '2', '3', '4'].includes(respBenef.trim())) {
-          respBenef = readline.question(c.negrita('\n  > Selecciona una opcion (0-4): '));
+      if (payloadModoAuto) {
+          if (payloadModoAuto.modo === 'individual') {
+              respBenef = '3';
+              if (payloadModoAuto.documento) preFiltroBeneficiario = String(payloadModoAuto.documento).trim();
+              else if (payloadModoAuto.nombre) preFiltroBeneficiario = String(payloadModoAuto.nombre).trim().toLowerCase();
+              accionRapida = '1';
+              console.log(c.verde('  [ROBOT] Modo individual activado para beneficiario: ' + (preFiltroBeneficiario || 'Manual')));
+          } else {
+              respBenef = '1';
+              console.log(c.verde('  [ROBOT] Modo masivo activado (Cargue Excel UDS).'));
+          }
+      } else {
+          while (!['0', '1', '2', '3', '4'].includes(respBenef.trim())) {
+              respBenef = readline.question(c.negrita('\n  > Selecciona una opcion (0-4): '));
+          }
       }
 
       if (respBenef.trim() === '0') {
@@ -516,11 +618,27 @@ async function main() {
           const docsDir = require('path').join(__dirname, '..', 'Docs', 'peso y talla');
           let archivosDocs = [];
           if (require('fs').existsSync(docsDir)) {
-              archivosDocs = require('fs').readdirSync(docsDir).filter(f => !f.startsWith('~') && (f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv')));
+              const scanDir = (dir) => {
+                  try {
+                      const entries = require('fs').readdirSync(dir, { withFileTypes: true });
+                      for (const entry of entries) {
+                          if (entry.name.startsWith('~')) continue;
+                          const fullPath = require('path').join(dir, entry.name);
+                          if (entry.isDirectory()) {
+                              if (entry.name.toLowerCase().includes('pre llenado') || entry.name.toLowerCase().includes('prellenado')) continue;
+                              scanDir(fullPath);
+                          } else if (entry.name.endsWith('.xlsx') || entry.name.endsWith('.xls') || entry.name.endsWith('.csv')) {
+                              const relPath = require('path').relative(docsDir, fullPath);
+                              archivosDocs.push({ nombre: relPath, ruta: fullPath });
+                          }
+                      }
+                  } catch (eScan) {}
+              };
+              scanDir(docsDir);
           }
           if (archivosDocs.length > 0) {
               console.log(c.cyan('\n  Archivos Excel encontrados en "Docs/peso y talla":'));
-              archivosDocs.forEach((a, i) => console.log(`  ${i + 1}. ${a}`));
+              archivosDocs.forEach((a, i) => console.log(`  ${i + 1}. ${a.nombre}`));
           }
 
           console.log(c.cyan('\n  📍¥ SELECCION Y MULTI-CARGA DE ARCHIVOS EXCEL:'));
@@ -533,7 +651,7 @@ async function main() {
           if (archivosDocs.length > 0) {
               if (!inputRaw || inputRaw === '0' || inputRaw.toUpperCase() === 'TODOS') {
                   console.log(c.verde(`  ✅ Seleccionados TODOS los ${archivosDocs.length} archivos de "Docs/peso y talla".`));
-                  return archivosDocs.map(a => path.join(docsDir, a));
+                  return archivosDocs.map(a => a.ruta);
               }
 
               const partesNumericas = inputRaw.split(/[,;\s]+/).map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
@@ -541,7 +659,7 @@ async function main() {
 
               if (indicesValidos.length > 0 && indicesValidos.length === partesNumericas.length) {
                   const setIndices = Array.from(new Set(indicesValidos));
-                  const seleccionados = setIndices.map(idx => path.join(docsDir, archivosDocs[idx - 1]));
+                  const seleccionados = setIndices.map(idx => archivosDocs[idx - 1].ruta);
                   console.log(c.verde(`  ✅ Seleccionados ${seleccionados.length} archivo(s) especifico(s).`));
                   return seleccionados;
               }
@@ -676,6 +794,11 @@ async function main() {
           }
       }
 
+      if (!ascSeleccionada && payloadModoAuto && payloadModoAuto.asociacion) {
+          const targetAsoc = removeAccents(payloadModoAuto.asociacion);
+          ascSeleccionada = asociaciones.find(a => removeAccents(a.nombreCorto).includes(targetAsoc) || targetAsoc.includes(removeAccents(a.nombreCorto))) || null;
+      }
+
       if (!ascSeleccionada) {
           console.log(c.cyan('\n------------------------------------------------------'));
           console.log(c.cyan('  📍‹ SELECCION DE ASOCIACION'));
@@ -712,17 +835,28 @@ async function main() {
           jardines.forEach((jardin, i) => console.log(`  ${i + 1}. ${jardin.codigo} - ${jardin.nombre}`));
           console.log(`  0. Volver al menu principal`);
 
-          let idxJardin = -1;
-          while (idxJardin < 0 || idxJardin > jardines.length) {
-              const res = readline.question(c.negrita('\n  > Selecciona el Jardin (0 para volver): '));
-              idxJardin = parseInt(res, 10);
-              if (isNaN(idxJardin)) idxJardin = -1;
+          if (payloadModoAuto && (payloadModoAuto.nombreUds || payloadModoAuto.codigoUds)) {
+              const targetJ = removeAccents(payloadModoAuto.nombreUds || '');
+              const codJ = String(payloadModoAuto.codigoUds || '');
+              jardinSeleccionado = jardines.find(j => (codJ && String(j.codigo) === codJ) || removeAccents(j.nombre).includes(targetJ) || targetJ.includes(removeAccents(j.nombre))) || null;
+              if (jardinSeleccionado) {
+                  console.log(c.verde('  [ROBOT] Jardín (UDS) detectado automáticamente: ' + jardinSeleccionado.nombre));
+              }
           }
 
-          if (idxJardin === 0) {
-              continue;
+          if (!jardinSeleccionado) {
+              let idxJardin = -1;
+              while (idxJardin < 0 || idxJardin > jardines.length) {
+                  const res = readline.question(c.negrita('\n  > Selecciona el Jardin (0 para volver): '));
+                  idxJardin = parseInt(res, 10);
+                  if (isNaN(idxJardin)) idxJardin = -1;
+              }
+
+              if (idxJardin === 0) {
+                  continue;
+              }
+              jardinSeleccionado = jardines[idxJardin - 1];
           }
-          jardinSeleccionado = jardines[idxJardin - 1];
       } else {
           console.log(c.verde(`  ✅ Jardin (UDS) seleccionado: ${jardinSeleccionado.nombre}`));
       }
@@ -900,7 +1034,7 @@ async function main() {
               }
           }
       }
-      const content = currentContentFrame || page;
+      let content = currentContentFrame || page;
 
       idxNinoExcelActual = 0;
       let consecutivosDuplicados = 0;
@@ -913,6 +1047,17 @@ async function main() {
           
           console.log(c.amarillo('  â³ Extrayendo lista de ninos de la tabla...'));
           
+          let freshFrame = page.frame({ name: 'frameContent' });
+          if (!freshFrame) {
+              for (const f of page.frames()) {
+                  if (f.name() === 'frameContent') {
+                      freshFrame = f;
+                      break;
+                  }
+              }
+          }
+          if (freshFrame) content = freshFrame;
+
           // Extraer las filas de la tabla de ninos
           // Normalmente es una tabla con clase o id especifico. Buscamos filas que tengan el boton azul
           const filas = content.locator('tr:has(input[src*="info.jpg"], input[id*="btnInfo"])');
@@ -938,6 +1083,9 @@ async function main() {
               const textoCeldas = await celdas.allInnerTexts();
               const datos = textoCeldas.map(t => t.trim()).filter(t => t.length > 0);
               
+              let documento = "N/A";
+              let nombreCompleto = "N/A";
+              let tomas = "N/A";
               if (datos.length >= 4) {
                   documento = datos[1] || "N/A";
                   nombreCompleto = datos.slice(2, -2).join(' ');
@@ -1012,6 +1160,12 @@ async function main() {
                   console.log(c.verde('\n========================================================================================'));
                   console.log(c.verde(`  🎉 MULTI-PROCESAMIENTO COMPLETADO EXITOSAMENTE PARA LOS ${numTotalArchivos} ARCHIVO(S) EXCEL!`));
                   console.log(c.verde('========================================================================================'));
+
+                  if (payloadModoAuto && payloadModoAuto.modo === 'individual') {
+                      console.log(c.verde('\n  ✅ [ROBOT] ¡Registro individual de Peso y Talla completado con éxito en Cuéntame!'));
+                      salirModulo = true;
+                      break;
+                  }
 
                   console.log(c.cyan('\n  ╔═════════════════════════════════════════════════════════════════════════════════════╗'));
                   console.log(c.cyan('  ║                Que deseas hacer a continuacion?                   ║'));
@@ -1506,9 +1660,22 @@ async function main() {
                           fecha: parsearFecha(String(ninoInfo.fecha)),
                           peso: String(ninoInfo.peso || '').trim().replace(',', '.'),
                           talla: String(ninoInfo.talla || '').trim().replace(',', '.'),
-                          perimetro: ninoInfo.perimetro ? String(ninoInfo.perimetro).trim().replace(',', '.') : ''
+                          perimetro: ninoInfo.perimetro ? String(ninoInfo.perimetro).trim().replace(',', '.') : '',
+                          fechaNacimiento: ninoInfo.fechaNacimiento || (ninoSeleccionado ? ninoSeleccionado.fechaNacimiento : null)
                       };
-                      console.log(c.amarillo(`  📍¥ Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro}`));
+                      console.log(c.amarillo(`  📍¥ Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro || '(no aplica)'}${datosLlenado.fechaNacimiento ? `, Nac=${datosLlenado.fechaNacimiento}` : ''}`));
+                      await page.waitForTimeout(800);
+                  } else if (payloadModoAuto && (payloadModoAuto.peso || payloadModoAuto.talla)) {
+                      datosLlenado = {
+                          documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : (payloadModoAuto.documento || ''),
+                          fecha: parsearFecha(payloadModoAuto.fechaToma || 'hoy'),
+                          peso: String(payloadModoAuto.peso || '').trim().replace(',', '.'),
+                          talla: String(payloadModoAuto.talla || '').trim().replace(',', '.'),
+                          perimetro: payloadModoAuto.perimetroBraquial ? String(payloadModoAuto.perimetroBraquial).trim().replace(',', '.') : '',
+                          fechaNacimiento: payloadModoAuto.fechaNacimiento || (ninoSeleccionado ? ninoSeleccionado.fechaNacimiento : null)
+                      };
+                      console.log(c.verde(`  [ROBOT] Usando datos directos recibidos desde el Portal Cuéntame:`));
+                      console.log(c.cyan(`     • Fecha: ${datosLlenado.fecha} | Peso: ${datosLlenado.peso} kg | Talla: ${datosLlenado.talla} cm | PB: ${datosLlenado.perimetro || 'N/A'}`));
                       await page.waitForTimeout(800);
                   } else {
                       let regimenInput = null;
@@ -1561,9 +1728,24 @@ async function main() {
                   // â”€â”€ GUARDADO AUTOMATICO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                   console.log(c.amarillo('  â³ Guardando automaticamente en Cuentame (clic en disco de guardar)...'));
                   
+                  // Limpiar mensajes o banners residuales del guardado anterior en el DOM
+                  try {
+                      let preFrame = page.frame({ name: 'frameContent' }) || page;
+                      await preFrame.evaluate(() => {
+                          const msgs = document.querySelectorAll('#cphCont_lblMensaje, [id*="lblMensaje"], .alert, .alert-success');
+                          msgs.forEach(m => { m.innerText = ''; m.innerHTML = ''; });
+                      }).catch(() => {});
+                  } catch(e) {}
+
                   // Escuchar dialogos/alertas nativos del navegador por si Cuentame lanza un alert() nativo
+                  let dialogError = null;
                   const dialogHandler = async dialog => {
-                      console.log(c.amarillo(`  âš ï¸  Dialogo nativo de la pagina: "${dialog.message().slice(0, 80)}" â†’ Aceptando...`));
+                      const dMsg = dialog.message();
+                      console.log(c.amarillo(`  ⚠️ Dialogo nativo de la pagina: "${dMsg.slice(0, 100)}" → Aceptando...`));
+                      const dLow = dMsg.toLowerCase();
+                      if (!dLow.includes('guardad') && !dLow.includes('exitos') && !dLow.includes('correcto') && !dLow.includes('ha sido guardada')) {
+                          dialogError = dMsg;
+                      }
                       await dialog.accept().catch(() => {});
                   };
                   page.on('dialog', dialogHandler);
@@ -1611,31 +1793,56 @@ async function main() {
                           }
                       }
 
-                      // 2. Verificar si aparecio la confirmacion de guardado
+                      // 2. Verificar duplicidad de toma reportada por Cuentame
                       currentFrame = page.frame({ name: 'frameContent' }) || page;
                       const txtBody = await currentFrame.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
-                      const txtMain = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
-                      
-                      if (txtBody.includes('La Informacion ha sido guardada') || txtMain.includes('La Informacion ha sido guardada') || txtBody.includes('ha sido guardada')) {
-                          guardadoConfirmado = true;
-                          break;
-                      }
 
-                      if (txtBody.includes('ya tiene una toma para la fecha') || txtMain.includes('ya tiene una toma para la fecha') || txtBody.includes('ya tiene una toma') || txtMain.includes('ya tiene una toma')) {
+                      if (txtBody.includes('ya tiene una toma para la fecha') || txtBody.includes('ya tiene una toma')) {
                           errorTomaExistente = true;
                           break;
                       }
 
-                      // 3. Verificar si aparecieron errores en pantalla (color rojo) para no esperar 15s innecesariamente
+                      // 3. Verificar si aparecieron errores de validacion en pantalla (color rojo / Campo Requerido / validadores ASP.NET)
                       const tieneErrorRed = await currentFrame.evaluate(() => {
-                          const elms = Array.from(document.querySelectorAll('span, div, td')).filter(el => {
+                          const elms = Array.from(document.querySelectorAll('span, div, td, label')).filter(el => {
+                              if (!el || !el.offsetParent) return false;
                               const style = window.getComputedStyle(el);
-                              return (style.color === 'rgb(255, 0, 0)' || el.className.includes('error')) && el.innerText.trim().length > 3;
+                              const isRed = (style.color === 'rgb(255, 0, 0)' || style.color === 'red');
+                              const text = el.innerText ? el.innerText.trim() : '';
+                              const hasErrKeyword = text.toLowerCase().includes('campo requerido') || text.toLowerCase().includes('debe ser') || text.toLowerCase().includes('formato correcto');
+                              return (isRed || el.className.includes('error') || el.className.includes('validator')) && (hasErrKeyword || text.length > 3) && !text.includes('ha sido guardada');
                           });
                           return elms.length > 0;
                       }).catch(() => false);
 
                       if (tieneErrorRed) {
+                          // Detener la espera si hay errores de validacion visibles en el formulario
+                          break;
+                      }
+
+                      // 0. Si se detecto una alerta nativa de error de Cuentame
+                      if (dialogError) {
+                          console.log(c.rojo(`  ❌ Alerta emergente de error en Cuentame: "${dialogError}"`));
+                          break;
+                      }
+
+                      // 4. Verificar confirmacion real: Banner nuevo del servidor o toma en grilla
+                      const bannerExito = await currentFrame.evaluate(() => {
+                          const el = document.querySelector('#cphCont_lblMensaje, [id*="lblMensaje"], .alert-success');
+                          if (!el) return false;
+                          const txt = el.innerText ? el.innerText.trim() : '';
+                          return txt.includes('ha sido guardada') || (txt.includes('guardada') && !txt.includes('No se pudo'));
+                      }).catch(() => false);
+
+                      const fechaGuardadaEnTabla = await currentFrame.evaluate((fBuscada) => {
+                          const tablas = Array.from(document.querySelectorAll('table'));
+                          const tablaNutricion = tablas.find(t => (t.id && (t.id.includes('gvNutricion') || t.id.includes('grdNutricion'))) || (t.innerText && t.innerText.includes('Fecha Toma')));
+                          if (!tablaNutricion) return false;
+                          return fBuscada ? tablaNutricion.innerText.includes(fBuscada) : false;
+                      }, datosLlenado.fecha).catch(() => false);
+
+                      if (!dialogError && !tieneErrorRed && (bannerExito || fechaGuardadaEnTabla)) {
+                          guardadoConfirmado = true;
                           break;
                       }
 
@@ -1697,13 +1904,17 @@ async function main() {
                       }
                   } else {
                       let currentFrameErr = page.frame({ name: 'frameContent' }) || page;
-                      const txtError = await currentFrameErr.evaluate(() => {
+                      let txtError = await currentFrameErr.evaluate(() => {
                           const errorElms = Array.from(document.querySelectorAll('span, div, td')).filter(el => {
                               const style = window.getComputedStyle(el);
                               return (style.color === 'rgb(255, 0, 0)' || el.className.includes('error') || el.className.includes('validator')) && el.innerText.trim().length > 3;
                           });
                           return errorElms.map(e => e.innerText.trim()).join(' | ');
                       }).catch(() => '');
+
+                      if (!txtError && dialogError) {
+                          txtError = dialogError;
+                      }
 
                       let autoHealed = false;
                       const ninoTarget = (modoExcel && modoExcel.startsWith('MASIVO_')) ? (ninosExcel[idxNinoExcelActual] || ninoSeleccionado) : ninoSeleccionado;
@@ -1743,7 +1954,18 @@ async function main() {
                               const txtBodyRetry = await currentFrameRetry.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
                               const txtMainRetry = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
 
-                              if (txtBodyRetry.includes('La Informacion ha sido guardada') || txtMainRetry.includes('La Informacion ha sido guardada') || txtBodyRetry.includes('ha sido guardada')) {
+                              const hasErrRetry = await currentFrameRetry.evaluate(() => {
+                                      const elms = Array.from(document.querySelectorAll('span, div, td, label')).filter(el => {
+                                          if (!el || !el.offsetParent) return false;
+                                          const style = window.getComputedStyle(el);
+                                          const isRed = (style.color === 'rgb(255, 0, 0)' || style.color === 'red');
+                                          const text = el.innerText ? el.innerText.trim() : '';
+                                          return (isRed || el.className.includes('error')) && text.length > 3 && !text.includes('ha sido guardada');
+                                      });
+                                      return elms.length > 0;
+                                  }).catch(() => false);
+
+                              if (!hasErrRetry && (txtBodyRetry.includes('La Informacion ha sido guardada') || txtBodyRetry.includes('ha sido guardada'))) {
                                   autoHealed = true;
                                   consecutivosDuplicados = 0;
                                   console.log(c.verde('  🎉 Corregido y guardado exitosamente! Banner "La Informacion ha sido guardada." recibido.'));
@@ -1800,10 +2022,16 @@ async function main() {
                                       page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
                                       childMenu.evaluate(node => node.click())
                                   ]);
-                                  await page.waitForTimeout(800);
+                                  await page.waitForTimeout(1000);
+                                  if (jardinSeleccionado) {
+                                      await cargarUdsEnCuentame(page, jardinSeleccionado);
+                                  }
                               } else {
                                   await rootMenu.locator('a[onclick*="SeguimientoNutricional"]').first().evaluate(node => node.click());
                                   await page.waitForTimeout(4000);
+                                  if (jardinSeleccionado) {
+                                      await cargarUdsEnCuentame(page, jardinSeleccionado);
+                                  }
                               }
                           }
                       } catch(e) {

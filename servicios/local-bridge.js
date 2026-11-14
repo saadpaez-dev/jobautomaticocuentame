@@ -243,12 +243,57 @@ function lanzarDesvinculacion(payload = {}, cmdId = 'auto') {
     return { ok: true, pid: proc.pid };
 }
 
+// ─── Lanzar Registro de Peso y Talla en terminal visible ────────────────────
+function lanzarRegistroPesoTalla(payload = {}, cmdId = 'auto') {
+    const modo = payload.modo || 'masivo';
+    log('info', `⚖️ Lanzando robot de Registro de Peso y Talla (${modo.toUpperCase()}) en Cuéntame...`);
+
+    const colaDir = path.join(ROOT, 'logs', 'cola_comandos');
+    if (!fs.existsSync(colaDir)) fs.mkdirSync(colaDir, { recursive: true });
+    const payloadPath = path.join(colaDir, `peso_talla_${cmdId}.json`);
+    fs.writeFileSync(payloadPath, JSON.stringify(payload, null, 2), 'utf8');
+
+    const scriptPath = path.join(ROOT, 'automatizaciones', 'peso-talla.js');
+    let cliCmd = `node "${scriptPath}" --payload="${payloadPath}"`;
+
+    if (payload.asociacion) {
+        cliCmd += ` --asociacion="${payload.asociacion}"`;
+    }
+    if (payload.nombreUds) {
+        cliCmd += ` --jardin="${payload.nombreUds}"`;
+    }
+    if (payload.documento) {
+        cliCmd += ` --documento="${payload.documento}"`;
+    }
+    if (payload.modo) {
+        cliCmd += ` --modo="${modo}"`;
+    }
+
+    const args = ['/c', 'start', 'REGISTRO PESO Y TALLA - CUENTAME', 'cmd.exe', '/k', cliCmd];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', `No se pudo abrir terminal de Peso y Talla: ${err.message}`));
+    proc.unref();
+
+    log('ok', `Terminal de Registro de Peso y Talla abierta en pantalla (PID ${proc.pid})`);
+    return { ok: true, pid: proc.pid };
+}
+
 // ─── Despachar cualquier orden recibida de la Nube ───────────────────────────
 async function despacharComando(cmd) {
     if (!cmd || !cmd.id) return;
     const accion = cmd.accion || 'EJECUTAR_RAM';
 
-    if (accion === 'EJECUTAR_RAM') {
+    if (accion === 'REGISTRO_PESO_TALLA') {
+        log('ok', `⚖️ [LATENCIA 0] ¡Orden de REGISTRO DE PESO Y TALLA (${cmd.payload?.modo || 'masivo'}) recibida!`);
+        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Peso y Talla en PC...');
+        lanzarRegistroPesoTalla(cmd.payload || {}, cmd.id);
+        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Peso y Talla abierta en PC.');
+    } else if (accion === 'EJECUTAR_RAM') {
         log('ok', `⚡ [LATENCIA 0] ¡Orden RAM recibida! Radicado: ${cmd.radicado || 'TODOS'}`);
         await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de RAM en PC...');
         lanzarSincronizacion(cmd.radicado);
