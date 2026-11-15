@@ -8,7 +8,7 @@ const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
 
-async function generarExcelPesoYTalla({ asociacion, nombreUds, codigoUds, ninos = [], tomaNumero = 2, fechaTomaDefecto = '' }) {
+async function generarExcelPesoYTalla({ asociacion, nombreUds, codigoUds, ninos = [], tomaNumero = 4, fechaTomaDefecto = '' }) {
     const plantillaPath = path.join(__dirname, '..', 'docs', 'formato peso y talla.xlsx');
     if (!fs.existsSync(plantillaPath)) {
         throw new Error('No se encontró la plantilla oficial en docs/formato peso y talla.xlsx');
@@ -25,6 +25,11 @@ async function generarExcelPesoYTalla({ asociacion, nombreUds, codigoUds, ninos 
     }
     if (nombreUds) {
         worksheet.getRow(9).getCell(24).value = String(nombreUds).toUpperCase();
+    }
+
+    // Encabezado de la toma en fila 14 col T (20)
+    if (tomaNumero > 1) {
+        worksheet.getRow(14).getCell(20).value = `TOMA Nº _${tomaNumero}_`;
     }
 
     const templateRow = worksheet.getRow(16);
