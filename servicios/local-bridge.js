@@ -121,24 +121,26 @@ function lanzarFormacion(payload, cmdId = 'auto') {
 
 // ─── Lanzar Captura de Pantallazos Oficiales en terminal visible ──────────────
 function lanzarCapturaPantallazo(payload = {}, cmdId = 'auto') {
-    log('info', `📸 Lanzando robot de Captura de Pantallazos en Cuéntame...`);
+    log('info', `📸 Lanzando robot de Captura de Pantallazos (Beneficiarios Activos) en Cuéntame...`);
 
-    const scriptPath = path.join(ROOT, 'automatizaciones', 'capturar-pantallazo-jardin.js');
-    let cliCmd = `node "${scriptPath}"`;
+    const batPath = path.join(ROOT, 'Capturar_Pantallazos.bat');
+    const cliArgs = [];
 
     if (payload.masivo) {
-        cliCmd += ' --masivo';
+        cliArgs.push('--masivo');
     } else if (payload.asociacion) {
-        cliCmd += ` --asociacion "${payload.asociacion}"`;
+        cliArgs.push('--asociacion');
+        cliArgs.push(`"${payload.asociacion}"`);
         if (payload.jardin) {
-            cliCmd += ` --jardin "${payload.jardin}"`;
+            cliArgs.push('--jardin');
+            cliArgs.push(`"${payload.jardin}"`);
         }
     }
     if (payload.forzar !== false) {
-        cliCmd += ' --forzar';
+        cliArgs.push('--forzar');
     }
 
-    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZOS - CUENTAME', 'cmd.exe', '/c', cliCmd];
+    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZOS (BENEFICIARIOS ACTIVOS) - CUENTAME', 'cmd.exe', '/c', batPath, ...cliArgs];
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
