@@ -458,13 +458,28 @@ async function main() {
       if (payloadModoAuto.asociacion) {
         temasPorAsociacion[payloadModoAuto.asociacion] = temaElegido;
       }
+      if (payloadModoAuto.temasPorAsociacion && typeof payloadModoAuto.temasPorAsociacion === 'object') {
+        for (const [asc, t] of Object.entries(payloadModoAuto.temasPorAsociacion)) {
+          if (t) {
+            temasPorAsociacion[asc] = t;
+            temasPorAsociacion[removeAccentsStr(asc)] = t;
+          }
+        }
+      }
 
       // 3. Opciones de procesamiento
       opcionesProcesamiento = {
         procesarTodosNinos: payloadModoAuto.todosLosNinos !== false
       };
       console.log(c.verde(`  📋 Jardines a procesar por orden: ${jardinesAProcesar.length}`));
-      console.log(c.cyan(`  🎯 Tema seleccionado: ${temaElegido}`));
+      if (payloadModoAuto.temasPorAsociacion && Object.keys(payloadModoAuto.temasPorAsociacion).length > 0) {
+        console.log(c.cyan(`  🎯 Temas personalizados por Asociación:`));
+        for (const [asc, t] of Object.entries(payloadModoAuto.temasPorAsociacion)) {
+          console.log(c.gris(`     🏢 ${asc} -> `) + c.negrita(c.amarillo(t)));
+        }
+      } else {
+        console.log(c.cyan(`  🎯 Tema seleccionado: ${temaElegido}`));
+      }
       console.log(c.gris(`  📅 Fecha: ${config.hoy} | Horas: ${payloadModoAuto.horas || HORAS_FORMACION}`));
 
     } else {
@@ -584,7 +599,10 @@ async function main() {
         const jardin = jardinesAProcesar[i];
         
         // Asignar el tema especifico de la asociacion
-        opcionesProcesamiento.tema = temasPorAsociacion[jardin.asociacion] || TEMAS_FORMACION[0];
+        opcionesProcesamiento.tema = temasPorAsociacion[jardin.asociacion] || 
+                                     temasPorAsociacion[removeAccentsStr(jardin.asociacion)] || 
+                                     payloadModoAuto?.tema || 
+                                     TEMAS_FORMACION[0];
 
         const progreso = `[${String(i + 1).padStart(2, '0')}/${jardinesAProcesar.length}]`;
         process.stdout.write(`${c.gris(progreso)} ${c.negrita(jardin.nombre)} ${c.gris(`(${jardin.asociacion})`)} -> `);
