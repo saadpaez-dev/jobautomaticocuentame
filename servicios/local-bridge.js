@@ -17,6 +17,7 @@
 
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const path = require('path');
 const url = require('url');
@@ -103,7 +104,8 @@ function lanzarFormacion(payload, cmdId = 'auto') {
     const desc = payload.jardin || (Array.isArray(payload.jardines) ? `${payload.jardines.length} jardines` : payload.asociacion || 'Todas');
     log('info', `🎓 Lanzando robot de Formación a Familias (${desc})...`);
 
-    const args = ['/c', 'start', 'FORMACION A FAMILIAS - CUENTAME', 'cmd.exe', '/c', 'node', 'automatizaciones/formacion-familias.js', '--payload', payloadPath];
+    const batPath = path.join(ROOT, 'Formacion_Familias.bat');
+    const args = ['/c', 'start', 'FORMACION A FAMILIAS - CUENTAME', 'cmd.exe', '/c', batPath, `--payload`, payloadPath];
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
@@ -288,48 +290,54 @@ async function despacharComando(cmd) {
     if (!cmd || !cmd.id) return;
     const accion = cmd.accion || 'EJECUTAR_RAM';
 
-    if (accion === 'REGISTRO_PESO_TALLA') {
-        log('ok', `⚖️ [LATENCIA 0] ¡Orden de REGISTRO DE PESO Y TALLA (${cmd.payload?.modo || 'masivo'}) recibida!`);
-        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Peso y Talla en PC...');
-        lanzarRegistroPesoTalla(cmd.payload || {}, cmd.id);
-        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Peso y Talla abierta en PC.');
-    } else if (accion === 'EJECUTAR_RAM') {
-        log('ok', `⚡ [LATENCIA 0] ¡Orden RAM recibida! Radicado: ${cmd.radicado || 'TODOS'}`);
-        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de RAM en PC...');
-        lanzarSincronizacion(cmd.radicado);
-        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de ejecución de RAM abierta en PC.');
-    } else if (accion === 'EJECUTAR_FORMACION') {
-        log('ok', `🎓 [LATENCIA 0] ¡Orden de FORMACIÓN A FAMILIAS recibida!`);
-        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Formación a Familias en PC...');
-        lanzarFormacion(cmd.payload || {}, cmd.id);
-        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Formación a Familias abierta en PC.');
-    } else if (accion === 'CAPTURAR_PANTALLAZO') {
-        log('ok', `📸 [LATENCIA 0] ¡Orden de CAPTURA DE PANTALLAZO recibida!`);
-        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando captura de pantallazos en Cuéntame...');
-        lanzarCapturaPantallazo(cmd.payload || {}, cmd.id);
-        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Captura de Pantallazos abierta en PC.');
-    } else if (accion === 'ACTUALIZAR_REPORTES' || accion === 'ACTUALIZAR_BASE_DATOS') {
-        log('ok', '📊 [LATENCIA 0] ¡Orden de ACTUALIZACIÓN DE BASE DE DATOS Y REPORTES recibida!');
-        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando descarga y actualización de reportes en Cuéntame...');
-        lanzarActualizacionReportes(cmd.payload || {}, cmd.id);
-        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Reportes y BD abierta en PC.');
-    } else if (accion === 'GENERAR_CUENTAS_COBRO' || accion === 'CUENTAS_COBRO') {
-        log('ok', '🧾 [LATENCIA 0] ¡Orden de GENERACIÓN DE CUENTAS DE COBRO recibida!');
-        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Cuentas de Cobro en PC...');
-        lanzarGeneracionCuentasCobro(cmd.payload || {}, cmd.id);
-        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Cuentas de Cobro abierta en PC.');
+    try {
+        if (accion === 'REGISTRO_PESO_TALLA') {
+            log('ok', `⚖️ [LATENCIA 0] ¡Orden de REGISTRO DE PESO Y TALLA (${cmd.payload?.modo || 'masivo'}) recibida!`);
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Peso y Talla en PC...');
+            lanzarRegistroPesoTalla(cmd.payload || {}, cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Peso y Talla abierta en PC.');
+        } else if (accion === 'EJECUTAR_RAM') {
+            log('ok', `⚡ [LATENCIA 0] ¡Orden RAM recibida! Radicado: ${cmd.radicado || 'TODOS'}`);
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de RAM en PC...');
+            lanzarSincronizacion(cmd.radicado);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de ejecución de RAM abierta en PC.');
+        } else if (accion === 'EJECUTAR_FORMACION') {
+            log('ok', `🎓 [LATENCIA 0] ¡Orden de FORMACIÓN A FAMILIAS recibida!`);
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Formación a Familias en PC...');
+            lanzarFormacion(cmd.payload || {}, cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Formación a Familias abierta en PC.');
+        } else if (accion === 'CAPTURAR_PANTALLAZO') {
+            log('ok', `📸 [LATENCIA 0] ¡Orden de CAPTURA DE PANTALLAZO recibida!`);
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando captura de pantallazos en Cuéntame...');
+            lanzarCapturaPantallazo(cmd.payload || {}, cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Captura de Pantallazos abierta en PC.');
+        } else if (accion === 'ACTUALIZAR_REPORTES' || accion === 'ACTUALIZAR_BASE_DATOS') {
+            log('ok', '📊 [LATENCIA 0] ¡Orden de ACTUALIZACIÓN DE BASE DE DATOS Y REPORTES recibida!');
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando descarga y actualización de reportes en Cuéntame...');
+            lanzarActualizacionReportes(cmd.payload || {}, cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Reportes y BD abierta en PC.');
+        } else if (accion === 'GENERAR_CUENTAS_COBRO' || accion === 'CUENTAS_COBRO') {
+            log('ok', '🧾 [LATENCIA 0] ¡Orden de GENERACIÓN DE CUENTAS DE COBRO recibida!');
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Cuentas de Cobro en PC...');
+            lanzarGeneracionCuentasCobro(cmd.payload || {}, cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Cuentas de Cobro abierta en PC.');
         } else if (accion === 'EJECUTAR_DESVINCULACION' || accion === 'DESVINCULAR_BENEFICIARIO') {
-        log('ok', `❌ [LATENCIA 0] ¡Orden de DESVINCULACIÓN recibida! Niño: ${cmd.payload?.nino || ''} (${cmd.payload?.documento || ''})`);
-        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de desvinculación en PC...');
-        lanzarDesvinculacion(cmd.payload || {}, cmd.id);
-        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de desvinculación abierta en PC.');
-    } else if (accion === 'SINCRONIZAR_BASE_PANTALLAZOS') {
-        log('ok', `🔄 [LATENCIA 0] ¡Orden de SINCRONIZACIÓN DE BASE DE PANTALLAZOS recibida!`);
-        await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Sincronizando pantallazos con Render...');
-        lanzarSincronizacionBasePantallazos(cmd.id);
-        await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Sincronizador activo en PC.');
-    } else {
-        log('warn', `Acción desconocida recibida: ${accion}`);
+            log('ok', `❌ [LATENCIA 0] ¡Orden de DESVINCULACIÓN recibida! Niño: ${cmd.payload?.nino || ''} (${cmd.payload?.documento || ''})`);
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de desvinculación en PC...');
+            lanzarDesvinculacion(cmd.payload || {}, cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de desvinculación abierta en PC.');
+        } else if (accion === 'SINCRONIZAR_BASE_PANTALLAZOS') {
+            log('ok', `🔄 [LATENCIA 0] ¡Orden de SINCRONIZACIÓN DE BASE DE PANTALLAZOS recibida!`);
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Sincronizando pantallazos con Render...');
+            lanzarSincronizacionBasePantallazos(cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Sincronizador activo en PC.');
+        } else {
+            log('warn', `Acción desconocida recibida: ${accion}`);
+        }
+    } catch (err) {
+        log('err', `Error ejecutando ${accion}: ${err.message}`);
+        console.error(err);
+        await marcarComandoEnNube(cmd.id, 'ERROR', `Fallo en PC: ${err.message}`).catch(() => {});
     }
 }
 
@@ -448,7 +456,7 @@ async function consultarComandosEnNube() {
             }
         }
     } catch(e) {
-        // Ignorar fallos transitorios de red
+        log('warn', `Error de sondeo de comandos: ${e.message}`);
     } finally {
         revisandoComandos = false;
     }
@@ -517,6 +525,17 @@ const server = http.createServer((req, res) => {
             mensaje: `✅ Robot de sincronización iniciado. Revisa la nueva terminal que se abrió en tu computador.`,
             radicado: radicado || 'TODOS_LOS_PENDIENTES',
             pid: resultado.pid,
+        });
+    }
+
+    // ── GET / POST /api/ejecutar-formacion ──
+    if (ruta === '/api/ejecutar-formacion' || ruta === '/api/formacion-familias') {
+        const cmdId = 'local_' + Date.now();
+        const resultado = lanzarFormacion(query, cmdId);
+        return responderJSON(res, 200, {
+            ok: true,
+            mensaje: '🎓 Robot de Formación a Familias iniciado en terminal local.',
+            pid: resultado.pid
         });
     }
 

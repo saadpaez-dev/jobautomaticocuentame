@@ -379,10 +379,18 @@ async function main() {
 
   // Soporte de ejecución automática desatendida vía payload JSON (desde portal web / agente)
   let payloadModoAuto = null;
+  let pPath = null;
   const payloadArgIdx = process.argv.indexOf('--payload');
   if (payloadArgIdx !== -1 && process.argv[payloadArgIdx + 1]) {
+    pPath = process.argv[payloadArgIdx + 1];
+  } else {
+    const payloadArgEqual = process.argv.find(a => typeof a === 'string' && a.startsWith('--payload='));
+    if (payloadArgEqual) {
+      pPath = payloadArgEqual.slice(10).replace(/^["']|["']$/g, '');
+    }
+  }
+  if (pPath) {
     try {
-      const pPath = process.argv[payloadArgIdx + 1];
       if (fs.existsSync(pPath)) {
         payloadModoAuto = JSON.parse(fs.readFileSync(pPath, 'utf8'));
         console.log(c.cyan(`\n🤖 MODO AUTOMÁTICO ACTIVADO desde orden web: ${payloadModoAuto.comandoId || 'Lote'}`));
