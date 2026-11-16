@@ -13,6 +13,7 @@ const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 const calendario = require('../servicios/calendario-colombia');
+const { seleccionarDropdownReactivo, esperarPostBackReactivo } = require('../servicios/filtro-monitor');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -95,9 +96,7 @@ async function capturarPantallazoRAMAntesDeGuardar({ workPage, contentFrame, aso
 
         const dirs = [
             path.join(__dirname, '..', 'docs', 'reportes', 'ram', asocClean),
-            path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'reportes', 'ram', asocClean),
-            path.join(__dirname, '..', 'docs', 'pantallazos', asocClean),
-            path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'pantallazos', asocClean)
+            path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'reportes', 'ram', asocClean)
         ];
 
         for (const d of dirs) {
@@ -1871,19 +1870,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                         }
 
                         if (valueToSelect) {
-                            const curVal = await sel.evaluate(s => s.value);
-                            if (curVal !== valueToSelect) {
-                                console.log(c.gris(`    [Filtro] Seleccionando ${keyword}: ${valueToSelect}`));
-                                await sel.selectOption(valueToSelect, { timeout: 5000 }).catch(() => {});
-                                await sel.evaluate(el => {
-                                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                                    if (typeof __doPostBack === 'function') {
-                                        try { __doPostBack(el.name || el.id, ''); } catch(e) {}
-                                    }
-                                }).catch(() => {});
-                                await mainPage.waitForTimeout(500);
-                                await esperarPostBackASPNet(contentFrame, 6000);
-                            }
+                            await seleccionarDropdownReactivo(mainPage, contentFrame, sel, valueToSelect, { nombreEtiqueta: keyword });
                             return true;
                         } else {
                             const opcionesDisponibles = await sel.evaluate(s => Array.from(s.options).map(o => `${o.value}: ${o.text}`).slice(0, 15)).catch(() => []);
@@ -1940,16 +1927,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     for (const serv of candidatosServ) {
                         const curServ = await servicioLocator.evaluate(s => s.value);
                         if (curServ !== serv.value) {
-                            console.log(c.gris(`    [Filtro] Seleccionando Servicio: ${serv.text}`));
-                            await servicioLocator.selectOption(serv.value, { timeout: 5000 }).catch(() => {});
-                            await servicioLocator.evaluate(el => {
-                                el.dispatchEvent(new Event('change', { bubbles: true }));
-                                if (typeof __doPostBack === 'function') {
-                                    try { __doPostBack(el.name || el.id, ''); } catch(e) {}
-                                }
-                            }).catch(() => {});
-                            await mainPage.waitForTimeout(400);
-                            await esperarPostBackASPNet(contentFrame, 6000);
+                            await seleccionarDropdownReactivo(mainPage, contentFrame, servicioLocator, serv.value, { dependienteSelector: 'select[id*="ddlIdContratoUnidadServicioNombreUds"]', nombreEtiqueta: 'Servicio' });
                         }
 
                         // Verificar si la UDS está en las opciones de este servicio
@@ -1977,16 +1955,7 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                     if (udsValue) {
                         const curUds = await uLoc.evaluate(s => s.value);
                         if (curUds !== udsValue) {
-                            console.log(c.gris(`    [Filtro] Seleccionando UDS: ${ramData.jardin}`));
-                            await uLoc.selectOption(udsValue, { timeout: 5000 }).catch(() => {});
-                            await uLoc.evaluate(el => {
-                                el.dispatchEvent(new Event('change', { bubbles: true }));
-                                if (typeof __doPostBack === 'function') {
-                                    try { __doPostBack(el.name || el.id, ''); } catch(e) {}
-                                }
-                            }).catch(() => {});
-                            await mainPage.waitForTimeout(400);
-                            await esperarPostBackASPNet(contentFrame, 6000);
+                            await seleccionarDropdownReactivo(mainPage, contentFrame, uLoc, udsValue, { nombreEtiqueta: 'UDS' });
                         }
                     } else {
                         console.log(c.rojo(`    ❌ No se encontró la UDS "${ramData.jardin}" (${ramData.codigoUds}) en ninguno de los servicios disponibles.`));
@@ -2013,14 +1982,14 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                 // 7. Clic en la Lupa para consultar beneficiarios
                 console.log(c.gris('    👉 Clic en Lupa para consultar beneficiarios...'));
                 const lupa = contentFrame.locator('a#btnBuscar, a#btnConsultar, input[type="image"][id*="btnConsultar" i], input[type="image"][id*="btnBuscar" i], img[title*="Consultar" i], img[title*="Buscar" i]').first();
-                if (await lupa.count() > 0 && await lupa.isVisible()) {
-                    await lupa.click();
-                } else {
-                    const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first();
-                    if (await genericBtn.count() > 0) await genericBtn.click();
-                }
-                await mainPage.waitForTimeout(500);
-                await esperarPostBackASPNet(contentFrame, 12000);
+                await esperarPostBackReactivo(mainPage, async () => {
+                    if (await lupa.count() > 0 && await lupa.isVisible()) {
+                        await lupa.click();
+                    } else {
+                        const genericBtn = contentFrame.locator('a:has(img[src*="list.png"]):visible, input[type="image"]:visible, img[src*="lupa"]:visible').first();
+                        if (await genericBtn.count() > 0) await genericBtn.click();
+                    }
+                }, 15000);
 
                 contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
@@ -2033,10 +2002,9 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                 contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
                 const lapiz = contentFrame.locator('input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"]').first();
                 if (await lapiz.count() > 0 && await lapiz.isVisible()) {
-                    await lapiz.click().catch(() => {});
-                    await mainPage.waitForTimeout(1000);
-                    contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
-                    await esperarPostBackASPNet(contentFrame, 8000);
+                    await esperarPostBackReactivo(mainPage, async () => {
+                        await lapiz.click().catch(() => {});
+                    }, 10000);
                     contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
                 }
 

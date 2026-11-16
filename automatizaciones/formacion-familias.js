@@ -14,6 +14,7 @@ const path = require('path');
 const { leerJardines } = require('../servicios/excel-reader');
 const { loginYLlegarARoles, obtenerNavegador, validarYCambiarAsociacion, verificarConexionOCaida, expandirMenu } = require('../servicios/autenticacion');
 const { seleccionarUnidad } = require('../servicios/lupa-unidad');
+const { esperarPostBackReactivo, seleccionarDropdownReactivo } = require('../servicios/filtro-monitor');
 
 // ─────────────────────────────────────────────────────────────
 // Colores en terminal
@@ -136,12 +137,12 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   console.log('  👉 Clic en el boton Nuevo (+)...');
   const btnNuevo = frame.locator('#btnNuevo, input[type="image"][src*="nuevo"], input[type="image"][title*="Nuevo"], a#btnNuevo').first();
   await btnNuevo.waitFor({ state: 'visible', timeout: 15000 });
-  await btnNuevo.click();
-  await page.waitForTimeout(1500);
+  await esperarPostBackReactivo(page, async () => {
+    await btnNuevo.click();
+  });
 
   console.log(`  👉 Buscando UDS: ${jardin.nombre}...`);
   await seleccionarUnidad(page, frame, jardin.codigo);
-  await page.waitForTimeout(800);
 
   console.log('  👉 Esperando a que cargue el resto de campos (Observaciones, Beneficiarios)...');
   const campoObsParaVerificar = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
@@ -153,47 +154,21 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   await campoFechaFormacion.click({ position: { x: 5, y: 5 } });
   await campoFechaFormacion.clear().catch(() => {});
   const numerosFecha = hoy.replace(/\//g, '');
-  await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 100 });
+  await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 50 });
   await campoFechaFormacion.press('Tab');
-  await page.waitForTimeout(800);
 
   const campoHoras = frame.locator('input[id*="Horas"], input[name*="Horas"]').first();
   await campoHoras.clear().catch(() => {});
   await campoHoras.fill(HORAS_FORMACION);
-  await page.waitForTimeout(800);
 
-  const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
-  const valEncuentro = await dropdownEncuentro.evaluate((select, lbl) => {
-      const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      const targetOpt = Array.from(select.options).find(o => normalize(o.text).includes(normalize(lbl).trim()));
-      return targetOpt ? targetOpt.value : null;
-  }, TIPO_ENCUENTRO).catch(() => null);
-  
-  if (valEncuentro) {
-      await dropdownEncuentro.selectOption({ value: valEncuentro }, { timeout: 10000 }).catch(e => console.log('    [Info] Tipo de Encuentro select timeout/detach (PostBack)'));
-  } else {
-      await dropdownEncuentro.selectOption({ label: TIPO_ENCUENTRO }, { timeout: 10000 }).catch(e => {});
-  }
-  await page.waitForTimeout(800);
+  // Seleccion reactiva de Tipo de Encuentro
+  await seleccionarDropdownReactivo(page, frame, 'select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]', TIPO_ENCUENTRO, { nombreEtiqueta: 'Tipo de Encuentro' });
 
   const campoObs = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
   await campoObs.fill(observaciones);
-  await page.waitForTimeout(800);
 
-  const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
-  const valTema = await dropdownTema.evaluate((select, lbl) => {
-      const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      const targetTxt = normalize(lbl).substring(0, 20).trim();
-      const targetOpt = Array.from(select.options).find(o => normalize(o.text).includes(targetTxt));
-      return targetOpt ? targetOpt.value : null;
-  }, tema).catch(() => null);
-
-  if (valTema) {
-      await dropdownTema.selectOption({ value: valTema }, { timeout: 10000 }).catch(e => console.log('    [Info] Tema select timeout/detach (PostBack)'));
-  } else {
-      await dropdownTema.selectOption({ label: tema }, { timeout: 10000 }).catch(e => {});
-  }
-  await page.waitForTimeout(800); // Reducido a peticion del usuario
+  // Seleccion reactiva de Tema de Formacion
+  await seleccionarDropdownReactivo(page, frame, 'select[id*="Tema"], select[name*="Tema"]', tema, { nombreEtiqueta: 'Tema Oficial' });
 
   let cantidadBenef = 0;
 
@@ -202,7 +177,6 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     const estaChecked = await checkboxTodos.isChecked().catch(() => false);
     if (!estaChecked) {
       await checkboxTodos.click();
-      await page.waitForTimeout(800);
     }
     cantidadBenef = 'TODOS';
   } else {
@@ -342,9 +316,10 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   }
 
   console.log('  \x1b[33m% Haciendo clic en Guardar...\x1b[0m');
-  await frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first().click();
-  await page.waitForTimeout(800);
-  await page.waitForLoadState('domcontentloaded').catch(() => {});
+  const btnGuardar = frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first();
+  await esperarPostBackReactivo(page, async () => {
+    await btnGuardar.click();
+  });
   
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');
   const exitoso = contenidoFrame.includes('beneficiarios han sido ingresados') ||

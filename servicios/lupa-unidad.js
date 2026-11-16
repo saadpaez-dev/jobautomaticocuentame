@@ -51,15 +51,11 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
 
   // 4. Click en el boton buscar (la lupa del popup)
   const botonBuscar = popup.locator('a#btnBuscar, img[alt="Consultar"]').first();
-  await Promise.all([
-    popup.waitForLoadState('networkidle'),
-    botonBuscar.click()
-  ]);
-  await popup.waitForTimeout(800); // Pausa para renderizado de ASP.NET
-  
-  // Esperar a que la tabla de resultados cargue despues de la busqueda
-  console.log('  👉 Esperando resultados de busqueda en la lupa...');
-  await popup.waitForSelector('#cphCont_gvLupaAtencionBeneficiario', { state: 'visible', timeout: 15000 }).catch(() => {});
+  console.log('  👉 Buscando UDS en la lupa reactivamente...');
+  const postbackPromise = popup.waitForResponse(resp => resp.request().method() === 'POST' && resp.status() === 200, { timeout: 15000 }).catch(() => null);
+  await botonBuscar.click();
+  await postbackPromise;
+  await popup.waitForSelector('#cphCont_gvLupaAtencionBeneficiario tr', { state: 'visible', timeout: 15000 }).catch(() => {});
 
   let encontrado = await buscarYSeleccionar2026(popup);
   let paginaSiguiente = 2;
@@ -74,11 +70,10 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
     }
 
     console.log(`  👉 Buscando en la pagina ${paginaSiguiente} de resultados...`);
-    await Promise.all([
-      popup.waitForLoadState('networkidle'),
-      linkPagina.click()
-    ]);
-    await popup.waitForTimeout(800); // Pausa para renderizado de ASP.NET
+    const pagePostback = popup.waitForResponse(resp => resp.request().method() === 'POST' && resp.status() === 200, { timeout: 15000 }).catch(() => null);
+    await linkPagina.click();
+    await pagePostback;
+    await popup.waitForSelector('#cphCont_gvLupaAtencionBeneficiario tr', { state: 'visible', timeout: 15000 }).catch(() => {});
     
     encontrado = await buscarYSeleccionar2026(popup);
     paginaSiguiente++;

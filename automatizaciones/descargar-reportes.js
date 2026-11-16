@@ -10,6 +10,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
+const { seleccionarSSRSReactivo, seleccionarSSRSMultiReactivo, esperarSSRSAsyncWait } = require('../servicios/filtro-monitor');
 
 // ─────────────────────────────────────────────────────────────
 // Colores en terminal
@@ -34,7 +35,7 @@ function distribuirReporteAPortal(opcionReporte, asc, savePath) {
   if (opcionReporte === 3) tipoCarpeta = 'ram';
   if (opcionReporte === 4) tipoCarpeta = 'unidades';
 
-  const asocFolder = (asc.nombreCorto || '').toUpperCase().trim();
+  const asocFolder = (asc.nombreCorto || '').replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').toUpperCase().trim();
   if (!asocFolder) return;
 
   const prefijoBase = path.basename(savePath).split('_')[0]; // Beneficiarios, Nutricion, Asistencia, Unidades
@@ -406,484 +407,19 @@ async function main() {
 
         // Funcion helper que busca un select en SSRS a partir de su label (texto) y lo llena
         const seleccionarSSRSByLabel = async (labelText, valueOrText) => {
-            try {
-                const removeAccentsStr = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").trim().toUpperCase();
-                const targetLabel = removeAccentsStr(labelText);
-
-                // 1. Esperar a que la etiqueta y el select existan y tengan opciones cargadas (> 1)
-                let listo = false;
-                let intentos = 0;
-                while (intentos < 20) {
-                    listo = await reportFrame.evaluate(({ targetLabel }) => {
-                        const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").trim().toUpperCase();
-                        const allElements = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
-                        let matchedTd = null;
-
-                        for (const el of allElements) {
-                            const txt = removeAccents(el.innerText);
-                            if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
-                                if (el.innerText.length < 100) {
-                                    matchedTd = el.closest('td') || el;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (!matchedTd) return false;
-
-                        let select = matchedTd.querySelector('select');
-                        if (!select && matchedTd.nextElementSibling) {
-                            select = matchedTd.nextElementSibling.querySelector('select') || (matchedTd.nextElementSibling.tagName === 'SELECT' ? matchedTd.nextElementSibling : null);
-                        }
-                        if (!select && matchedTd.parentElement) {
-                            select = matchedTd.parentElement.querySelector('select');
-                        }
-                        if (!select) {
-                            const tr = matchedTd.closest('tr');
-                            if (tr) select = tr.querySelector('select');
-                        }
-
-                        if (!select) return false;
-                        return !select.disabled && select.options && select.options.length > 1;
-                    }, { targetLabel }).catch(() => false);
-
-                    if (listo) break;
-                    await mainPage.waitForTimeout(500);
-                    intentos++;
-                }
-
-                const exito = await reportFrame.evaluate(({ labelText, valueOrText }) => {
-                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").trim().toUpperCase();
-                    const targetLabel = removeAccents(labelText);
-                    
-                    const allElements = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
-                    let matchedTd = null;
-
-                    for (const el of allElements) {
-                        const txt = removeAccents(el.innerText);
-                        if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
-                            if (el.innerText.length < 100) {
-                                matchedTd = el.closest('td') || el;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!matchedTd) return { ok: false, reason: 'Etiqueta no encontrada en el DOM' };
-
-                    let select = matchedTd.querySelector('select');
-                    if (!select && matchedTd.nextElementSibling) {
-                        select = matchedTd.nextElementSibling.querySelector('select') || (matchedTd.nextElementSibling.tagName === 'SELECT' ? matchedTd.nextElementSibling : null);
-                    }
-                    if (!select && matchedTd.parentElement) {
-                        select = matchedTd.parentElement.querySelector('select');
-                    }
-                    if (!select) {
-                        const tr = matchedTd.closest('tr');
-                        if (tr) select = tr.querySelector('select');
-                    }
-
-                    if (!select) return { ok: false, reason: 'Select no encontrado cerca de la etiqueta' };
-
-                    select.disabled = false;
-                    select.classList.remove('aspNetDisabled');
-
-                    if (!select.options || select.options.length === 0) {
-                        return { ok: false, reason: 'El select no tiene opciones cargadas aun' };
-                    }
-
-                    let targetIdx = -1;
-                    if (valueOrText !== null && valueOrText !== undefined && valueOrText !== '') {
-                        const searchVal = removeAccents(String(valueOrText));
-                        
-                        // 1. Coincidencia exacta
-                        for (let i = 0; i < select.options.length; i++) {
-                            const opt = select.options[i];
-                            if (!opt) continue;
-                            const rawText = opt.text || opt.innerText || opt.textContent || '';
-                            const rawVal  = opt.value || '';
-                            const optText = removeAccents(rawText);
-                            const optVal  = removeAccents(rawVal);
-                            if (optText === searchVal || optVal === searchVal) {
-                                targetIdx = i;
-                                break;
-                            }
-                        }
-
-                        // 2. Coincidencia por inicio de texto (startsWith)
-                        if (targetIdx === -1) {
-                            for (let i = 0; i < select.options.length; i++) {
-                                const opt = select.options[i];
-                                if (!opt) continue;
-                                const rawText = opt.text || opt.innerText || opt.textContent || '';
-                                const optText = removeAccents(rawText);
-                                if (optText && optText.startsWith(searchVal)) {
-                                    targetIdx = i;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // 3. Coincidencia por palabras clave o subcadena (includes)
-                        if (targetIdx === -1) {
-                            for (let i = 0; i < select.options.length; i++) {
-                                const opt = select.options[i];
-                                if (!opt) continue;
-                                const rawText = opt.text || opt.innerText || opt.textContent || '';
-                                const optText = removeAccents(rawText);
-                                if (optText && optText.includes(searchVal) && !optText.includes('SELECT') && !optText.includes('SELECCION')) {
-                                    targetIdx = i;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (targetIdx >= 0 && targetIdx < select.options.length) {
-                        const textSelected = select.options[targetIdx] ? (select.options[targetIdx].text || select.options[targetIdx].innerText || '') : '';
-                        select.selectedIndex = targetIdx;
-                        select.dispatchEvent(new Event('change', { bubbles: true }));
-                        if (typeof __doPostBack === 'function') {
-                            try { __doPostBack(select.name, ''); } catch(e) {}
-                        }
-                        return { ok: true, textSelected };
-                    }
-
-                    return { ok: false, reason: 'Opcion no valida o lista vacia' };
-                }, { labelText, valueOrText });
-
-                if (exito && exito.ok) {
-                    console.log(c.verde(`    ✅ [Filtro] "${labelText}" -> ${exito.textSelected}`));
-                    await mainPage.waitForTimeout(900);
-                    return true;
-                } else {
-                    console.log(c.amarillo(`    ⚠️ [Filtro] "${labelText}": ${exito ? exito.reason : 'No seleccionado'}`));
-                    return false;
-                }
-            } catch (e) {
-                console.log(c.amarillo(`    ⚠️ Error al seleccionar "${labelText}": ${e.message}`));
-                return false;
-            }
+            return await seleccionarSSRSReactivo(mainPage, reportFrame, labelText, valueOrText);
         };
 
         const seleccionarSSRS = async (id, valueOrText) => {
-            try {
-                const selectLocator = reportFrame.locator(`#${id}`);
-                await selectLocator.waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
-
-                const exito = await selectLocator.evaluate((el, targetVal) => {
-                    el.disabled = false;
-                    el.classList.remove('aspNetDisabled');
-                    let idx = -1;
-                    if (typeof targetVal === 'number') {
-                        idx = targetVal;
-                    } else {
-                        const search = targetVal.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                        for (let i = 0; i < el.options.length; i++) {
-                            const optText = el.options[i].text.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                            if (optText.includes(search) || search.includes(optText)) {
-                                idx = i;
-                                break;
-                            }
-                        }
-                    }
-                    if (idx >= 0 && idx < el.options.length) {
-                        el.selectedIndex = idx;
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                        if (typeof __doPostBack === 'function') {
-                            __doPostBack(el.name, '');
-                        }
-                        return true;
-                    }
-                    return false;
-                }, valueOrText);
-
-                if (!exito) {
-                    if (typeof valueOrText === 'number') {
-                        await selectLocator.selectOption({ index: valueOrText }).catch(() => {});
-                    } else {
-                        await selectLocator.selectOption({ label: valueOrText }).catch(() => {});
-                    }
-                }
-
-                await reportPage.waitForTimeout(600); 
-            } catch (e) {
-                console.log(c.rojo(`    ⚠️ Error al seleccionar en ${id}: ${e.message}`));
-            }
-        };
-
-        const seleccionarSSRSMulti = async (id, valueOrText) => {
-            try {
-                const valorFinalDeseado = normalizarMesesToma(valueOrText);
-                const btn = reportFrame.locator(`#${id}_ddDropDownButton`);
-                await btn.waitFor({ state: 'visible', timeout: 5000 });
-                await btn.click({ force: true, timeout: 5000 }).catch(() => btn.evaluate(b => b.click()));
-                
-                const divDropdown = reportFrame.locator(`#${id}_divDropDown`);
-                await divDropdown.waitFor({ state: 'visible', timeout: 5000 });
-                await reportPage.waitForTimeout(600);
-
-                const divDropDownId = `${id}_divDropDown`;
-                const txtValueId = `${id}_txtValue`;
-
-                await reportFrame.evaluate(async ({ divDropDownId, txtValueId, valorFinalDeseado }) => {
-                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-                    const delay = ms => new Promise(res => setTimeout(res, ms));
-
-                    const div = document.getElementById(divDropDownId);
-                    if (!div) return;
-
-                    const labels = Array.from(div.querySelectorAll('label'));
-                    if (labels.length === 0) return;
-
-                    const isSelectAll = (valorFinalDeseado === '(Select All)' || valorFinalDeseado === '(Check All)');
-                    const targetVals = valorFinalDeseado.split(',').map(v => removeAccents(v)).filter(Boolean);
-
-                    const getCheckbox = (lbl) => {
-                        let chk = document.getElementById(lbl.htmlFor);
-                        if (!chk) chk = lbl.querySelector('input[type="checkbox"]');
-                        if (!chk && lbl.previousElementSibling && lbl.previousElementSibling.type === 'checkbox') chk = lbl.previousElementSibling;
-                        if (!chk && lbl.parentElement) chk = lbl.parentElement.querySelector('input[type="checkbox"]');
-                        return chk;
-                    };
-
-                    const selectAllLabel = labels.find(l => {
-                        const t = removeAccents(l.innerText);
-                        return t.includes('SELECT ALL') || t.includes('SELECCIONAR TODO') || t.includes('CHECK ALL');
-                    });
-
-                    if (isSelectAll) {
-                        if (selectAllLabel) {
-                            const chk = getCheckbox(selectAllLabel);
-                            if (chk && !chk.checked) {
-                                chk.scrollIntoView({ block: 'nearest' });
-                                chk.click();
-                                await delay(300);
-                            }
-                        } else {
-                            for (const lbl of labels) {
-                                const chk = getCheckbox(lbl);
-                                if (chk && !chk.checked) {
-                                    chk.click();
-                                    await delay(100);
-                                }
-                            }
-                        }
-                    } else {
-                        if (selectAllLabel) {
-                            const chkSelectAll = getCheckbox(selectAllLabel);
-                            if (chkSelectAll && chkSelectAll.checked) {
-                                chkSelectAll.scrollIntoView({ block: 'nearest' });
-                                chkSelectAll.click();
-                                await delay(300);
-                            }
-                        }
-
-                        for (const lbl of labels) {
-                            const txt = removeAccents(lbl.innerText);
-                            if (txt.includes('SELECT ALL') || txt.includes('SELECCIONAR TODO') || txt.includes('CHECK ALL')) continue;
-
-                            const coincide = targetVals.some(t => txt === t || txt.startsWith(t) || txt.includes(t) || t.includes(txt));
-                            const chk = getCheckbox(lbl);
-                            if (chk) {
-                                if (coincide && !chk.checked) {
-                                    chk.scrollIntoView({ block: 'nearest' });
-                                    chk.click();
-                                    if (!chk.checked) {
-                                        chk.checked = true;
-                                        chk.dispatchEvent(new Event('change', { bubbles: true }));
-                                    }
-                                    await delay(150);
-                                } else if (!coincide && chk.checked) {
-                                    chk.scrollIntoView({ block: 'nearest' });
-                                    chk.click();
-                                    if (chk.checked) {
-                                        chk.checked = false;
-                                        chk.dispatchEvent(new Event('change', { bubbles: true }));
-                                    }
-                                    await delay(150);
-                                }
-                            }
-                        }
-                    }
-
-                    await delay(300);
-                }, { divDropDownId, txtValueId, valorFinalDeseado });
-
-                await reportFrame.locator('body').click().catch(() => {});
-                await reportPage.waitForTimeout(600); 
-
-                const txtInput = reportFrame.locator(`#${txtValueId}`);
-                let valEnPantalla = '';
-                if (await txtInput.count() > 0) {
-                    valEnPantalla = await txtInput.inputValue().catch(() => '');
-                }
-
-                console.log(c.verde(`    ✅ [Filtro Multi] "${id}" -> ${valEnPantalla || valorFinalDeseado}`));
-                return true;
-            } catch (e) {
-                console.log(c.rojo(`    ⚠️ Error al seleccionar multiple en ${id}: ${e.message}`));
-                return false;
-            }
+            return await seleccionarSSRSReactivo(mainPage, reportFrame, id, valueOrText);
         };
 
         const seleccionarSSRSMultiByLabel = async (labelText, valueOrText) => {
-            try {
-                const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-                const targetLabel = removeAccents(labelText);
-                const valorFinalDeseado = (targetLabel.includes('TOMA') || targetLabel.includes('MES')) ? normalizarMesesToma(valueOrText) : valueOrText;
+            return await seleccionarSSRSMultiReactivo(mainPage, reportFrame, labelText, valueOrText);
+        };
 
-                // Paso 1: Encontrar el botón y dropdown asociados a este label específico
-                const controlInfo = await reportFrame.evaluate(({ targetLabel }) => {
-                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-                    const allElements = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
-                    let matchedEl = null;
-
-                    for (const el of allElements) {
-                        const txt = removeAccents(el.innerText);
-                        if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
-                            if (el.innerText.length < 80) {
-                                matchedEl = el;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!matchedEl) return null;
-
-                    const container = matchedEl.closest('tr') || matchedEl.closest('td') || matchedEl.parentElement;
-                    let btn = container.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
-                    if (!btn && matchedEl.closest('td') && matchedEl.closest('td').nextElementSibling) {
-                        btn = matchedEl.closest('td').nextElementSibling.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
-                    }
-                    if (!btn && matchedEl.parentElement && matchedEl.parentElement.parentElement) {
-                        btn = matchedEl.parentElement.parentElement.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
-                    }
-
-                    if (btn) {
-                        const baseId = btn.id.replace('_ddDropDownButton', '');
-                        return { btnId: btn.id, baseId };
-                    }
-                    return null;
-                }, { targetLabel });
-
-                if (!controlInfo) {
-                    console.log(c.amarillo(`    ⚠️ No se encontró el control dropdown para "${labelText}"`));
-                    return false;
-                }
-
-                const { btnId, baseId } = controlInfo;
-                const divDropDownId = `${baseId}_divDropDown`;
-                const txtValueId = `${baseId}_txtValue`;
-
-                // Paso 2: Abrir el dropdown
-                const btnLoc = reportFrame.locator(`#${btnId}`);
-                await btnLoc.click({ force: true, timeout: 5000 }).catch(() => btnLoc.evaluate(b => b.click()));
-                await reportPage.waitForTimeout(700);
-
-                // Paso 3: Interactuar con los checkboxes en el divDropDown exacto
-                await reportFrame.evaluate(async ({ divDropDownId, txtValueId, valorFinalDeseado }) => {
-                    const removeAccents = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[*:]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-                    const delay = ms => new Promise(res => setTimeout(res, ms));
-
-                    const div = document.getElementById(divDropDownId);
-                    if (!div) return;
-
-                    const labels = Array.from(div.querySelectorAll('label'));
-                    if (labels.length === 0) return;
-
-                    const isSelectAll = (valorFinalDeseado === '(Select All)' || valorFinalDeseado === '(Check All)');
-                    const targetVals = valorFinalDeseado.split(',').map(v => removeAccents(v)).filter(Boolean);
-
-                    const getCheckbox = (lbl) => {
-                        let chk = document.getElementById(lbl.htmlFor);
-                        if (!chk) chk = lbl.querySelector('input[type="checkbox"]');
-                        if (!chk && lbl.previousElementSibling && lbl.previousElementSibling.type === 'checkbox') chk = lbl.previousElementSibling;
-                        if (!chk && lbl.parentElement) chk = lbl.parentElement.querySelector('input[type="checkbox"]');
-                        return chk;
-                    };
-
-                    const selectAllLabel = labels.find(l => {
-                        const t = removeAccents(l.innerText);
-                        return t.includes('SELECT ALL') || t.includes('SELECCIONAR TODO') || t.includes('CHECK ALL');
-                    });
-
-                    if (isSelectAll) {
-                        if (selectAllLabel) {
-                            const chk = getCheckbox(selectAllLabel);
-                            if (chk && !chk.checked) {
-                                chk.scrollIntoView({ block: 'nearest' });
-                                chk.click();
-                                await delay(300);
-                            }
-                        } else {
-                            for (const lbl of labels) {
-                                const chk = getCheckbox(lbl);
-                                if (chk && !chk.checked) {
-                                    chk.click();
-                                    await delay(100);
-                                }
-                            }
-                        }
-                    } else {
-                        // Desmarcar Select All si está marcado
-                        if (selectAllLabel) {
-                            const chkSelectAll = getCheckbox(selectAllLabel);
-                            if (chkSelectAll && chkSelectAll.checked) {
-                                chkSelectAll.scrollIntoView({ block: 'nearest' });
-                                chkSelectAll.click();
-                                await delay(300);
-                            }
-                        }
-
-                        // Marcar/desmarcar cada elemento
-                        for (const lbl of labels) {
-                            const txt = removeAccents(lbl.innerText);
-                            if (txt.includes('SELECT ALL') || txt.includes('SELECCIONAR TODO') || txt.includes('CHECK ALL')) continue;
-
-                            const coincide = targetVals.some(t => txt === t || txt.startsWith(t) || txt.includes(t) || t.includes(txt));
-                            const chk = getCheckbox(lbl);
-                            if (chk) {
-                                if (coincide && !chk.checked) {
-                                    chk.scrollIntoView({ block: 'nearest' });
-                                    chk.click();
-                                    if (!chk.checked) {
-                                        chk.checked = true;
-                                        chk.dispatchEvent(new Event('change', { bubbles: true }));
-                                    }
-                                    await delay(150);
-                                } else if (!coincide && chk.checked) {
-                                    chk.scrollIntoView({ block: 'nearest' });
-                                    chk.click();
-                                    if (chk.checked) {
-                                        chk.checked = false;
-                                        chk.dispatchEvent(new Event('change', { bubbles: true }));
-                                    }
-                                    await delay(150);
-                                }
-                            }
-                        }
-                    }
-
-                    await delay(300);
-                }, { divDropDownId, txtValueId, valorFinalDeseado });
-
-                // Paso 4: Cerrar popup
-                await reportFrame.locator('body').click().catch(() => {});
-                await reportPage.waitForTimeout(600);
-
-                const txtInput = reportFrame.locator(`#${txtValueId}`);
-                let valEnPantalla = '';
-                if (await txtInput.count() > 0) {
-                    valEnPantalla = await txtInput.inputValue().catch(() => '');
-                }
-
-                console.log(c.verde(`    ✅ [Filtro Multi] "${labelText}" -> ${valEnPantalla || valorFinalDeseado}`));
-                return true;
-            } catch(e) {
-                console.log(c.amarillo(`    ⚠️ [Filtro Multi] "${labelText}": ${e.message}`));
-                return false;
-            }
+        const seleccionarSSRSMulti = async (id, valueOrText) => {
+            return await seleccionarSSRSMultiReactivo(mainPage, reportFrame, id, valueOrText);
         };
 
         const obtenerReportFrame = async (targetPage) => {
@@ -928,7 +464,7 @@ async function main() {
             console.log(c.amarillo('  ⏳ Llenando filtros dinamicamente por etiqueta...'));
             
             await seleccionarSSRSByLabel('Tipo Unidad', 'Unidad de Servicio');
-            await seleccionarSSRSByLabel('Direccion', 'Direccion de Primera Infancia');
+            await seleccionarSSRSByLabel('Area Misional', 'Direccion de Primera Infancia') || await seleccionarSSRSByLabel('Direccion', 'Direccion de Primera Infancia');
             await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato || '2024');
             await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
             await seleccionarSSRSByLabel('Centro Zonal', obtenerCentroZonal(asc));
@@ -957,15 +493,12 @@ async function main() {
             
             // 1. Area Misional
             await seleccionarSSRSByLabel('Area Misional', 'Dirección de Primera Infancia');
-            await mainPage.waitForTimeout(900);
             
             // 2. Regional
             await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
-            await mainPage.waitForTimeout(900);
 
             // 3. Centro Zonal
             await seleccionarSSRSByLabel('Centro Zonal', obtenerCentroZonal(asc));
-            await mainPage.waitForTimeout(900);
 
             // 4. Municipio
             await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
@@ -981,7 +514,6 @@ async function main() {
             
             // 7. Periodo Toma
             await seleccionarSSRSByLabel('Periodo Toma', 'Mensual');
-            await mainPage.waitForTimeout(900);
 
             // 8. Toma (Mes)
             await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma) || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);

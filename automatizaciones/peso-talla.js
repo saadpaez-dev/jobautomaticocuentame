@@ -14,6 +14,7 @@ const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCam
 const { leerJardines, encontrarMejorAsociacionYJardin } = require('../servicios/excel-reader');
 const { obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
 const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
+const { esperarPostBackReactivo, seleccionarDropdownReactivo } = require('../servicios/filtro-monitor');
 const { parsearExcel, resolverRutaConEspeciales } = require('../servicios/excel-parser');
 
 const c = {
@@ -472,10 +473,11 @@ async function cargarUdsEnCuentame(page, jardinSeleccionado) {
     }
 
     try {
-        await popup.waitForEvent('close', { timeout: 10000 });
+        await popup.waitForEvent('close', { timeout: 8000 });
     } catch (e) {}
 
-    await page.waitForTimeout(1500);
+    const freshFrame = page.frame({ name: 'frameContent' }) || page;
+    await freshFrame.locator('tr:has(input[src*="info.jpg"], input[id*="btnInfo"])').first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
     return true;
 }
 
@@ -1753,17 +1755,16 @@ async function main() {
                   try {
                       const btnGuardar = content.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
                       if (await btnGuardar.count() > 0) {
-                          await btnGuardar.click({ timeout: 3000 }).catch(() => btnGuardar.evaluate(node => node.click()));
-                          console.log(c.verde('  ✅ Clic en boton Guardar enviado.'));
+                          await esperarPostBackReactivo(page, async () => {
+                              await btnGuardar.click({ timeout: 3000 }).catch(() => btnGuardar.evaluate(node => node.click()));
+                          });
+                          console.log(c.verde('  ✅ Clic en boton Guardar enviado reactivamente.'));
                       } else {
-                          console.log(c.rojo('  âŒ No se encontro el boton de Guardar. Por favor guardalo manualmente.'));
+                          console.log(c.rojo('  ❌ No se encontro el boton de Guardar. Por favor guardalo manualmente.'));
                       }
                   } catch (e) {
-                      console.log(c.rojo(`  âŒ Error al presionar Guardar: ${e.message}`));
+                      console.log(c.rojo(`  ❌ Error al presionar Guardar: ${e.message}`));
                   }
-
-                  // Esperar a que aparezca la ventana emergente o el cuadro de dialogo
-                  await page.waitForTimeout(800);
 
                   // â”€â”€ ESPERAR CONFIRMACION "La Informacion ha sido guardada." O ERROR DUPLICADO â”€â”€
                   console.log(c.amarillo('  â³ Esperando respuesta del servidor ("La Informacion ha sido guardada.")...'));

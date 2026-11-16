@@ -1,3 +1,4 @@
+const { seleccionarDropdownReactivo, esperarPostBackReactivo } = require('./filtro-monitor');
 const readline = require('readline-sync');
 
 const c = {
@@ -153,19 +154,14 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 }
 
                 if (regimenElegido) {
-                    await Promise.all([
-                        content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
-                        selectRegimen.selectOption({ label: regimenElegido }).catch(()=>{})
-                    ]);
-                    console.log(c.verde(`  ✅ Regimen seleccionado automaticamente: ${regimenElegido}`));
+                    await seleccionarDropdownReactivo(page, content, selectRegimen, regimenElegido, { nombreEtiqueta: 'Regimen' });
+                    console.log(c.verde(`  ✅ Regimen seleccionado reactivamente: ${regimenElegido}`));
                 } else {
                     console.log(c.amarillo('  ⚠️ No se encontro la opcion de Contributivo, omitiendo.'));
                 }
             } else {
                 console.log(c.rojo('  ❌ No se encontro el campo de Regimen en el formulario.'));
             }
-            
-            await content.waitForTimeout(800); // Esperar a que carguen las EPS o re-renderice
             
             const selectsEps = await content.locator('select').all();
             let selectEps;
@@ -194,7 +190,6 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                     const epsComunes = [
                         'CAPITAL SALUD', 'NUEVA EPS', 'COMPENSAR', 'FAMISANAR', 'SANITAS', 'MUTUAL SER', 'SURAMERICANA'
                     ];
-                    // Elegir una aleatoriamente que exista en el select
                     const matchingOptions = epsOptions.filter(o => epsComunes.some(eps => o.toUpperCase().includes(eps.toUpperCase())));
                     if (matchingOptions.length > 0) {
                         randomEps = matchingOptions[Math.floor(Math.random() * matchingOptions.length)];
@@ -202,19 +197,14 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 }
                 
                 if (randomEps) {
-                    await Promise.all([
-                        content.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {}),
-                        selectEps.selectOption({ label: randomEps }).catch(()=>{})
-                    ]);
-                    console.log(c.verde(`  ✅ EPS seleccionada en Cuentame: ${randomEps}`));
+                    await seleccionarDropdownReactivo(page, content, selectEps, randomEps, { nombreEtiqueta: 'EPS' });
+                    console.log(c.verde(`  ✅ EPS seleccionada reactivamente: ${randomEps}`));
                 } else {
                     console.log(c.rojo(`  ❌ No se encontro ninguna EPS comun en el listado.`));
                 }
             } else {
                 console.log(c.rojo('  ❌ No se encontro el campo de EPS en el formulario.'));
             }
-            
-            await content.waitForTimeout(1500); // Dar un respiro a la pagina post-EPS
         }
         // -------------------------------------------------------------
 

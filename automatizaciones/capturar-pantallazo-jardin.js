@@ -19,6 +19,7 @@ const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 const { obtenerJardinesDeAsociacion } = require('../servicios/bd-beneficiarios');
+const { esperarPostBackReactivo, seleccionarDropdownReactivo } = require('../servicios/filtro-monitor');
 
 const c = {
     verde: (t) => `\x1b[32m${t}\x1b[0m`,
@@ -47,33 +48,9 @@ function sanitizarNombreArchivo(texto) {
  */
 async function waitForAndSelect(page, selectLocator, textToMatch = null) {
     if (await selectLocator.count() === 0) return null;
-    let opts = [];
-    for (let i = 0; i < 20; i++) {
-        const isEnabled = await selectLocator.evaluate(s => !s.disabled).catch(() => false);
-        if (isEnabled) {
-            const raw = await selectLocator.evaluate(s => Array.from(s.options).map(o => ({ v: o.value, t: o.text }))).catch(() => []);
-            opts = raw.filter(o => o.v && o.v !== "0" && o.v !== "-1" && !o.t.toUpperCase().includes('SELECCIONE'));
-            if (opts.length > 0) break;
-        }
-        await page.waitForTimeout(300);
-    }
-    if (opts.length === 0) return opts;
-
-    if (textToMatch) {
-        const cleanTarget = removeAccentsStr(textToMatch);
-        let match = opts.find(o => removeAccentsStr(o.t).includes(cleanTarget) || o.v.includes(cleanTarget));
-        if (!match && opts.length > 0) match = opts[0];
-        if (match) {
-            await selectLocator.selectOption(match.v).catch(() => {});
-            await page.waitForTimeout(400);
-            return opts;
-        }
-    }
-    if (opts.length === 1) {
-        await selectLocator.selectOption(opts[0].v).catch(() => {});
-        await page.waitForTimeout(400);
-    }
-    return opts;
+    const contentFrame = selectLocator.page ? selectLocator.page() : (page.frame({ name: 'frameContent' }) || page);
+    await seleccionarDropdownReactivo(page, contentFrame, selectLocator, textToMatch !== null ? textToMatch : 0);
+    return await selectLocator.evaluate(s => Array.from(s.options).map(o => ({ v: o.value, t: o.text }))).catch(() => []);
 }
 
 /**
@@ -116,8 +93,9 @@ async function navegarADesvincular(page) {
     console.log(c.cyan('  🖱️ Haciendo clic en Desvincular...'));
     const btnDesvincular = contentFrame.locator('img[src*="delete.gif"], a[id*="btnDesvincular"]').first();
     if (await btnDesvincular.count() > 0 && await btnDesvincular.isVisible()) {
-        await btnDesvincular.click();
-        await page.waitForTimeout(1200);
+        await esperarPostBackReactivo(page, async () => {
+            await btnDesvincular.click();
+        });
     }
     return contentFrame;
 }
@@ -215,8 +193,7 @@ async function capturarJardin({ page, ascObj, jardinObj, forzar = false }) {
         const valActual = await selectServicio.inputValue().catch(() => '');
         if (valActual !== matchServ.v) {
             console.log(c.gris(`    • Cambiando Servicio a: ${matchServ.t}...`));
-            await selectServicio.selectOption(matchServ.v).catch(() => {});
-            await page.waitForTimeout(1000);
+            await seleccionarDropdownReactivo(page, contentFrame, selectServicio, matchServ.v, { dependienteSelector: 'select[id*="ddlUDS"], select[id*="UDS"]' });
         }
     }
 
@@ -273,8 +250,9 @@ async function capturarJardin({ page, ascObj, jardinObj, forzar = false }) {
     console.log(c.gris('    • Consultando beneficiarios...'));
     const btnConsultar = contentFrame.locator('input[type="submit"][value*="Consultar beneficiario"], input[id*="btnBuscar"]').first();
     if (await btnConsultar.count() > 0 && await btnConsultar.isVisible()) {
-        await btnConsultar.click();
-        await page.waitForTimeout(1800);
+        await esperarPostBackReactivo(page, async () => {
+            await btnConsultar.click();
+        });
     }
 
     contentFrame = page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
