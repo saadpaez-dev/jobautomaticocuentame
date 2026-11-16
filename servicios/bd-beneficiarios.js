@@ -282,6 +282,10 @@ function obtenerJardinesDeAsociacion(nombreAsoc) {
 
     for (const b of bd) {
         const bAsocNorm = removeAccents(b.asociacion).toUpperCase();
+        // Distinguir explícitamente BUENAVISTA vs BRISAS DE BUENAVISTA
+        if ((bAsocNorm.includes('BRISAS') && !asocNorm.includes('BRISAS')) || (!bAsocNorm.includes('BRISAS') && asocNorm.includes('BRISAS'))) {
+            continue;
+        }
         if (bAsocNorm.includes(asocNorm) || asocNorm.includes(bAsocNorm)) {
             if (!jardinesMap.has(b.nombreUds)) {
                 jardinesMap.set(b.nombreUds, {

@@ -454,7 +454,13 @@ async function main() {
     } else if (argAsoc) {
         // Asociación específica por CLI
         const cleanA = removeAccentsStr(argAsoc);
-        const asc = asociaciones.find(a => removeAccentsStr(a.nombreCorto).includes(cleanA) || cleanA.includes(removeAccentsStr(a.nombreCorto)));
+        const asc = asociaciones.find(a => {
+            const nom = removeAccentsStr(a.nombreCorto);
+            if ((nom.includes('BRISAS') && !cleanA.includes('BRISAS')) || (!nom.includes('BRISAS') && cleanA.includes('BRISAS'))) {
+                return false;
+            }
+            return nom.includes(cleanA) || cleanA.includes(nom);
+        });
         if (!asc) {
             console.log(c.rojo(`❌ Asociación "${argAsoc}" no encontrada.`));
             return;
