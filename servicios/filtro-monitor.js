@@ -253,48 +253,50 @@ async function seleccionarSSRSReactivo(page, reportFrame, labelOId, valueOrText,
   const t0 = Date.now();
 
   try {
-    // 1. Encontrar el control select en el reporte
     const targetLabel = removeAccents(labelOId);
-    const selectInfo = await reportFrame.evaluate(({ targetLabel, labelOId }) => {
-      const norm = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").toUpperCase().trim();
-      
-      // Mapeo directo de alta velocidad para TransversalReportes
-      const MAPA_RAPIDO = {
-        'TIPO UNIDAD': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue',
-        'DIRECCION': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl05_ddValue',
-        'AREA MISIONAL': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl03_ddValue',
-        'VIGENCIA CONTRATO': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl07_ddValue',
-        'REGIONAL': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl09_ddValue',
-        'CENTRO ZONAL': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue',
-        'MUNICIPIO': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl13_ddValue',
-        'NUMERO CONTRATO': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue',
-        'ANO DE ATENCION': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl19_ddValue',
-        'ANO DE TOMA': 'ctl00_cphCont_rvTransversarReportes_ctl04_ctl11_ddValue'
-      };
 
-      // Búsqueda directa por ID o por mapa rápido
+    // 1. Encontrar el control select en el reporte
+    let selectInfo = await reportFrame.evaluate(({ targetLabel, labelOId }) => {
+      const norm = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").toUpperCase().trim();
+      const target = norm(labelOId || targetLabel);
+
+      // A. ID exacto
       let select = document.getElementById(labelOId);
-      if (!select && MAPA_RAPIDO[targetLabel]) {
-        select = document.getElementById(MAPA_RAPIDO[targetLabel]);
+      if (!select || select.tagName !== 'SELECT') {
+        select = null;
       }
 
+      // B. Búsqueda celda a celda en tabla de parámetros de SSRS
       if (!select) {
-        // Búsqueda por etiqueta
-        const candidates = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
-        for (const el of candidates) {
-          const txt = norm(el.innerText);
-          if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
-            if (el.innerText.length < 80) {
-              const tr = el.closest('tr');
-              if (tr) {
-                select = tr.querySelector('select');
-                if (select) break;
-              }
-              const td = el.closest('td');
-              if (td && td.nextElementSibling) {
-                select = td.nextElementSibling.querySelector('select');
-                if (select) break;
-              }
+        const allTds = Array.from(document.querySelectorAll('td'));
+        for (const td of allTds) {
+          if (td.querySelector('select, input[type="text"], div[id*="ddDropDownButton"]')) continue;
+          const text = norm(td.innerText);
+          if (text && (text === target || text.startsWith(target) || target.startsWith(text))) {
+            const nextTd = td.nextElementSibling;
+            if (nextTd) {
+              const s = nextTd.querySelector('select');
+              if (s) { select = s; break; }
+            }
+          }
+        }
+      }
+
+      // C. Fallback por label o span
+      if (!select) {
+        const allLabels = Array.from(document.querySelectorAll('label, span'));
+        for (const lbl of allLabels) {
+          if (lbl.children.length > 0) continue;
+          const text = norm(lbl.innerText);
+          if (text && (text === target || text.startsWith(target))) {
+            if (lbl.htmlFor) {
+              const el = document.getElementById(lbl.htmlFor);
+              if (el && el.tagName === 'SELECT') { select = el; break; }
+            }
+            const parentTd = lbl.closest('td');
+            if (parentTd && parentTd.nextElementSibling) {
+              const s = parentTd.nextElementSibling.querySelector('select');
+              if (s) { select = s; break; }
             }
           }
         }
@@ -320,8 +322,38 @@ async function seleccionarSSRSReactivo(page, reportFrame, labelOId, valueOrText,
       };
     }, { targetLabel, labelOId });
 
-    if (!selectInfo || selectInfo.options.length === 0) {
-      console.log(c.amarillo(`    ⚠️ [SSRS] Control no encontrado o sin opciones para "${labelOId}"`));
+    if (!selectInfo) {
+      console.log(c.amarillo(`    ⚠️ [SSRS] Control select no encontrado para "${labelOId}"`));
+      return false;
+    }
+
+    // Si el select no tiene opciones todavía o solo tiene "<Select a Value>", esperar hasta 6s a que cargue opciones por cascada
+    if (selectInfo.options.length <= 1) {
+      await reportFrame.waitForFunction(({ selId }) => {
+        const s = document.getElementById(selId);
+        return s && s.options && s.options.length > 1;
+      }, { selId: selectInfo.id }, { timeout: 6000 }).catch(() => {});
+
+      const reOpts = await reportFrame.evaluate((id) => {
+        const norm = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").toUpperCase().trim();
+        const s = document.getElementById(id);
+        if (!s) return [];
+        return Array.from(s.options).map((o, idx) => ({
+          index: idx,
+          value: o.value,
+          text: (o.text || o.innerText || '').trim(),
+          textNorm: norm(o.text || o.innerText || ''),
+          valNorm: norm(o.value)
+        }));
+      }, selectInfo.id).catch(() => []);
+
+      if (reOpts.length > 0) {
+        selectInfo.options = reOpts;
+      }
+    }
+
+    if (selectInfo.options.length === 0) {
+      console.log(c.amarillo(`    ⚠️ [SSRS] Control sin opciones para "${labelOId}"`));
       return false;
     }
 
@@ -338,6 +370,12 @@ async function seleccionarSSRSReactivo(page, reportFrame, labelOId, valueOrText,
       if (!m) m = selectInfo.options.find(o => o.textNorm.startsWith(sSearch));
       if (!m) m = selectInfo.options.find(o => o.textNorm.includes(sSearch));
       if (!m) m = selectInfo.options.find(o => sSearch.includes(o.textNorm) && o.textNorm.length > 3);
+      if (!m) {
+        const words = sSearch.split(/[\s,.-]+/).filter(w => w.length > 3);
+        if (words.length > 0) {
+          m = selectInfo.options.find(o => words.some(w => o.textNorm.includes(w)));
+        }
+      }
       if (m) {
         matchedIdx = m.index;
         matchedText = m.text;
@@ -345,7 +383,7 @@ async function seleccionarSSRSReactivo(page, reportFrame, labelOId, valueOrText,
     }
 
     if (matchedIdx === -1) {
-      console.log(c.amarillo(`    ⚠️ [SSRS] No se encontró opción "${valueOrText}" en "${labelOId}"`));
+      console.log(c.amarillo(`    ⚠️ [SSRS] No se encontró opción "${valueOrText}" en "${labelOId}" (opciones disponibles: ${selectInfo.options.map(o => o.text).slice(0, 4).join(', ')})`));
       return false;
     }
 
@@ -360,13 +398,21 @@ async function seleccionarSSRSReactivo(page, reportFrame, labelOId, valueOrText,
       try {
         return resp.request().method() === 'POST' && resp.status() === 200;
       } catch(e) { return false; }
-    }, { timeout: timeoutMs }).catch(() => null);
+    }, { timeout: 4000 }).catch(() => null);
 
     await selectLoc.selectOption({ index: matchedIdx }).catch(() => {});
+    await selectLoc.evaluate((node, idx) => {
+      node.selectedIndex = idx;
+      node.dispatchEvent(new Event('change', { bubbles: true }));
+      if (typeof node.onchange === 'function') {
+        try { node.onchange(); } catch(e) {}
+      }
+    }, matchedIdx).catch(() => {});
 
     // Esperar respuesta de red y liberación del AsyncWait de SSRS
     await respPromise;
     await esperarSSRSAsyncWait(reportFrame, timeoutMs);
+    await reportFrame.waitForTimeout(300);
 
     // Si hay control dependiente, esperar a que tenga opciones
     if (nextControlSelector) {
@@ -402,26 +448,42 @@ async function seleccionarSSRSMultiReactivo(page, reportFrame, labelOId, desired
   const targetLabel = removeAccents(labelOId);
 
   try {
-    // 1. Encontrar control
+    // 1. Encontrar control dropdown button
     const controlInfo = await reportFrame.evaluate(({ targetLabel, labelOId }) => {
       const norm = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").toUpperCase().trim();
+      const target = norm(labelOId || targetLabel);
+
       let btn = document.getElementById(labelOId) || document.getElementById(`${labelOId}_ddDropDownButton`);
       if (!btn) {
-        const candidates = Array.from(document.querySelectorAll('td, span, label, div')).reverse();
-        for (const el of candidates) {
-          const txt = norm(el.innerText);
-          if (txt && (txt === targetLabel || txt.startsWith(targetLabel) || txt.includes(targetLabel))) {
-            if (el.innerText.length < 80) {
-              const container = el.closest('tr') || el.closest('td') || el.parentElement;
-              btn = container.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
-              if (!btn && el.closest('td')?.nextElementSibling) {
-                btn = el.closest('td').nextElementSibling.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
-              }
+        const allTds = Array.from(document.querySelectorAll('td'));
+        for (const td of allTds) {
+          if (td.querySelector('select, input[type="text"], div[id*="ddDropDownButton"]')) continue;
+          const text = norm(td.innerText);
+          if (text && (text === target || text.startsWith(target) || target.startsWith(text))) {
+            const nextTd = td.nextElementSibling;
+            if (nextTd) {
+              btn = nextTd.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
               if (btn) break;
             }
           }
         }
       }
+
+      if (!btn) {
+        const allLabels = Array.from(document.querySelectorAll('label, span'));
+        for (const lbl of allLabels) {
+          if (lbl.children.length > 0) continue;
+          const text = norm(lbl.innerText);
+          if (text && (text === target || text.startsWith(target))) {
+            const parentTd = lbl.closest('td');
+            if (parentTd && parentTd.nextElementSibling) {
+              btn = parentTd.nextElementSibling.querySelector('div[id*="ddDropDownButton"], input[id*="ddDropDownButton"]');
+              if (btn) break;
+            }
+          }
+        }
+      }
+
       if (!btn) return null;
       btn.disabled = false;
       btn.removeAttribute('disabled');
@@ -481,7 +543,8 @@ async function seleccionarSSRSMultiReactivo(page, reportFrame, labelOId, desired
         for (const lbl of labels) {
           const txt = norm(lbl.innerText);
           if (txt.includes('SELECT ALL') || txt.includes('SELECCIONAR TODO') || txt.includes('CHECK ALL')) continue;
-          const coincide = targetVals.some(t => txt === t || txt.startsWith(t) || txt.includes(t) || t.includes(txt));
+          const words = targetVals.map(tv => tv.split(/[\s,.-]+/).filter(w => w.length > 3)).flat();
+          const coincide = targetVals.some(t => txt === t || txt.startsWith(t) || txt.includes(t) || t.includes(txt)) || (words.length > 0 && words.some(w => txt.includes(w)));
           const chk = getCheckbox(lbl);
           if (chk) {
             if (coincide && !chk.checked) chk.click();
@@ -491,9 +554,21 @@ async function seleccionarSSRSMultiReactivo(page, reportFrame, labelOId, desired
       }
     }, { divDropDownId, targetVals, isSelectAll });
 
-    // 4. Cerrar dropdown haciendo clic fuera
-    await reportFrame.locator('body').click().catch(() => {});
+    // 4. Cerrar dropdown haciendo clic en el botón de nuevo o fuera
+    const isVis = await reportFrame.locator(`#${divDropDownId}`).isVisible().catch(() => false);
+    if (isVis) {
+      await btnLoc.click({ force: true }).catch(() => {});
+      await reportFrame.waitForTimeout(200);
+      const stillVis = await reportFrame.locator(`#${divDropDownId}`).isVisible().catch(() => false);
+      if (stillVis) {
+        await reportFrame.locator('body').click().catch(() => {});
+      }
+    }
     await reportFrame.locator(`#${divDropDownId}`).waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+
+    // Esperar si el cierre del dropdown disparó actualización o AsyncWait
+    await esperarSSRSAsyncWait(reportFrame, 5000);
+    await reportFrame.waitForTimeout(300);
 
     const valTxt = await reportFrame.locator(`#${txtValueId}`).inputValue().catch(() => '');
     const totalMs = Date.now() - t0;

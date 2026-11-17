@@ -495,32 +495,36 @@ async function main() {
             await seleccionarSSRSByLabel('Area Misional', 'Dirección de Primera Infancia');
             
             // 2. Regional
-            await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
+            await seleccionarSSRSByLabel('Regional', 'Bogota D.C.') || await seleccionarSSRSByLabel('Regional', 'Bogota');
 
             // 3. Centro Zonal
             await seleccionarSSRSByLabel('Centro Zonal', obtenerCentroZonal(asc));
 
             // 4. Municipio
-            await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl09', 'Bogota, D.C.');
-            await mainPage.waitForTimeout(900);
+            await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMultiByLabel('Municipio', 'Bogota') || await seleccionarSSRSByLabel('Municipio', 'Bogota');
+            await mainPage.waitForTimeout(600);
             
             // 5. Ano de Toma
             await seleccionarSSRSByLabel('Ano de Toma', '2026') || await seleccionarSSRSByLabel('Año de Toma', '2026');
-            await mainPage.waitForTimeout(900);
-            
-            // 6. Entidad Contratista
-            await seleccionarSSRSMultiByLabel('Entidad Contratista', asc.nombreCorto) || await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
-            await mainPage.waitForTimeout(900);
-            
-            // 7. Periodo Toma
-            await seleccionarSSRSByLabel('Periodo Toma', 'Mensual');
+            await mainPage.waitForTimeout(600);
 
-            // 8. Toma (Mes)
-            await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma) || await seleccionarSSRSMulti('ctl00_cphCont_rvTransversarReportes_ctl04_ctl19', seleccionToma);
-            await mainPage.waitForTimeout(900);
+            // 6. Servicio (Seleccionar todos para abarcar las modalidades de la UDS)
+            await seleccionarSSRSMultiByLabel('Servicio', '(Select All)').catch(() => {});
+            await mainPage.waitForTimeout(600);
             
-            // 9. TODAS LAS TOMAS
-            await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO');
+            // 7. Entidad Contratista
+            await seleccionarSSRSMultiByLabel('Entidad Contratista', asc.nombreCorto) || await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
+            await mainPage.waitForTimeout(600);
+            
+            // 8. Periodo Toma
+            await seleccionarSSRSByLabel('Periodo Toma', 'Mensual') || await seleccionarSSRSByLabel('Periodo Toma', 1);
+
+            // 9. Toma (Mes)
+            await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma);
+            await mainPage.waitForTimeout(600);
+            
+            // 10. TODAS LAS TOMAS
+            await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO') || await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'No');
         } else if (opcionReporte === 3 || opcionReporte === 4) {
             const reportName = opcionReporte === 3 ? "Informe de registro asistencia mensual" : "Unidades de servicio";
             console.log(`  🚀 Navegando a ${reportName}...\n`);
