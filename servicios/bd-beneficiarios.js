@@ -200,9 +200,9 @@ function sincronizarConPortalWeb(todosLosBeneficiarios, archivosEncontrados) {
             fs.copyFileSync(RUTA_MASTER_EXCEL, path.join(portalDbDir, 'BD_MASTER_BENEFICIARIOS.xlsx'));
         }
 
-        // 3. Función auxiliar para alinear reportes
+        // 3. Función auxiliar para alinear reportes (Siempre usando carpeta sanitizada con guiones bajos)
         const alinearArchivo = (categoria, asoc, nombreArchivo, rutaOrigen) => {
-            const asocNorm = normalizarNombreAsociacion('', asoc || nombreArchivo);
+            const asocNorm = normalizarNombreAsociacion('', asoc || nombreArchivo).replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase().trim();
             const dirJob = path.join(__dirname, '..', 'docs', 'reportes', categoria, asocNorm);
             const dirApp = path.join(portalDir, 'docs', 'reportes', categoria, asocNorm);
 

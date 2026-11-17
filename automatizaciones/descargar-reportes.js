@@ -461,25 +461,44 @@ async function main() {
             reportFrame = await obtenerReportFrame(mainPage);
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
 
-            console.log(c.amarillo('  ⏳ Llenando filtros dinamicamente por etiqueta...'));
+            console.log(c.amarillo('  ⏳ Llenando filtros dinamicamente por etiqueta (Beneficiarios Vinculados)...'));
             
+            // 1. Tipo Unidad: Unidad de Servicio
             await seleccionarSSRSByLabel('Tipo Unidad', 'Unidad de Servicio');
-            await seleccionarSSRSByLabel('Area Misional', 'Direccion de Primera Infancia') || await seleccionarSSRSByLabel('Direccion', 'Direccion de Primera Infancia');
-            await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato || '2024');
-            await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
-            await seleccionarSSRSByLabel('Centro Zonal', obtenerCentroZonal(asc));
-            await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
-            await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato) || await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato);
-            await seleccionarSSRSByLabel('Ano de atencion', '2026');
             
+            // 2. Dirección *: Dirección de Primera Infancia
+            await seleccionarSSRSByLabel('Direccion', 'Direccion de Primera Infancia');
+            
+            // 3. Vigencia Contrato: 2024 (o asc.vigenciaContrato)
+            await seleccionarSSRSByLabel('Vigencia Contrato', asc.vigenciaContrato || '2024');
+            
+            // 4. Regional *: Bogota D.C.
+            await seleccionarSSRSByLabel('Regional', 'Bogota D.C.');
+            
+            // 5. Centro Zonal de la UDS *: CZ USAQUEN (o el de la asociación)
+            await seleccionarSSRSByLabel('Centro Zonal de la UDS', obtenerCentroZonal(asc)) || await seleccionarSSRSByLabel('Centro Zonal', obtenerCentroZonal(asc));
+            
+            // 6. Municipio: Bogota, D.C.
+            await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.');
+            
+            // 7. Número Contrato
+            await seleccionarSSRSByLabel('Numero Contrato', asc.numeroContrato) || await seleccionarSSRS('ctl00_cphCont_rvTransversarReportes_ctl04_ctl15_ddValue', asc.numeroContrato);
+            
+            // 8. Código de la UDS: NULL
             console.log('    👉 Marcando casilla NULL en Codigo de la UDS...');
             try {
                 const chkLocator = reportFrame.locator('input[id*="ctl17_cbNull"], input[id*="cbNull"]').first();
                 if (await chkLocator.count() > 0 && !(await chkLocator.isChecked().catch(() => false))) {
                     await chkLocator.check().catch(() => chkLocator.evaluate(n => n.checked = true));
-                    await mainPage.waitForTimeout(900);
+                    await mainPage.waitForTimeout(600);
                 }
             } catch(e) {}
+
+            // 9. Año de atención *: 2026
+            await seleccionarSSRSByLabel('Ano de atencion', '2026');
+
+            // 10. Servicio: Se deja en Seleccione / N/A (no se toca)
+
         } else if (opcionReporte === 2) {
             console.log('  🚀 Navegando a Reportes -> Seguimiento nutricional de ninos y ninas...\n');
             await mainPage.goto('https://rubonline.icbf.gov.co/Page/Reportes/TransversalReportes/List.aspx?oRp=1177', {
@@ -489,41 +508,37 @@ async function main() {
             reportFrame = await obtenerReportFrame(mainPage);
             console.log(c.verde('  ✅ Pantalla de reporte alcanzada.\n'));
 
-            console.log(c.amarillo('  ⏳ Aplicando filtros en pantalla de reporte...'));
+            console.log(c.amarillo('  ⏳ Aplicando filtros en pantalla de reporte (Seguimiento Nutricional)...'));
             
-            // 1. Area Misional
+            // 1. Area Misional: Dirección de Primera Infancia
             await seleccionarSSRSByLabel('Area Misional', 'Dirección de Primera Infancia');
             
-            // 2. Regional
+            // 2. Regional: Bogota D.C.
             await seleccionarSSRSByLabel('Regional', 'Bogota D.C.') || await seleccionarSSRSByLabel('Regional', 'Bogota');
 
-            // 3. Centro Zonal
+            // 3. Centro Zonal: CZ USAQUEN (o el de la asociación)
             await seleccionarSSRSByLabel('Centro Zonal', obtenerCentroZonal(asc));
 
-            // 4. Municipio
-            await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSMultiByLabel('Municipio', 'Bogota') || await seleccionarSSRSByLabel('Municipio', 'Bogota');
-            await mainPage.waitForTimeout(600);
+            // 4. Municipio: Bogota, D.C.
+            await seleccionarSSRSMultiByLabel('Municipio', 'Bogota, D.C.') || await seleccionarSSRSByLabel('Municipio', 'Bogota, D.C.');
             
-            // 5. Ano de Toma
+            // 5. Año de Toma: 2026
             await seleccionarSSRSByLabel('Ano de Toma', '2026') || await seleccionarSSRSByLabel('Año de Toma', '2026');
-            await mainPage.waitForTimeout(600);
 
-            // 6. Servicio (Seleccionar todos para abarcar las modalidades de la UDS)
-            await seleccionarSSRSMultiByLabel('Servicio', '(Select All)').catch(() => {});
-            await mainPage.waitForTimeout(600);
+            // 6. Servicio: "no se toca se deja lo que aparezca" (Instrucción explícita del usuario)
+
+            // 7. Entidad Contratista: Nombre largo / corto de la asociación
+            const entidadNombre = asc.nombreLargo || asc.nombreCorto || asc.nombre;
+            await seleccionarSSRSMultiByLabel('Entidad Contratista', entidadNombre) || await seleccionarSSRSByLabel('Entidad Contratista', entidadNombre);
             
-            // 7. Entidad Contratista
-            await seleccionarSSRSMultiByLabel('Entidad Contratista', asc.nombreCorto) || await seleccionarSSRSByLabel('Entidad Contratista', asc.nombreCorto);
-            await mainPage.waitForTimeout(600);
-            
-            // 8. Periodo Toma
+            // 8. Periodo Toma: Mensual
             await seleccionarSSRSByLabel('Periodo Toma', 'Mensual') || await seleccionarSSRSByLabel('Periodo Toma', 1);
 
-            // 9. Toma (Mes)
-            await seleccionarSSRSMultiByLabel('Toma', seleccionToma) || await seleccionarSSRSMultiByLabel('Mes Toma', seleccionToma);
-            await mainPage.waitForTimeout(600);
+            // 9. Toma: Noviembre (o la toma seleccionada)
+            const tomaFinal = (seleccionToma && seleccionToma !== '(Select All)') ? seleccionToma : 'Noviembre';
+            await seleccionarSSRSMultiByLabel('Toma', tomaFinal) || await seleccionarSSRSByLabel('Toma', tomaFinal);
             
-            // 10. TODAS LAS TOMAS
+            // 10. TODAS LAS TOMAS: NO
             await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'NO') || await seleccionarSSRSByLabel('TODAS LAS TOMAS', 'No');
         } else if (opcionReporte === 3 || opcionReporte === 4) {
             const reportName = opcionReporte === 3 ? "Informe de registro asistencia mensual" : "Unidades de servicio";
@@ -611,9 +626,14 @@ async function main() {
 
 
         await reportPage.waitForTimeout(800);
-        console.log('    👉 Generando reporte...');
+        console.log('    👉 Generando reporte (clic en View Report)...');
         
-        await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00').click();
+        const btnViewReport = reportFrame.locator('input[type="submit"][value*="View Report" i], input[type="submit"][value*="Consultar" i], #ctl00_cphCont_rvTransversarReportes_ctl04_ctl00, input[id*="ctl04_ctl00"]').first();
+        if (await btnViewReport.count() > 0) {
+            await btnViewReport.click({ force: true }).catch(() => btnViewReport.evaluate(b => b.click()));
+        } else {
+            await reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl04_ctl00').click().catch(() => {});
+        }
         console.log(c.cyan('    ⏳ Esperando a que el sistema procese el reporte (esto puede tardar unos minutos)...'));
         
         const exportButton = reportFrame.locator('#ctl00_cphCont_rvTransversarReportes_ctl05_ctl04_ctl00_ButtonImg, input[id*="ButtonImg"], a[title*="Export" i], img[alt*="Export" i], a[id*="ButtonLink"]').first();
