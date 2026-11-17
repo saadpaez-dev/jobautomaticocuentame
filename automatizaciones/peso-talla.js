@@ -1741,16 +1741,30 @@ async function main() {
 
                   // Escuchar dialogos/alertas nativos del navegador por si Cuentame lanza un alert() nativo
                   let dialogError = null;
+                  let dialogExito = false;
                   const dialogHandler = async dialog => {
                       const dMsg = dialog.message();
                       console.log(c.amarillo(`  ⚠️ Dialogo nativo de la pagina: "${dMsg.slice(0, 100)}" → Aceptando...`));
                       const dLow = dMsg.toLowerCase();
-                      if (!dLow.includes('guardad') && !dLow.includes('exitos') && !dLow.includes('correcto') && !dLow.includes('ha sido guardada')) {
+                      if (dLow.includes('guardad') || dLow.includes('exitos') || dLow.includes('correcto') || dLow.includes('ha sido guardada') || dLow.includes('satisfactori')) {
+                          dialogExito = true;
+                      } else {
                           dialogError = dMsg;
                       }
                       await dialog.accept().catch(() => {});
                   };
                   page.on('dialog', dialogHandler);
+
+                  // Escuchar respuestas HTTP para auditar el postback del guardado
+                  let httpPostOk = false;
+                  const httpSaveListener = resp => {
+                      try {
+                          if (resp.request().method() === 'POST' && resp.status() === 200 && resp.url().includes('.aspx')) {
+                              httpPostOk = true;
+                          }
+                      } catch(e) {}
+                  };
+                  page.on('response', httpSaveListener);
 
                   try {
                       // Pre-validar que ningun campo de fecha quede en 1900 o vacio antes de disparar el guardado
@@ -1800,39 +1814,64 @@ async function main() {
                       console.log(c.rojo(`  ❌ Error al presionar Guardar: ${e.message}`));
                   }
 
-                  // â”€â”€ ESPERAR CONFIRMACION "La Informacion ha sido guardada." O ERROR DUPLICADO â”€â”€
-                  console.log(c.amarillo('  â³ Esperando respuesta del servidor ("La Informacion ha sido guardada.")...'));
+                  // ── ESPERAR CONFIRMACION "La Informacion ha sido guardada." O ERROR DUPLICADO ──
+                  console.log(c.amarillo('  ⏳ Esperando respuesta del servidor ("La Informacion ha sido guardada.")...'));
                   let guardadoConfirmado = false;
                   let errorTomaExistente = false;
                   let clickAceptarRealizado = false;
                   const tInicioSave = Date.now();
                   
-                  while (Date.now() - tInicioSave < 15000) { // Esperar hasta 15 segundos la respuesta
+                  while (Date.now() - tInicioSave < 12000) {
+                      if (dialogExito) {
+                          guardadoConfirmado = true;
+                          break;
+                      }
+
                       let currentFrame = page.frame({ name: 'frameContent' }) || page;
                       
-                      // 1. Re-verificar solo una vez si aparece alguna ventana emergente de confirmacion
+                      // 1. Detectar e inspeccionar ventana emergente / modal de confirmacion
                       if (!clickAceptarRealizado) {
                           const btnAceptarPage = page.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
                           const btnAceptarFrame = currentFrame.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
 
-                          if (await btnAceptarPage.isVisible().catch(() => false)) {
-                              console.log(c.amarillo('  âš ï¸  Ventana emergente de confirmacion detectada â†’ haciendo clic en Aceptar...'));
+                          let btnAceptarFound = null;
+                          if (await btnAceptarFrame.isVisible().catch(() => false)) {
+                              btnAceptarFound = btnAceptarFrame;
+                          } else if (await btnAceptarPage.isVisible().catch(() => false)) {
+                              btnAceptarFound = btnAceptarPage;
+                          }
+
+                          if (btnAceptarFound) {
+                              const modalMsg = await btnAceptarFound.evaluate(btn => {
+                                  const box = btn.closest('.modal, .modal-dialog, .ui-dialog, div[role="dialog"], [class*="popup"], [id*="popup"], [id*="modal"], [id*="confirm"], [class*="sweet-alert"], .swal2-modal, [id*="Dialog"], table') || btn.parentElement || document.body;
+                                  return box ? box.innerText : '';
+                              }).catch(() => '');
+
+                              const mClean = modalMsg.replace(/\s+/g, ' ').trim();
+                              console.log(c.amarillo(`  ⚠️ Ventana emergente detectada: "${mClean.slice(0, 100)}" → Confirmando...`));
                               clickAceptarRealizado = true;
-                              await btnAceptarPage.click().catch(() => btnAceptarPage.evaluate(n => n.click()));
-                              await page.waitForTimeout(800);
-                          } else if (await btnAceptarFrame.isVisible().catch(() => false)) {
-                              console.log(c.amarillo('  âš ï¸  Ventana emergente de confirmacion detectada en formulario â†’ haciendo clic en Aceptar...'));
-                              clickAceptarRealizado = true;
-                              await btnAceptarFrame.click().catch(() => btnAceptarFrame.evaluate(n => n.click()));
-                              await page.waitForTimeout(800);
+                              await btnAceptarFound.click().catch(() => btnAceptarFound.evaluate(n => n.click()));
+                              await page.waitForTimeout(600);
+
+                              const mLow = modalMsg.toLowerCase();
+                              const esErrorModal = mLow.includes('error') || mLow.includes('requerido') || mLow.includes('invalido') || mLow.includes('ya tiene una toma');
+                              const esExitoModal = mLow.includes('guardad') || mLow.includes('exito') || mLow.includes('satisfactori') || mLow.includes('informacion') || mLow.includes('correcto');
+
+                              if (esExitoModal || (!esErrorModal && mClean.length > 0)) {
+                                  console.log(c.verde('  🎉 Guardado confirmado en ventana emergente!'));
+                                  guardadoConfirmado = true;
+                                  break;
+                              }
                           }
                       }
 
                       // 2. Verificar duplicidad de toma reportada por Cuentame
                       currentFrame = page.frame({ name: 'frameContent' }) || page;
                       const txtBody = await currentFrame.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+                      const txtPage = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+                      const combinedTxt = (txtBody + ' ' + txtPage).toLowerCase();
 
-                      if (txtBody.includes('ya tiene una toma para la fecha') || txtBody.includes('ya tiene una toma')) {
+                      if (combinedTxt.includes('ya tiene una toma para la fecha') || combinedTxt.includes('ya tiene una toma')) {
                           errorTomaExistente = true;
                           break;
                       }
@@ -1861,30 +1900,56 @@ async function main() {
                           break;
                       }
 
-                      // 4. Verificar confirmacion real: Banner nuevo del servidor o toma en grilla
+                      // 4. Verificar confirmacion real: Banner nuevo del servidor, texto en cuerpo o toma en grilla
                       const bannerExito = await currentFrame.evaluate(() => {
-                          const el = document.querySelector('#cphCont_lblMensaje, [id*="lblMensaje"], .alert-success');
-                          if (!el) return false;
-                          const txt = el.innerText ? el.innerText.trim() : '';
-                          return txt.includes('ha sido guardada') || (txt.includes('guardada') && !txt.includes('No se pudo'));
+                          const el = document.querySelector('#cphCont_lblMensaje, [id*="lblMensaje"], [id*="lblError"], .alert, .alert-success, .ui-dialog-content');
+                          if (el) {
+                              const txt = el.innerText ? el.innerText.trim().toLowerCase() : '';
+                              if ((txt.includes('guardad') || txt.includes('exito') || txt.includes('satisfactori')) && !txt.includes('no se pudo')) return true;
+                          }
+                          const bodyTxt = document.body ? document.body.innerText.toLowerCase() : '';
+                          return bodyTxt.includes('la informacion ha sido guardada') || bodyTxt.includes('informacion ha sido guardada') || bodyTxt.includes('guardada con exito') || bodyTxt.includes('guardado con exito');
                       }).catch(() => false);
 
                       const fechaGuardadaEnTabla = await currentFrame.evaluate((fBuscada) => {
                           const tablas = Array.from(document.querySelectorAll('table'));
-                          const tablaNutricion = tablas.find(t => (t.id && (t.id.includes('gvNutricion') || t.id.includes('grdNutricion'))) || (t.innerText && t.innerText.includes('Fecha Toma')));
-                          if (!tablaNutricion) return false;
-                          return fBuscada ? tablaNutricion.innerText.includes(fBuscada) : false;
+                          const tablaNutricion = tablas.find(t => (t.id && (t.id.includes('gvNutricion') || t.id.includes('grdNutricion') || t.id.includes('gvHistorico'))) || (t.innerText && (t.innerText.includes('Fecha Toma') || t.innerText.includes('Talla (cm)'))));
+                          if (!tablaNutricion || !fBuscada) return false;
+                          const tText = tablaNutricion.innerText || '';
+                          const parts = fBuscada.split('/');
+                          if (parts.length === 3) {
+                              const dNoZero = parseInt(parts[0], 10);
+                              const mNoZero = parseInt(parts[1], 10);
+                              const y = parts[2];
+                              const regex = new RegExp(`0?${dNoZero}\\/0?${mNoZero}\\/\\${y}`);
+                              return regex.test(tText);
+                          }
+                          return tText.includes(fBuscada);
                       }, datosLlenado.fecha).catch(() => false);
 
-                      if (!dialogError && !tieneErrorRed && (bannerExito || fechaGuardadaEnTabla)) {
+                      // Si se pulso Aceptar en una modal y no hay error, o banner exitoso, o fecha en tabla:
+                      if (!dialogError && !tieneErrorRed && (bannerExito || fechaGuardadaEnTabla || (clickAceptarRealizado && Date.now() - tInicioSave > 1500))) {
                           guardadoConfirmado = true;
                           break;
                       }
 
-                      await page.waitForTimeout(500);
+                      // Si hubo respuesta HTTP POST 200, no hay errores en pantalla y el formulario de ingreso ya no esta visible
+                      if (httpPostOk && !dialogError && !tieneErrorRed && (Date.now() - tInicioSave > 3000)) {
+                          const formAbierto = await currentFrame.evaluate(() => {
+                              const inp = document.querySelector('#cphCont_txtPeso, [id*="txtPeso"], [id*="cuwFechaValoracionNutricional"]');
+                              return inp && inp.offsetParent !== null;
+                          }).catch(() => false);
+                          if (!formAbierto) {
+                              guardadoConfirmado = true;
+                              break;
+                          }
+                      }
+
+                      await page.waitForTimeout(400);
                   }
 
                   page.off('dialog', dialogHandler);
+                  page.off('response', httpSaveListener);
 
                   // Re-obtener el frame actualizado tras el guardado
                   let activeContent = page.frame({ name: 'frameContent' });
