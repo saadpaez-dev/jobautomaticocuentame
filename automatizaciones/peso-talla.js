@@ -1735,7 +1735,7 @@ async function main() {
                       let preFrame = page.frame({ name: 'frameContent' }) || page;
                       await preFrame.evaluate(() => {
                           const msgs = document.querySelectorAll('#cphCont_lblMensaje, [id*="lblMensaje"], .alert, .alert-success');
-                          msgs.forEach(m => { m.innerText = ''; m.innerHTML = ''; });
+                          msgs.forEach(m => { m.replaceChildren(); });
                       }).catch(() => {});
                   } catch(e) {}
 
@@ -1753,10 +1753,44 @@ async function main() {
                   page.on('dialog', dialogHandler);
 
                   try {
-                      const btnGuardar = content.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
-                      if (await btnGuardar.count() > 0) {
+                      // Pre-validar que ningun campo de fecha quede en 1900 o vacio antes de disparar el guardado
+                      await content.evaluate((fDate) => {
+                          const dateInputs = Array.from(document.querySelectorAll('input[id*="txtFecha"], input[name*="txtFecha"]'));
+                          dateInputs.forEach(inp => {
+                              if (!inp.value || inp.value.includes('1900')) {
+                                  inp.value = fDate;
+                                  inp.dispatchEvent(new Event('input', { bubbles: true }));
+                                  inp.dispatchEvent(new Event('change', { bubbles: true }));
+                                  inp.dispatchEvent(new Event('blur', { bubbles: true }));
+                              }
+                          });
+                      }, datosLlenado.fecha).catch(() => {});
+
+                      const btnGuardarAnchor = content.locator('a#btnGuardar, #cphCont_btnGuardar, a:has(img[src*="save" i]), a:has(img[alt*="Guardar" i]), a[id*="btnGuardar" i]').first();
+                      const btnGuardarInput = content.locator('input[id*="btnGuardar" i], input[src*="grabar" i], input[value*="Guardar" i]').first();
+                      const btnGuardarImg = content.locator('img[alt*="Guardar" i], img[src*="save" i]').first();
+
+                      let btnGuardar = null;
+                      if (await btnGuardarAnchor.count() > 0) {
+                          btnGuardar = btnGuardarAnchor;
+                      } else if (await btnGuardarInput.count() > 0) {
+                          btnGuardar = btnGuardarInput;
+                      } else if (await btnGuardarImg.count() > 0) {
+                          btnGuardar = btnGuardarImg;
+                      }
+
+                      if (btnGuardar && await btnGuardar.count() > 0) {
                           await esperarPostBackReactivo(page, async () => {
-                              await btnGuardar.click({ timeout: 3000 }).catch(() => btnGuardar.evaluate(node => node.click()));
+                              await btnGuardar.click({ timeout: 3000 }).catch(async () => {
+                                  await btnGuardar.evaluate(node => {
+                                      const anchor = node.closest('a') || node;
+                                      if (anchor.tagName && anchor.tagName.toLowerCase() === 'a' && anchor.href && anchor.href.startsWith('javascript:')) {
+                                          eval(anchor.href.replace(/^javascript:/i, ''));
+                                      } else {
+                                          anchor.click();
+                                      }
+                                  });
+                              });
                           });
                           console.log(c.verde('  ✅ Clic en boton Guardar enviado reactivamente.'));
                       } else {
@@ -1920,40 +1954,74 @@ async function main() {
                       let autoHealed = false;
                       const ninoTarget = (modoExcel && modoExcel.startsWith('MASIVO_')) ? (ninosExcel[idxNinoExcelActual] || ninoSeleccionado) : ninoSeleccionado;
 
-                      // Auto-recuperacion si Cuentame reclama por Fecha de medicion de perimetro braquial o fecha de inicio de atencion
-                      if (txtError && (txtError.toLowerCase().includes('perimetro braquial') || txtError.toLowerCase().includes('menor o igual') || txtError.toLowerCase().includes('inicio de atencion')) && ninoTarget) {
-                          console.log(c.amarillo(`\n  ⚠️ Detectado error de fecha de perimetro braquial / inicio de atencion en Cuentame.`));
+                      // Auto-recuperacion si Cuentame reclama por validadores, campos requeridos o fechas
+                      const txtErrorLower = (txtError || '').toLowerCase();
+                      const esErrorValidacion = txtError && (
+                          txtErrorLower.includes('perimetro braquial') ||
+                          txtErrorLower.includes('menor o igual') ||
+                          txtErrorLower.includes('inicio de atencion') ||
+                          txtErrorLower.includes('campo requerido') ||
+                          txtErrorLower.includes('1900') ||
+                          txtErrorLower.includes('debe se mayor') ||
+                          txtErrorLower.includes('debe ser diferente') ||
+                          txtErrorLower.includes('formato correcto')
+                      );
+
+                      if (esErrorValidacion && ninoTarget) {
+                          console.log(c.amarillo(`\n  ⚠️ Detectada alerta de validacion en Cuentame: "${txtError.slice(0, 100)}..."`));
                           
                           // Extraer cualquier fecha valida mencionada en el mensaje de error (EXCLUYENDO 01/01/1900)
                           let fechaRef = ninoTarget.fecha;
                           const allDates = txtError.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
                           const validDates = allDates.filter(d => !d.includes('1900'));
                           
-                          if (validDates.length > 0) {
+                          if (validDates.length > 0 && (txtErrorLower.includes('inicio de atencion') || txtErrorLower.includes('perimetro braquial'))) {
                               fechaRef = validDates[0];
                               console.log(c.amarillo(`  🛠️ Autocorrigiendo: Ajustando Fecha a ${fechaRef} (sugerida por la regla de validacion)...`));
                           } else {
-                              // Fallback a la fecha actual o fecha del registro (NUNCA 1900)
                               const hoyStr = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/-/g, '/');
                               if (!fechaRef || fechaRef.includes('1900')) fechaRef = hoyStr;
-                              console.log(c.amarillo(`  🛠️ Autocorrigiendo: Re-sincronizando formulario completo con Fecha (${fechaRef})...`));
+                              console.log(c.amarillo(`  🛠️ Autocorrigiendo: Re-sincronizando formulario completo con Fecha (${fechaRef}) y forzando campos obligatorios...`));
                           }
                           
                           datosLlenado.fecha = fechaRef;
 
-                          // RE-LLENAR EL FORMULARIO COMPLETO PARA GARANTIZAR QUE NINGUN CAMPO QUEDE EN BLANCO
-                          await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
+                          // RE-LLENAR EL FORMULARIO COMPLETO FORZANDO hasHistory = false PARA ASEGURAR TODOS LOS CAMPOS
+                          await llenarFormularioNutricion(browser, content, datosLlenado, false);
                           await page.waitForTimeout(500);
 
-                          const btnGuardarRetry = currentFrameErr.locator('a#btnGuardar, #cphCont_btnGuardar, a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i], img[alt*="Guardar" i], img[src*="save" i], a:has(img[src*="save"])').first();
+                          // Pre-validar fechas antes de reintentar
+                          await content.evaluate((fDate) => {
+                              const dateInputs = Array.from(document.querySelectorAll('input[id*="txtFecha"], input[name*="txtFecha"]'));
+                              dateInputs.forEach(inp => {
+                                  if (!inp.value || inp.value.includes('1900')) {
+                                      inp.value = fDate;
+                                      inp.dispatchEvent(new Event('input', { bubbles: true }));
+                                      inp.dispatchEvent(new Event('change', { bubbles: true }));
+                                      inp.dispatchEvent(new Event('blur', { bubbles: true }));
+                                  }
+                              });
+                          }, datosLlenado.fecha).catch(() => {});
+
+                          const btnGuardarRetry = currentFrameErr.locator('a#btnGuardar, #cphCont_btnGuardar, a:has(img[src*="save" i]), a:has(img[alt*="Guardar" i]), a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i]').first();
                           if (await btnGuardarRetry.count() > 0) {
                               console.log(c.amarillo('  ⏳ Reintentando guardado...'));
-                              await btnGuardarRetry.click({ timeout: 3000 }).catch(() => btnGuardarRetry.evaluate(node => node.click()));
+                              await esperarPostBackReactivo(page, async () => {
+                                  await btnGuardarRetry.click({ timeout: 3000 }).catch(async () => {
+                                      await btnGuardarRetry.evaluate(node => {
+                                          const anchor = node.closest('a') || node;
+                                          if (anchor.tagName && anchor.tagName.toLowerCase() === 'a' && anchor.href && anchor.href.startsWith('javascript:')) {
+                                              eval(anchor.href.replace(/^javascript:/i, ''));
+                                          } else {
+                                              anchor.click();
+                                          }
+                                      });
+                                  });
+                              });
                               await page.waitForTimeout(800);
 
                               const currentFrameRetry = page.frame({ name: 'frameContent' }) || page;
                               const txtBodyRetry = await currentFrameRetry.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
-                              const txtMainRetry = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
 
                               const hasErrRetry = await currentFrameRetry.evaluate(() => {
                                       const elms = Array.from(document.querySelectorAll('span, div, td, label')).filter(el => {
@@ -1961,10 +2029,10 @@ async function main() {
                                           const style = window.getComputedStyle(el);
                                           const isRed = (style.color === 'rgb(255, 0, 0)' || style.color === 'red');
                                           const text = el.innerText ? el.innerText.trim() : '';
-                                          return (isRed || el.className.includes('error')) && text.length > 3 && !text.includes('ha sido guardada');
+                                          return (isRed || el.className.includes('error') || el.className.includes('validator')) && text.length > 3 && !text.includes('ha sido guardada');
                                       });
                                       return elms.length > 0;
-                                  }).catch(() => false);
+                              }).catch(() => false);
 
                               if (!hasErrRetry && (txtBodyRetry.includes('La Informacion ha sido guardada') || txtBodyRetry.includes('ha sido guardada'))) {
                                   autoHealed = true;
@@ -1973,10 +2041,10 @@ async function main() {
                                   if (modoExcel && modoExcel.startsWith('MASIVO_') && ninoTarget) {
                                       ninosProcesados.push({
                                           ...ninoTarget,
-                                          estado: 'CARGADO EXITOSAMENTE (AUTOCORREGIDO FECHA PERIMETRO)',
-                                          observacion: 'La informacion de la toma se guardo tras autocorregir fecha de perimetro braquial.'
+                                          estado: 'CARGADO EXITOSAMENTE (AUTOCORREGIDO)',
+                                          observacion: 'La informacion de la toma se guardo tras autocorregir campos y fechas.'
                                       });
-                                      console.log(c.verde(`  🎉‰ Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
+                                      console.log(c.verde(`  🎉 Nino ${idxNinoExcelActual + 1} de ${ninosExcel.length} procesado y guardado.`));
                                   }
                               }
                           }
