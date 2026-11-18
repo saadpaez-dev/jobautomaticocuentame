@@ -125,6 +125,24 @@ function detectarIniciosToma(data, headerRowIdx = 13) {
     return resultado.length > 0 ? resultado : [7, 19, 31, 43];
 }
 
+function inferirTomaDesdeFecha(fechaStr) {
+    if (!fechaStr) return { numeroToma: 4, nombreToma: 'Toma 4', mes: 'Noviembre' };
+    const parts = String(fechaStr).trim().split(/[\/-]/);
+    if (parts.length === 3) {
+        let m = parseInt(parts[1], 10);
+        if (parts[0].length === 4) { // YYYY-MM-DD
+            m = parseInt(parts[1], 10);
+        }
+        const meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const nombreMes = (m >= 1 && m <= 12) ? meses[m] : 'Noviembre';
+        if (m >= 1 && m <= 3) return { numeroToma: 1, nombreToma: 'Toma 1', mes: nombreMes };
+        if (m >= 4 && m <= 6) return { numeroToma: 2, nombreToma: 'Toma 2', mes: nombreMes };
+        if (m >= 7 && m <= 9) return { numeroToma: 3, nombreToma: 'Toma 3', mes: nombreMes };
+        if (m >= 10 && m <= 12) return { numeroToma: 4, nombreToma: 'Toma 4', mes: nombreMes };
+    }
+    return { numeroToma: 4, nombreToma: 'Toma 4', mes: 'Noviembre' };
+}
+
 function obtenerUltimaToma(fila, iniciosToma = [7, 19, 31, 43]) {
     let ultimaTomaValida = null;
 
@@ -148,6 +166,15 @@ function obtenerUltimaToma(fila, iniciosToma = [7, 19, 31, 43]) {
             }
         }
     }
+
+    if (ultimaTomaValida) {
+        const infoToma = inferirTomaDesdeFecha(ultimaTomaValida.fecha);
+        ultimaTomaValida.numeroToma = infoToma.numeroToma;
+        ultimaTomaValida.nombreToma = infoToma.nombreToma;
+        ultimaTomaValida.toma = infoToma.nombreToma;
+        ultimaTomaValida.periodoToma = infoToma.mes;
+    }
+
     return ultimaTomaValida;
 }
 
@@ -428,6 +455,18 @@ function parsearExcel(filePath) {
     }
 
     const ninos = Array.from(ninosMap.values());
+
+    const tieneTomaNoviembre = ninos.some(n => {
+        if (!n.fecha) return false;
+        const p = String(n.fecha).split(/[\/-]/);
+        return p.length === 3 && (parseInt(p[1], 10) === 11 || String(n.fecha).toLowerCase().includes('nov'));
+    });
+
+    if (tieneTomaNoviembre) {
+        console.log(`\x1b[32m  🎯 [Toma Detectada]: Formato con fecha en NOVIEMBRE (${hojasProcesadas.length} hoja(s) de datos).`);
+        console.log(`     📌 Clasificada automáticamente como: TOMA 4 (Noviembre).`);
+        console.log(`     ✅ Procediendo directamente con la 4ta toma sin requerir columnas a la derecha (Toma 2).\x1b[0m\n`);
+    }
 
     console.log(`\n  📊 RESUMEN LECTURA LIBRO EXCEL:`);
     console.log(`     Hojas con formato procesadas: ${hojasProcesadas.length}`);

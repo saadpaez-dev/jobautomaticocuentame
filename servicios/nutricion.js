@@ -484,15 +484,38 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             }, datos.fecha);
         } catch(e) {}
         
-        // Extraer mes de la fecha y llenar el campo Toma o Mes
+        // Extraer mes de la fecha y llenar el campo Toma, Periodo o Mes
         if (datos.fecha) {
-            const partesFecha = String(datos.fecha).trim().split('/');
+            const partesFecha = String(datos.fecha).trim().split(/[\/-]/);
             if (partesFecha.length === 3) {
+                let mesIndex = parseInt(partesFecha[1], 10) - 1;
+                if (partesFecha[0].length === 4) { // Formato YYYY-MM-DD
+                    mesIndex = parseInt(partesFecha[1], 10) - 1;
+                }
                 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-                const mesIndex = parseInt(partesFecha[1], 10) - 1;
                 if (mesIndex >= 0 && mesIndex < 12) {
                     const nombreMes = mesesNombres[mesIndex];
-                    await safeFillSelect('Toma', nombreMes);
+                    const numToma = Math.floor(mesIndex / 3) + 1;
+                    const tomaNombre = `Toma ${numToma}`;
+                    const tomaRomanos = ['', 'I', 'II', 'III', 'IV'][numToma] || '';
+
+                    const candidatosToma = [
+                        nombreMes,
+                        tomaNombre,
+                        `TOMA ${numToma}`,
+                        String(numToma),
+                        tomaRomanos,
+                        `Toma ${tomaRomanos}`,
+                        numToma === 4 ? 'Cuarta Toma' : (numToma === 3 ? 'Tercera Toma' : (numToma === 2 ? 'Segunda Toma' : 'Primera Toma')),
+                        numToma === 4 ? 'Octubre - Diciembre' : (numToma === 3 ? 'Julio - Septiembre' : (numToma === 2 ? 'Abril - Junio' : 'Enero - Marzo'))
+                    ];
+
+                    for (const cand of candidatosToma) {
+                        const r1 = await safeFillSelect('Toma', cand);
+                        const r2 = await safeFillSelect('Periodo Toma', cand);
+                        const r3 = await safeFillSelect('Periodo', cand);
+                        if (r1 || r2 || r3) break;
+                    }
                     await safeFillSelect('Mes', nombreMes);
                 }
             }

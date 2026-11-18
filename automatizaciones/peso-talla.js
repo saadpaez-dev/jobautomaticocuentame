@@ -748,6 +748,10 @@ async function main() {
               }
 
               console.log(c.verde(`  ✅ Se encontraron ${ninosExcel.length} ninos listos para procesar.`));
+              const primerNino = ninosExcel[0];
+              if (primerNino && (primerNino.numeroToma === 4 || (primerNino.fecha && primerNino.fecha.includes('/11/')))) {
+                  console.log(c.verde(`  🎯 [TOMA 4 / NOVIEMBRE]: Detectado formato de Cuarta Toma (${primerNino.fecha || 'Noviembre'}). Procediendo directamente sin requerir columnas a la derecha.`));
+              }
               modoExcel = respBenef.trim() === '1' ? 'MASIVO_NUEVO' : 'MASIVO_EDITAR';
           } catch(e) {
               console.log(c.rojo(`  ❌ Error leyendo Excel: ${e.message}`));
@@ -1407,7 +1411,7 @@ async function main() {
                   }
 
                   // â”€â”€ VERIFICACION DE TOMA DUPLICADA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                  if (modoExcel && modoExcel.startsWith('MASIVO_')) {
+                  if (modoExcel && modoExcel === 'MASIVO_NUEVO') {
                       const ninoInfo = ninosExcel[idxNinoExcelActual];
                       const targetFecha = parsearFecha(String(ninoInfo.fecha)).trim();
                       const targetFechaNorm = normalizarFecha(targetFecha);
@@ -1608,7 +1612,14 @@ async function main() {
                           }
                       } else if (accion.trim() === '2') {
                           let numAccion = -1;
-                          if (listaTomas.length === 1) {
+                          if (modoExcel === 'MASIVO_EDITAR' && ninosExcel[idxNinoExcelActual]) {
+                              const ninoInfo = ninosExcel[idxNinoExcelActual];
+                              const targetFechaNorm = normalizarFecha(parsearFecha(String(ninoInfo.fecha)).trim());
+                              let idxCoincidente = listaTomas.findIndex(t => normalizarFecha(t.fechaValoracion || t.fechaToma) === targetFechaNorm);
+                              if (idxCoincidente === -1) idxCoincidente = listaTomas.length - 1;
+                              numAccion = idxCoincidente + 1;
+                              console.log(c.verde(`  🤖 [Modo Masivo Editar]: Seleccionando automáticamente la toma ${numAccion} (${listaTomas[idxCoincidente].fechaToma}) para editar.`));
+                          } else if (listaTomas.length === 1) {
                               numAccion = 1;
                               console.log(c.amarillo(`  â³ Editando la unica toma existente (${listaTomas[0].fechaToma})...`));
                           } else {
