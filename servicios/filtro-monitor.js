@@ -98,6 +98,148 @@ async function esperarSSRSAsyncWait(frame, timeoutMs = 15000) {
 }
 
 /**
+ * Selecciona una opción en un <select> de ASP.NET de forma determinista y reactiva.
+ * Si el select tiene onchange con __doPostBack, espera el postback sin sleeps ciegos.
+ *
+ * @param {import('playwright').Page} page - Página principal
+ * @param {import('playwright').Frame|import('playwright').Page} frame - Frame donde reside el select
+ * @param {string|import('playwright').Locator} selectorOrLoc - Selector CSS o Locator del select
+ * @param {string|number} valueOrText - Texto u opción a seleccionar
+ * @param {object} opciones - Opciones adicionales (dependienteSelector, timeoutMs, nombreEtiqueta)
+ */
+async function seleccionarDropdownReactivo(page, frame, selectorOrLoc, valueOrText, opciones = {}) {
+  const { dependienteSelector = null, timeoutMs = 12000, nombreEtiqueta = '' } = opciones;
+  const t0 = Date.now();
+  const loc = typeof selectorOrLoc === 'string' ? frame.locator(selectorOrLoc).first() : selectorOrLoc;
+
+  try {
+    await loc.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+    
+    // Si el select todavía no tiene opciones (ej. acaba de dispararse la carga dependiente),
+    // esperar activamente hasta que el DOM lo pueble (máximo 4s)
+    await frame.waitForFunction((el) => {
+      return el && el.options && (el.options.length > 1 || (el.options.length === 1 && el.options[0].value !== "" && el.options[0].value !== "-1" && el.options[0].value !== "0"));
+    }, await loc.elementHandle().catch(() => null), { timeout: 4000 }).catch(() => {});
+
+    // Inspeccionar las opciones actuales del select y si requiere postback
+    const info = await loc.evaluate((el, { targetVal }) => {
+      const norm = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").replace(/[*:]/g, "").toUpperCase().trim();
+      el.disabled = false;
+      el.classList.remove('aspNetDisabled');
+
+      const onchange = el.getAttribute('onchange') || '';
+      const tienePostBack = onchange.includes('__doPostBack') || onchange.includes('postback') || onchange.includes('submit');
+
+      const options = Array.from(el.options).map((o, idx) => ({
+        index: idx,
+        value: o.value,
+        text: (o.text || o.innerText || '').trim(),
+        textNorm: norm(o.text || o.innerText || ''),
+        valNorm: norm(o.value)
+      }));
+
+      let matchedIdx = -1;
+      let matchedVal = null;
+      let matchedText = '';
+
+      if (typeof targetVal === 'number') {
+        if (targetVal >= 0 && targetVal < options.length) {
+          matchedIdx = targetVal;
+          matchedVal = options[targetVal].value;
+          matchedText = options[targetVal].text;
+        }
+      } else if (targetVal !== null && targetVal !== undefined && targetVal !== '') {
+        const s = norm(String(targetVal));
+        
+        // 1. Coincidencia exacta
+        let m = options.find(o => o.textNorm === s || o.valNorm === s);
+        
+        // 2. Coincidencia de mes (ej. "NOVIEMBRE" <-> "11", etc.)
+        if (!m) {
+          const mapaMeses = {
+            'ENERO': '1', 'FEBRERO': '2', 'MARZO': '3', 'ABRIL': '4', 'MAYO': '5', 'JUNIO': '6',
+            'JULIO': '7', 'AGOSTO': '8', 'SEPTIEMBRE': '9', 'OCTUBRE': '10', 'NOVIEMBRE': '11', 'DICIEMBRE': '12'
+          };
+          const numMes = mapaMeses[s] || mapaMeses[s.slice(0, 3)];
+          if (numMes) {
+            m = options.find(o => o.valNorm === numMes || o.textNorm.startsWith(numMes + ' ') || o.textNorm.startsWith(numMes + '-') || o.textNorm.startsWith(numMes + '.'));
+          }
+        }
+
+        // 3. StartsWith
+        if (!m) {
+          m = options.find(o => o.textNorm.startsWith(s));
+        }
+
+        // 4. Includes
+        if (!m) {
+          m = options.find(o => o.textNorm.includes(s) || (s.length > 3 && s.includes(o.textNorm)));
+        }
+
+        if (m) {
+          matchedIdx = m.index;
+          matchedVal = m.value;
+          matchedText = m.text;
+        }
+      }
+
+      const curVal = el.value;
+      const curIdx = el.selectedIndex;
+      const yaSeleccionado = (matchedIdx === curIdx || (matchedVal !== null && curVal === matchedVal));
+
+      return {
+        tienePostBack,
+        optionsCount: options.length,
+        matchedIdx,
+        matchedVal,
+        matchedText,
+        yaSeleccionado,
+        curText: el.options[curIdx] ? el.options[curIdx].text : ''
+      };
+    }, { targetVal: valueOrText });
+
+    const etiquetaLog = nombreEtiqueta || (typeof selectorOrLoc === 'string' ? selectorOrLoc : 'select');
+
+    if (info.matchedIdx === -1) {
+      console.log(c.amarillo(`    ⚠️ [Filtro] "${etiquetaLog}": No se encontró opción para "${valueOrText}" (${info.optionsCount} disponibles)`));
+      return false;
+    }
+
+    if (info.yaSeleccionado) {
+      // Ya tiene la opción correcta
+      return true;
+    }
+
+    // Si requiere postback, envolver la selección en esperarPostBackReactivo
+    if (info.tienePostBack) {
+      const res = await esperarPostBackReactivo(page, async () => {
+        await loc.selectOption({ index: info.matchedIdx }).catch(() => {});
+      }, timeoutMs);
+
+      // Si hay un control dependiente, esperar a que se pueble
+      if (dependienteSelector) {
+        await frame.waitForFunction((depSel) => {
+          const el = document.querySelector(depSel);
+          return el && !el.disabled && el.options && el.options.length > 1;
+        }, dependienteSelector, { timeout: 5000 }).catch(() => {});
+      }
+
+      console.log(c.verde(`    ⚡ [Filtro reactivo] "${etiquetaLog}" -> ${info.matchedText} (${res.totalMs}ms)`));
+      return true;
+    } else {
+      await loc.selectOption({ index: info.matchedIdx }).catch(() => {});
+      const totalMs = Date.now() - t0;
+      console.log(c.verde(`    ⚡ [Filtro local] "${etiquetaLog}" -> ${info.matchedText} (${totalMs}ms)`));
+      return true;
+    }
+
+  } catch (err) {
+    console.log(c.amarillo(`    ⚠️ [Filtro] Error al seleccionar en "${nombreEtiqueta || selectorOrLoc}": ${err.message}`));
+    return false;
+  }
+}
+
+/**
  * Espera a que termine cualquier postback asíncrono activo de ASP.NET AJAX y SSRS
  */
 async function esperarPostBackSSRS(page, reportFrame, timeoutMs = 15000) {
