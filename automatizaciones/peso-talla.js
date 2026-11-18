@@ -2051,8 +2051,8 @@ async function main() {
                           
                           datosLlenado.fecha = fechaRef;
 
-                          // RE-LLENAR EL FORMULARIO COMPLETO FORZANDO hasHistory = false PARA ASEGURAR TODOS LOS CAMPOS
-                          await llenarFormularioNutricion(browser, content, datosLlenado, false);
+                          // RE-LLENAR EL FORMULARIO RESPETANDO hasHistory
+                          await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
                           await page.waitForTimeout(500);
 
                           // Pre-validar fechas antes de reintentar

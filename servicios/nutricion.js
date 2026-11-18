@@ -443,8 +443,15 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         await safeFillText('esquema de vacunacion', datos.fecha);
         await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
         
-        await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
-        await page.waitForTimeout(100);
+        // 1.2 Carnet de crecimiento y desarrollo:
+        // Si el beneficiario ya tiene tomas registradas (hasHistory = true), NO intervenir colocando "Si",
+        // para no forzar la pregunta de controles ni alterar el estado previo en Cuéntame.
+        if (!hasHistory) {
+            await safeFillRadio('carnet de crecimiento y desarrollo', 'Si', 0);
+            await page.waitForTimeout(100);
+        } else {
+            console.log(c.cyan('    ℹ️ Beneficiario con tomas previas: No se interviene en carnet de crecimiento y desarrollo.'));
+        }
 
         // 1.1 Antecedente de prematurez: Cuentame a veces lo habilita de la nada, siempre debe ser "No".
         await safeFillRadio('Antecedente de prematurez', 'No', 1);
@@ -520,12 +527,16 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         
         const f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
 
-        // A. Controles de crecimiento (Asegurar siempre diligenciado)
-        try {
-            await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' }, { timeout: 1500 });
-            console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento = 1'));
-        } catch(e) {}
-        await page.waitForTimeout(100);
+        // A. Controles de crecimiento: Solo si NO tiene historial previo
+        if (!hasHistory) {
+            try {
+                await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' }, { timeout: 1500 });
+                console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento = 1'));
+            } catch(e) {}
+            await page.waitForTimeout(100);
+        } else {
+            console.log(c.cyan('    ℹ️ Beneficiario con tomas previas: No se interviene en controles de crecimiento.'));
+        }
 
         // A2. Lactancia (Mayor / Menor 6 meses)
         try {
@@ -606,7 +617,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             }
 
             if (fechaUso && !fechaUso.includes('1900')) {
-                await f.evaluate(({ fDate, syncPbDate }) => {
+                await f.evaluate(({ fDate, syncPbDate, childHasHistory }) => {
                     const dateInputSelectors = [
                         '#cphCont_cuwFechaValoracionNuricional_txtFecha',
                         '#cphCont_cuwFechaValoracionNutricional_txtFecha',
@@ -639,7 +650,12 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                     });
 
                     // Verificacion de seguridad: radios de vacunacion
-                    ['rbTieneCarnetVacunacion', 'rbTieneDosisEdad', 'rbTieneCarnetCrecimiento'].forEach(namePart => {
+                    // rbTieneCarnetCrecimiento solo se asegura en "Si" si el niño NO tiene historial previo
+                    const listRadios = childHasHistory
+                        ? ['rbTieneCarnetVacunacion', 'rbTieneDosisEdad']
+                        : ['rbTieneCarnetVacunacion', 'rbTieneDosisEdad', 'rbTieneCarnetCrecimiento'];
+
+                    listRadios.forEach(namePart => {
                         const radios = Array.from(document.querySelectorAll(`input[type="radio"][id*="${namePart}"]`));
                         if (radios.length > 0 && !radios.some(r => r.checked)) {
                             const radioSi = radios.find(r => r.value === '1' || r.id.endsWith('_0')) || radios[0];
@@ -659,7 +675,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                             radioNo.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                     }
-                }, { fDate: fechaUso, syncPbDate: aplicaPerimetro }).catch(() => {});
+                }, { fDate: fechaUso, syncPbDate: aplicaPerimetro, childHasHistory: hasHistory }).catch(() => {});
                 console.log(c.verde(`    ✅ [Texto] Sincronizadas Fechas con Fecha de la Toma Nutricional (${fechaUso})`));
                 await page.waitForTimeout(300);
             }
