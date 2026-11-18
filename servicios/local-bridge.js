@@ -227,7 +227,8 @@ function lanzarDesvinculacion(payload = {}, cmdId = 'auto') {
     const colaDir = path.join(ROOT, 'logs', 'cola_comandos');
     if (!fs.existsSync(colaDir)) fs.mkdirSync(colaDir, { recursive: true });
     const payloadPath = path.join(colaDir, `desvinculacion_${cmdId}.json`);
-    fs.writeFileSync(payloadPath, JSON.stringify(payload, null, 2), 'utf8');
+    const payloadConCmd = { ...payload, comandoId: cmdId };
+    fs.writeFileSync(payloadPath, JSON.stringify(payloadConCmd, null, 2), 'utf8');
 
     const desc = payload.nino ? `${payload.nino} (${payload.documento || ''})` : (payload.jardin || 'Beneficiario');
     log('info', `❌ Lanzando robot de Desvinculación de Beneficiarios (${desc})...`);

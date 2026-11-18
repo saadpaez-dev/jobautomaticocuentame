@@ -11,6 +11,7 @@ const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
 const { obtenerJardinesDeAsociacion, obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
+const { esperarPostBackReactivo, seleccionarDropdownReactivo } = require('../servicios/filtro-monitor');
 
 const c = {
   verde:    (t) => `\x1b[32m${t}\x1b[0m`,
@@ -160,22 +161,26 @@ async function notificarDesvinculacionSincronizada(tarea) {
 function retirarNinoDeBaseDatosLocal(documento) {
     if (!documento) return;
     try {
-        const bdPath = path.join(__dirname, '..', 'data', 'BD_MASTER_BENEFICIARIOS.json');
-        if (fs.existsSync(bdPath)) {
-            let bd = JSON.parse(fs.readFileSync(bdPath, 'utf8'));
-            const antes = bd.length;
-            bd = bd.filter(b => String(b.documento).trim() !== String(documento).trim());
-            if (bd.length < antes) {
-                fs.writeFileSync(bdPath, JSON.stringify(bd, null, 2), 'utf8');
-                console.log(c.verde(`    💾 BD Master local actualizada: ${bd.length} beneficiarios restantes.`));
+        const docBuscado = String(documento).trim();
+        const rutas = [
+            path.join(__dirname, '..', 'docs', 'database', 'BD_MASTER_BENEFICIARIOS.json'),
+            path.join(__dirname, '..', 'data', 'BD_MASTER_BENEFICIARIOS.json'),
+            path.join(__dirname, '..', '..', 'app-cuentame', 'BD_MASTER_BENEFICIARIOS.json'),
+            path.join(__dirname, '..', '..', 'app-cuentame', 'docs', 'database', 'BD_MASTER_BENEFICIARIOS.json')
+        ];
+        rutas.forEach(bdPath => {
+            if (fs.existsSync(bdPath)) {
+                try {
+                    let bd = JSON.parse(fs.readFileSync(bdPath, 'utf8'));
+                    const antes = bd.length;
+                    bd = bd.filter(b => String(b.documento).trim() !== docBuscado);
+                    if (bd.length < antes) {
+                        fs.writeFileSync(bdPath, JSON.stringify(bd, null, 2), 'utf8');
+                        console.log(c.verde(`    💾 BD Master actualizada (${path.basename(bdPath)}): ${bd.length} beneficiarios restantes.`));
+                    }
+                } catch(err) {}
             }
-        }
-        const appBdPath = path.join(__dirname, '..', '..', 'app-cuentame', 'BD_MASTER_BENEFICIARIOS.json');
-        if (fs.existsSync(appBdPath)) {
-            let appBd = JSON.parse(fs.readFileSync(appBdPath, 'utf8'));
-            appBd = appBd.filter(b => String(b.documento).trim() !== String(documento).trim());
-            fs.writeFileSync(appBdPath, JSON.stringify(appBd, null, 2), 'utf8');
-        }
+        });
     } catch (e) {
         console.log(c.gris(`    (Error actualizando BD Master local: ${e.message})`));
     }
@@ -619,8 +624,11 @@ async function main() {
                     }
                     if (!matchServ) matchServ = poolServ[0];
 
-                    await selectServicio.selectOption(matchServ.v).catch(()=>{});
-                    await page.waitForTimeout(500);
+                    const valActual = await selectServicio.inputValue().catch(() => '');
+                    if (valActual !== matchServ.v) {
+                        console.log(c.gris(`    • Cambiando Servicio a: ${matchServ.t}...`));
+                        await seleccionarDropdownReactivo(page, contentFrame, selectServicio, matchServ.v, { dependienteSelector: 'select[id*="ddlUDS"], select[id*="UDS"]' });
+                    }
                 }
 
                 // Seleccionar UDS (Intentar primero por código Cuéntame exacto, luego por nombre)
@@ -661,7 +669,7 @@ async function main() {
                             el.dispatchEvent(new Event('change', { bubbles: true }));
                             el.blur();
                         }, tarea.fechaRetiro);
-                        await page.waitForTimeout(600);
+                        await page.waitForTimeout(400);
                     }
 
                     // 2. Seleccionar Motivo
@@ -683,30 +691,40 @@ async function main() {
                         }
                     }
 
-                    // 3. Clic Consultar Beneficiarios en esta UDS
+                    // 3. Clic Consultar Beneficiarios en esta UDS con espera de PostBack
+                    console.log(c.gris('    • Consultando beneficiarios en la UDS...'));
                     const btnConsultar = contentFrame.locator('input[type="submit"][value*="Consultar beneficiario"], input[id*="btnBuscar"]').first();
                     if (await btnConsultar.count() > 0 && await btnConsultar.isVisible()) {
-                        await btnConsultar.click();
-                        await page.waitForTimeout(1200);
+                        await esperarPostBackReactivo(page, async () => {
+                            await btnConsultar.click();
+                        });
                     }
 
                     contentFrame = page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
 
-                    // 4. Buscar la fila en la tabla
-                    const tablaNinos = contentFrame.locator('table[id*="gvBeneficiarios"] tr, table[id*="GridView"] tr');
-                    const numFilas = await tablaNinos.count();
+                    // 4. Esperar tabla de beneficiarios
+                    const tablaNinos = contentFrame.locator('table[id*="gvBeneficiarios"], table[id*="GridView"]').first();
+                    try {
+                        await tablaNinos.waitFor({ state: 'visible', timeout: 15000 });
+                    } catch (e) {
+                        console.log(c.amarillo('    ⚠️ Tiempo de espera agotado esperando tabla de beneficiarios.'));
+                    }
+
+                    // Buscar la fila en la tabla
+                    const filasNinos = contentFrame.locator('table[id*="gvBeneficiarios"] tr, table[id*="GridView"] tr');
+                    const numFilas = await filasNinos.count();
                     let marcado = false;
 
                     if (numFilas > 1) {
-                        const targetDoc = tarea.nino.documento;
+                        const targetDoc = String(tarea.nino.documento || '').trim();
                         const targetName = removeAccentsStr(tarea.nino.nombreCompleto);
 
                         for (let i = 1; i < numFilas; i++) {
-                            const fila = tablaNinos.nth(i);
-                            const rowText = await fila.innerText();
+                            const fila = filasNinos.nth(i);
+                            const rowText = await fila.innerText().catch(() => '');
                             const cleanText = removeAccentsStr(rowText);
 
-                            if ((targetDoc && rowText.includes(targetDoc)) || cleanText.includes(targetName)) {
+                            if ((targetDoc && rowText.includes(targetDoc)) || (targetName && cleanText.includes(targetName))) {
                                 const chk = fila.locator('input[type="checkbox"]').first();
                                 if (await chk.count() > 0) {
                                     await chk.check({ force: true }).catch(() => chk.click());
@@ -718,27 +736,28 @@ async function main() {
                         }
                     }
 
-                    if (!marcado) {
-                        console.log(c.rojo(`    ❌ No se encontro la fila en la tabla de Cuentame para ${tarea.nino.nombreCompleto}.`));
-                        continue;
-                    }
+                    if (marcado) {
+                        // 5. Clic Guardar
+                        console.log(c.amarillo('    💾 Guardando desvinculacion en Cuentame...'));
+                        const btnGuardar = contentFrame.locator('a[id*="btnGuardar"], input[id*="btnGuardar"], img[alt="Guardar"]').first();
+                        if (await btnGuardar.count() > 0 && await btnGuardar.isVisible()) {
+                            await btnGuardar.click();
+                            await page.waitForTimeout(3000);
 
-                    // 5. Clic Guardar
-                    console.log(c.amarillo('    💾 Guardando desvinculacion en Cuentame...'));
-                    const btnGuardar = contentFrame.locator('a[id*="btnGuardar"], input[id*="btnGuardar"], img[alt="Guardar"]').first();
-                    if (await btnGuardar.count() > 0 && await btnGuardar.isVisible()) {
-                        await btnGuardar.click();
-                        await page.waitForTimeout(3000);
-
-                        const lblMensaje = contentFrame.locator('span[id*="lblMensaje"], span[id*="Mensaje"]').first();
-                        if (await lblMensaje.count() > 0) {
-                            const txt = await lblMensaje.innerText();
-                            if (txt.trim()) console.log(c.cyan(`    📌 Respuesta Cuentame: ${txt.trim()}`));
+                            const lblMensaje = contentFrame.locator('span[id*="lblMensaje"], span[id*="Mensaje"]').first();
+                            if (await lblMensaje.count() > 0) {
+                                const txt = await lblMensaje.innerText().catch(() => '');
+                                if (txt.trim()) console.log(c.cyan(`    📌 Respuesta Cuentame: ${txt.trim()}`));
+                            }
+                            console.log(c.verde(`    ✅ Desvinculacion exitosa: ${tarea.nino.nombreCompleto}`));
                         }
-                        console.log(c.verde(`    ✅ Desvinculacion exitosa: ${tarea.nino.nombreCompleto}`));
-                        await notificarDesvinculacionSincronizada(tarea);
-                        retirarNinoDeBaseDatosLocal(tarea.nino.documento);
+                    } else {
+                        console.log(c.amarillo(`    ⚠️ Beneficiario ${tarea.nino.nombreCompleto} no figura activo en la tabla (posiblemente ya desvinculado previamente o trasladado).`));
                     }
+
+                    // Sincronizar siempre con Render y actualizar BD local para no dejar la orden colgada
+                    await notificarDesvinculacionSincronizada(tarea);
+                    retirarNinoDeBaseDatosLocal(tarea.nino.documento);
                 }
 
                 page.off('dialog', dialogHandler);
