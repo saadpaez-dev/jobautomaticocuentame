@@ -202,9 +202,19 @@ async function seleccionarRolYEntrar(page, ascInput, mantenerRolesTab = false) {
           let indexToSelect = 1;
           let mejorSimilitud = -1;
 
+          const isBrisasTarget = nameToSearch.includes('BRISAS');
           for (let i = 0; i < opciones.length; i++) {
               const optText = opciones[i].toUpperCase();
-              if (optText.includes(nameToSearch)) {
+              const isBrisasOpt = optText.includes('BRISAS');
+              let coincide = false;
+              if (isBrisasTarget) {
+                  coincide = isBrisasOpt && optText.includes('BUENAVISTA');
+              } else if (nameToSearch.includes('BUENAVISTA')) {
+                  coincide = !isBrisasOpt && optText.includes('BUENAVISTA');
+              } else {
+                  coincide = optText.includes(nameToSearch);
+              }
+              if (coincide) {
                   if (nombreLargo) {
                       const palabrasLargo = nombreLargo.toUpperCase().split(/[\s,.-]+/);
                       const palabrasOpt = optText.split(/[\s,.-]+/);
@@ -439,7 +449,18 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
     const headerClean = removeAccents(headerText);
 
     // Si la cabecera contiene la asociacion deseada, la sesion es perfecta!
-    if (headerClean.includes(targetClean)) {
+    const targetEsBrisas = targetClean.includes('BRISAS');
+    const headerEsBrisas = headerClean.includes('BRISAS');
+    let esMismaAsoc = false;
+    if (targetEsBrisas) {
+        esMismaAsoc = headerEsBrisas && headerClean.includes('BUENAVISTA');
+    } else if (targetClean.includes('BUENAVISTA')) {
+        esMismaAsoc = !headerEsBrisas && headerClean.includes('BUENAVISTA');
+    } else {
+        esMismaAsoc = headerClean.includes(targetClean);
+    }
+
+    if (esMismaAsoc) {
         console.log(c.verde(`  ✅ Sesion activa confirmada para la asociacion "${targetNombre}". Preservando sesion.`));
         
         // Garantizar que la pagina este en el layout principal si todavia no lo esta
@@ -474,7 +495,16 @@ async function validarYCambiarAsociacion(page, asociacionObj) {
         }).catch(() => '');
         const headerDespuesClean = removeAccents(headerDespues);
 
-        if (!headerDespuesClean.includes(targetClean)) {
+        const headerDespuesEsBrisas = headerDespuesClean.includes('BRISAS');
+        let confirmada = false;
+        if (targetEsBrisas) {
+            confirmada = headerDespuesEsBrisas && headerDespuesClean.includes('BUENAVISTA');
+        } else if (targetClean.includes('BUENAVISTA')) {
+            confirmada = !headerDespuesEsBrisas && headerDespuesClean.includes('BUENAVISTA');
+        } else {
+            confirmada = headerDespuesClean.includes(targetClean);
+        }
+        if (!confirmada) {
             console.log(c.rojo(`  ⚠️ Cuentame no cambio la cabecera a "${targetNombre}". Se re-autenticara.`));
             return false;
         }

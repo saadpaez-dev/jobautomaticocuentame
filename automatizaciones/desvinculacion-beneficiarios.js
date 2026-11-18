@@ -62,6 +62,36 @@ const opcionesMotivo = [
     "Traslado de municipio"
 ];
 
+function resolverAsociacion(asocs, targetStr) {
+    if (!targetStr) return asocs[0];
+    const norm = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+    const target = norm(targetStr);
+
+    // 1. Coincidencia exacta
+    let m = asocs.find(a => norm(a.nombreCorto) === target || (a.nombreLargo && norm(a.nombreLargo) === target));
+    if (m) return m;
+
+    // 2. Distinguir explícitamente BRISAS DE BUENAVISTA vs BUENAVISTA
+    if (target.includes('BRISAS')) {
+        m = asocs.find(a => norm(a.nombreCorto).includes('BRISAS') || (a.nombreLargo && norm(a.nombreLargo).includes('BRISAS')));
+        if (m) return m;
+    } else if (target.includes('BUENAVISTA')) {
+        m = asocs.find(a => !norm(a.nombreCorto).includes('BRISAS') && (norm(a.nombreCorto).includes('BUENAVISTA') || (a.nombreLargo && norm(a.nombreLargo).includes('BUENAVISTA'))));
+        if (m) return m;
+    }
+
+    // 3. Ordenar por longitud descendente para evitar colisiones
+    const sorted = [...asocs].sort((a, b) => b.nombreCorto.length - a.nombreCorto.length);
+    m = sorted.find(a => {
+        const nom = norm(a.nombreCorto);
+        if ((nom.includes('BRISAS') && !target.includes('BRISAS')) || (!nom.includes('BRISAS') && target.includes('BRISAS'))) {
+            return false;
+        }
+        return target.includes(nom) || nom.includes(target);
+    });
+    return m || asocs[0];
+}
+
 function normalizarFechaRetiro(str) {
     if (!str) {
         const d = new Date();
@@ -208,7 +238,7 @@ async function main() {
     if (process.env.ASOCIACION_ACTIVA) {
         try {
             const ascObj = JSON.parse(process.env.ASOCIACION_ACTIVA);
-            baseAsc = asociaciones.find(a => removeAccentsStr(a.nombreCorto) === removeAccentsStr(ascObj.nombreCorto)) || ascObj;
+            baseAsc = resolverAsociacion(asociaciones, ascObj.nombreCorto || ascObj.nombre) || ascObj;
             asociacionForzada = true;
         } catch (e) {}
     }
@@ -225,9 +255,7 @@ async function main() {
 
         for (const item of rawItems) {
             const itemAsoc = item.asociacion || '';
-            const asocNorm = removeAccentsStr(itemAsoc);
-            let ascElegida = asociaciones.find(a => removeAccentsStr(a.nombreCorto).includes(asocNorm) || asocNorm.includes(removeAccentsStr(a.nombreCorto)));
-            if (!ascElegida) ascElegida = asociaciones[0];
+            let ascElegida = resolverAsociacion(asociaciones, itemAsoc);
 
             const jardinesLocal = obtenerJardinesDeAsociacion(ascElegida.nombreCorto);
             const codItem = String(item.codigoUds || item.codigo || '').trim();
@@ -595,12 +623,20 @@ async function main() {
                     await page.waitForTimeout(500);
                 }
 
-                // Seleccionar UDS
+                // Seleccionar UDS (Intentar primero por código Cuéntame exacto, luego por nombre)
                 const selectUds = contentFrame.locator('select[id*="ddlUDS"], select[id*="UDS"], select[id*="Unidad"]').first();
                 const codigoSearch = (jGrupo.jardin.codigoUds || '').trim();
                 const nombreSearch = jNombre;
 
-                await waitForAndSelect(selectUds, codigoSearch || nombreSearch);
+                let udsSeleccionada = false;
+                if (codigoSearch) {
+                    await waitForAndSelect(selectUds, codigoSearch);
+                    const val = await selectUds.inputValue().catch(() => '');
+                    if (val && val !== '0' && val !== '-1' && val !== '') udsSeleccionada = true;
+                }
+                if (!udsSeleccionada && nombreSearch) {
+                    await waitForAndSelect(selectUds, nombreSearch);
+                }
                 await page.waitForTimeout(500);
 
                 console.log(c.verde(`  ✅ Filtros aplicados para UDS: ${jNombre}`));
