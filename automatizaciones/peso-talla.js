@@ -1764,6 +1764,40 @@ async function main() {
                           const msgs = document.querySelectorAll('#cphCont_lblMensaje, [id*="lblMensaje"], .alert, .alert-success');
                           msgs.forEach(m => { m.replaceChildren(); });
                       }).catch(() => {});
+
+                      // Salvaguarda final: re-verificar que Peso y Talla no hayan sido borrados por postbacks
+                      const pVal = String(datosLlenado.peso || '').trim().replace(',', '.');
+                      const tVal = String(datosLlenado.talla || '').trim().replace(',', '.');
+                      const fVal = String(datosLlenado.fecha || '').trim();
+
+                      if (pVal || tVal) {
+                          await preFrame.evaluate(({ p, t, f }) => {
+                              function ensure(sel, val) {
+                                  if (!val) return;
+                                  const inps = document.querySelectorAll(sel);
+                                  inps.forEach(inp => {
+                                      if (!inp.value || inp.value !== val) {
+                                          inp.value = val;
+                                          inp.dispatchEvent(new Event('input', { bubbles: true }));
+                                          inp.dispatchEvent(new Event('change', { bubbles: true }));
+                                          inp.dispatchEvent(new Event('blur', { bubbles: true }));
+                                      }
+                                  });
+                              }
+                              ensure('#cphCont_txtPeso, input[id*="txtPeso"], input[name*="txtPeso"], input[id*="Peso" i]', p);
+                              ensure('#cphCont_txtTalla, input[id*="txtTalla"], input[name*="txtTalla"], input[id*="Talla" i]', t);
+                              ensure('#cphCont_cuwFechaValoracionNuricional_txtFecha, #cphCont_cuwFechaValoracionNutricional_txtFecha, input[id*="cuwFechaValoracion"][id*="txtFecha"]', f);
+                          }, { p: pVal, t: tVal, f: fVal }).catch(() => {});
+
+                          const locP = preFrame.locator('#cphCont_txtPeso, input[id*="txtPeso"], input[name*="txtPeso"]').first();
+                          if (await locP.count() > 0 && !(await locP.inputValue().catch(() => ''))) {
+                              await locP.fill(pVal).catch(() => {});
+                          }
+                          const locT = preFrame.locator('#cphCont_txtTalla, input[id*="txtTalla"], input[name*="txtTalla"]').first();
+                          if (await locT.count() > 0 && !(await locT.inputValue().catch(() => ''))) {
+                              await locT.fill(tVal).catch(() => {});
+                          }
+                      }
                   } catch(e) {}
 
                   // Escuchar dialogos/alertas nativos del navegador por si Cuentame lanza un alert() nativo

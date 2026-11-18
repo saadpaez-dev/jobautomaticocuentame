@@ -465,24 +465,114 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             console.log(c.amarillo('  --------------------------------------------------\n'));
         } catch(e) {}
 
+        // Helper robusto para asegurar que Peso, Talla y Fecha queden diligenciados sin importar postbacks de ASP.NET
+        const asegurarAntropometria = async (etapa = 'Inicial') => {
+            const frm = await getFrame();
+            const pesoVal = String(datos.peso || '').trim().replace(',', '.');
+            const tallaVal = String(datos.talla || '').trim().replace(',', '.');
+            const fechaVal = String(datos.fecha || '').trim();
+
+            if (!pesoVal && !tallaVal) {
+                console.log(c.amarillo(`    ⚠️ [Antropometría - ${etapa}]: Sin valores de peso/talla en el registro.`));
+                return;
+            }
+
+            // 1. Playwright locators directos
+            try {
+                if (pesoVal) {
+                    const locPeso = frm.locator('#cphCont_txtPeso, input[id*="txtPeso"], input[name*="txtPeso"], input[id*="Peso" i], input[name*="Peso" i]').first();
+                    if (await locPeso.count() > 0) {
+                        await locPeso.scrollIntoViewIfNeeded().catch(() => {});
+                        await locPeso.fill(pesoVal).catch(() => {});
+                        await locPeso.dispatchEvent('change').catch(() => {});
+                        await locPeso.dispatchEvent('blur').catch(() => {});
+                    }
+                }
+                if (tallaVal) {
+                    const locTalla = frm.locator('#cphCont_txtTalla, input[id*="txtTalla"], input[name*="txtTalla"], input[id*="Talla" i], input[name*="Talla" i]').first();
+                    if (await locTalla.count() > 0) {
+                        await locTalla.scrollIntoViewIfNeeded().catch(() => {});
+                        await locTalla.fill(tallaVal).catch(() => {});
+                        await locTalla.dispatchEvent('change').catch(() => {});
+                        await locTalla.dispatchEvent('blur').catch(() => {});
+                    }
+                }
+            } catch(e) {}
+
+            // 2. DOM evaluate exhaustivo (ID, Name, y búsqueda contextual bajo la etiqueta)
+            try {
+                const resEval = await frm.evaluate(({ p, t, f }) => {
+                    function setVal(el, v) {
+                        if (!el || !v) return false;
+                        el.value = v;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        el.dispatchEvent(new Event('blur', { bubbles: true }));
+                        return true;
+                    }
+
+                    // Buscar input Peso
+                    let inpPeso = document.querySelector('#cphCont_txtPeso, input[id*="txtPeso"], input[name*="txtPeso"], input[id*="Peso" i], input[name*="Peso" i]');
+                    if (!inpPeso) {
+                        const allLabels = Array.from(document.querySelectorAll('label, span, td, div, p')).reverse();
+                        for (const lbl of allLabels) {
+                            const txt = (lbl.innerText || '').toLowerCase();
+                            if (txt.includes('peso (en kilogramos)') || txt.includes('peso(en kilogramos)') || (txt.includes('peso') && txt.includes('kg'))) {
+                                inpPeso = lbl.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])')
+                                    || (lbl.parentElement && lbl.parentElement.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'))
+                                    || (lbl.closest('tr') && lbl.closest('tr').querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'))
+                                    || (lbl.closest('tr') && lbl.closest('tr').nextElementSibling && lbl.closest('tr').nextElementSibling.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'));
+                                if (inpPeso) break;
+                            }
+                        }
+                    }
+                    if (inpPeso && p) {
+                        setVal(inpPeso, p);
+                    }
+
+                    // Buscar input Talla
+                    let inpTalla = document.querySelector('#cphCont_txtTalla, input[id*="txtTalla"], input[name*="txtTalla"], input[id*="Talla" i], input[name*="Talla" i]');
+                    if (!inpTalla) {
+                        const allLabels = Array.from(document.querySelectorAll('label, span, td, div, p')).reverse();
+                        for (const lbl of allLabels) {
+                            const txt = (lbl.innerText || '').toLowerCase();
+                            if (txt.includes('talla (en cent') || txt.includes('talla(en cent') || (txt.includes('talla') && txt.includes('cm'))) {
+                                inpTalla = lbl.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])')
+                                    || (lbl.parentElement && lbl.parentElement.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'))
+                                    || (lbl.closest('tr') && lbl.closest('tr').querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'))
+                                    || (lbl.closest('tr') && lbl.closest('tr').nextElementSibling && lbl.closest('tr').nextElementSibling.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'));
+                                if (inpTalla) break;
+                            }
+                        }
+                    }
+                    if (inpTalla && t) {
+                        setVal(inpTalla, t);
+                    }
+
+                    // Buscar Fecha de valoración antropométrica
+                    let inpFecha = document.querySelector('#cphCont_cuwFechaValoracionNuricional_txtFecha, #cphCont_cuwFechaValoracionNutricional_txtFecha, input[id*="cuwFechaValoracion"][id*="txtFecha"], input[id*="txtFechaValoracion"]');
+                    if (inpFecha && f) {
+                        setVal(inpFecha, f);
+                    }
+
+                    return { 
+                        pesoFinal: inpPeso ? inpPeso.value : '', 
+                        tallaFinal: inpTalla ? inpTalla.value : '',
+                        fechaFinal: inpFecha ? inpFecha.value : ''
+                    };
+                }, { p: pesoVal, t: tallaVal, f: fechaVal });
+
+                console.log(c.verde(`    ✅ [Antropometría - ${etapa}]: Peso = ${resEval?.pesoFinal || pesoVal} kg | Talla = ${resEval?.tallaFinal || tallaVal} cm | Fecha = ${resEval?.fechaFinal || fechaVal}`));
+            } catch(e) {
+                console.log(c.rojo(`    ❌ [Antropometría - ${etapa}] Error: ${e.message}`));
+            }
+        };
+
         // 2. Antropometria principales (SIEMPRE SE LLENAN)
         await safeFillText('Peso (En Kilogramos)', datos.peso);
         await safeFillText('Talla (En Cent', datos.talla);
-        
-        // Fecha de valoracion antropometrica (SIEMPRE SE ACTUALIZA CON LA FECHA DEL EXCEL)
         await safeFillText('Fecha de valoracion', datos.fecha);
-        try {
-            const frm = await getFrame();
-            await frm.evaluate((fDate) => {
-                const inpVal = document.querySelector('input[id*="cuwFechaValoracionNuricional_txtFecha"]');
-                if (inpVal) {
-                    inpVal.value = fDate;
-                    inpVal.dispatchEvent(new Event('input', { bubbles: true }));
-                    inpVal.dispatchEvent(new Event('change', { bubbles: true }));
-                    inpVal.dispatchEvent(new Event('blur', { bubbles: true }));
-                }
-            }, datos.fecha);
-        } catch(e) {}
+        await asegurarAntropometria('Inicial');
         
         // Extraer mes de la fecha y llenar el campo Toma, Periodo o Mes
         if (datos.fecha) {
@@ -814,6 +904,10 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): mujer gestante atendida = No'));
         } catch(e) {}
         await page.waitForTimeout(100);
+
+        // 4. Salvaguarda final: Re-asegurar que Peso, Talla y Fecha queden firmes antes de guardar
+        await asegurarAntropometria('Final');
+        await page.waitForTimeout(200);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
         console.log(c.amarillo('  ⚠️ Revisa los datos en la pantalla y selecciona la opcion de guardado en la consola.'));
