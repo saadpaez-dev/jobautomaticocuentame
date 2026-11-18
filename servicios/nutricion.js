@@ -56,13 +56,57 @@ function formatearFecha(date) {
     return `${d}/${m}/${y}`;
 }
 
-async function descartarAlertasInformativas(content) {
+async function descartarAlertasInformativas(target) {
     try {
-        const btnAceptarFrame = content.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
-        if (await btnAceptarFrame.isVisible().catch(() => false)) {
+        if (!target) return;
+        const btnSelector = 'button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"], button:has-text("Ok"), input[value="Ok"]';
+        const btn = target.locator(btnSelector).first();
+        if (await btn.isVisible().catch(() => false)) {
             console.log(c.amarillo('  ⚠️  Mensaje informativo Cuentame detectado (SGSSS / Alerta) → haciendo clic en Aceptar...'));
-            await btnAceptarFrame.click().catch(() => btnAceptarFrame.evaluate(n => n.click()));
-            await content.waitForTimeout(500);
+            await btn.click().catch(() => btn.evaluate(n => n.click()));
+            await (target.waitForTimeout ? target.waitForTimeout(600) : new Promise(r => setTimeout(r, 600)));
+        }
+    } catch(e) {}
+}
+
+async function asegurarRadioOpcion(page, frame, idPattern, valorDeseado) {
+    const isSi = (String(valorDeseado).toLowerCase() === 'si' || valorDeseado === '1');
+    const suffix = isSi ? '_0' : '_1';
+    const targetVal = isSi ? '1' : '0';
+
+    try {
+        const locators = [
+            frame.locator(`input[type="radio"][id*="${idPattern}"][id$="${suffix}"]`).first(),
+            frame.locator(`input[type="radio"][id*="${idPattern}"][value="${targetVal}"]`).first(),
+            frame.locator(`input[type="radio"][id*="${idPattern}"][value="${valorDeseado}"]`).first()
+        ];
+
+        let clicked = false;
+        for (const loc of locators) {
+            if (await loc.count() > 0 && !await loc.isDisabled().catch(() => false)) {
+                const isChecked = await loc.isChecked().catch(() => false);
+                if (!isChecked) {
+                    await loc.check({ force: true }).catch(async () => {
+                        await loc.click({ force: true });
+                    });
+                }
+                clicked = true;
+                break;
+            }
+        }
+
+        if (!clicked) {
+            await frame.evaluate(({ idPattern, isSi, targetVal }) => {
+                const radios = Array.from(document.querySelectorAll(`input[type="radio"][id*="${idPattern}"]`));
+                if (radios.length > 0) {
+                    const target = radios.find(r => isSi ? (r.value === '1' || r.id.endsWith('_0')) : (r.value === '0' || r.id.endsWith('_1'))) || radios[isSi ? 0 : 1];
+                    if (target && !target.disabled && !target.checked) {
+                        target.checked = true;
+                        target.click();
+                        target.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            }, { idPattern, isSi, targetVal }).catch(() => {});
         }
     } catch(e) {}
 }
@@ -70,10 +114,22 @@ async function descartarAlertasInformativas(content) {
 async function llenarFormularioNutricion(browser, content, datos, hasHistory = false) {
     const page = content.page ? content.page() : (content.context ? content : null);
     console.log(c.cyan('\n  ⚙️ Iniciando llenado automatico de formulario...'));
-    await descartarAlertasInformativas(content);
+
+    // Helper para reobtener el frame, porque los UpdatePanels de ASP.NET lo destruyen
+    const getFrame = async () => {
+        return (page && page.frame ? (page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent')) : null) || content;
+    };
+
+    let f = await getFrame();
+    await descartarAlertasInformativas(f);
+    if (page && page !== f) {
+        await descartarAlertasInformativas(page);
+    }
 
     if (hasHistory) {
         console.log(c.amarillo('  ℹ️ Nino con historial en Cuentame: Validando y completando campos obligatorios de la nueva toma...'));
+    } else {
+        console.log(c.verde('  ✨ Nino nuevo en Cuentame: Estableciendo parametros obligatorios completos (Régimen, EPS, Vacunación, Crecimiento, Controles)...'));
     }
 
     // Normalizar comas por puntos en peso, talla y perimetro
@@ -87,7 +143,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
     let tipoDoc = '';
     let numDoc = '';
     try {
-        const numLabel = content.locator('label:has-text("Numero de Documento"), span:has-text("Numero de Documento")').first();
+        const numLabel = f.locator('label:has-text("Numero de Documento"), span:has-text("Numero de Documento")').first();
         if (await numLabel.count() > 0) {
             numDoc = await numLabel.evaluate(node => {
                 let next = node.nextElementSibling;
@@ -121,56 +177,66 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
     console.log(c.cyan('\n  ✍️  Llenando formulario en Cuentame...'));
     
     try {
+        f = await getFrame();
+
         // --- SELECCION DE EPS Y REGIMEN (Asegurar que esten seleccionados siempre) ---
-        await content.waitForSelector('select', { state: 'attached', timeout: 5000 }).catch(()=>{});
-        const selectsIniciales = await content.locator('select').all();
+        await f.waitForSelector('select', { state: 'attached', timeout: 5000 }).catch(()=>{});
         
-        let selectRegimen;
-        let regimenOptions = [];
-        for (const s of selectsIniciales) {
-            const text = await s.innerText().catch(() => '');
-            if (text.includes('SUBSIDIADO') && text.includes('CONTRIBUTIVO')) {
-                selectRegimen = s;
-                regimenOptions = await s.locator('option').allInnerTexts().catch(() => []);
-                break;
+        // 1. Localizar y seleccionar Régimen
+        let selectRegimen = f.locator('select[id*="Regimen"], select[id*="ddlRegimen"], select[name*="Regimen"]').first();
+        let hasRegimen = (await selectRegimen.count() > 0);
+        
+        if (!hasRegimen) {
+            const allSelects = await f.locator('select').all();
+            for (const s of allSelects) {
+                const text = await s.innerText().catch(() => '');
+                if (text.includes('SUBSIDIADO') && text.includes('CONTRIBUTIVO')) {
+                    selectRegimen = s;
+                    hasRegimen = true;
+                    break;
+                }
             }
         }
 
-        if (selectRegimen && regimenOptions.length > 0) {
+        if (hasRegimen) {
             const currentRegVal = await selectRegimen.evaluate(el => el.selectedOptions[0] ? el.selectedOptions[0].text : '').catch(() => '');
             const necesitaRegimen = !currentRegVal || currentRegVal.includes('Seleccione') || currentRegVal.trim() === '';
             
             if (necesitaRegimen) {
-                const validOptions = regimenOptions.filter(o => o.trim() !== 'Seleccione' && o.trim() !== '');
-                let regimenElegido = null;
-                
-                if (datos.regimen) {
-                    const idx = validOptions.findIndex(o => o.toUpperCase().includes(datos.regimen.toUpperCase()));
-                    if (idx !== -1) regimenElegido = validOptions[idx].trim();
-                }
-                if (!regimenElegido) {
-                    const idx = validOptions.findIndex(o => o.toUpperCase().includes('CONTRIBUTIVO'));
-                    if (idx !== -1) regimenElegido = validOptions[idx].trim();
-                }
-
-                if (regimenElegido) {
-                    await seleccionarDropdownReactivo(page, content, selectRegimen, regimenElegido, { nombreEtiqueta: 'Regimen' });
-                    console.log(c.verde(`  ✅ Regimen seleccionado reactivamente: ${regimenElegido}`));
-                }
+                const regimenElegido = datos.regimen || 'CONTRIBUTIVO';
+                console.log(c.amarillo(`  ⏳ Seleccionando Régimen (${regimenElegido})...`));
+                await seleccionarDropdownReactivo(page, f, selectRegimen, regimenElegido, { 
+                    nombreEtiqueta: 'Regimen',
+                    dependienteSelector: 'select[id*="Eps"], select[id*="ddlEps"], select[id*="EPS"]'
+                });
+                console.log(c.verde(`  ✅ Régimen seleccionado: ${regimenElegido}`));
+                await page.waitForTimeout(600);
+                f = await getFrame();
             }
         }
         
-        const selectsEps = await content.locator('select').all();
-        let selectEps;
-        for (const s of selectsEps) {
-            const text = await s.innerText().catch(() => '');
-            if (text.includes('CAPITAL SALUD') || text.includes('COMPENSAR')) {
-                selectEps = s;
-                break;
+        // 2. Localizar y seleccionar EPS
+        let selectEps = f.locator('select[id*="Eps"], select[id*="ddlEps"], select[id*="EPS"], select[name*="Eps"]').first();
+        let hasEps = (await selectEps.count() > 0);
+        
+        if (!hasEps) {
+            const allSelects = await f.locator('select').all();
+            for (const s of allSelects) {
+                const text = await s.innerText().catch(() => '');
+                if (text.includes('CAPITAL SALUD') || text.includes('COMPENSAR') || text.includes('NUEVA EPS') || text.includes('FAMISANAR')) {
+                    selectEps = s;
+                    hasEps = true;
+                    break;
+                }
             }
         }
 
-        if (selectEps) {
+        if (hasEps) {
+            // Esperar que las opciones de EPS carguen
+            await f.waitForFunction((el) => {
+                return el && el.options && (el.options.length > 1 || (el.options.length === 1 && el.options[0].value !== ''));
+            }, await selectEps.elementHandle().catch(() => null), { timeout: 4000 }).catch(() => {});
+
             const currentEpsVal = await selectEps.evaluate(el => el.selectedOptions[0] ? el.selectedOptions[0].text : '').catch(() => '');
             const necesitaEps = !currentEpsVal || currentEpsVal.includes('Seleccione') || currentEpsVal.trim() === '';
             
@@ -185,33 +251,29 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
 
                 if (!randomEps) {
                     const epsComunes = [
-                        'CAPITAL SALUD', 'NUEVA EPS', 'COMPENSAR', 'FAMISANAR', 'SANITAS', 'MUTUAL SER', 'SURAMERICANA'
+                        'CAPITAL SALUD', 'NUEVA EPS', 'COMPENSAR', 'FAMISANAR', 'SANITAS', 'MUTUAL SER', 'SURAMERICANA', 'SALUD TOTAL', 'COOSALUD'
                     ];
                     const matchingOptions = epsOptions.filter(o => epsComunes.some(eps => o.toUpperCase().includes(eps.toUpperCase())));
                     if (matchingOptions.length > 0) {
-                        randomEps = matchingOptions[Math.floor(Math.random() * matchingOptions.length)];
+                        randomEps = matchingOptions[0].trim();
                     } else {
-                        const validEps = epsOptions.filter(o => o.trim() !== 'Seleccione' && o.trim() !== '');
+                        const validEps = epsOptions.filter(o => o.trim() !== 'Seleccione' && o.trim() !== '' && !o.trim().startsWith('-'));
                         if (validEps.length > 0) randomEps = validEps[0].trim();
                     }
                 }
                 
                 if (randomEps) {
-                    await seleccionarDropdownReactivo(page, content, selectEps, randomEps, { nombreEtiqueta: 'EPS' });
-                    console.log(c.verde(`  ✅ EPS seleccionada reactivamente: ${randomEps}`));
+                    console.log(c.amarillo(`  ⏳ Seleccionando EPS (${randomEps})...`));
+                    await seleccionarDropdownReactivo(page, f, selectEps, randomEps, { nombreEtiqueta: 'EPS' });
+                    console.log(c.verde(`  ✅ EPS seleccionada: ${randomEps}`));
+                    await page.waitForTimeout(400);
+                    f = await getFrame();
                 }
             }
         }
         // -------------------------------------------------------------
 
         console.log(c.cyan('  ✍️  Llenando campos dinamicos...'));
-
-        const page = content.page ? content.page() : content; // Obtener la pagina principal
-
-        // Helper para reobtener el frame, porque los UpdatePanels de ASP.NET lo destruyen
-        const getFrame = async () => {
-            return page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
-        };
 
         const getFieldsClientCode = `
             function getFields(labelText, selector) {
@@ -525,17 +587,46 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         
         console.log(c.amarillo('  🎯 Llenando campos finales con simulacion nativa...'));
         
-        const f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
+        let f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
 
-        // A. Controles de crecimiento: Solo si NO tiene historial previo
+        // A0. Vacunación (Asegurar SIEMPRE marcado en Si)
+        await asegurarRadioOpcion(page, f, 'rbTieneCarnetVacunacion', 'Si');
+        await asegurarRadioOpcion(page, f, 'rbTieneDosisEdad', 'Si');
+
+        // A. Carnet y Controles de crecimiento: Solo si NO tiene historial previo
         if (!hasHistory) {
+            console.log(c.cyan('    ℹ️ Nino sin historial previo: asegurando Carnet Crecimiento = Si y Controles = 1...'));
+            await asegurarRadioOpcion(page, f, 'rbTieneCarnetCrecimiento', 'Si');
+            await page.waitForTimeout(400);
+            f = await getFrame();
+
             try {
-                await f.selectOption('#cphCont_ddlControlesCrecimDesarrollo', { label: '1' }, { timeout: 1500 });
-                console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento = 1'));
+                const ddlControles = f.locator('#cphCont_ddlControlesCrecimDesarrollo, select[id*="ddlControlesCrecimDesarrollo"]').first();
+                if (await ddlControles.count() > 0) {
+                    await ddlControles.waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
+                    await ddlControles.selectOption({ label: '1' }).catch(async () => {
+                        await ddlControles.selectOption({ value: '1' }).catch(() => {});
+                    });
+                    console.log(c.verde('    ✅ [Lista] Lleno (modo seguro): controles de crecimiento = 1'));
+                }
+            } catch(e) {}
+            await page.waitForTimeout(100);
+
+            // Desnutrición aguda (NO TIENE DESNUTRICION AGUDA)
+            try {
+                const ddlDesnutricion = f.locator('#cphCont_ddlDesnutricion, select[id*="ddlDesnutricion"]').first();
+                if (await ddlDesnutricion.count() > 0) {
+                    const opts = await ddlDesnutricion.locator('option').allInnerTexts().catch(() => []);
+                    const match = opts.find(o => o.toUpperCase().includes('NO TIENE DESNUTRICI'));
+                    if (match) {
+                        await ddlDesnutricion.selectOption({ label: match.trim() }).catch(() => {});
+                        console.log(c.verde(`    ✅ [Lista] Desnutrición aguda = ${match.trim()}`));
+                    }
+                }
             } catch(e) {}
             await page.waitForTimeout(100);
         } else {
-            console.log(c.cyan('    ℹ️ Beneficiario con tomas previas: No se interviene en controles de crecimiento.'));
+            console.log(c.cyan('    ℹ️ Beneficiario con tomas previas: No se interviene en carnet de crecimiento ni controles.'));
         }
 
         // A2. Lactancia (Mayor / Menor 6 meses)
@@ -558,18 +649,9 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         } catch(e) {}
         await page.waitForTimeout(100);
 
-        // A3. Antecedente de Prematurez (Siempre No) - Fuera de hasHistory porque a veces Cuentame lo requiere de repente
-        try {
-            const prematurezNo = f.locator('input[id*="rbAntecedentePrematurez_1"]').first();
-            if (await prematurezNo.count() > 0 && await prematurezNo.isVisible() && !await prematurezNo.isDisabled()) {
-                const isChecked = await prematurezNo.isChecked();
-                if (!isChecked) {
-                    await prematurezNo.click({ timeout: 1500 });
-                    console.log(c.verde('    ✅ [Opcion] Forzado (modo seguro): Antecedente de prematurez = No'));
-                }
-            }
-        } catch(e) {}
-        await page.waitForTimeout(200);
+        // A3. Antecedente de Prematurez (Siempre No)
+        await asegurarRadioOpcion(page, f, 'AntecedentePrematurez', 'No');
+        await page.waitForTimeout(100);
 
         // B. Perimetro Braquial (Sincronizar fecha siempre con Fecha de valoracion antropometrica para evitar errores de validacion)
         try {

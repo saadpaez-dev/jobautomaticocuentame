@@ -1544,6 +1544,17 @@ async function main() {
                               btnNuevo.evaluate(node => node.click())
                           ]);
                           console.log(c.verde('  ✅ Nueva ventana (Nuevo) cargada.'));
+
+                          content = page.frame({ name: 'frameContent' }) || page;
+                          await page.waitForTimeout(600);
+
+                          const btnAceptarPop = content.locator('button:has-text("Aceptar"), input[value="Aceptar"], a:has-text("Aceptar"), button:has-text("SI"), input[value="SI"]').first();
+                          if (await btnAceptarPop.isVisible().catch(() => false)) {
+                              console.log(c.amarillo('  ⚠️ Mensaje Informativo Cuentame detectado (SGSSS / Alerta) → haciendo clic en Aceptar...'));
+                              await btnAceptarPop.click().catch(() => btnAceptarPop.evaluate(n => n.click()));
+                              await page.waitForTimeout(600);
+                          }
+                          content = page.frame({ name: 'frameContent' }) || page;
                       } else {
                           console.log(c.rojo('  âŒ No se encontro el boton (+) Nuevo.'));
                       }
@@ -1663,9 +1674,11 @@ async function main() {
                           peso: String(ninoInfo.peso || '').trim().replace(',', '.'),
                           talla: String(ninoInfo.talla || '').trim().replace(',', '.'),
                           perimetro: ninoInfo.perimetro ? String(ninoInfo.perimetro).trim().replace(',', '.') : '',
-                          fechaNacimiento: ninoInfo.fechaNacimiento || (ninoSeleccionado ? ninoSeleccionado.fechaNacimiento : null)
+                          fechaNacimiento: ninoInfo.fechaNacimiento || (ninoSeleccionado ? ninoSeleccionado.fechaNacimiento : null),
+                          regimen: ninoInfo.regimen || 'CONTRIBUTIVO',
+                          eps: ninoInfo.eps || null
                       };
-                      console.log(c.amarillo(`  📍¥ Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro || '(no aplica)'}${datosLlenado.fechaNacimiento ? `, Nac=${datosLlenado.fechaNacimiento}` : ''}`));
+                      console.log(c.amarillo(`  📍 Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro || '(no aplica)'}${datosLlenado.fechaNacimiento ? `, Nac=${datosLlenado.fechaNacimiento}` : ''}${!hasHistory ? ' [Niño Nuevo: Parámetros por Defecto Activos]' : ''}`));
                       await page.waitForTimeout(800);
                   } else if (payloadModoAuto && (payloadModoAuto.peso || payloadModoAuto.talla)) {
                       datosLlenado = {
@@ -1674,10 +1687,12 @@ async function main() {
                           peso: String(payloadModoAuto.peso || '').trim().replace(',', '.'),
                           talla: String(payloadModoAuto.talla || '').trim().replace(',', '.'),
                           perimetro: payloadModoAuto.perimetroBraquial ? String(payloadModoAuto.perimetroBraquial).trim().replace(',', '.') : '',
-                          fechaNacimiento: payloadModoAuto.fechaNacimiento || (ninoSeleccionado ? ninoSeleccionado.fechaNacimiento : null)
+                          fechaNacimiento: payloadModoAuto.fechaNacimiento || (ninoSeleccionado ? ninoSeleccionado.fechaNacimiento : null),
+                          regimen: payloadModoAuto.regimen || 'CONTRIBUTIVO',
+                          eps: payloadModoAuto.eps || null
                       };
                       console.log(c.verde(`  [ROBOT] Usando datos directos recibidos desde el Portal Cuéntame:`));
-                      console.log(c.cyan(`     • Fecha: ${datosLlenado.fecha} | Peso: ${datosLlenado.peso} kg | Talla: ${datosLlenado.talla} cm | PB: ${datosLlenado.perimetro || 'N/A'}`));
+                      console.log(c.cyan(`     • Fecha: ${datosLlenado.fecha} | Peso: ${datosLlenado.peso} kg | Talla: ${datosLlenado.talla} cm | PB: ${datosLlenado.perimetro || 'N/A'}${!hasHistory ? ' [Niño Nuevo: Parámetros por Defecto Activos]' : ''}`));
                       await page.waitForTimeout(800);
                   } else {
                       let regimenInput = null;
@@ -1724,6 +1739,7 @@ async function main() {
                   }
                   
                   // Ejecutar la magia del llenado automatico y consulta ADRES
+                  content = page.frame({ name: 'frameContent' }) || page;
                   await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
 
                   console.log(c.amarillo('\n  âœ¨ Llenado automatico finalizado.'));
