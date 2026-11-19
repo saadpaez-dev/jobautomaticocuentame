@@ -140,55 +140,9 @@ async function asegurarDesnutricionAguda(page, frame, etapa = 'General') {
 
     for (const frm of framesToCheck) {
         try {
-            // 1. Esperar a que ASP.NET PageRequestManager no esté en postback asíncrono
-            await frm.evaluate(() => {
-                if (typeof Sys !== 'undefined' && Sys.WebForms && Sys.WebForms.PageRequestManager) {
-                    return !Sys.WebForms.PageRequestManager.getInstance().get_isInAsyncPostBack();
-                }
-                return true;
-            }).catch(() => {});
-
-            // 2. Playwright locator filtrando por opción con texto "NO TIENE DESNUTRICI"
-            const selectLoc = frm.locator('select').filter({
-                has: frm.locator('option', { hasText: /NO TIENE DESNUTRICI/i })
-            }).first();
-
-            if (await selectLoc.count() > 0) {
-                const optText = await selectLoc.locator('option').filter({ hasText: /NO TIENE DESNUTRICI/i }).first().innerText().catch(() => 'NO TIENE DESNUTRICIÓN AGUDA');
-                await selectLoc.scrollIntoViewIfNeeded().catch(() => {});
-                
-                await selectLoc.selectOption({ label: optText.trim() }).catch(async () => {
-                    await selectLoc.selectOption({ value: '3' }).catch(() => {});
-                });
-
-                const evalOk = await selectLoc.evaluate((sel) => {
-                    const normalize = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
-                    const opts = Array.from(sel.options);
-                    const idx = opts.findIndex(o => normalize(o.text).includes('NO TIENE DESNUTRICI'));
-                    if (idx !== -1) {
-                        opts.forEach((o, i) => { o.selected = (i === idx); });
-                        sel.selectedIndex = idx;
-                        sel.value = opts[idx].value;
-                        if (typeof sel.onchange === 'function') {
-                            try { sel.onchange(); } catch(e) {}
-                        }
-                        sel.dispatchEvent(new Event('input', { bubbles: true }));
-                        sel.dispatchEvent(new Event('change', { bubbles: true }));
-                        sel.dispatchEvent(new Event('blur', { bubbles: true }));
-                        return { ok: true, id: sel.id, val: sel.value, text: opts[idx].text.trim() };
-                    }
-                    return { ok: false };
-                }).catch(() => ({ ok: false }));
-
-                if (evalOk && evalOk.ok) {
-                    console.log(c.verde(`    ✅ [Lista - ${etapa}] Desnutrición aguda = "${evalOk.text}" (ID: ${evalOk.id || 'N/A'})`));
-                    return true;
-                }
-            }
-
-            // 3. Fallback exhaustivo recorriendo todos los selects del frame
+            // Selección DOM directa e instantánea (< 5ms) buscando la opción "NO TIENE DESNUTRICI"
             const domResult = await frm.evaluate(() => {
-                const normalize = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
+                const normalize = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u00a0\s]+/g, " ").toUpperCase().trim();
                 const allSelects = Array.from(document.querySelectorAll('select'));
                 for (const sel of allSelects) {
                     const opts = Array.from(sel.options);
@@ -210,7 +164,7 @@ async function asegurarDesnutricionAguda(page, frame, etapa = 'General') {
             }).catch(() => ({ ok: false }));
 
             if (domResult && domResult.ok) {
-                console.log(c.verde(`    ✅ [Lista - ${etapa}] Desnutrición aguda (DOM) = "${domResult.text}" (ID: ${domResult.id || 'N/A'})`));
+                console.log(c.verde(`    ✅ [Lista - ${etapa}] Desnutrición aguda = "${domResult.text}" (ID: ${domResult.id || 'N/A'})`));
                 return true;
             }
         } catch(e) {}
