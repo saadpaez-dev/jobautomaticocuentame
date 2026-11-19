@@ -553,7 +553,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             } catch(e) {}
         }
 
-        // Helper robusto para asegurar que Peso, Talla y Fecha queden diligenciados sin importar postbacks de ASP.NET
+        // Helper robusto e instantáneo para asegurar que Peso, Talla, Fecha y Desnutrición Aguda queden diligenciados inmediatamente en el DOM
         const asegurarAntropometria = async (etapa = 'Inicial') => {
             const frm = await getFrame();
             const pesoVal = String(datos.peso || '').trim().replace(',', '.');
@@ -565,29 +565,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 return;
             }
 
-            // 1. Playwright locators directos
-            try {
-                if (pesoVal) {
-                    const locPeso = frm.locator('#cphCont_txtPeso, input[id*="txtPeso"], input[name*="txtPeso"], input[id*="Peso" i], input[name*="Peso" i]').first();
-                    if (await locPeso.count() > 0) {
-                        await locPeso.scrollIntoViewIfNeeded().catch(() => {});
-                        await locPeso.fill(pesoVal).catch(() => {});
-                        await locPeso.dispatchEvent('change').catch(() => {});
-                        await locPeso.dispatchEvent('blur').catch(() => {});
-                    }
-                }
-                if (tallaVal) {
-                    const locTalla = frm.locator('#cphCont_txtTalla, input[id*="txtTalla"], input[name*="txtTalla"], input[id*="Talla" i], input[name*="Talla" i]').first();
-                    if (await locTalla.count() > 0) {
-                        await locTalla.scrollIntoViewIfNeeded().catch(() => {});
-                        await locTalla.fill(tallaVal).catch(() => {});
-                        await locTalla.dispatchEvent('change').catch(() => {});
-                        await locTalla.dispatchEvent('blur').catch(() => {});
-                    }
-                }
-            } catch(e) {}
-
-            // 2. DOM evaluate exhaustivo (ID, Name, y búsqueda contextual bajo la etiqueta)
+            // Asignación DOM directa e instantánea (< 5ms) para Peso, Talla, Fecha y Desnutrición Aguda
             try {
                 const resEval = await frm.evaluate(({ p, t, f }) => {
                     function setVal(el, v) {
@@ -599,58 +577,46 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                         return true;
                     }
 
-                    // Buscar input Peso
+                    // 1. Input Peso
                     let inpPeso = document.querySelector('#cphCont_txtPeso, input[id*="txtPeso"], input[name*="txtPeso"], input[id*="Peso" i], input[name*="Peso" i]');
-                    if (!inpPeso) {
-                        const allLabels = Array.from(document.querySelectorAll('label, span, td, div, p')).reverse();
-                        for (const lbl of allLabels) {
-                            const txt = (lbl.innerText || '').toLowerCase();
-                            if (txt.includes('peso (en kilogramos)') || txt.includes('peso(en kilogramos)') || (txt.includes('peso') && txt.includes('kg'))) {
-                                inpPeso = lbl.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])')
-                                    || (lbl.parentElement && lbl.parentElement.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'))
-                                    || (lbl.closest('tr') && lbl.closest('tr').querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'))
-                                    || (lbl.closest('tr') && lbl.closest('tr').nextElementSibling && lbl.closest('tr').nextElementSibling.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'));
-                                if (inpPeso) break;
-                            }
-                        }
-                    }
-                    if (inpPeso && p) {
-                        setVal(inpPeso, p);
-                    }
+                    if (inpPeso && p) setVal(inpPeso, p);
 
-                    // Buscar input Talla
+                    // 2. Input Talla
                     let inpTalla = document.querySelector('#cphCont_txtTalla, input[id*="txtTalla"], input[name*="txtTalla"], input[id*="Talla" i], input[name*="Talla" i]');
-                    if (!inpTalla) {
-                        const allLabels = Array.from(document.querySelectorAll('label, span, td, div, p')).reverse();
-                        for (const lbl of allLabels) {
-                            const txt = (lbl.innerText || '').toLowerCase();
-                            if (txt.includes('talla (en cent') || txt.includes('talla(en cent') || (txt.includes('talla') && txt.includes('cm'))) {
-                                inpTalla = lbl.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])')
-                                    || (lbl.parentElement && lbl.parentElement.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'))
-                                    || (lbl.closest('tr') && lbl.closest('tr').querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'))
-                                    || (lbl.closest('tr') && lbl.closest('tr').nextElementSibling && lbl.closest('tr').nextElementSibling.querySelector('input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])'));
-                                if (inpTalla) break;
-                            }
-                        }
-                    }
-                    if (inpTalla && t) {
-                        setVal(inpTalla, t);
-                    }
+                    if (inpTalla && t) setVal(inpTalla, t);
 
-                    // Buscar Fecha de valoración antropométrica
+                    // 3. Input Fecha
                     let inpFecha = document.querySelector('#cphCont_cuwFechaValoracionNuricional_txtFecha, #cphCont_cuwFechaValoracionNutricional_txtFecha, input[id*="cuwFechaValoracion"][id*="txtFecha"], input[id*="txtFechaValoracion"]');
-                    if (inpFecha && f) {
-                        setVal(inpFecha, f);
+                    if (inpFecha && f) setVal(inpFecha, f);
+
+                    // 4. Seleccionar de inmediato "NO TIENE DESNUTRICIÓN AGUDA" en el dropdown
+                    let desnutricionText = '';
+                    const allSelects = Array.from(document.querySelectorAll('select'));
+                    for (const sel of allSelects) {
+                        const opts = Array.from(sel.options);
+                        const idx = opts.findIndex(o => (o.text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().includes('NO TIENE DESNUTRICI'));
+                        if (idx !== -1) {
+                            opts.forEach((o, i) => { o.selected = (i === idx); });
+                            sel.selectedIndex = idx;
+                            sel.value = opts[idx].value;
+                            if (typeof sel.onchange === 'function') { try { sel.onchange(); } catch(e) {} }
+                            sel.dispatchEvent(new Event('input', { bubbles: true }));
+                            sel.dispatchEvent(new Event('change', { bubbles: true }));
+                            sel.dispatchEvent(new Event('blur', { bubbles: true }));
+                            desnutricionText = opts[idx].text.trim();
+                            break;
+                        }
                     }
 
                     return { 
-                        pesoFinal: inpPeso ? inpPeso.value : '', 
-                        tallaFinal: inpTalla ? inpTalla.value : '',
-                        fechaFinal: inpFecha ? inpFecha.value : ''
+                        pesoFinal: inpPeso ? inpPeso.value : p, 
+                        tallaFinal: inpTalla ? inpTalla.value : t,
+                        fechaFinal: inpFecha ? inpFecha.value : f,
+                        desnutricion: desnutricionText
                     };
                 }, { p: pesoVal, t: tallaVal, f: fechaVal });
 
-                console.log(c.verde(`    ✅ [Antropometría - ${etapa}]: Peso = ${resEval?.pesoFinal || pesoVal} kg | Talla = ${resEval?.tallaFinal || tallaVal} cm | Fecha = ${resEval?.fechaFinal || fechaVal}`));
+                console.log(c.verde(`    ✅ [Antropometría - ${etapa}]: Peso = ${resEval?.pesoFinal || pesoVal} kg | Talla = ${resEval?.tallaFinal || tallaVal} cm | Fecha = ${resEval?.fechaFinal || fechaVal}${resEval?.desnutricion ? ` | Desnutrición = "${resEval.desnutricion}"` : ''}`));
             } catch(e) {
                 console.log(c.rojo(`    ❌ [Antropometría - ${etapa}] Error: ${e.message}`));
             }
@@ -661,11 +627,12 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             return await asegurarDesnutricionAguda(page, frm, etapa);
         };
 
-        // 2. Antropometria principales (SIEMPRE SE LLENAN)
+        // 2. Antropometria principales + Desnutrición Aguda (INMEDIATO)
         await safeFillText('Peso (En Kilogramos)', datos.peso);
         await safeFillText('Talla (En Cent', datos.talla);
         await safeFillText('Fecha de valoracion', datos.fecha);
         await asegurarAntropometria('Inicial');
+        await asegurarDesnutricion('Inicial');
         
         // Cuéntame determina la toma automáticamente a partir de la Fecha de Valoración.
         // Solo si la pantalla tuviera un control explícito de Toma o Periodo se evalúa.

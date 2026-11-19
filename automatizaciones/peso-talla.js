@@ -1858,19 +1858,19 @@ async function main() {
                       }
 
                       if (btnGuardar && await btnGuardar.count() > 0) {
-                          await esperarPostBackReactivo(page, async () => {
-                              await btnGuardar.click({ timeout: 3000 }).catch(async () => {
-                                  await btnGuardar.evaluate(node => {
-                                      const anchor = node.closest('a') || node;
-                                      if (anchor.tagName && anchor.tagName.toLowerCase() === 'a' && anchor.href && anchor.href.startsWith('javascript:')) {
-                                          eval(anchor.href.replace(/^javascript:/i, ''));
-                                      } else {
-                                          anchor.click();
-                                      }
-                                  });
+                          try {
+                              await btnGuardar.evaluate(node => {
+                                  const anchor = node.closest('a') || node;
+                                  if (anchor.tagName && anchor.tagName.toLowerCase() === 'a' && anchor.href && anchor.href.startsWith('javascript:')) {
+                                      eval(anchor.href.replace(/^javascript:/i, ''));
+                                  } else {
+                                      anchor.click();
+                                  }
                               });
-                          });
-                          console.log(c.verde('  ✅ Clic en boton Guardar enviado reactivamente.'));
+                          } catch(e) {
+                              await btnGuardar.click({ timeout: 2000 }).catch(() => {});
+                          }
+                          console.log(c.verde('  ✅ Clic en boton Guardar enviado de inmediato.'));
                       } else {
                           console.log(c.rojo('  ❌ No se encontro el boton de Guardar. Por favor guardalo manualmente.'));
                       }
@@ -1885,7 +1885,7 @@ async function main() {
                   let clickAceptarRealizado = false;
                   const tInicioSave = Date.now();
                   
-                  while (Date.now() - tInicioSave < 12000) {
+                  while (Date.now() - tInicioSave < 10000) {
                       if (dialogExito) {
                           guardadoConfirmado = true;
                           break;
@@ -1915,7 +1915,7 @@ async function main() {
                               console.log(c.amarillo(`  ⚠️ Ventana emergente detectada: "${mClean.slice(0, 100)}" → Confirmando...`));
                               clickAceptarRealizado = true;
                               await btnAceptarFound.click().catch(() => btnAceptarFound.evaluate(n => n.click()));
-                              await page.waitForTimeout(600);
+                              await page.waitForTimeout(100);
 
                               const mLow = modalMsg.toLowerCase();
                               const esErrorModal = mLow.includes('error') || mLow.includes('requerido') || mLow.includes('invalido') || mLow.includes('ya tiene una toma');
@@ -1992,13 +1992,13 @@ async function main() {
                       }, datosLlenado.fecha).catch(() => false);
 
                       // Si se pulso Aceptar en una modal y no hay error, o banner exitoso, o fecha en tabla:
-                      if (!dialogError && !tieneErrorRed && (bannerExito || fechaGuardadaEnTabla || (clickAceptarRealizado && Date.now() - tInicioSave > 1500))) {
+                      if (!dialogError && !tieneErrorRed && (bannerExito || fechaGuardadaEnTabla || clickAceptarRealizado)) {
                           guardadoConfirmado = true;
                           break;
                       }
 
                       // Si hubo respuesta HTTP POST 200, no hay errores en pantalla y el formulario de ingreso ya no esta visible
-                      if (httpPostOk && !dialogError && !tieneErrorRed && (Date.now() - tInicioSave > 3000)) {
+                      if (httpPostOk && !dialogError && !tieneErrorRed && (Date.now() - tInicioSave > 800)) {
                           const formAbierto = await currentFrame.evaluate(() => {
                               const inp = document.querySelector('#cphCont_txtPeso, [id*="txtPeso"], [id*="cuwFechaValoracionNutricional"]');
                               return inp && inp.offsetParent !== null;
@@ -2009,7 +2009,7 @@ async function main() {
                           }
                       }
 
-                      await page.waitForTimeout(400);
+                      await page.waitForTimeout(100);
                   }
 
                   page.off('dialog', dialogHandler);
