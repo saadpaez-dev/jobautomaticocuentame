@@ -13,7 +13,7 @@ const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines, encontrarMejorAsociacionYJardin } = require('../servicios/excel-reader');
 const { obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
-const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
+const { parsearFecha, llenarFormularioNutricion, asegurarDesnutricionAguda } = require('../servicios/nutricion');
 const { esperarPostBackReactivo, seleccionarDropdownReactivo } = require('../servicios/filtro-monitor');
 const { parsearExcel, resolverRutaConEspeciales } = require('../servicios/excel-parser');
 
@@ -1690,7 +1690,7 @@ async function main() {
                           eps: ninoInfo.eps || null
                       };
                       console.log(c.amarillo(`  📍 Usando datos de Excel: Fecha=${datosLlenado.fecha}, Peso=${datosLlenado.peso}, Talla=${datosLlenado.talla}, PB=${datosLlenado.perimetro || '(no aplica)'}${datosLlenado.fechaNacimiento ? `, Nac=${datosLlenado.fechaNacimiento}` : ''}${!hasHistory ? ' [Niño Nuevo: Parámetros por Defecto Activos]' : ''}`));
-                      await page.waitForTimeout(800);
+                      await page.waitForTimeout(100);
                   } else if (payloadModoAuto && (payloadModoAuto.peso || payloadModoAuto.talla)) {
                       datosLlenado = {
                           documentoPrevio: ninoSeleccionado ? ninoSeleccionado.documento : (payloadModoAuto.documento || ''),
@@ -1704,7 +1704,7 @@ async function main() {
                       };
                       console.log(c.verde(`  [ROBOT] Usando datos directos recibidos desde el Portal Cuéntame:`));
                       console.log(c.cyan(`     • Fecha: ${datosLlenado.fecha} | Peso: ${datosLlenado.peso} kg | Talla: ${datosLlenado.talla} cm | PB: ${datosLlenado.perimetro || 'N/A'}${!hasHistory ? ' [Niño Nuevo: Parámetros por Defecto Activos]' : ''}`));
-                      await page.waitForTimeout(800);
+                      await page.waitForTimeout(100);
                   } else {
                       let regimenInput = null;
                       let epsInput = null;
@@ -1798,6 +1798,9 @@ async function main() {
                               await locT.fill(tVal).catch(() => {});
                           }
                       }
+
+                      // Asegurar Desnutrición Aguda = NO TIENE DESNUTRICIÓN AGUDA inmediatamente antes de guardar
+                      await asegurarDesnutricionAguda(page, preFrame, 'Pre-Guardado');
                   } catch(e) {}
 
                   // Escuchar dialogos/alertas nativos del navegador por si Cuentame lanza un alert() nativo
@@ -2128,6 +2131,8 @@ async function main() {
                                   }
                               });
                           }, datosLlenado.fecha).catch(() => {});
+
+                          await asegurarDesnutricionAguda(page, currentFrameErr, 'Pre-Retry');
 
                           const btnGuardarRetry = currentFrameErr.locator('a#btnGuardar, #cphCont_btnGuardar, a:has(img[src*="save" i]), a:has(img[alt*="Guardar" i]), a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i]').first();
                           if (await btnGuardarRetry.count() > 0) {

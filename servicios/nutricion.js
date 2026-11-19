@@ -315,15 +315,14 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         }
 
         if (hasEps) {
-            // Esperar que las opciones de EPS carguen
-            await f.waitForFunction((el) => {
-                return el && el.options && (el.options.length > 1 || (el.options.length === 1 && el.options[0].value !== ''));
-            }, await selectEps.elementHandle().catch(() => null), { timeout: 4000 }).catch(() => {});
-
             const currentEpsVal = await selectEps.evaluate(el => el.selectedOptions[0] ? el.selectedOptions[0].text : '').catch(() => '');
             const necesitaEps = !currentEpsVal || currentEpsVal.includes('Seleccione') || currentEpsVal.trim() === '';
             
             if (necesitaEps) {
+                // Solo si necesita seleccionar EPS, esperar brevemente a que las opciones carguen
+                await f.waitForFunction((el) => {
+                    return el && el.options && (el.options.length > 1 || (el.options.length === 1 && el.options[0].value !== ''));
+                }, await selectEps.elementHandle().catch(() => null), { timeout: 2000 }).catch(() => {});
                 const epsOptions = await selectEps.locator('option').allInnerTexts().catch(() => []);
                 let randomEps = null;
                 
@@ -424,10 +423,12 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 }, { code: getFieldsClientCode, labelText, value });
             } catch(e) { }
             
-            if (found) console.log(c.verde(`    ✅ [Texto] Lleno: ${labelText}`));
-            else console.log(c.rojo(`    ❌ [Texto] NO encontrado/deshabilitado: ${labelText}`));
-            
-            await page.waitForTimeout(500);
+            if (found) {
+                console.log(c.verde(`    ✅ [Texto] Lleno: ${labelText}`));
+                await page.waitForTimeout(50); // Breve espera solo si se diligenció el campo
+            } else {
+                console.log(c.rojo(`    ❌ [Texto] NO encontrado/deshabilitado: ${labelText}`));
+            }
         };
 
         const safeFillSelect = async (labelText, optionText) => {
@@ -453,10 +454,12 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 }, { code: getFieldsClientCode, labelText, optionText });
             } catch(e) { }
             
-            if (found) console.log(c.verde(`    ✅ [Lista] Lleno: ${labelText}`));
-            else console.log(c.rojo(`    ❌ [Lista] NO encontrado/deshabilitado: ${labelText}`));
-            
-            await page.waitForTimeout(200); // Esperar si hay postback
+            if (found) {
+                console.log(c.verde(`    ✅ [Lista] Lleno: ${labelText}`));
+                await page.waitForTimeout(80); // Esperar si hay postback ligero
+            } else {
+                console.log(c.rojo(`    ❌ [Lista] NO encontrado/deshabilitado: ${labelText}`));
+            }
         };
 
         const safeFillRadio = async (labelText, choice, fallbackIndex) => {
@@ -497,16 +500,17 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                     return false;
                 }, { code: getFieldsClientCode, labelText, choice, fallbackIndex });
             } catch(e) { 
-                // Si el contexto se destruye por UpdatePanel, significa que se hizo click exitosamente!
                 if (e.message.includes('Execution context was destroyed') || e.message.includes('Session closed')) {
                     found = true;
                 }
             }
             
-            if (found) console.log(c.verde(`    ✅ [Opcion] Lleno: ${labelText}`));
-            else console.log(c.rojo(`    ❌ [Opcion] NO encontrado/deshabilitado: ${labelText}`));
-            
-            await page.waitForTimeout(200); // Darle tiempo al UpdatePanel
+            if (found) {
+                console.log(c.verde(`    ✅ [Opcion] Lleno: ${labelText}`));
+                await page.waitForTimeout(80); // Darle tiempo ligero al UpdatePanel solo si hizo click
+            } else {
+                console.log(c.rojo(`    ❌ [Opcion] NO encontrado/deshabilitado: ${labelText}`));
+            }
         };
 
         // LLENADO TOP-TO-BOTTOM (De arriba hacia abajo)
@@ -708,9 +712,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         // 1.1 Antecedente de prematurez: Cuentame a veces lo habilita de la nada, siempre debe ser "No".
         await safeFillRadio('Antecedente de prematurez', 'No', 1);
 
-        // 3. Situaciones adicionales
-        await safeFillSelect('desnutricion aguda moderada o severa', 'NO TIENE DESNUTRICI');
-        await safeFillSelect('canalizado a la Entidad Territorial', 'NO TIENE DESNUTRICI');
+        // 3. Situaciones adicionales (Desnutrición Aguda / Canalizado directo)
         await asegurarDesnutricion('Intermedio');
 
         // Determinar fecha de nacimiento y edad en meses para reglas de validacion ICBF/Cuentame
@@ -758,18 +760,13 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             console.log(c.cyan(`    ℹ️ Edad calculada al momento de la toma: ${edadMeses} meses (${(edadMeses / 12).toFixed(1)} años) [Nac: ${fechaNac || 'N/D'}]`));
         }
 
-        // 4. Lactancia (Verificar y asegurar respuestas completas)
+        // 4. Lactancia (Verificar y asegurar respuestas completas de forma directa)
         const esMayor2Anos = (edadMeses !== null && edadMeses >= 24);
-        const recibeLeche = esMayor2Anos ? 'No' : 'Si';
-        await safeFillSelect('Recibe leche materna?', recibeLeche);
-        
         const valExclusiva = esMayor2Anos ? '6' : Math.floor(Math.random() * (7 - 4 + 1) + 4).toString();
         const valTotal = esMayor2Anos ? '12' : Math.floor(Math.random() * (18 - 11 + 1) + 11).toString();
         
         await safeFillText('exclusiva (meses)', valExclusiva);
         await safeFillText('total (meses)', valTotal);
-        await safeFillText('Hasta que edad fue alimentado exclusivamente', valExclusiva);
-        await safeFillText('A que edad introdujo alimentos diferentes', valTotal);
         
         // ==========================================
         // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL Y MODO NATIVO)
