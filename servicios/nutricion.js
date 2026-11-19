@@ -111,6 +111,98 @@ async function asegurarRadioOpcion(page, frame, idPattern, valorDeseado) {
     } catch(e) {}
 }
 
+async function asegurarDesnutricionAguda(page, frame, etapa = 'General') {
+    const framesToCheck = [];
+    if (frame) framesToCheck.push(frame);
+    if (page && page.frames) {
+        for (const f of page.frames()) {
+            if (!framesToCheck.includes(f)) framesToCheck.push(f);
+        }
+    }
+    if (framesToCheck.length === 0 && page) framesToCheck.push(page);
+
+    for (const frm of framesToCheck) {
+        try {
+            // 1. Esperar a que ASP.NET PageRequestManager no esté en postback asíncrono
+            await frm.evaluate(() => {
+                if (typeof Sys !== 'undefined' && Sys.WebForms && Sys.WebForms.PageRequestManager) {
+                    return !Sys.WebForms.PageRequestManager.getInstance().get_isInAsyncPostBack();
+                }
+                return true;
+            }).catch(() => {});
+
+            // 2. Playwright locator filtrando por opción con texto "NO TIENE DESNUTRICI"
+            const selectLoc = frm.locator('select').filter({
+                has: frm.locator('option', { hasText: /NO TIENE DESNUTRICI/i })
+            }).first();
+
+            if (await selectLoc.count() > 0) {
+                const optText = await selectLoc.locator('option').filter({ hasText: /NO TIENE DESNUTRICI/i }).first().innerText().catch(() => 'NO TIENE DESNUTRICIÓN AGUDA');
+                await selectLoc.scrollIntoViewIfNeeded().catch(() => {});
+                
+                await selectLoc.selectOption({ label: optText.trim() }).catch(async () => {
+                    await selectLoc.selectOption({ value: '3' }).catch(() => {});
+                });
+
+                const evalOk = await selectLoc.evaluate((sel) => {
+                    const normalize = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
+                    const opts = Array.from(sel.options);
+                    const idx = opts.findIndex(o => normalize(o.text).includes('NO TIENE DESNUTRICI'));
+                    if (idx !== -1) {
+                        opts.forEach((o, i) => { o.selected = (i === idx); });
+                        sel.selectedIndex = idx;
+                        sel.value = opts[idx].value;
+                        if (typeof sel.onchange === 'function') {
+                            try { sel.onchange(); } catch(e) {}
+                        }
+                        sel.dispatchEvent(new Event('input', { bubbles: true }));
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                        sel.dispatchEvent(new Event('blur', { bubbles: true }));
+                        return { ok: true, id: sel.id, val: sel.value, text: opts[idx].text.trim() };
+                    }
+                    return { ok: false };
+                }).catch(() => ({ ok: false }));
+
+                if (evalOk && evalOk.ok) {
+                    console.log(c.verde(`    ✅ [Lista - ${etapa}] Desnutrición aguda = "${evalOk.text}" (ID: ${evalOk.id || 'N/A'})`));
+                    return true;
+                }
+            }
+
+            // 3. Fallback exhaustivo recorriendo todos los selects del frame
+            const domResult = await frm.evaluate(() => {
+                const normalize = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
+                const allSelects = Array.from(document.querySelectorAll('select'));
+                for (const sel of allSelects) {
+                    const opts = Array.from(sel.options);
+                    const idx = opts.findIndex(o => normalize(o.text).includes('NO TIENE DESNUTRICI'));
+                    if (idx !== -1) {
+                        opts.forEach((o, i) => { o.selected = (i === idx); });
+                        sel.selectedIndex = idx;
+                        sel.value = opts[idx].value;
+                        if (typeof sel.onchange === 'function') {
+                            try { sel.onchange(); } catch(e) {}
+                        }
+                        sel.dispatchEvent(new Event('input', { bubbles: true }));
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                        sel.dispatchEvent(new Event('blur', { bubbles: true }));
+                        return { ok: true, id: sel.id, text: opts[idx].text.trim() };
+                    }
+                }
+                return { ok: false };
+            }).catch(() => ({ ok: false }));
+
+            if (domResult && domResult.ok) {
+                console.log(c.verde(`    ✅ [Lista - ${etapa}] Desnutrición aguda (DOM) = "${domResult.text}" (ID: ${domResult.id || 'N/A'})`));
+                return true;
+            }
+        } catch(e) {}
+    }
+
+    console.log(c.rojo(`    ❌ [Lista - ${etapa}] No se pudo localizar el campo Desnutrición aguda en ningún frame.`));
+    return false;
+}
+
 async function llenarFormularioNutricion(browser, content, datos, hasHistory = false) {
     const page = content.page ? content.page() : (content.context ? content : null);
     console.log(c.cyan('\n  ⚙️ Iniciando llenado automatico de formulario...'));
@@ -568,6 +660,11 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             }
         };
 
+        const asegurarDesnutricion = async (etapa = 'Inicial') => {
+            const frm = await getFrame();
+            return await asegurarDesnutricionAguda(page, frm, etapa);
+        };
+
         // 2. Antropometria principales (SIEMPRE SE LLENAN)
         await safeFillText('Peso (En Kilogramos)', datos.peso);
         await safeFillText('Talla (En Cent', datos.talla);
@@ -633,6 +730,8 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
 
         // 3. Situaciones adicionales
         await safeFillSelect('desnutricion aguda moderada o severa', 'NO TIENE DESNUTRICI');
+        await safeFillSelect('canalizado a la Entidad Territorial', 'NO TIENE DESNUTRICI');
+        await asegurarDesnutricion('Intermedio');
 
         // Determinar fecha de nacimiento y edad en meses para reglas de validacion ICBF/Cuentame
         let fechaNac = datos.fechaNacimiento || '';
@@ -700,7 +799,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         
         console.log(c.amarillo('  🎯 Llenando campos finales con simulacion nativa...'));
         
-        let f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
+        f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
 
         // A0. Vacunación (Asegurar SIEMPRE marcado en Si)
         await asegurarRadioOpcion(page, f, 'rbTieneCarnetVacunacion', 'Si');
@@ -724,23 +823,13 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 }
             } catch(e) {}
             await page.waitForTimeout(100);
-
-            // Desnutrición aguda (NO TIENE DESNUTRICION AGUDA)
-            try {
-                const ddlDesnutricion = f.locator('#cphCont_ddlDesnutricion, select[id*="ddlDesnutricion"]').first();
-                if (await ddlDesnutricion.count() > 0) {
-                    const opts = await ddlDesnutricion.locator('option').allInnerTexts().catch(() => []);
-                    const match = opts.find(o => o.toUpperCase().includes('NO TIENE DESNUTRICI'));
-                    if (match) {
-                        await ddlDesnutricion.selectOption({ label: match.trim() }).catch(() => {});
-                        console.log(c.verde(`    ✅ [Lista] Desnutrición aguda = ${match.trim()}`));
-                    }
-                }
-            } catch(e) {}
-            await page.waitForTimeout(100);
         } else {
             console.log(c.cyan('    ℹ️ Beneficiario con tomas previas: No se interviene en carnet de crecimiento ni controles.'));
         }
+
+        // A1. Desnutrición aguda / Canalizado (NO TIENE DESNUTRICION AGUDA) - APLICA SIEMPRE (con o sin historial)
+        await asegurarDesnutricion('Nativo');
+        await page.waitForTimeout(100);
 
         // A2. Lactancia (Mayor / Menor 6 meses)
         try {
@@ -905,8 +994,9 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         } catch(e) {}
         await page.waitForTimeout(100);
 
-        // 4. Salvaguarda final: Re-asegurar que Peso, Talla y Fecha queden firmes antes de guardar
+        // 4. Salvaguarda final: Re-asegurar que Peso, Talla, Fecha y Desnutrición queden firmes antes de guardar
         await asegurarAntropometria('Final');
+        await asegurarDesnutricion('Final');
         await page.waitForTimeout(200);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
@@ -919,5 +1009,6 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
 
 module.exports = {
     parsearFecha,
-    llenarFormularioNutricion
+    llenarFormularioNutricion,
+    asegurarDesnutricionAguda
 };
