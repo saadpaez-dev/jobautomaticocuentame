@@ -11,8 +11,25 @@ const c = {
 };
 
 function parsearFecha(input) {
-    if (!input || input.trim() === '') return '';
-    const txt = input.trim().toLowerCase();
+    if (input === null || input === undefined || input === '') return '';
+    
+    // Si viene como número de serie de Excel (ej: 45240)
+    if (typeof input === 'number' && !isNaN(input) && input > 30000 && input < 60000) {
+        try {
+            const xlsx = require('xlsx');
+            if (xlsx && xlsx.SSF && xlsx.SSF.parse_date_code) {
+                const dateObj = xlsx.SSF.parse_date_code(input);
+                if (dateObj && dateObj.y && dateObj.m && dateObj.d) {
+                    const d = String(dateObj.d).padStart(2, '0');
+                    const m = String(dateObj.m).padStart(2, '0');
+                    return `${d}/${m}/${dateObj.y}`;
+                }
+            }
+        } catch(e) {}
+    }
+
+    const txt = String(input).trim().toLowerCase();
+    if (txt === '') return '';
     
     const hoy = new Date();
     
