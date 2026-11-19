@@ -242,6 +242,26 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
     try {
         f = await getFrame();
 
+        // --- DETECCION AUTOMATICA DE HISTORIAL EN CUENTAME ---
+        // Si el formulario ya tiene datos precargados (carnets seleccionados, fecha de vacunacion previa o controles),
+        // significa inequívocamente que el beneficiario ya tiene un historial registrado en Cuéntame.
+        if (!hasHistory) {
+            const tieneDatosPrevios = await f.evaluate(() => {
+                const radVac = document.querySelector('input[id*="rbTieneCarnetVacunacion"]:checked, input[name*="TieneCarnetVacunacion"]:checked');
+                const radCrec = document.querySelector('input[id*="rbTieneCarnetCrecimiento"]:checked, input[name*="TieneCarnetCrecimiento"]:checked');
+                const fecVac = document.querySelector('input[id*="FechaVerificacionVacunacion"], input[id*="txtFechaEsquema"], input[id*="txtFechaVerificacion"]');
+                const hasFecVac = fecVac && fecVac.value && fecVac.value.trim() !== '' && !fecVac.value.includes('1900');
+                const ddlControles = document.querySelector('select[id*="ddlControlesCrecimiento"], select[id*="Controles"]');
+                const hasControles = ddlControles && ddlControles.value && ddlControles.value !== '0' && ddlControles.value !== '';
+                return !!(radVac || radCrec || hasFecVac || hasControles);
+            }).catch(() => false);
+
+            if (tieneDatosPrevios) {
+                console.log(c.amarillo('  ℹ️ Datos previos detectados en el formulario de Cuentame: Tratando como beneficiario con historial previo.'));
+                hasHistory = true;
+            }
+        }
+
         // --- SELECCION DE EPS Y REGIMEN (Asegurar que esten seleccionados siempre) ---
         await f.waitForSelector('select', { state: 'attached', timeout: 5000 }).catch(()=>{});
         
@@ -492,41 +512,42 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         // LLENADO TOP-TO-BOTTOM (De arriba hacia abajo)
         // Esto evita que un UpdatePanel superior borre los campos inferiores
         
-        // --- DIAGNOSTICO ---
-        try {
-            console.log(c.amarillo('\n  🔍 DIAGNOSTICO DE CAMPOS (Solo para el desarrollador):'));
-            const frm = await getFrame();
-            const dump = await frm.evaluate(() => {
-                const res = [];
-                document.querySelectorAll('input:not([type="hidden"]), select').forEach(el => {
-                    let text = '';
-                    let p = el.parentElement;
-                    for(let i=0; i<4; i++) {
-                        if (!p) break;
-                        if (p.innerText) { text = p.innerText.trim(); break; }
-                        p = p.parentElement;
-                    }
-                    if (el.type === 'radio' && el.parentElement && el.parentElement.innerText) {
-                        text = el.parentElement.innerText;
-                    }
-                    // Buscamos si hay un label cercano en un tr/td anterior
-                    let p2 = el.closest('tr') || el.closest('td') || el.parentElement;
-                    let prevText = '';
-                    if (p2 && p2.previousElementSibling) {
-                        prevText = p2.previousElementSibling.innerText || '';
-                    }
-                    res.push({
-                        tag: el.tagName,
-                        type: el.type || '',
-                        id: el.id,
-                        context: (text + ' | PrevSibling: ' + prevText).substring(0, 80).replace(/\\s+/g, ' ')
+        // --- DIAGNOSTICO (Solo si DEBUG_CAMPOS está activo) ---
+        if (process.env.DEBUG_CAMPOS === 'true') {
+            try {
+                console.log(c.amarillo('\n  🔍 DIAGNOSTICO DE CAMPOS (Solo para el desarrollador):'));
+                const frm = await getFrame();
+                const dump = await frm.evaluate(() => {
+                    const res = [];
+                    document.querySelectorAll('input:not([type="hidden"]), select').forEach(el => {
+                        let text = '';
+                        let p = el.parentElement;
+                        for(let i=0; i<4; i++) {
+                            if (!p) break;
+                            if (p.innerText) { text = p.innerText.trim(); break; }
+                            p = p.parentElement;
+                        }
+                        if (el.type === 'radio' && el.parentElement && el.parentElement.innerText) {
+                            text = el.parentElement.innerText;
+                        }
+                        let p2 = el.closest('tr') || el.closest('td') || el.parentElement;
+                        let prevText = '';
+                        if (p2 && p2.previousElementSibling) {
+                            prevText = p2.previousElementSibling.innerText || '';
+                        }
+                        res.push({
+                            tag: el.tagName,
+                            type: el.type || '',
+                            id: el.id,
+                            context: (text + ' | PrevSibling: ' + prevText).substring(0, 80).replace(/\\s+/g, ' ')
+                        });
                     });
+                    return res;
                 });
-                return res;
-            });
-            dump.forEach(d => console.log(c.gris(`    [${d.tag} ${d.type}] id=${d.id} | Ctx: ${d.context}`)));
-            console.log(c.amarillo('  --------------------------------------------------\n'));
-        } catch(e) {}
+                dump.forEach(d => console.log(c.gris(`    [${d.tag} ${d.type}] id=${d.id} | Ctx: ${d.context}`)));
+                console.log(c.amarillo('  --------------------------------------------------\n'));
+            } catch(e) {}
+        }
 
         // Helper robusto para asegurar que Peso, Talla y Fecha queden diligenciados sin importar postbacks de ASP.NET
         const asegurarAntropometria = async (etapa = 'Inicial') => {
@@ -642,39 +663,27 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         await safeFillText('Fecha de valoracion', datos.fecha);
         await asegurarAntropometria('Inicial');
         
-        // Extraer mes de la fecha y llenar el campo Toma, Periodo o Mes
-        if (datos.fecha) {
+        // Cuéntame determina la toma automáticamente a partir de la Fecha de Valoración.
+        // Solo si la pantalla tuviera un control explícito de Toma o Periodo se evalúa.
+        const tieneSelectToma = await f.evaluate(() => {
+            return Array.from(document.querySelectorAll('select')).some(s => {
+                const id = (s.id || '').toLowerCase();
+                const name = (s.name || '').toLowerCase();
+                return (id.includes('toma') || id.includes('periodo')) && !s.disabled;
+            });
+        }).catch(() => false);
+
+        if (tieneSelectToma && datos.fecha) {
             const partesFecha = String(datos.fecha).trim().split(/[\/-]/);
             if (partesFecha.length === 3) {
                 let mesIndex = parseInt(partesFecha[1], 10) - 1;
-                if (partesFecha[0].length === 4) { // Formato YYYY-MM-DD
-                    mesIndex = parseInt(partesFecha[1], 10) - 1;
-                }
+                if (partesFecha[0].length === 4) mesIndex = parseInt(partesFecha[1], 10) - 1;
                 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
                 if (mesIndex >= 0 && mesIndex < 12) {
                     const nombreMes = mesesNombres[mesIndex];
                     const numToma = Math.floor(mesIndex / 3) + 1;
-                    const tomaNombre = `Toma ${numToma}`;
-                    const tomaRomanos = ['', 'I', 'II', 'III', 'IV'][numToma] || '';
-
-                    const candidatosToma = [
-                        nombreMes,
-                        tomaNombre,
-                        `TOMA ${numToma}`,
-                        String(numToma),
-                        tomaRomanos,
-                        `Toma ${tomaRomanos}`,
-                        numToma === 4 ? 'Cuarta Toma' : (numToma === 3 ? 'Tercera Toma' : (numToma === 2 ? 'Segunda Toma' : 'Primera Toma')),
-                        numToma === 4 ? 'Octubre - Diciembre' : (numToma === 3 ? 'Julio - Septiembre' : (numToma === 2 ? 'Abril - Junio' : 'Enero - Marzo'))
-                    ];
-
-                    for (const cand of candidatosToma) {
-                        const r1 = await safeFillSelect('Toma', cand);
-                        const r2 = await safeFillSelect('Periodo Toma', cand);
-                        const r3 = await safeFillSelect('Periodo', cand);
-                        if (r1 || r2 || r3) break;
-                    }
-                    await safeFillSelect('Mes', nombreMes);
+                    const r1 = await safeFillSelect('Toma', `Toma ${numToma}`);
+                    if (!r1) await safeFillSelect('Periodo', nombreMes);
                 }
             }
         }
