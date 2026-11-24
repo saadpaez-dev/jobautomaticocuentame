@@ -58,61 +58,124 @@ async function loginYLlegarARoles(page, credenciales) {
       }
 
       await page.goto(URL_LOGIN, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(600);
 
       const usuarioLimpio = String(usuario || '').trim().replace(/^["']|["']$/g, '');
       const passwordLimpio = String(password || '').trim().replace(/^["']|["']$/g, '');
 
-      const userInput = page.locator('input[type="text"]:visible, input[id*="txtUsuario"]:visible').first();
-      const passInput = page.locator('input[type="password"]:visible, input[id*="txtClave"]:visible').first();
+      const userInput = page.locator('#UserName, input[type="text"]:visible, input[id*="txtUsuario"]:visible').first();
+      const passInput = page.locator('#Password, input[type="password"]:visible, input[id*="txtClave"]:visible').first();
 
       await userInput.waitFor({ state: 'visible', timeout: 15000 });
       await passInput.waitFor({ state: 'visible', timeout: 15000 });
 
-      // Desactivar temporalmente autocompletado en el formulario para evitar que Edge mezcle caracteres
-      await page.evaluate(() => {
-        const form = document.querySelector('form');
-        if (form) form.setAttribute('autocomplete', 'off');
-        const inputs = Array.from(document.querySelectorAll('input'));
-        inputs.forEach(i => {
-          i.setAttribute('autocomplete', 'new-password');
-          i.setAttribute('autocorrect', 'off');
-          i.setAttribute('autocapitalize', 'off');
-          i.setAttribute('spellcheck', 'false');
-        });
-      }).catch(() => {});
+      // 1. Limpiar comportamientos de marca de agua de AjaxControlToolkit (TextBoxWatermarkBehavior)
+      //    que provocan que ASP.NET considere el campo vacío y bloquee el envío con un asterisco rojo (*).
+      await page.evaluate(({ u, p }) => {
+        try {
+          if (typeof window.$find === 'function') {
+            const bU = window.$find('TbwUserName');
+            if (bU) {
+              if (typeof bU._clearWatermark === 'function') bU._clearWatermark();
+              bU._isWatermarked = false;
+            }
+            const bP = window.$find('TbWPassword');
+            if (bP) {
+              if (typeof bP._clearWatermark === 'function') bP._clearWatermark();
+              bP._isWatermarked = false;
+            }
+          }
+        } catch(e) {}
 
-      // Asignar credenciales de forma atómica en el DOM
-      await userInput.evaluate((el, val) => {
-        el.value = val;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }, usuarioLimpio);
+        const elU = document.getElementById('UserName') || document.querySelector('input[type="text"]');
+        const elP = document.getElementById('Password') || document.querySelector('input[type="password"]');
 
-      await passInput.evaluate((el, val) => {
-        el.value = val;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.dispatchEvent(new Event('blur', { bubbles: true }));
-      }, passwordLimpio);
+        if (elU) {
+          elU.className = 'WaterMarkOff';
+          elU.value = u;
+          elU.setAttribute('autocomplete', 'new-password');
+        }
 
-      // Verificación estricta: si el navegador sobreescribió o concatenó caracteres, corregir
-      let valUser = await userInput.inputValue().catch(() => '');
-      if (valUser !== usuarioLimpio) {
-        await userInput.fill(usuarioLimpio);
-        valUser = await userInput.inputValue().catch(() => '');
-      }
-      if (valUser !== usuarioLimpio) {
-        await userInput.evaluate((el, val) => { el.value = val; }, usuarioLimpio);
-      }
+        if (elP) {
+          elP.className = 'WaterMarkOff';
+          elP.value = p;
+          elP.setAttribute('autocomplete', 'new-password');
+        }
 
-      let valPass = await passInput.inputValue().catch(() => '');
-      if (valPass !== passwordLimpio) {
-        await passInput.fill(passwordLimpio);
-      }
+        try {
+          if (typeof window.$find === 'function') {
+            const bU = window.$find('TbwUserName');
+            if (bU && typeof bU.set_Text === 'function') bU.set_Text(u);
+            const bP = window.$find('TbWPassword');
+            if (bP && typeof bP.set_Text === 'function') bP.set_Text(p);
+          }
+        } catch(e) {}
+      }, { u: usuarioLimpio, p: passwordLimpio });
+
+      // 2. Usar Playwright click() + fill() para interactuar normalmente con los campos
+      await userInput.click();
+      await userInput.fill(usuarioLimpio);
+
+      await passInput.click();
+      await passInput.fill(passwordLimpio);
+
+      // 3. Forzar que las clases de marca de agua y validadores queden limpios y válidos
+      await page.evaluate(({ u, p }) => {
+        const elU = document.getElementById('UserName') || document.querySelector('input[type="text"]');
+        const elP = document.getElementById('Password') || document.querySelector('input[type="password"]');
+
+        if (elU) {
+          elU.className = 'WaterMarkOff';
+          elU.value = u;
+          elU.dispatchEvent(new Event('input', { bubbles: true }));
+          elU.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        if (elP) {
+          elP.className = 'WaterMarkOff';
+          elP.value = p;
+          elP.dispatchEvent(new Event('input', { bubbles: true }));
+          elP.dispatchEvent(new Event('change', { bubbles: true }));
+          elP.dispatchEvent(new Event('blur', { bubbles: true }));
+        }
+
+        try {
+          if (typeof window.$find === 'function') {
+            const bU = window.$find('TbwUserName');
+            if (bU) {
+              bU._isWatermarked = false;
+              if (typeof bU.set_Text === 'function') bU.set_Text(u);
+            }
+            const bP = window.$find('TbWPassword');
+            if (bP) {
+              bP._isWatermarked = false;
+              if (typeof bP.set_Text === 'function') bP.set_Text(p);
+            }
+          }
+        } catch(e) {}
+
+        // Limpiar cualquier asterisco o error de validación en pantalla
+        try {
+          const asteriscos = Array.from(document.querySelectorAll('span'));
+          asteriscos.forEach(s => {
+            if (s.innerText && s.innerText.trim() === '*') {
+              s.style.display = 'none';
+              s.style.visibility = 'hidden';
+            }
+          });
+          if (typeof Page_Validators !== 'undefined' && Array.isArray(Page_Validators)) {
+            Page_Validators.forEach(v => {
+              v.style.display = 'none';
+              v.style.visibility = 'hidden';
+              v.isvalid = true;
+            });
+          }
+          if (typeof Page_IsValid !== 'undefined') Page_IsValid = true;
+        } catch(e) {}
+      }, { u: usuarioLimpio, p: passwordLimpio });
 
       console.log(`  🔑 Credenciales asignadas para usuario: "${usuarioLimpio}"`);
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(300);
 
       const hasCaptcha = await page.locator('img[src*="Captcha"]:visible').count() > 0;
 
@@ -134,10 +197,30 @@ async function loginYLlegarARoles(page, credenciales) {
         }
         console.log('  ✅ Captcha resuelto exitosamente, continuando con el proceso automatico...');
       } else {
+        const btnLogin = page.locator('#LoginButton, input[value*="Iniciar" i], input[type="submit"]').first();
         await Promise.all([
           page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
-          page.locator('input[value*="Iniciar" i], input[type="submit"]').first().click()
+          btnLogin.click()
         ]);
+
+        const asteriscoVisible = await page.evaluate(() => {
+          const spans = Array.from(document.querySelectorAll('span'));
+          return spans.some(s => s.innerText && s.innerText.trim() === '*' && s.offsetParent !== null);
+        }).catch(() => false);
+
+        if (asteriscoVisible) {
+          console.log(c.amarillo('  ⚠️ Validador retenido en pantalla. Forzando envío de formulario...'));
+          await Promise.all([
+            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
+            page.evaluate(() => {
+              if (typeof __doPostBack === 'function') {
+                __doPostBack('LoginButton', '');
+              } else if (document.forms[0]) {
+                document.forms[0].submit();
+              }
+            })
+          ]);
+        }
       }
 
       // ─── Verificar si la cuenta fue bloqueada ───────────────────────────────
