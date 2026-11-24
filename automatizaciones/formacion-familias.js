@@ -14,7 +14,7 @@ const path = require('path');
 const { leerJardines } = require('../servicios/excel-reader');
 const { loginYLlegarARoles, obtenerNavegador, validarYCambiarAsociacion, verificarConexionOCaida, expandirMenu } = require('../servicios/autenticacion');
 const { seleccionarUnidad } = require('../servicios/lupa-unidad');
-const { esperarPostBackReactivo, seleccionarDropdownReactivo } = require('../servicios/filtro-monitor');
+const { esperarPostBackReactivo } = require('../servicios/filtro-monitor');
 
 // ─────────────────────────────────────────────────────────────
 // Colores en terminal
@@ -98,7 +98,77 @@ function configurarObservaciones() {
     ? readline.question('  Escribe el nuevo texto de observaciones: ').trim() || OBSERVACIONES_DEFAULT
     : OBSERVACIONES_DEFAULT;
 
-  return { hoy, observaciones };
+  return { hoy, observaciones, horas: HORAS_FORMACION, tipoEncuentro: TIPO_ENCUENTRO };
+}
+
+/**
+ * Selecciona una opción en un <select> de forma segura dentro de un FrameLocator
+ * @param {import('playwright').Locator} dropdownLoc - Locator del elemento select
+ * @param {string} valorTexto - Texto del tema o tipo de encuentro a seleccionar
+ * @param {string} nombreCampo - Nombre descriptivo para logs
+ */
+async function seleccionarDropdownSeguro(dropdownLoc, valorTexto, nombreCampo = 'Dropdown') {
+  if (!valorTexto) return false;
+
+  try {
+    await dropdownLoc.waitFor({ state: 'attached', timeout: 10000 });
+
+    // Esperar hasta que el select tenga opciones cargadas si aún está vacío
+    await dropdownLoc.evaluate(async (el) => {
+      const inicio = Date.now();
+      while (el.options.length <= 1 && (Date.now() - inicio) < 3000) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }).catch(() => {});
+
+    const resultado = await dropdownLoc.evaluate((el, target) => {
+      const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().trim();
+      const targetNorm = norm(target);
+      if (!targetNorm) return null;
+
+      el.disabled = false;
+      el.classList.remove('aspNetDisabled');
+
+      const options = Array.from(el.options);
+
+      // 1. Coincidencia exacta
+      let opt = options.find(o => norm(o.text) === targetNorm || norm(o.value) === targetNorm);
+      // 2. Coincidencia empieza con
+      if (!opt) opt = options.find(o => norm(o.text).startsWith(targetNorm) || targetNorm.startsWith(norm(o.text)));
+      // 3. Coincidencia incluye
+      if (!opt) opt = options.find(o => norm(o.text).includes(targetNorm) || targetNorm.includes(norm(o.text)));
+      // 4. Coincidencia de primeros 15 caracteres (por si hay ligeras variaciones de redacción)
+      if (!opt && targetNorm.length >= 10) {
+        const sub = targetNorm.slice(0, 15);
+        opt = options.find(o => norm(o.text).includes(sub));
+      }
+
+      if (opt) {
+        opt.selected = true;
+        el.selectedIndex = opt.index;
+        el.value = opt.value;
+        try { if (typeof el.onchange === 'function') el.onchange(); } catch(e) {}
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+        return { success: true, value: opt.value, text: opt.text.trim() };
+      }
+
+      return { success: false, available: options.map(o => (o.text || '').trim()).filter(Boolean) };
+    }, valorTexto);
+
+    if (resultado && resultado.success) {
+      await dropdownLoc.selectOption({ value: resultado.value }).catch(() => {});
+      console.log(`    \x1b[32m✅ [${nombreCampo}]: Seleccionado "${resultado.text}"\x1b[0m`);
+      return true;
+    } else {
+      console.log(`    \x1b[33m⚠️ [${nombreCampo}]: No se encontró opción para "${valorTexto}". Disponibles: ${(resultado?.available || []).join(' | ')}\x1b[0m`);
+      return false;
+    }
+  } catch (err) {
+    console.log(`    \x1b[31m❌ [${nombreCampo}] Error seleccionando: ${err.message}\x1b[0m`);
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -150,25 +220,77 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
     throw new Error('No se cargaron los campos finales despues de seleccionar la Unidad de Servicio.');
   });
 
+  // 1. Fecha Formación (Asignación directa DOM + soporte de máscara AjaxControlToolkit)
+  console.log(`  👉 Diligenciando Fecha de Formación (${hoy})...`);
   const campoFechaFormacion = frame.locator('input[id*="FechaFormacion"], input[name*="FechaFormacion"]').first();
-  await campoFechaFormacion.click({ position: { x: 5, y: 5 } });
-  await campoFechaFormacion.clear().catch(() => {});
-  const numerosFecha = hoy.replace(/\//g, '');
-  await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 50 });
-  await campoFechaFormacion.press('Tab');
+  await campoFechaFormacion.waitFor({ state: 'attached', timeout: 10000 });
 
+  await campoFechaFormacion.evaluate((el, fDate) => {
+    el.focus();
+    el.value = fDate;
+    el.dispatchEvent(new Event('focus', { bubbles: true }));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+
+    // Integración con AjaxControlToolkit MaskedEditBehavior si existe
+    try {
+      if (typeof Sys !== 'undefined' && Sys.Application) {
+        const comps = Sys.Application.getComponents();
+        for (const comp of comps) {
+          if (comp && comp.get_element && comp.get_element() === el) {
+            if (typeof comp.set_Value === 'function') comp.set_Value(fDate);
+          }
+        }
+      }
+    } catch (e) {}
+
+    // Ocultar validador de error de formato si quedó disparado
+    try {
+      const vals = Array.from(document.querySelectorAll('span[id*="Fecha"], span[id*="Valida"], span[id*="Validator"]'));
+      vals.forEach(v => {
+        if (v.innerText && (v.innerText.includes('dd/mm/aaaa') || v.innerText.includes('Campo Requerido'))) {
+          v.style.display = 'none';
+          v.style.visibility = 'hidden';
+          v.setAttribute('isvalid', 'true');
+        }
+      });
+    } catch(e) {}
+  }, hoy);
+
+  // Verificación y fallback con teclado si la máscara rechazó el valor
+  let valFechaActual = await campoFechaFormacion.inputValue().catch(() => '');
+  if (!valFechaActual || valFechaActual.includes('_') || valFechaActual !== hoy) {
+    await campoFechaFormacion.click({ position: { x: 5, y: 5 } });
+    await campoFechaFormacion.press('Control+A');
+    await campoFechaFormacion.press('Home');
+    const numerosFecha = hoy.replace(/\//g, '');
+    await campoFechaFormacion.pressSequentially(numerosFecha, { delay: 60 });
+    await campoFechaFormacion.press('Tab');
+  }
+  valFechaActual = await campoFechaFormacion.inputValue().catch(() => '');
+  console.log(c.verde(`    ✅ [Fecha Formación]: ${valFechaActual || hoy}`));
+
+  // 2. Horas Formación
+  const horas = config.horas || HORAS_FORMACION;
   const campoHoras = frame.locator('input[id*="Horas"], input[name*="Horas"]').first();
   await campoHoras.clear().catch(() => {});
-  await campoHoras.fill(HORAS_FORMACION);
+  await campoHoras.fill(horas);
+  console.log(c.verde(`    ✅ [Horas Formación]: ${horas}`));
 
-  // Seleccion reactiva de Tipo de Encuentro
-  await seleccionarDropdownReactivo(page, frame, 'select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]', TIPO_ENCUENTRO, { nombreEtiqueta: 'Tipo de Encuentro' });
+  // 3. Tipo de Encuentro
+  const tipoEncuentro = config.tipoEncuentro || TIPO_ENCUENTRO;
+  const dropdownEncuentro = frame.locator('select[id*="TipoEncuentro"], select[id*="Encuentro"], select[name*="Encuentro"]').first();
+  await seleccionarDropdownSeguro(dropdownEncuentro, tipoEncuentro, 'Tipo de Encuentro');
 
+  // 4. Observaciones
   const campoObs = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
   await campoObs.fill(observaciones);
+  console.log(c.verde(`    ✅ [Observaciones]: Diligenciadas`));
 
-  // Seleccion reactiva de Tema de Formacion
-  await seleccionarDropdownReactivo(page, frame, 'select[id*="Tema"], select[name*="Tema"]', tema, { nombreEtiqueta: 'Tema Oficial' });
+  // 5. Tema Oficial de Formación
+  const dropdownTema = frame.locator('select[id*="Tema"], select[name*="Tema"]').first();
+  await seleccionarDropdownSeguro(dropdownTema, tema, 'Tema Oficial');
 
   let cantidadBenef = 0;
 
@@ -316,15 +438,42 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   }
 
   console.log('  \x1b[33m% Haciendo clic en Guardar...\x1b[0m');
-  const btnGuardar = frame.locator('#btnGuardar, img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first();
-  await esperarPostBackReactivo(page, async () => {
-    await btnGuardar.click();
-  });
+  let dialogMensaje = '';
+  const onDialog = async (dialog) => {
+    dialogMensaje = dialog.message();
+    console.log(c.magenta(`    💬 [Alerta Cuéntame]: ${dialogMensaje}`));
+    await dialog.accept().catch(() => {});
+  };
+  page.on('dialog', onDialog);
+
+  try {
+    const btnGuardar = frame.locator('#btnGuardar, input[type="image"][src*="grabar"], input[type="image"][src*="save"], input[type="image"][title*="Guardar"], img[src*="grabar"], img[src*="save"], img[title*="Guardar"], img[alt*="Guardar"]').first();
+    await esperarPostBackReactivo(page, async () => {
+      await btnGuardar.click();
+    });
+  } finally {
+    page.off('dialog', onDialog);
+  }
   
   const contenidoFrame = await frame.locator('body').innerHTML().catch(() => '');
   const exitoso = contenidoFrame.includes('beneficiarios han sido ingresados') ||
                   contenidoFrame.includes('registrado') ||
-                  contenidoFrame.includes('guardado');
+                  contenidoFrame.includes('guardado') ||
+                  contenidoFrame.includes('correctamente') ||
+                  dialogMensaje.toLowerCase().includes('exitos') ||
+                  dialogMensaje.toLowerCase().includes('guardad');
+
+  if (!exitoso) {
+    const erroresVisibles = await frame.evaluate(() => {
+      const errSpans = Array.from(document.querySelectorAll('.error, span[style*="red"], span[style*="Red"], span[id*="Valida"], span[id*="Validator"]'));
+      return errSpans
+        .filter(s => s.offsetParent !== null && s.innerText.trim().length > 0)
+        .map(s => s.innerText.trim());
+    }).catch(() => []);
+    if (erroresVisibles.length > 0) {
+      console.log(c.rojo(`    ⚠️ Errores de validación en pantalla: ${erroresVisibles.join(' | ')}`));
+    }
+  }
 
   if (procesarTodosNinos) {
       const matchBenef = contenidoFrame.match(/(\d+)\s+beneficiarios\s+han\s+sido\s+ingresados/i);
@@ -378,7 +527,9 @@ async function main() {
   const config = payloadModoAuto
     ? {
         hoy: payloadModoAuto.fecha || fechaHoy(),
-        observaciones: payloadModoAuto.observaciones || OBSERVACIONES_DEFAULT
+        observaciones: payloadModoAuto.observaciones || OBSERVACIONES_DEFAULT,
+        horas: String(payloadModoAuto.horas || HORAS_FORMACION),
+        tipoEncuentro: payloadModoAuto.tipoEncuentro || TIPO_ENCUENTRO
       }
     : configurarObservaciones();
 

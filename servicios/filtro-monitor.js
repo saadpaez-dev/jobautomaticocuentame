@@ -117,9 +117,11 @@ async function seleccionarDropdownReactivo(page, frame, selectorOrLoc, valueOrTe
     
     // Si el select todavía no tiene opciones (ej. acaba de dispararse la carga dependiente),
     // esperar activamente hasta que el DOM lo pueble (máximo 4s)
-    await frame.waitForFunction((el) => {
-      return el && el.options && (el.options.length > 1 || (el.options.length === 1 && el.options[0].value !== "" && el.options[0].value !== "-1" && el.options[0].value !== "0"));
-    }, await loc.elementHandle().catch(() => null), { timeout: 4000 }).catch(() => {});
+    if (frame && typeof frame.waitForFunction === 'function') {
+      await frame.waitForFunction((el) => {
+        return el && el.options && (el.options.length > 1 || (el.options.length === 1 && el.options[0].value !== "" && el.options[0].value !== "-1" && el.options[0].value !== "0"));
+      }, await loc.elementHandle().catch(() => null), { timeout: 4000 }).catch(() => {});
+    }
 
     // Inspeccionar las opciones actuales del select y si requiere postback
     const info = await loc.evaluate((el, { targetVal }) => {
