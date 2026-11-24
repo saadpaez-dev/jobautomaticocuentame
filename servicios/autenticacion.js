@@ -58,20 +58,61 @@ async function loginYLlegarARoles(page, credenciales) {
       }
 
       await page.goto(URL_LOGIN, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForTimeout(500);
 
-      // Llenar usuario y contrasena (usando tipeo secuencial para sobrescribir autocompletados guardados en Edge)
-      const userInput = page.locator('input[type="text"]').first();
-      const passInput = page.locator('input[type="password"]').first();
+      const usuarioLimpio = String(usuario || '').trim().replace(/^["']|["']$/g, '');
+      const passwordLimpio = String(password || '').trim().replace(/^["']|["']$/g, '');
 
-      await userInput.click().catch(() => {});
-      await userInput.fill('');
-      await userInput.pressSequentially(usuario, { delay: 20 }).catch(() => userInput.fill(usuario));
+      const userInput = page.locator('input[type="text"]:visible, input[id*="txtUsuario"]:visible').first();
+      const passInput = page.locator('input[type="password"]:visible, input[id*="txtClave"]:visible').first();
 
-      await passInput.click().catch(() => {});
-      await passInput.fill('');
-      await passInput.pressSequentially(password, { delay: 20 }).catch(() => passInput.fill(password));
-      await passInput.dispatchEvent('change').catch(() => {});
-      await passInput.dispatchEvent('blur').catch(() => {});
+      await userInput.waitFor({ state: 'visible', timeout: 15000 });
+      await passInput.waitFor({ state: 'visible', timeout: 15000 });
+
+      // Desactivar temporalmente autocompletado en el formulario para evitar que Edge mezcle caracteres
+      await page.evaluate(() => {
+        const form = document.querySelector('form');
+        if (form) form.setAttribute('autocomplete', 'off');
+        const inputs = Array.from(document.querySelectorAll('input'));
+        inputs.forEach(i => {
+          i.setAttribute('autocomplete', 'new-password');
+          i.setAttribute('autocorrect', 'off');
+          i.setAttribute('autocapitalize', 'off');
+          i.setAttribute('spellcheck', 'false');
+        });
+      }).catch(() => {});
+
+      // Asignar credenciales de forma atómica en el DOM
+      await userInput.evaluate((el, val) => {
+        el.value = val;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }, usuarioLimpio);
+
+      await passInput.evaluate((el, val) => {
+        el.value = val;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }, passwordLimpio);
+
+      // Verificación estricta: si el navegador sobreescribió o concatenó caracteres, corregir
+      let valUser = await userInput.inputValue().catch(() => '');
+      if (valUser !== usuarioLimpio) {
+        await userInput.fill(usuarioLimpio);
+        valUser = await userInput.inputValue().catch(() => '');
+      }
+      if (valUser !== usuarioLimpio) {
+        await userInput.evaluate((el, val) => { el.value = val; }, usuarioLimpio);
+      }
+
+      let valPass = await passInput.inputValue().catch(() => '');
+      if (valPass !== passwordLimpio) {
+        await passInput.fill(passwordLimpio);
+      }
+
+      console.log(`  🔑 Credenciales asignadas para usuario: "${usuarioLimpio}"`);
+      await page.waitForTimeout(200);
 
       const hasCaptcha = await page.locator('img[src*="Captcha"]:visible').count() > 0;
 
