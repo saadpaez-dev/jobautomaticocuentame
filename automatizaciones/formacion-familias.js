@@ -214,11 +214,37 @@ async function registrarFormacion(page, jardin, config, opcionesProcesamiento) {
   console.log(`  👉 Buscando UDS: ${jardin.nombre}...`);
   await seleccionarUnidad(page, frame, jardin.codigo);
 
-  console.log('  👉 Esperando a que cargue el resto de campos (Observaciones, Beneficiarios)...');
-  const campoObsParaVerificar = frame.locator('textarea[id*="Observaciones"], textarea[name*="Observaciones"]').first();
-  await campoObsParaVerificar.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {
-    throw new Error('No se cargaron los campos finales despues de seleccionar la Unidad de Servicio.');
-  });
+  console.log('  👉 Esperando a que el sistema cargue Modalidad, Temas y Beneficiarios...');
+  const cargado = await frame.locator('body').evaluate(async () => {
+    const inicio = Date.now();
+    while (Date.now() - inicio < 25000) {
+      const tema = document.querySelector('select[id*="Tema"], select[name*="Tema"]');
+      const table = document.querySelector('table[id*="Beneficiario"], table[id*="gvBeneficiarios"]');
+      const checks = document.querySelectorAll('input[type="checkbox"]');
+      const mod = document.querySelector('input[id*="Modalidad"], input[name*="Modalidad"]');
+
+      const temaListo = tema && tema.options && tema.options.length > 1;
+      const benefListo = (table !== null) || checks.length > 0;
+      const modListo = mod && mod.value && mod.value.trim().length > 0;
+
+      if (temaListo && (benefListo || modListo)) {
+        return true;
+      }
+      await new Promise(r => setTimeout(r, 200));
+    }
+    return false;
+  }).catch(() => false);
+
+  if (!cargado) {
+    // Si la UDS fue colocada pero el postback btnLLenarModalidadTema no disparó, forzarlo
+    console.log(c.amarillo('  ⚠️ Forzando carga de modalidad y temas con postback...'));
+    await frame.evaluate(() => {
+      if (typeof __doPostBack === 'function') {
+        __doPostBack('btnLLenarModalidadTema', '');
+      }
+    }).catch(() => {});
+    await page.waitForTimeout(2500);
+  }
 
   // 1. Fecha Formación (Asignación directa DOM + soporte de máscara AjaxControlToolkit)
   console.log(`  👉 Diligenciando Fecha de Formación (${hoy})...`);

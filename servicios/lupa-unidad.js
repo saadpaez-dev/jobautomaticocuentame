@@ -83,9 +83,8 @@ async function seleccionarUnidad(page, frame, codigoJardin) {
     throw new Error(`No se encontro vigencia 2026 para el jardin ${codigoJardin}`);
   }
 
-  // Ya no esperamos a que el popup se cierre ni usamos networkidle aqui, 
-  // porque el script principal (formacion-familias.js) ya usa una espera inteligente
-  // waitFor({ state: 'visible' }) en el campo de observaciones, lo que es mucho mas rapido y seguro.
+  // Esperar a que el popup se cierre tras transferir la UDS a la ventana principal
+  await popup.waitForEvent('close', { timeout: 6000 }).catch(() => {});
 }
 
 /**
