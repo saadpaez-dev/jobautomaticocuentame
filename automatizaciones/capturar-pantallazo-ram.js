@@ -21,6 +21,7 @@ const http = require('http');
 const https = require('https');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines } = require('../servicios/excel-reader');
+const { obtenerJardinesDeAsociacion } = require('../servicios/bd-beneficiarios');
 const { seleccionarDropdownReactivo, esperarPostBackReactivo } = require('../servicios/filtro-monitor');
 
 const c = {
@@ -43,6 +44,97 @@ function sanitizarNombreArchivo(texto) {
         .replace(/[^A-Z0-9_\- ]/g, '')
         .trim()
         .replace(/\s+/g, '_');
+}
+
+function buscarAsociacionFlexible(asocQuery, asociaciones) {
+    if (!asocQuery) return null;
+    const clean = removeAccentsStr(asocQuery).replace(/^["'\\]+|["'\\]+$/g, '').trim();
+    if (!clean) return null;
+
+    // 1. Coincidencia exacta o inclusión directa
+    const direct = asociaciones.find(a => {
+        const nom = removeAccentsStr(a.nombreCorto);
+        if ((nom.includes('BRISAS') && !clean.includes('BRISAS')) || (!nom.includes('BRISAS') && clean.includes('BRISAS'))) {
+            return false;
+        }
+        return nom === clean || nom.includes(clean) || clean.includes(nom);
+    });
+    if (direct) return direct;
+
+    // 2. Coincidencia por palabras clave
+    const keywords = ['BARRIOS UNIDOS', 'BRISAS DE BUENAVISTA', 'BUENAVISTA', 'CANAIMA', 'PROGRESO INFANTIL', 'PROGRESO', 'VERBENAL Y REFUGIO', 'VERBENAL', 'DELICIAS DEL CARMEN', 'DELICIAS'];
+    for (const kw of keywords) {
+        if (clean.includes(kw)) {
+            const found = asociaciones.find(a => {
+                const nom = removeAccentsStr(a.nombreCorto);
+                if (kw.includes('BUENAVISTA') && !kw.includes('BRISAS') && nom.includes('BRISAS')) return false;
+                return nom.includes(kw) || kw.includes(nom);
+            });
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+function obtenerListaCompletaJardines(asc) {
+    const bdJardines = obtenerJardinesDeAsociacion(asc.nombreCorto) || [];
+    const excelJardines = (asc.jardines || []).map(j => ({
+        nombreUds: j.nombre || j.nombreUds,
+        codigoUds: j.codigo || j.codigoUds,
+        modalidad: j.modalidad || 'HCB',
+        totalNinos: j.totalNinos || 0
+    }));
+
+    const unificados = new Map();
+    for (const j of bdJardines) {
+        unificados.set(removeAccentsStr(j.nombreUds), j);
+    }
+    for (const j of excelJardines) {
+        const key = removeAccentsStr(j.nombreUds);
+        if (!unificados.has(key)) {
+            unificados.set(key, j);
+        }
+    }
+    return Array.from(unificados.values());
+}
+
+function buscarJardinFlexible(jardinQuery, codigoUdsQuery, jList) {
+    const cleanJ = removeAccentsStr(jardinQuery || '').replace(/^["'\\]+|["'\\]+$/g, '').trim();
+    const cleanCod = String(codigoUdsQuery || '').replace(/[^0-9]/g, '').trim();
+
+    // 1. Por código UDS
+    if (cleanCod) {
+        const porCod = jList.find(j => {
+            const cUds = String(j.codigoUds || j.codigo || '').replace(/[^0-9]/g, '').trim();
+            return cUds && (cUds === cleanCod || cUds.includes(cleanCod) || cleanCod.includes(cUds));
+        });
+        if (porCod) return porCod;
+    }
+
+    if (!cleanJ) return null;
+
+    // 2. Coincidencia exacta
+    const exacto = jList.find(j => removeAccentsStr(j.nombreUds || j.nombre || '') === cleanJ);
+    if (exacto) return exacto;
+
+    // 3. Inclusión bidireccional
+    const porInclusion = jList.find(j => {
+        const nom = removeAccentsStr(j.nombreUds || j.nombre || '');
+        return nom.includes(cleanJ) || cleanJ.includes(nom);
+    });
+    if (porInclusion) return porInclusion;
+
+    // 4. Por palabras clave
+    const tokens = cleanJ.split(/\s+/).filter(t => t.length > 2 && !['LOS', 'LAS', 'DEL', 'POR', 'CON'].includes(t));
+    if (tokens.length > 0) {
+        const porTokens = jList.find(j => {
+            const nom = removeAccentsStr(j.nombreUds || j.nombre || '');
+            return tokens.every(t => nom.includes(t));
+        });
+        if (porTokens) return porTokens;
+    }
+
+    return null;
 }
 
 function filtrarServiciosPorAsociacion(servOptions, ascNombre, tipoServicio) {
@@ -123,29 +215,40 @@ async function main() {
     let forzar = false;
 
     for (let i = 0; i < args.length; i++) {
-        if (args[i] === '--asociacion' && args[i + 1]) asociacionArg = args[++i].replace(/^"|"$/g, '');
-        else if (args[i] === '--jardin' && args[i + 1]) jardinArg = args[++i].replace(/^"|"$/g, '');
-        else if (args[i] === '--codigoUds' && args[i + 1]) codigoUdsArg = args[++i].replace(/^"|"$/g, '');
-        else if (args[i] === '--mes' && args[i + 1]) mesArg = args[++i].replace(/^"|"$/g, '');
-        else if (args[i] === '--anio' && args[i + 1]) anioArg = parseInt(args[++i], 10) || 2026;
-        else if (args[i] === '--forzar') forzar = true;
+        if (args[i] === '--payload' && args[i + 1]) {
+            const pPath = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+            if (fs.existsSync(pPath)) {
+                try {
+                    const pData = JSON.parse(fs.readFileSync(pPath, 'utf8'));
+                    asociacionArg = pData.asociacion || null;
+                    jardinArg = pData.jardin || null;
+                    codigoUdsArg = pData.codigoUds || pData.codigo || null;
+                    mesArg = pData.mes || null;
+                    anioArg = pData.anio || 2026;
+                    if (pData.forzar !== false) forzar = true;
+                } catch(e) {}
+            }
+        } else if (args[i] === '--asociacion' && args[i + 1]) {
+            asociacionArg = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+        } else if (args[i] === '--jardin' && args[i + 1]) {
+            jardinArg = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+        } else if (args[i] === '--codigoUds' && args[i + 1]) {
+            codigoUdsArg = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+        } else if (args[i] === '--mes' && args[i + 1]) {
+            mesArg = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+        } else if (args[i] === '--anio' && args[i + 1]) {
+            anioArg = parseInt(args[++i], 10) || 2026;
+        } else if (args[i] === '--forzar') {
+            forzar = true;
+        }
     }
 
     const todosLosMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const fechaActual = new Date();
     const mesObjetivo = mesArg || todosLosMeses[fechaActual.getMonth()];
 
-    console.log(c.negrita(c.cyan(`\n══════════════════════════════════════════════════════════════`)));
-    console.log(c.negrita(c.cyan(`📸 CAPTURAR PANTALLAZO ASISTENCIA RAM - CUÉNTAME ICBF`)));
-    console.log(c.negrita(c.cyan(`══════════════════════════════════════════════════════════════`)));
-    console.log(c.gris(`  Asociación: ${asociacionArg || 'Detectar automáticamente'}`));
-    console.log(c.gris(`  Jardín:     ${jardinArg || 'Todos / Primero disponible'}`));
-    console.log(c.gris(`  Código UDS: ${codigoUdsArg || 'N/A'}`));
-    console.log(c.gris(`  Mes:        ${mesObjetivo} ${anioArg}`));
-    console.log(c.gris(`  Forzar:     ${forzar ? 'Sí' : 'No'}\n`));
-
     // 2. Cargar Excel con información de contratos
-    const RUTA_EXCEL = process.env.RUTA_EXCEL || 'C:\\GENERAL_BOTS.xlsx';
+    const RUTA_EXCEL = process.env.RUTA_EXCEL || (fs.existsSync('C:\\GENERAL_BOTS.xlsx') ? 'C:\\GENERAL_BOTS.xlsx' : path.join(__dirname, '..', 'GENERAL_BOTS.xlsx'));
     let asociaciones = [];
     try {
         const { porAsociacion } = leerJardines(RUTA_EXCEL);
@@ -164,7 +267,46 @@ async function main() {
         }
     }
 
-    // 3. Obtener o conectar navegador
+    // 3. Validar y resolver asociación y jardín de forma flexible
+    let ascObj = buscarAsociacionFlexible(asociacionArg, asociaciones);
+    let jardinObj = null;
+
+    if (!ascObj && (jardinArg || codigoUdsArg)) {
+        for (const a of asociaciones) {
+            const jList = obtenerListaCompletaJardines(a);
+            const found = buscarJardinFlexible(jardinArg, codigoUdsArg, jList);
+            if (found) {
+                ascObj = a;
+                jardinObj = found;
+                break;
+            }
+        }
+    }
+
+    if (ascObj && !jardinObj && (jardinArg || codigoUdsArg)) {
+        const jList = obtenerListaCompletaJardines(ascObj);
+        jardinObj = buscarJardinFlexible(jardinArg, codigoUdsArg, jList);
+    }
+
+    if (jardinObj) {
+        if (!jardinArg) jardinArg = jardinObj.nombreUds || jardinObj.nombre;
+        if (!codigoUdsArg) codigoUdsArg = jardinObj.codigoUds || jardinObj.codigo;
+    }
+
+    if (!ascObj && asociaciones.length > 0) {
+        ascObj = asociaciones[0];
+    }
+
+    console.log(c.negrita(c.cyan(`\n══════════════════════════════════════════════════════════════`)));
+    console.log(c.negrita(c.cyan(`📸 CAPTURAR PANTALLAZO ASISTENCIA RAM - CUÉNTAME ICBF`)));
+    console.log(c.negrita(c.cyan(`══════════════════════════════════════════════════════════════`)));
+    console.log(c.gris(`  Asociación: ${ascObj ? ascObj.nombreCorto : (asociacionArg || 'Detectar automáticamente')}`));
+    console.log(c.gris(`  Jardín:     ${jardinArg || 'Todos / Primero disponible'}`));
+    console.log(c.gris(`  Código UDS: ${codigoUdsArg || 'N/A'}`));
+    console.log(c.gris(`  Mes:        ${mesObjetivo} ${anioArg}`));
+    console.log(c.gris(`  Forzar:     ${forzar ? 'Sí' : 'No'}\n`));
+
+    // 4. Obtener o conectar navegador
     console.log(c.cyan('🚀 Conectando al navegador...'));
     const nav = await obtenerNavegador();
     const { browser, page: mainPage } = nav;
@@ -173,19 +315,6 @@ async function main() {
         console.log(c.magenta(`  💬 Alerta Cuéntame: ${dialog.message()}`));
         await dialog.accept().catch(() => {});
     });
-
-    // 4. Validar asociación
-    let ascObj = null;
-    if (asociacionArg) {
-        ascObj = asociaciones.find(a => 
-            removeAccentsStr(a.nombreCorto).includes(removeAccentsStr(asociacionArg)) ||
-            removeAccentsStr(asociacionArg).includes(removeAccentsStr(a.nombreCorto))
-        );
-    }
-
-    if (!ascObj && asociaciones.length > 0) {
-        ascObj = asociaciones[0];
-    }
 
     if (ascObj) {
         const mismaAsc = await validarYCambiarAsociacion(mainPage, ascObj);
@@ -316,12 +445,22 @@ async function main() {
                     const validOpts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"));
                     if (validOpts.length === 0) return null;
 
-                    const opt = validOpts.find(o => {
+                    let opt = validOpts.find(o => {
                         const textNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
                         return (code && textNorm.includes(code)) ||
                                (name && textNorm.includes(name)) ||
                                (name && name.includes(textNorm));
                     });
+
+                    if (!opt && name) {
+                        const tokens = name.split(/\s+/).filter(t => t.length > 2 && !['LOS', 'LAS', 'DEL', 'POR', 'CON'].includes(t));
+                        if (tokens.length > 0) {
+                            opt = validOpts.find(o => {
+                                const textNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+                                return tokens.every(t => textNorm.includes(t));
+                            });
+                        }
+                    }
                     return opt ? opt.value : null;
                 }, { code: codigoSearch, name: nombreSearch });
 

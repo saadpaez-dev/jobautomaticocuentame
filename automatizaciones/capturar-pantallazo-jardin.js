@@ -43,6 +43,97 @@ function sanitizarNombreArchivo(texto) {
         .replace(/\s+/g, '_');
 }
 
+function buscarAsociacionFlexible(asocQuery, asociaciones) {
+    if (!asocQuery) return null;
+    const clean = removeAccentsStr(asocQuery).replace(/^["'\\]+|["'\\]+$/g, '').trim();
+    if (!clean) return null;
+
+    // 1. Coincidencia exacta o inclusión directa
+    const direct = asociaciones.find(a => {
+        const nom = removeAccentsStr(a.nombreCorto);
+        if ((nom.includes('BRISAS') && !clean.includes('BRISAS')) || (!nom.includes('BRISAS') && clean.includes('BRISAS'))) {
+            return false;
+        }
+        return nom === clean || nom.includes(clean) || clean.includes(nom);
+    });
+    if (direct) return direct;
+
+    // 2. Coincidencia por palabras clave
+    const keywords = ['BARRIOS UNIDOS', 'BRISAS DE BUENAVISTA', 'BUENAVISTA', 'CANAIMA', 'PROGRESO INFANTIL', 'PROGRESO', 'VERBENAL Y REFUGIO', 'VERBENAL', 'DELICIAS DEL CARMEN', 'DELICIAS'];
+    for (const kw of keywords) {
+        if (clean.includes(kw)) {
+            const found = asociaciones.find(a => {
+                const nom = removeAccentsStr(a.nombreCorto);
+                if (kw.includes('BUENAVISTA') && !kw.includes('BRISAS') && nom.includes('BRISAS')) return false;
+                return nom.includes(kw) || kw.includes(nom);
+            });
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+function obtenerListaCompletaJardines(asc) {
+    const bdJardines = obtenerJardinesDeAsociacion(asc.nombreCorto) || [];
+    const excelJardines = (asc.jardines || []).map(j => ({
+        nombreUds: j.nombre || j.nombreUds,
+        codigoUds: j.codigo || j.codigoUds,
+        modalidad: j.modalidad || 'HCB',
+        totalNinos: j.totalNinos || 0
+    }));
+
+    const unificados = new Map();
+    for (const j of bdJardines) {
+        unificados.set(removeAccentsStr(j.nombreUds), j);
+    }
+    for (const j of excelJardines) {
+        const key = removeAccentsStr(j.nombreUds);
+        if (!unificados.has(key)) {
+            unificados.set(key, j);
+        }
+    }
+    return Array.from(unificados.values());
+}
+
+function buscarJardinFlexible(jardinQuery, codigoUdsQuery, jList) {
+    const cleanJ = removeAccentsStr(jardinQuery || '').replace(/^["'\\]+|["'\\]+$/g, '').trim();
+    const cleanCod = String(codigoUdsQuery || '').replace(/[^0-9]/g, '').trim();
+
+    // 1. Por código UDS
+    if (cleanCod) {
+        const porCod = jList.find(j => {
+            const cUds = String(j.codigoUds || j.codigo || '').replace(/[^0-9]/g, '').trim();
+            return cUds && (cUds === cleanCod || cUds.includes(cleanCod) || cleanCod.includes(cUds));
+        });
+        if (porCod) return porCod;
+    }
+
+    if (!cleanJ) return null;
+
+    // 2. Coincidencia exacta
+    const exacto = jList.find(j => removeAccentsStr(j.nombreUds || j.nombre || '') === cleanJ);
+    if (exacto) return exacto;
+
+    // 3. Inclusión bidireccional
+    const porInclusion = jList.find(j => {
+        const nom = removeAccentsStr(j.nombreUds || j.nombre || '');
+        return nom.includes(cleanJ) || cleanJ.includes(nom);
+    });
+    if (porInclusion) return porInclusion;
+
+    // 4. Por palabras clave
+    const tokens = cleanJ.split(/\s+/).filter(t => t.length > 2 && !['LOS', 'LAS', 'DEL', 'POR', 'CON'].includes(t));
+    if (tokens.length > 0) {
+        const porTokens = jList.find(j => {
+            const nom = removeAccentsStr(j.nombreUds || j.nombre || '');
+            return tokens.every(t => nom.includes(t));
+        });
+        if (porTokens) return porTokens;
+    }
+
+    return null;
+}
+
 /**
  * Helper de selección en dropdown con espera dinámica a AJAX/PostBack
  */
@@ -200,7 +291,13 @@ async function capturarJardin({ page, ascObj, jardinObj, forzar = false }) {
     // 6. Seleccionar UDS
     console.log(c.gris(`    • Seleccionando UDS: ${nombreJardin}...`));
     const selectUds = contentFrame.locator('select[id*="ddlUDS"], select[id*="UDS"], select[id*="Unidad"]').first();
-    await waitForAndSelect(page, selectUds, codigoJardin || nombreJardin);
+    if (codigoJardin) {
+        await waitForAndSelect(page, selectUds, codigoJardin);
+    }
+    const valSel = await selectUds.inputValue().catch(() => '');
+    if (!valSel || valSel === '0' || valSel === '-1') {
+        await waitForAndSelect(page, selectUds, nombreJardin);
+    }
     await page.waitForTimeout(500);
 
     // 7. Ingresar Fecha de Retiro simulada (si está vacía)
@@ -433,44 +530,69 @@ async function main() {
     const args = process.argv.slice(2);
     let argAsoc = null;
     let argJardin = null;
+    let argCodigoUds = null;
     let argMasivo = false;
     let forzar = false;
 
     for (let i = 0; i < args.length; i++) {
-        if (args[i] === '--asociacion' && args[i + 1]) argAsoc = args[++i];
-        if (args[i] === '--jardin' && args[i + 1]) argJardin = args[++i];
-        if (args[i] === '--masivo' || args[i] === '--todo' || args[i] === '--all') argMasivo = true;
-        if (args[i] === '--forzar' || args[i] === '--force') forzar = true;
+        if (args[i] === '--payload' && args[i + 1]) {
+            const pPath = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+            if (fs.existsSync(pPath)) {
+                try {
+                    const pData = JSON.parse(fs.readFileSync(pPath, 'utf8'));
+                    argAsoc = pData.asociacion || null;
+                    argJardin = pData.jardin || null;
+                    argCodigoUds = pData.codigoUds || pData.codigo || null;
+                    argMasivo = Boolean(pData.masivo);
+                    if (pData.forzar !== false) forzar = true;
+                } catch(e) {}
+            }
+        } else if (args[i] === '--asociacion' && args[i + 1]) {
+            argAsoc = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+        } else if (args[i] === '--jardin' && args[i + 1]) {
+            argJardin = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+        } else if (args[i] === '--codigoUds' && args[i + 1]) {
+            argCodigoUds = args[++i].replace(/^["'\\]+|["'\\]+$/g, '');
+        } else if (args[i] === '--masivo' || args[i] === '--todo' || args[i] === '--all') {
+            argMasivo = true;
+        } else if (args[i] === '--forzar' || args[i] === '--force') {
+            forzar = true;
+        }
     }
 
-    let planEjecucion = []; // Array de { asociacion, jardines }
+    let planEjecucion = []; // Array de { asc, jardines }
 
     if (argMasivo) {
         // Modo Masivo por CLI
         for (const asc of asociaciones) {
-            const jList = obtenerJardinesDeAsociacion(asc.nombreCorto) || [];
+            const jList = obtenerListaCompletaJardines(asc);
             if (jList.length > 0) planEjecucion.push({ asc, jardines: jList });
         }
-    } else if (argAsoc) {
-        // Asociación específica por CLI
-        const cleanA = removeAccentsStr(argAsoc);
-        const asc = asociaciones.find(a => {
-            const nom = removeAccentsStr(a.nombreCorto);
-            if ((nom.includes('BRISAS') && !cleanA.includes('BRISAS')) || (!nom.includes('BRISAS') && cleanA.includes('BRISAS'))) {
-                return false;
+    } else if (argAsoc || argJardin || argCodigoUds) {
+        let asc = buscarAsociacionFlexible(argAsoc, asociaciones);
+
+        // Si no se encontró la asociación por nombre pero tenemos jardín o código UDS, buscar en todas las asociaciones
+        if (!asc && (argJardin || argCodigoUds)) {
+            for (const a of asociaciones) {
+                const jList = obtenerListaCompletaJardines(a);
+                const found = buscarJardinFlexible(argJardin, argCodigoUds, jList);
+                if (found) {
+                    asc = a;
+                    break;
+                }
             }
-            return nom.includes(cleanA) || cleanA.includes(nom);
-        });
+        }
+
         if (!asc) {
-            console.log(c.rojo(`❌ Asociación "${argAsoc}" no encontrada.`));
+            console.log(c.rojo(`❌ Asociación "${argAsoc || 'N/A'}" no encontrada en la configuración.`));
             return;
         }
-        const jList = obtenerJardinesDeAsociacion(asc.nombreCorto) || [];
-        if (argJardin) {
-            const cleanJ = removeAccentsStr(argJardin);
-            const jTarget = jList.find(j => removeAccentsStr(j.nombreUds).includes(cleanJ));
+
+        const jList = obtenerListaCompletaJardines(asc);
+        if (argJardin || argCodigoUds) {
+            const jTarget = buscarJardinFlexible(argJardin, argCodigoUds, jList);
             if (!jTarget) {
-                console.log(c.rojo(`❌ Jardín "${argJardin}" no encontrado en ${asc.nombreCorto}.`));
+                console.log(c.rojo(`❌ Jardín "${argJardin || argCodigoUds}" no encontrado en ${asc.nombreCorto}.`));
                 return;
             }
             planEjecucion.push({ asc, jardines: [jTarget] });

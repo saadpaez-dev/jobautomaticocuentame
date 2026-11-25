@@ -121,26 +121,16 @@ function lanzarFormacion(payload, cmdId = 'auto') {
 
 // ─── Lanzar Captura de Pantallazos Oficiales en terminal visible ──────────────
 function lanzarCapturaPantallazo(payload = {}, cmdId = 'auto') {
-    log('info', `📸 Lanzando robot de Captura de Pantallazos (Beneficiarios Activos) en Cuéntame...`);
+    const desc = payload.jardin || payload.asociacion || (payload.masivo ? 'Masivo' : 'Auto');
+    log('info', `📸 Lanzando robot de Captura de Pantallazos (${desc}) en Cuéntame...`);
+
+    const colaDir = path.join(ROOT, 'logs', 'cola_comandos');
+    if (!fs.existsSync(colaDir)) fs.mkdirSync(colaDir, { recursive: true });
+    const payloadPath = path.join(colaDir, `pantallazo_${cmdId}.json`);
+    fs.writeFileSync(payloadPath, JSON.stringify(payload, null, 2), 'utf8');
 
     const batPath = path.join(ROOT, 'Capturar_Pantallazos.bat');
-    const cliArgs = [];
-
-    if (payload.masivo) {
-        cliArgs.push('--masivo');
-    } else if (payload.asociacion) {
-        cliArgs.push('--asociacion');
-        cliArgs.push(`"${payload.asociacion}"`);
-        if (payload.jardin) {
-            cliArgs.push('--jardin');
-            cliArgs.push(`"${payload.jardin}"`);
-        }
-    }
-    if (payload.forzar !== false) {
-        cliArgs.push('--forzar');
-    }
-
-    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZOS (BENEFICIARIOS ACTIVOS) - CUENTAME', 'cmd.exe', '/c', batPath, ...cliArgs];
+    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZOS (BENEFICIARIOS ACTIVOS) - CUENTAME', 'cmd.exe', '/c', batPath, '--payload', payloadPath];
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
@@ -156,36 +146,16 @@ function lanzarCapturaPantallazo(payload = {}, cmdId = 'auto') {
 
 // ─── Lanzar Captura de Pantallazo RAM ──────────────
 function lanzarCapturaPantallazoRAM(payload = {}, cmdId = 'auto') {
-    log('info', `📸 Lanzando robot de Captura de Pantallazo RAM en Cuéntame...`);
+    const desc = payload.jardin || payload.asociacion || 'Auto';
+    log('info', `📸 Lanzando robot de Captura de Pantallazo RAM (${desc} - ${payload.mes || 'Mes'}) en Cuéntame...`);
+
+    const colaDir = path.join(ROOT, 'logs', 'cola_comandos');
+    if (!fs.existsSync(colaDir)) fs.mkdirSync(colaDir, { recursive: true });
+    const payloadPath = path.join(colaDir, `pantallazo_ram_${cmdId}.json`);
+    fs.writeFileSync(payloadPath, JSON.stringify(payload, null, 2), 'utf8');
 
     const batPath = path.join(ROOT, 'Capturar_Pantallazo_RAM.bat');
-    const cliArgs = [];
-
-    if (payload.asociacion) {
-        cliArgs.push('--asociacion');
-        cliArgs.push(`"${payload.asociacion}"`);
-    }
-    if (payload.jardin) {
-        cliArgs.push('--jardin');
-        cliArgs.push(`"${payload.jardin}"`);
-    }
-    if (payload.codigoUds) {
-        cliArgs.push('--codigoUds');
-        cliArgs.push(`"${payload.codigoUds}"`);
-    }
-    if (payload.mes) {
-        cliArgs.push('--mes');
-        cliArgs.push(`"${payload.mes}"`);
-    }
-    if (payload.anio) {
-        cliArgs.push('--anio');
-        cliArgs.push(String(payload.anio));
-    }
-    if (payload.forzar !== false) {
-        cliArgs.push('--forzar');
-    }
-
-    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZO RAM - CUENTAME', 'cmd.exe', '/c', batPath, ...cliArgs];
+    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZO RAM - CUENTAME', 'cmd.exe', '/c', batPath, '--payload', payloadPath];
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
