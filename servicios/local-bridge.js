@@ -154,6 +154,51 @@ function lanzarCapturaPantallazo(payload = {}, cmdId = 'auto') {
     return { ok: true, pid: proc.pid };
 }
 
+// ─── Lanzar Captura de Pantallazo RAM ──────────────
+function lanzarCapturaPantallazoRAM(payload = {}, cmdId = 'auto') {
+    log('info', `📸 Lanzando robot de Captura de Pantallazo RAM en Cuéntame...`);
+
+    const batPath = path.join(ROOT, 'Capturar_Pantallazo_RAM.bat');
+    const cliArgs = [];
+
+    if (payload.asociacion) {
+        cliArgs.push('--asociacion');
+        cliArgs.push(`"${payload.asociacion}"`);
+    }
+    if (payload.jardin) {
+        cliArgs.push('--jardin');
+        cliArgs.push(`"${payload.jardin}"`);
+    }
+    if (payload.codigoUds) {
+        cliArgs.push('--codigoUds');
+        cliArgs.push(`"${payload.codigoUds}"`);
+    }
+    if (payload.mes) {
+        cliArgs.push('--mes');
+        cliArgs.push(`"${payload.mes}"`);
+    }
+    if (payload.anio) {
+        cliArgs.push('--anio');
+        cliArgs.push(String(payload.anio));
+    }
+    if (payload.forzar !== false) {
+        cliArgs.push('--forzar');
+    }
+
+    const args = ['/c', 'start', 'CAPTURANDO PANTALLAZO RAM - CUENTAME', 'cmd.exe', '/c', batPath, ...cliArgs];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', `No se pudo abrir terminal de Pantallazo RAM: ${err.message}`));
+    proc.unref();
+
+    log('ok', `Terminal de Captura de Pantallazo RAM abierta en pantalla (PID ${proc.pid})`);
+    return { ok: true, pid: proc.pid };
+}
+
 // ─── Lanzar Sincronización de Base de Pantallazos hacia la Nube ──────────────
 function lanzarSincronizacionBasePantallazos(cmdId = 'auto') {
     log('info', `🔄 Lanzando sincronizador de base de pantallazos PC -> Render...`);
@@ -309,6 +354,11 @@ async function despacharComando(cmd) {
             await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de Formación a Familias en PC...');
             lanzarFormacion(cmd.payload || {}, cmd.id);
             await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Formación a Familias abierta en PC.');
+        } else if (accion === 'CAPTURAR_PANTALLAZO_RAM' || (accion === 'CAPTURAR_PANTALLAZO' && cmd.payload?.tipo === 'RAM')) {
+            log('ok', `📸 [LATENCIA 0] ¡Orden de CAPTURA DE PANTALLAZO RAM recibida!`);
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando captura de pantallazo RAM en Cuéntame...');
+            lanzarCapturaPantallazoRAM(cmd.payload || {}, cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de Captura de Pantallazo RAM abierta en PC.');
         } else if (accion === 'CAPTURAR_PANTALLAZO') {
             log('ok', `📸 [LATENCIA 0] ¡Orden de CAPTURA DE PANTALLAZO recibida!`);
             await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando captura de pantallazos en Cuéntame...');
@@ -559,6 +609,16 @@ const server = http.createServer((req, res) => {
         return responderJSON(res, 200, {
             ok: true,
             mensaje: '📸 Robot de captura de pantallazos iniciado en terminal local.',
+            pid: resultado.pid
+        });
+    }
+
+    // ── GET /api/capturar-pantallazo-ram ──
+    if (ruta === '/api/capturar-pantallazo-ram' && req.method === 'GET') {
+        const resultado = lanzarCapturaPantallazoRAM(query);
+        return responderJSON(res, 200, {
+            ok: true,
+            mensaje: '📸 Robot de captura de pantallazo RAM iniciado en terminal local.',
             pid: resultado.pid
         });
     }
