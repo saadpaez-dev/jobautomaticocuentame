@@ -303,6 +303,31 @@ function lanzarRegistroPesoTalla(payload = {}, cmdId = 'auto') {
     return { ok: true, pid: proc.pid };
 }
 
+// ─── Lanzar Consulta de Beneficiario en Cuéntame (Historial) ─────────────────
+function lanzarConsultaBeneficiario(payload = {}, cmdId = 'auto') {
+    const doc = payload.documento || payload.doc || 'General';
+    log('info', `🔍 Lanzando robot de Consulta de Beneficiario en Cuéntame (Doc: ${doc})...`);
+
+    const colaDir = path.join(ROOT, 'logs', 'cola_comandos');
+    if (!fs.existsSync(colaDir)) fs.mkdirSync(colaDir, { recursive: true });
+    const payloadPath = path.join(colaDir, `consulta_${cmdId}.json`);
+    fs.writeFileSync(payloadPath, JSON.stringify(payload, null, 2), 'utf8');
+
+    const batPath = path.join(ROOT, 'Consultar_Beneficiario.bat');
+    const args = ['/c', 'start', 'CONSULTA BENEFICIARIO - CUENTAME', 'cmd.exe', '/c', batPath, '--payload', payloadPath];
+
+    const proc = spawn('cmd.exe', args, {
+        cwd: ROOT,
+        detached: true,
+        stdio: 'ignore'
+    });
+    proc.on('error', (err) => log('err', `No se pudo abrir terminal de Consulta de Beneficiario: ${err.message}`));
+    proc.unref();
+
+    log('ok', `Terminal de Consulta de Beneficiario abierta en pantalla (PID ${proc.pid})`);
+    return { ok: true, pid: proc.pid };
+}
+
 // ─── Despachar cualquier orden recibida de la Nube ───────────────────────────
 async function despacharComando(cmd) {
     if (!cmd || !cmd.id) return;
@@ -354,6 +379,11 @@ async function despacharComando(cmd) {
             await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Sincronizando pantallazos con Render...');
             lanzarSincronizacionBasePantallazos(cmd.id);
             await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Sincronizador activo en PC.');
+        } else if (accion === 'CONSULTAR_BENEFICIARIO_CUENTAME' || accion === 'CONSULTAR_BENEFICIARIO') {
+            log('ok', `🔍 [LATENCIA 0] ¡Orden de CONSULTA DE BENEFICIARIO CUÉNTAME recibida! Doc: ${cmd.payload?.documento || ''}`);
+            await marcarComandoEnNube(cmd.id, 'EN_PROCESO', 'Iniciando robot de consulta en Cuéntame...');
+            lanzarConsultaBeneficiario(cmd.payload || {}, cmd.id);
+            await marcarComandoEnNube(cmd.id, 'EJECUTANDO', 'Terminal de consulta en Cuéntame abierta en PC.');
         } else {
             log('warn', `Acción desconocida recibida: ${accion}`);
         }
