@@ -517,7 +517,7 @@ async function generarFormatoPesoYTallaUds(datosUds, plantillaPath, incluirNutri
             const cell = row.getCell(cCol);
             const templateCell = templateRow.getCell(cCol);
             if (templateCell.style) {
-                cell.style = JSON.parse(JSON.stringify(templateCell.style));
+                cell.style = structuredClone(templateCell.style);
             }
         }
 

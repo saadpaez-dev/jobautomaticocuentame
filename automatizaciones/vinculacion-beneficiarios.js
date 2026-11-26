@@ -1667,7 +1667,7 @@ async function ejecutarNutricionDirecta(page, asociacion, jardin, docNum, nombre
 
     const { expandirMenu } = require('../servicios/autenticacion');
     const { cargarUdsEnCuentame } = require('./peso-talla');
-    const { parsearFecha, llenarFormularioNutricion } = require('../servicios/nutricion');
+    const { parsearFecha, llenarFormularioNutricion, asegurarDesnutricionAguda } = require('../servicios/nutricion');
 
     // 1. Navegar al módulo de Seguimiento nutricional
     console.log(c.amarillo('  ⏳ Accediendo al módulo "Seguimiento nutricional"...'));
@@ -1833,6 +1833,7 @@ async function ejecutarNutricionDirecta(page, asociacion, jardin, docNum, nombre
     console.log(c.amarillo('\n  ⏳ Llenando formulario antropométrico...'));
     const browser = page.context().browser();
     await llenarFormularioNutricion(browser, contentFrame, datosLlenado, false);
+    await asegurarDesnutricionAguda(page, contentFrame, 'Pre-Guardado');
     await page.waitForTimeout(800);
 
     // 7. Guardar en Cuéntame

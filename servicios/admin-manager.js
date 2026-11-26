@@ -65,7 +65,7 @@ function getAdminConfig() {
     ensureDir(DATA_DIR);
     if (!fs.existsSync(CONFIG_PATH)) {
         saveAdminConfig(DEFAULT_CONFIG);
-        return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+        return structuredClone(DEFAULT_CONFIG);
     }
     try {
         const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
@@ -95,7 +95,7 @@ function getAdminConfig() {
         };
     } catch (e) {
         console.error('Error leyendo admin_config.json:', e);
-        return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+        return structuredClone(DEFAULT_CONFIG);
     }
 }
 

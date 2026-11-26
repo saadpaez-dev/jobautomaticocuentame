@@ -44,7 +44,7 @@ async function generarExcelPesoYTalla({ asociacion, nombreUds, codigoUds, ninos 
             const cell = row.getCell(c);
             const tmpl = templateRow.getCell(c);
             if (tmpl.style) {
-                cell.style = JSON.parse(JSON.stringify(tmpl.style));
+                cell.style = structuredClone(tmpl.style);
             }
         }
 

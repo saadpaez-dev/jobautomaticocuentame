@@ -453,7 +453,7 @@ async function main() {
                 if (ascTarget) {
                     const udsNorm = normalizarTexto(nino.uds);
                     // Mismo arreglo de ordenamiento para los jardines
-                    const jardinesOrdenados = [...ascTarget.jardines].sort((a, b) => b.nombre.length - a.nombre.length);
+                    const jardinesOrdenados = ascTarget.jardines.toSorted((a, b) => b.nombre.length - a.nombre.length);
                     const jardinTarget = jardinesOrdenados.find(j => udsNorm.includes(normalizarTexto(j.nombre)) || normalizarTexto(j.nombre).includes(udsNorm));
                     
                     if (jardinTarget && jardinTarget.codigo) {
