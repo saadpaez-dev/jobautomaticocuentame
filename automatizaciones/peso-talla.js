@@ -643,6 +643,33 @@ async function main() {
               archivosDocs.forEach((a, i) => console.log(`  ${i + 1}. ${a.nombre}`));
           }
 
+          // Soporte automático para cuando la orden llega desde el Portal Cuéntame
+          if (payloadModoAuto) {
+              if (payloadModoAuto.archivoExcel && require('fs').existsSync(payloadModoAuto.archivoExcel)) {
+                  console.log(c.verde(`  ✅ [ROBOT] Usando archivo Excel del payload: "${path.basename(payloadModoAuto.archivoExcel)}"`));
+                  return [payloadModoAuto.archivoExcel];
+              }
+              if (payloadModoAuto.archivo && require('fs').existsSync(payloadModoAuto.archivo)) {
+                  console.log(c.verde(`  ✅ [ROBOT] Usando archivo Excel del payload: "${path.basename(payloadModoAuto.archivo)}"`));
+                  return [payloadModoAuto.archivo];
+              }
+              if (payloadModoAuto.nombreUds && archivosDocs.length > 0) {
+                  const targetUds = removeAccents(payloadModoAuto.nombreUds).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                  const matchDoc = archivosDocs.find(a => {
+                      const cleanNom = removeAccents(a.nombre).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                      return cleanNom.includes(targetUds) || targetUds.includes(cleanNom);
+                  });
+                  if (matchDoc) {
+                      console.log(c.verde(`  ✅ [ROBOT] Archivo Excel detectado para ${payloadModoAuto.nombreUds}: "${matchDoc.nombre}"`));
+                      return [matchDoc.ruta];
+                  }
+              }
+              if (archivosDocs.length > 0) {
+                  console.log(c.verde(`  ✅ [ROBOT] Procesando todos los ${archivosDocs.length} archivo(s) de "Docs/peso y talla".`));
+                  return archivosDocs.map(a => a.ruta);
+              }
+          }
+
           console.log(c.cyan('\n  📍¥ SELECCION Y MULTI-CARGA DE ARCHIVOS EXCEL:'));
           console.log(c.gris('     • Presiona ENTER (o escribe 0) para procesar TODOS los archivos de "Docs/peso y talla".'));
           console.log(c.gris('     • O escribe el numero o lista de numeros (ej: 1, 3 o solo 2).'));
@@ -712,6 +739,11 @@ async function main() {
           console.log(c.amarillo(`\n  Has seleccionado Procesamiento Masivo (${accionMsj}).`));
           
           let listaArchivos = obtenerRutasExcelMultiples();
+          if (payloadModoAuto && listaArchivos.length === 0) {
+              console.log(c.rojo('  ❌ [ROBOT] No se encontraron archivos de Excel válidos para procesar en modo automático.'));
+              salirModulo = true;
+              break;
+          }
           while (listaArchivos.length === 0) {
               const reintento = readline.question(c.negrita('  > No se encontraron archivos validos. Arrastra los archivos/carpeta nuevamente (ENTER para cancelar): ')).trim();
               if (!reintento) break;
@@ -1167,9 +1199,11 @@ async function main() {
                   console.log(c.verde(`  🎉 MULTI-PROCESAMIENTO COMPLETADO EXITOSAMENTE PARA LOS ${numTotalArchivos} ARCHIVO(S) EXCEL!`));
                   console.log(c.verde('========================================================================================'));
 
-                  if (payloadModoAuto && payloadModoAuto.modo === 'individual') {
-                      console.log(c.verde('\n  ✅ [ROBOT] ¡Registro individual de Peso y Talla completado con éxito en Cuéntame!'));
+                  if (payloadModoAuto) {
+                      const modoTxt = payloadModoAuto.modo === 'individual' ? 'individual' : 'masivo';
+                      console.log(c.verde(`\n  ✅ [ROBOT] ¡Registro ${modoTxt} de Peso y Talla completado con éxito en Cuéntame!`));
                       salirModulo = true;
+                      modoExcel = null;
                       break;
                   }
 

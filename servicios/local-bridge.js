@@ -288,6 +288,9 @@ function lanzarRegistroPesoTalla(payload = {}, cmdId = 'auto') {
     if (payload.modo) {
         cliCmd += ` --modo="${modo}"`;
     }
+    if (payload.archivoExcel) {
+        cliCmd += ` --excel="${payload.archivoExcel}"`;
+    }
 
     const args = ['/c', 'start', 'REGISTRO PESO Y TALLA - CUENTAME', 'cmd.exe', '/k', cliCmd];
 
