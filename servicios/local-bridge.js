@@ -304,8 +304,14 @@ function lanzarRegistroPesoTalla(payload = {}, cmdId = 'auto') {
         }
     }
 
-    // Si aún no se localizó archivo y se tiene nombreUds, buscar en Downloads por si el usuario lo descargó allí
-    if (!payload.archivoExcel || !fs.existsSync(payload.archivoExcel)) {
+    // Si se enviaron niños explícitamente desde el portal, no requerimos buscar Excel del UDS
+    const tieneListaNinos = Array.isArray(payload.ninos) && payload.ninos.length > 0;
+    if (tieneListaNinos) {
+        log('info', `🎯 [PORTAL] Orden con ${payload.ninos.length} niño(s) específicos con campos diligenciados. Se procesarán únicamente ellos.`);
+    }
+
+    // Si aún no se localizó archivo y no hay lista de niños y se tiene nombreUds, buscar en Downloads por si el usuario lo descargó allí
+    if (!tieneListaNinos && (!payload.archivoExcel || !fs.existsSync(payload.archivoExcel))) {
         const userDownloadsDir = path.join(process.env.USERPROFILE || '', 'Downloads');
         if (fs.existsSync(userDownloadsDir)) {
             try {

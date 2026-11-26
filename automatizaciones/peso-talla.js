@@ -616,7 +616,10 @@ async function main() {
       
       let respBenef = '';
       if (payloadModoAuto) {
-          if (payloadModoAuto.modo === 'individual') {
+          if (payloadModoAuto.ninos && Array.isArray(payloadModoAuto.ninos) && payloadModoAuto.ninos.length > 0) {
+              respBenef = 'PORTAL_LISTA';
+              console.log(c.verde(`  🎯 [ROBOT] Modo lista portal activado: ${payloadModoAuto.ninos.length} niño(s) con campos llenos recibidos.`));
+          } else if (payloadModoAuto.modo === 'individual') {
               respBenef = '3';
               if (payloadModoAuto.documento) preFiltroBeneficiario = String(payloadModoAuto.documento).trim();
               else if (payloadModoAuto.nombre) preFiltroBeneficiario = String(payloadModoAuto.nombre).trim().toLowerCase();
@@ -793,7 +796,32 @@ async function main() {
           return Array.from(new Set(rutasValidadas));
       };
       
-      if (respBenef.trim() === '1' || respBenef.trim() === '4') {
+      if (respBenef.trim() === 'PORTAL_LISTA') {
+          console.log(c.verde(`\n  🎯 PROCESANDO ÚNICAMENTE ${payloadModoAuto.ninos.length} NIÑO(S) CON CAMPOS LLENOS DESDE EL PORTAL:`));
+          payloadModoAuto.ninos.forEach((n, idx) => {
+              console.log(c.gris(`     ${idx + 1}. [${n.documento}] ${n.nombreCompleto || n.nombre || ''} - Peso: ${n.peso} kg, Talla: ${n.talla} cm, Fecha: ${n.fechaToma || n.fecha || payloadModoAuto.fechaToma || 'hoy'}`));
+          });
+
+          ninosExcel = payloadModoAuto.ninos.map(n => ({
+              documento: String(n.documento).trim(),
+              nombreCompleto: n.nombreCompleto || n.nombre || '',
+              primerNombre: n.primerNombre || '',
+              segundoNombre: n.segundoNombre || '',
+              primerApellido: n.primerApellido || '',
+              segundoApellido: n.segundoApellido || '',
+              peso: String(n.peso).trim(),
+              talla: String(n.talla).trim(),
+              perimetro: n.perimetroBraquial ? String(n.perimetroBraquial).trim() : (n.pb ? String(n.pb).trim() : ''),
+              fecha: parsearFecha(n.fechaToma || n.fecha || payloadModoAuto.fechaToma || 'hoy'),
+              fechaNacimiento: n.fechaNacimiento || null,
+              sexo: n.sexo || null
+          }));
+          modoExcel = 'MASIVO_NUEVO';
+          idxNinoExcelActual = 0;
+          consecutivosDuplicados = 0;
+          listaArchivosPendientes = [];
+          idxArchivoActual = 0;
+      } else if (respBenef.trim() === '1' || respBenef.trim() === '4') {
           const accionMsj = respBenef.trim() === '1' ? 'Crear Nuevas Tomas' : 'Corregir/Editar Tomas Existentes';
           console.log(c.amarillo(`\n  Has seleccionado Procesamiento Masivo (${accionMsj}).`));
           
@@ -891,9 +919,24 @@ async function main() {
           }
       }
 
-      if (!ascSeleccionada && payloadModoAuto && payloadModoAuto.asociacion) {
-          const targetAsoc = removeAccents(payloadModoAuto.asociacion);
-          ascSeleccionada = asociaciones.find(a => removeAccents(a.nombreCorto).includes(targetAsoc) || targetAsoc.includes(removeAccents(a.nombreCorto))) || null;
+      if (!ascSeleccionada && payloadModoAuto) {
+          if (payloadModoAuto.asociacion && payloadModoAuto.asociacion !== 'TODAS') {
+              const targetAsoc = removeAccents(payloadModoAuto.asociacion);
+              ascSeleccionada = asociaciones.find(a => removeAccents(a.nombreCorto).includes(targetAsoc) || targetAsoc.includes(removeAccents(a.nombreCorto))) || null;
+          }
+          if (!ascSeleccionada && (payloadModoAuto.nombreUds || payloadModoAuto.codigoUds)) {
+              const targetJ = removeAccents(payloadModoAuto.nombreUds || '');
+              const codJ = String(payloadModoAuto.codigoUds || '');
+              for (const asc of asociaciones) {
+                  const jEncontrado = (asc.jardines || []).find(j => (codJ && String(j.codigo) === codJ) || removeAccents(j.nombre).includes(targetJ) || targetJ.includes(removeAccents(j.nombre)));
+                  if (jEncontrado) {
+                      ascSeleccionada = asc;
+                      jardinSeleccionado = jEncontrado;
+                      console.log(c.verde(`  🎯 [ROBOT] Jardín y Asociación detectados automáticamente por UDS: ${jardinSeleccionado.nombre} (${ascSeleccionada.nombreCorto})`));
+                      break;
+                  }
+              }
+          }
       }
 
       if (!ascSeleccionada) {
@@ -1530,7 +1573,9 @@ async function main() {
                           consecutivosDuplicados++;
                           console.log(c.amarillo(`\n  âš ï¸ TOMA DUPLICADA DETECTADA para ${ninoSeleccionado.nombreCompleto}:`));
                           console.log(c.amarillo(`     - Fecha: ${targetFechaNorm} (Ya tiene una toma registrada para esta fecha).`));
-                          console.log(c.amarillo(`     ➡️¡ï¸ Omitiendo nino (${consecutivosDuplicados} consecutivo(s)).`));
+                          console.log(c.amarillo('     - Fecha en Cuéntame: ' + fechaExistente));
+                          console.log(c.amarillo('     - Fecha a registrar: ' + targetFechaNorm));
+                          console.log(c.amarillo('     ➡️ Omitiendo niño (' + consecutivosDuplicados + ' consecutivo(s)). Ya cuenta con toma registrada para esta misma fecha.'));
 
                           const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
                           if (ninoTarget) {
@@ -1634,6 +1679,7 @@ async function main() {
                       } else {
                           // Registro nuevo (no duplicado): reiniciar contador de consecutivos
                           consecutivosDuplicados = 0;
+                          console.log(c.verde('  ✨ [TOMA NUEVA] Fecha (' + targetFechaNorm + ') no existe en Cuéntame para ' + ninoSeleccionado.nombreCompleto + '. Se creará una NUEVA toma.'));
                       }
                   }
 
