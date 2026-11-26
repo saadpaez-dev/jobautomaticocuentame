@@ -653,17 +653,55 @@ async function main() {
                   console.log(c.verde(`  ✅ [ROBOT] Usando archivo Excel del payload: "${path.basename(payloadModoAuto.archivo)}"`));
                   return [payloadModoAuto.archivo];
               }
-              if (payloadModoAuto.nombreUds && archivosDocs.length > 0) {
-                  const targetUds = removeAccents(payloadModoAuto.nombreUds).toUpperCase().replace(/[^A-Z0-9]/g, '');
-                  const matchDoc = archivosDocs.find(a => {
-                      const cleanNom = removeAccents(a.nombre).toUpperCase().replace(/[^A-Z0-9]/g, '');
-                      return cleanNom.includes(targetUds) || targetUds.includes(cleanNom);
-                  });
-                  if (matchDoc) {
-                      console.log(c.verde(`  ✅ [ROBOT] Archivo Excel detectado para ${payloadModoAuto.nombreUds}: "${matchDoc.nombre}"`));
-                      return [matchDoc.ruta];
+
+              // Si viene una ruta que no existe (ej: de Linux / Render), buscar el archivo en docs o en Descargas
+              const nomArchivoBuscado = payloadModoAuto.archivoExcel ? path.basename(payloadModoAuto.archivoExcel) : (payloadModoAuto.nombreArchivo || null);
+              if (nomArchivoBuscado) {
+                  const rutasCandidatas = [
+                      path.join(docsDir, nomArchivoBuscado),
+                      path.join(docsDir, payloadModoAuto.asociacion || '', nomArchivoBuscado),
+                      path.join(process.env.USERPROFILE || '', 'Downloads', nomArchivoBuscado)
+                  ];
+                  for (const rc of rutasCandidatas) {
+                      if (require('fs').existsSync(rc)) {
+                          console.log(c.verde(`  ✅ [ROBOT] Archivo Excel localizado en el equipo: "${rc}"`));
+                          return [rc];
+                      }
                   }
               }
+
+              // Buscar por coincidencia con el nombre de la UDS en docs/peso y talla o en Descargas
+              if (payloadModoAuto.nombreUds) {
+                  const targetUds = removeAccents(payloadModoAuto.nombreUds).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                  if (archivosDocs.length > 0) {
+                      const matchDoc = archivosDocs.find(a => {
+                          const cleanNom = removeAccents(a.nombre).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                          return cleanNom.includes(targetUds) || targetUds.includes(cleanNom);
+                      });
+                      if (matchDoc) {
+                          console.log(c.verde(`  ✅ [ROBOT] Archivo Excel detectado para ${payloadModoAuto.nombreUds}: "${matchDoc.nombre}"`));
+                          return [matchDoc.ruta];
+                      }
+                  }
+
+                  // Buscar también en Descargas
+                  const userDownloadsDir = path.join(process.env.USERPROFILE || '', 'Downloads');
+                  if (require('fs').existsSync(userDownloadsDir)) {
+                      try {
+                          const fDown = require('fs').readdirSync(userDownloadsDir).filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'));
+                          const matchDown = fDown.find(f => {
+                              const cleanNom = removeAccents(f).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                              return cleanNom.includes(targetUds) || targetUds.includes(cleanNom);
+                          });
+                          if (matchDown) {
+                              const fullDown = path.join(userDownloadsDir, matchDown);
+                              console.log(c.verde(`  ✅ [ROBOT] Archivo Excel detectado en Descargas para ${payloadModoAuto.nombreUds}: "${matchDown}"`));
+                              return [fullDown];
+                          }
+                      } catch(eD) {}
+                  }
+              }
+
               if (archivosDocs.length > 0) {
                   console.log(c.verde(`  ✅ [ROBOT] Procesando todos los ${archivosDocs.length} archivo(s) de "Docs/peso y talla".`));
                   return archivosDocs.map(a => a.ruta);

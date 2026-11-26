@@ -270,29 +270,79 @@ function lanzarRegistroPesoTalla(payload = {}, cmdId = 'auto') {
 
     const colaDir = path.join(ROOT, 'logs', 'cola_comandos');
     if (!fs.existsSync(colaDir)) fs.mkdirSync(colaDir, { recursive: true });
+
+    // Si viene base64Data del Excel, guardarlo directamente en docs/peso y talla local
+    if (payload.base64Data && payload.nombreArchivo) {
+        try {
+            const rawBase64 = payload.base64Data.includes('base64,') ? payload.base64Data.split('base64,')[1] : payload.base64Data;
+            const destDir = path.join(ROOT, 'docs', 'peso y talla');
+            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+            const localFilePath = path.join(destDir, payload.nombreArchivo);
+            fs.writeFileSync(localFilePath, Buffer.from(rawBase64, 'base64'));
+            payload.archivoExcel = localFilePath;
+            log('ok', `📄 Archivo Excel guardado localmente en: ${localFilePath}`);
+        } catch(eGuardar) {
+            log('err', `Error guardando archivo Excel local: ${eGuardar.message}`);
+        }
+    }
+
+    // Resolver ruta local del archivo Excel si es necesario (ej: si venía ruta de Linux/Render)
+    if (payload.archivoExcel && !fs.existsSync(payload.archivoExcel)) {
+        const nomBase = path.basename(payload.archivoExcel);
+        const userDownloads = path.join(process.env.USERPROFILE || '', 'Downloads', nomBase);
+        const rutasCandidatas = [
+            path.join(ROOT, 'docs', 'peso y talla', nomBase),
+            path.join(ROOT, 'docs', 'peso y talla', payload.asociacion || '', nomBase),
+            userDownloads
+        ];
+        for (const rc of rutasCandidatas) {
+            if (fs.existsSync(rc)) {
+                payload.archivoExcel = rc;
+                log('ok', `📄 Archivo Excel localizado en el equipo: ${rc}`);
+                break;
+            }
+        }
+    }
+
+    // Si aún no se localizó archivo y se tiene nombreUds, buscar en Downloads por si el usuario lo descargó allí
+    if (!payload.archivoExcel || !fs.existsSync(payload.archivoExcel)) {
+        const userDownloadsDir = path.join(process.env.USERPROFILE || '', 'Downloads');
+        if (fs.existsSync(userDownloadsDir)) {
+            try {
+                const filesDown = fs.readdirSync(userDownloadsDir).filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'));
+                if (payload.nombreUds) {
+                    const cleanUds = payload.nombreUds.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const matchF = filesDown.find(f => f.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cleanUds));
+                    if (matchF) {
+                        payload.archivoExcel = path.join(userDownloadsDir, matchF);
+                        log('ok', `📄 Archivo Excel detectado en Descargas por UDS: ${payload.archivoExcel}`);
+                    }
+                }
+            } catch(eDown) {}
+        }
+    }
+
     const payloadPath = path.join(colaDir, `peso_talla_${cmdId}.json`);
     fs.writeFileSync(payloadPath, JSON.stringify(payload, null, 2), 'utf8');
 
-    const scriptPath = path.join(ROOT, 'automatizaciones', 'peso-talla.js');
-    let cliCmd = `node "${scriptPath}" --payload="${payloadPath}"`;
+    const batPath = path.join(ROOT, 'Registrar_Peso_Talla.bat');
+    const args = ['/c', 'start', 'REGISTRO PESO Y TALLA - CUENTAME', 'cmd.exe', '/c', batPath, `--payload=${payloadPath}`];
 
+    if (payload.archivoExcel && fs.existsSync(payload.archivoExcel)) {
+        args.push(`--excel=${payload.archivoExcel}`);
+    }
     if (payload.asociacion) {
-        cliCmd += ` --asociacion="${payload.asociacion}"`;
+        args.push(`--asociacion=${payload.asociacion}`);
     }
     if (payload.nombreUds) {
-        cliCmd += ` --jardin="${payload.nombreUds}"`;
+        args.push(`--jardin=${payload.nombreUds}`);
     }
     if (payload.documento) {
-        cliCmd += ` --documento="${payload.documento}"`;
+        args.push(`--documento=${payload.documento}`);
     }
     if (payload.modo) {
-        cliCmd += ` --modo="${modo}"`;
+        args.push(`--modo=${modo}`);
     }
-    if (payload.archivoExcel) {
-        cliCmd += ` --excel="${payload.archivoExcel}"`;
-    }
-
-    const args = ['/c', 'start', 'REGISTRO PESO Y TALLA - CUENTAME', 'cmd.exe', '/k', cliCmd];
 
     const proc = spawn('cmd.exe', args, {
         cwd: ROOT,
