@@ -236,30 +236,10 @@ async function capturarRAMDeJardin({ page, ascObj, jardinObj, mesAtencion = 'Nov
     await page.waitForTimeout(300);
 
     let buffer = null;
+    const tablaResaltada = contentFrame.locator('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid, table.rgMasterTable, table[id*="Grid"]').first();
     try {
-        const formRAM = contentFrame.locator('form#form1, form').first();
-        const dimensiones = await contentFrame.evaluate(() => {
-            const t = document.querySelector('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid');
-            if (!t) return null;
-            const rect = t.getBoundingClientRect();
-            return {
-                bottom: Math.ceil(rect.bottom + window.scrollY + 14),
-                width: Math.ceil(Math.max(rect.right + window.scrollX, document.body.scrollWidth))
-            };
-        }).catch(() => null);
-
-        if (dimensiones && await formRAM.count() > 0) {
-            buffer = await formRAM.screenshot({
-                clip: {
-                    x: 0,
-                    y: 0,
-                    width: dimensiones.width,
-                    height: dimensiones.bottom
-                }
-            }).catch(() => null);
-        }
-        if (!buffer && await formRAM.count() > 0) {
-            buffer = await formRAM.screenshot().catch(() => null);
+        if (await tablaResaltada.count() > 0 && await tablaResaltada.isVisible()) {
+            buffer = await tablaResaltada.screenshot().catch(() => null);
         }
     } catch(e) {}
 

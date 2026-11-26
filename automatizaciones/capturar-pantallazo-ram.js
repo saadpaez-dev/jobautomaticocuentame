@@ -551,54 +551,16 @@ async function main() {
     }).catch(() => {});
     await mainPage.waitForTimeout(300);
 
-    // 8. Capturar pantallazo con el ángulo y encuadre completo (Título + Filtros + Grilla)
-    console.log(c.cyan('    📸 Capturando pantallazo oficial del RAM con filtros y chulitos resaltados...'));
+    // 8. Capturar pantallazo: Grilla oficial exacta (mismo encuadre y ángulo anterior)
+    const tablaResaltada = contentFrame.locator('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid, table.rgMasterTable, table[id*="Grid"]').first();
     let buffer = null;
 
     try {
-        const formRAM = contentFrame.locator('form#form1, form').first();
-        const dimensiones = await contentFrame.evaluate(() => {
-            const t = document.querySelector('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid');
-            if (!t) return null;
-            const rect = t.getBoundingClientRect();
-            return {
-                bottom: Math.ceil(rect.bottom + window.scrollY + 14),
-                width: Math.ceil(Math.max(rect.right + window.scrollX, document.body.scrollWidth))
-            };
-        }).catch(() => null);
-
-        if (dimensiones && await formRAM.count() > 0) {
-            buffer = await formRAM.screenshot({
-                clip: {
-                    x: 0,
-                    y: 0,
-                    width: dimensiones.width,
-                    height: dimensiones.bottom
-                }
-            }).catch(() => null);
-        }
-
-        if (!buffer && await formRAM.count() > 0) {
-            buffer = await formRAM.screenshot().catch(() => null);
+        if (await tablaResaltada.count() > 0 && await tablaResaltada.isVisible()) {
+            console.log(c.cyan('    📸 Capturando grilla oficial del RAM con chulitos resaltados (encuadre exacto de la tabla)...'));
+            buffer = await tablaResaltada.screenshot();
         }
     } catch(e) {}
-
-    if (!buffer) {
-        try {
-            const bodyLoc = contentFrame.locator('body').first();
-            if (await bodyLoc.count() > 0) {
-                buffer = await bodyLoc.screenshot().catch(() => null);
-            }
-        } catch(e) {}
-    }
-
-    if (!buffer) {
-        try {
-            if (await tabla.count() > 0 && await tabla.isVisible()) {
-                buffer = await tabla.screenshot().catch(() => null);
-            }
-        } catch(e) {}
-    }
 
     if (!buffer) {
         console.log(c.amarillo('    📸 Capturando página completa como respaldo...'));
