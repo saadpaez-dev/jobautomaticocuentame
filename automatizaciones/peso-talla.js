@@ -13,7 +13,7 @@ const readline = require('readline-sync');
 const { loginYLlegarARoles, seleccionarRolYEntrar, obtenerNavegador, validarYCambiarAsociacion } = require('../servicios/autenticacion');
 const { leerJardines, encontrarMejorAsociacionYJardin } = require('../servicios/excel-reader');
 const { obtenerNinosDeJardin } = require('../servicios/bd-beneficiarios');
-const { parsearFecha, llenarFormularioNutricion, asegurarDesnutricionAguda } = require('../servicios/nutricion');
+const { parsearFecha, llenarFormularioNutricion, asegurarDesnutricionAguda, asegurarLactanciaCampos } = require('../servicios/nutricion');
 const { esperarPostBackReactivo, seleccionarDropdownReactivo } = require('../servicios/filtro-monitor');
 const { parsearExcel, resolverRutaConEspeciales } = require('../servicios/excel-parser');
 
@@ -1904,8 +1904,9 @@ async function main() {
                           }
                       }
 
-                      // Asegurar Desnutrición Aguda = NO TIENE DESNUTRICIÓN AGUDA inmediatamente antes de guardar
+                      // Asegurar Desnutrición Aguda y Lactancia inmediatamente antes de guardar
                       await asegurarDesnutricionAguda(page, preFrame, 'Pre-Guardado');
+                      await asegurarLactanciaCampos(page, preFrame, 'Pre-Guardado');
                   } catch(e) {}
 
                   // Escuchar dialogos/alertas nativos del navegador por si Cuentame lanza un alert() nativo
@@ -1936,17 +1937,51 @@ async function main() {
                   page.on('response', httpSaveListener);
 
                   try {
-                      // Pre-validar que ningun campo de fecha quede en 1900 o vacio antes de disparar el guardado
+                      // Pre-validar que ningun campo de fecha quede en 1900 o vacio antes de disparar el guardado, y asegurar radios obligatorios
                       await content.evaluate((fDate) => {
-                          const dateInputs = Array.from(document.querySelectorAll('input[id*="txtFecha"], input[name*="txtFecha"]'));
+                          const dateInputs = Array.from(document.querySelectorAll('input[id*="txtFecha"], input[name*="txtFecha"], input[id*="cuwFecha"]'));
                           dateInputs.forEach(inp => {
-                              if (!inp.value || inp.value.includes('1900')) {
+                              if (!inp.value || inp.value.includes('1900') || inp.value !== fDate) {
                                   inp.value = fDate;
                                   inp.dispatchEvent(new Event('input', { bubbles: true }));
                                   inp.dispatchEvent(new Event('change', { bubbles: true }));
                                   inp.dispatchEvent(new Event('blur', { bubbles: true }));
                               }
                           });
+
+                          // Asegurar los 3 radios en "Si"
+                          ['rbTieneCarnetVacunacion', 'rbTieneDosisEdad', 'rbTieneCarnetCrecimiento'].forEach(namePart => {
+                              const radios = Array.from(document.querySelectorAll(`input[type="radio"][id*="${namePart}"]`));
+                              if (radios.length > 0) {
+                                  const radioSi = radios.find(r => r.value === '1' || r.id.endsWith('_0')) || radios[0];
+                                  if (radioSi && !radioSi.disabled && !radioSi.checked) {
+                                      radioSi.checked = true;
+                                      radioSi.click();
+                                      radioSi.dispatchEvent(new Event('change', { bubbles: true }));
+                                  }
+                              }
+                          });
+
+                          // Asegurar controles en 1
+                          const ddlCont = document.querySelector('select[id*="ddlControlesCrecimDesarrollo"], select[id*="ControlesCrecimiento"]');
+                          if (ddlCont && (!ddlCont.value || ddlCont.value === '0' || ddlCont.value === '')) {
+                              const opt1 = Array.from(ddlCont.options).find(o => o.text.trim() === '1' || o.value === '1');
+                              if (opt1) {
+                                  ddlCont.value = opt1.value;
+                                  ddlCont.dispatchEvent(new Event('change', { bubbles: true }));
+                              }
+                          }
+
+                          // Asegurar prematurez en No
+                          const rbPrem = Array.from(document.querySelectorAll('input[type="radio"][id*="AntecedentePrematurez"], input[type="radio"][id*="Prematur" i]'));
+                          if (rbPrem.length > 1) {
+                              const radioNo = rbPrem.find(r => r.value === '0' || r.id.endsWith('_1')) || rbPrem[1];
+                              if (radioNo && !radioNo.disabled && !radioNo.checked) {
+                                  radioNo.checked = true;
+                                  radioNo.click();
+                                  radioNo.dispatchEvent(new Event('change', { bubbles: true }));
+                              }
+                          }
                       }, datosLlenado.fecha).catch(() => {});
 
                       const btnGuardarAnchor = content.locator('a#btnGuardar, #cphCont_btnGuardar, a:has(img[src*="save" i]), a:has(img[alt*="Guardar" i]), a[id*="btnGuardar" i]').first();
@@ -2228,20 +2263,55 @@ async function main() {
                           await llenarFormularioNutricion(browser, content, datosLlenado, hasHistory);
                           await page.waitForTimeout(500);
 
-                          // Pre-validar fechas antes de reintentar
+                          // Pre-validar fechas y radios antes de reintentar
                           await content.evaluate((fDate) => {
-                              const dateInputs = Array.from(document.querySelectorAll('input[id*="txtFecha"], input[name*="txtFecha"]'));
+                              const dateInputs = Array.from(document.querySelectorAll('input[id*="txtFecha"], input[name*="txtFecha"], input[id*="cuwFecha"]'));
                               dateInputs.forEach(inp => {
-                                  if (!inp.value || inp.value.includes('1900')) {
+                                  if (!inp.value || inp.value.includes('1900') || inp.value !== fDate) {
                                       inp.value = fDate;
                                       inp.dispatchEvent(new Event('input', { bubbles: true }));
                                       inp.dispatchEvent(new Event('change', { bubbles: true }));
                                       inp.dispatchEvent(new Event('blur', { bubbles: true }));
                                   }
                               });
+
+                              // Asegurar los 3 radios en "Si"
+                              ['rbTieneCarnetVacunacion', 'rbTieneDosisEdad', 'rbTieneCarnetCrecimiento'].forEach(namePart => {
+                                  const radios = Array.from(document.querySelectorAll(`input[type="radio"][id*="${namePart}"]`));
+                                  if (radios.length > 0) {
+                                      const radioSi = radios.find(r => r.value === '1' || r.id.endsWith('_0')) || radios[0];
+                                      if (radioSi && !radioSi.disabled && !radioSi.checked) {
+                                          radioSi.checked = true;
+                                          radioSi.click();
+                                          radioSi.dispatchEvent(new Event('change', { bubbles: true }));
+                                      }
+                                  }
+                              });
+
+                              // Asegurar controles en 1
+                              const ddlCont = document.querySelector('select[id*="ddlControlesCrecimDesarrollo"], select[id*="ControlesCrecimiento"]');
+                              if (ddlCont && (!ddlCont.value || ddlCont.value === '0' || ddlCont.value === '')) {
+                                  const opt1 = Array.from(ddlCont.options).find(o => o.text.trim() === '1' || o.value === '1');
+                                  if (opt1) {
+                                      ddlCont.value = opt1.value;
+                                      ddlCont.dispatchEvent(new Event('change', { bubbles: true }));
+                                  }
+                              }
+
+                              // Asegurar prematurez en No
+                              const rbPrem = Array.from(document.querySelectorAll('input[type="radio"][id*="AntecedentePrematurez"], input[type="radio"][id*="Prematur" i]'));
+                              if (rbPrem.length > 1) {
+                                  const radioNo = rbPrem.find(r => r.value === '0' || r.id.endsWith('_1')) || rbPrem[1];
+                                  if (radioNo && !radioNo.disabled && !radioNo.checked) {
+                                      radioNo.checked = true;
+                                      radioNo.click();
+                                      radioNo.dispatchEvent(new Event('change', { bubbles: true }));
+                                  }
+                              }
                           }, datosLlenado.fecha).catch(() => {});
 
                           await asegurarDesnutricionAguda(page, currentFrameErr, 'Pre-Retry');
+                          await asegurarLactanciaCampos(page, currentFrameErr, 'Pre-Retry');
 
                           const btnGuardarRetry = currentFrameErr.locator('a#btnGuardar, #cphCont_btnGuardar, a:has(img[src*="save" i]), a:has(img[alt*="Guardar" i]), a[id*="btnGuardar" i], input[id*="btnGuardar" i], input[src*="grabar" i]').first();
                           if (await btnGuardarRetry.count() > 0) {
