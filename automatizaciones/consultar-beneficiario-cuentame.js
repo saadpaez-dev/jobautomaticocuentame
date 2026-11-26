@@ -233,7 +233,7 @@ async function main() {
     // 1. Asegurar opción "Consulta por: Número de Documento"
     console.log(c.gris('    • Seleccionando Consulta por: Número de Documento...'));
     try {
-        const radioDoc = contentFrame.locator('input[type="radio"][value*="Documento" i], input[type="radio"][id*="rbNumeroDocumento" i], input[type="radio"]').first();
+        const radioDoc = contentFrame.locator('#cphCont_rblOpcionConsulta_0, input[type="radio"][value="S"], input[type="radio"]').first();
         if (await radioDoc.count() > 0) {
             await radioDoc.check().catch(() => {});
             await mainPage.waitForTimeout(300);
@@ -242,43 +242,66 @@ async function main() {
 
     // 2. Seleccionar Tipo de Documento
     console.log(c.gris(`    • Seleccionando Tipo de Documento: ${tipoDocArg}...`));
+    const MAPA_TIPOS_DOC = {
+        'RC': 'REGISTRO CIVIL',
+        'TI': 'TARJETA DE IDENTIDAD',
+        'CC': 'CEDULA DE CIUDADANIA',
+        'CE': 'CEDULA DE EXTRANJERIA',
+        'PEP': 'PERMISO ESPECIAL DE PERMANENCIA',
+        'PPT': 'PERMISO POR PROTECCIÓN TEMPORAL',
+        'DNI': 'DOCUMENTO NACIONAL DE IDENTIDAD',
+        'PAS': 'PASAPORTE',
+        'SIN': 'SIN DOCUMENTO'
+    };
+    const labelBuscada = MAPA_TIPOS_DOC[tipoDocArg.toUpperCase()] || tipoDocArg.toUpperCase();
+
     try {
-        const selectDoc = contentFrame.locator('select[id*="TipoDocumento" i], select[name*="TipoDocumento" i], select').first();
+        const selectDoc = contentFrame.locator('select#cphCont_ddlIdTipoDocumento, select[id*="ddlIdTipoDocumento"], select').first();
         await selectDoc.waitFor({ state: 'attached', timeout: 8000 }).catch(() => {});
 
-        await selectDoc.evaluate((s, targetLabel) => {
-            const norm = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
-            const target = norm(targetLabel);
-            const opts = Array.from(s.options);
-            const m = opts.find(o => norm(o.text).includes(target) || target.includes(norm(o.text)) || norm(o.value) === target);
-            if (m) {
-                s.value = m.value;
-                s.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }, tipoDocArg);
+        let seleccionado = false;
+        try {
+            await selectDoc.selectOption({ label: labelBuscada });
+            seleccionado = true;
+        } catch(e) {}
+
+        if (!seleccionado) {
+            await selectDoc.evaluate((s, targetLabel) => {
+                const norm = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+                const target = norm(targetLabel);
+                const opts = Array.from(s.options);
+                const m = opts.find(o => norm(o.text).includes(target) || target.includes(norm(o.text)) || norm(o.value) === target);
+                if (m) {
+                    s.value = m.value;
+                    s.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }, labelBuscada);
+        }
         await mainPage.waitForTimeout(400);
     } catch(e) {}
 
     // 3. Escribir Número de Documento
     console.log(c.gris(`    • Ingresando Número de Documento: ${docClean}...`));
-    const inputDoc = contentFrame.locator('input[type="text"][id*="NumeroDocumento" i], input[type="text"][name*="NumeroDocumento" i], input[type="text"]').first();
+    const inputDoc = contentFrame.locator('#cphCont_txtIdentificacion, input[name*="txtIdentificacion"], input[type="text"][id*="Identificacion"], input[type="text"]').first();
     await inputDoc.click();
     await inputDoc.fill(docClean);
     await mainPage.waitForTimeout(300);
 
     // 4. Clic en Buscar (Lupa)
     console.log(c.gris('    👉 Clic en Consultar/Buscar...'));
-    const btnBuscar = contentFrame.locator('input[type="image"][title*="Consultar" i], input[type="image"][title*="Buscar" i], input[type="image"][id*="btnBuscar" i], a#btnBuscar, a:has(img[alt*="Consultar" i]), a:has(img[src*="lupa" i]), a:has(img[src*="search" i]), img[title*="Consultar" i]').first();
-
     await esperarPostBackReactivo(mainPage, async () => {
-        if (await btnBuscar.count() > 0 && await btnBuscar.isVisible()) {
-            await btnBuscar.click();
-        } else {
-            await inputDoc.press('Enter');
-        }
+        await contentFrame.evaluate(() => {
+            const btn = document.getElementById('btnBuscar');
+            if (btn) {
+                btn.click();
+            } else {
+                const img = document.querySelector('img[title="Consultar"], img[alt="Consultar"]');
+                if (img) img.click();
+            }
+        });
     }, 15000);
 
-    await mainPage.waitForTimeout(2000);
+    await mainPage.waitForTimeout(2500);
     contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
 
     // 5. Evaluar resultados de la tabla o mensaje "No se encontraron datos"
@@ -347,17 +370,26 @@ async function main() {
         };
 
         const ordenados = [...registros].sort((a, b) => {
-            const vigA = parseInt(a.vigencia, 10) || 0;
-            const vigB = parseInt(b.vigencia, 10) || 0;
-            if (vigB !== vigA) return vigB - vigA; // Mayor vigencia primero (ej. 2026 antes de 2024)
+            // 1. Si está Vinculado (Activo) en alguna UDS, esa es la condición vigente prioritaria
+            const esVincA = (a.estado || '').toUpperCase().includes('VINCULAD') && !(a.estado || '').toUpperCase().includes('DESVINCULAD');
+            const esVincB = (b.estado || '').toUpperCase().includes('VINCULAD') && !(b.estado || '').toUpperCase().includes('DESVINCULAD');
+            if (esVincA && !esVincB) return -1;
+            if (esVincB && !esVincA) return 1;
 
+            // 2. Fecha de atención más reciente
+            const fAtenA = parseFechaStr(a.fechaAtencion);
+            const fAtenB = parseFechaStr(b.fechaAtencion);
+            if (fAtenB !== fAtenA) return fAtenB - fAtenA;
+
+            // 3. Fecha de desvinculación más reciente
             const fDesvA = parseFechaStr(a.fechaDesvinculacion);
             const fDesvB = parseFechaStr(b.fechaDesvinculacion);
             if (fDesvB !== fDesvA) return fDesvB - fDesvA;
 
-            const fAtenA = parseFechaStr(a.fechaAtencion);
-            const fAtenB = parseFechaStr(b.fechaAtencion);
-            return fAtenB - fAtenA;
+            // 4. Mayor vigencia
+            const vigA = parseInt(a.vigencia, 10) || 0;
+            const vigB = parseInt(b.vigencia, 10) || 0;
+            return vigB - vigA;
         });
 
         masActual = ordenados[0];
