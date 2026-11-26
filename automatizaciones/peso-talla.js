@@ -123,6 +123,27 @@ function generarReporteExcel(ninosProcesados, udsNombre, asociacionNombre) {
         try { xlsx.writeFile(wb, appPortalFilePath); } catch(e) {}
     }
 
+    // Subir automáticamente el reporte al Portal Web en la nube para descarga directa de las madres
+    try {
+        const reportBuffer = fs.readFileSync(docsFilePath);
+        const cloudUrl = (process.env.CLOUD_URL || 'https://portal-cuentame.onrender.com').replace(/\/$/, '');
+        fetch(`${cloudUrl}/api/nutricion/subir-reporte-robot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nombreArchivo: fileName,
+                asociacion: safeAsoc,
+                nombreUds: safeUds,
+                carpetaToma: carpetaGeneralToma,
+                base64Data: reportBuffer.toString('base64')
+            })
+        }).then(r => r.json()).then(res => {
+            if (res && res.success) {
+                console.log(c.verde(`  ☁️ [NUBE] Reporte de resultados sincronizado con el Portal Web: ${fileName}`));
+            }
+        }).catch(() => {});
+    } catch (eCloud) {}
+
     // Abrir automaticamente el Explorador de Windows destacando el archivo del reporte
     try {
         require('child_process').exec(`explorer.exe /select,"${docsFilePath}"`);
