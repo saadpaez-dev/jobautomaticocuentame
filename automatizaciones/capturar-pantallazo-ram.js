@@ -524,14 +524,81 @@ async function main() {
     const tabla = contentFrame.locator('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid, table.rgMasterTable, table[id*="Grid"]').first();
     await tabla.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
 
-    // 8. Capturar pantallazo
+    // 7.1. Hacer clic en el lápiz para habilitar la vista con los chulitos resaltados (modo edición)
+    console.log(c.cyan('    ✏️ Habilitando vista con chulitos resaltados (clic en el lápiz)...'));
+    const lapiz = contentFrame.locator('input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"], a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i], a:has(img[src*="lapiz"])').first();
+
+    if (await lapiz.count() > 0 && await lapiz.isVisible()) {
+        await esperarPostBackReactivo(mainPage, async () => {
+            await lapiz.click().catch(() => {});
+        }, 12000);
+        contentFrame = mainPage.frame({ name: 'frameContent' }) || mainPage.frames().find(f => f.name() === 'frameContent') || mainPage;
+        await mainPage.waitForTimeout(600);
+    }
+
+    // 7.2. Garantizar que todos los checkboxes/chulitos resalten con nitidez y color azul vibrante
+    await contentFrame.evaluate(() => {
+        const cbs = document.querySelectorAll('input[type="checkbox"]');
+        cbs.forEach(cb => {
+            cb.removeAttribute('disabled');
+            cb.disabled = false;
+            if (cb.checked) {
+                cb.style.accentColor = '#0b66c2';
+                cb.style.transform = 'scale(1.15)';
+                cb.style.filter = 'drop-shadow(0 0 1px rgba(0,0,0,0.5))';
+            }
+        });
+    }).catch(() => {});
+    await mainPage.waitForTimeout(300);
+
+    // 8. Capturar pantallazo con el ángulo y encuadre completo (Título + Filtros + Grilla)
+    console.log(c.cyan('    📸 Capturando pantallazo oficial del RAM con filtros y chulitos resaltados...'));
     let buffer = null;
+
     try {
-        if (await tabla.count() > 0 && await tabla.isVisible()) {
-            console.log(c.cyan('    📸 Capturando grilla oficial del RAM...'));
-            buffer = await tabla.screenshot();
+        const formRAM = contentFrame.locator('form#form1, form').first();
+        const dimensiones = await contentFrame.evaluate(() => {
+            const t = document.querySelector('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid');
+            if (!t) return null;
+            const rect = t.getBoundingClientRect();
+            return {
+                bottom: Math.ceil(rect.bottom + window.scrollY + 14),
+                width: Math.ceil(Math.max(rect.right + window.scrollX, document.body.scrollWidth))
+            };
+        }).catch(() => null);
+
+        if (dimensiones && await formRAM.count() > 0) {
+            buffer = await formRAM.screenshot({
+                clip: {
+                    x: 0,
+                    y: 0,
+                    width: dimensiones.width,
+                    height: dimensiones.bottom
+                }
+            }).catch(() => null);
+        }
+
+        if (!buffer && await formRAM.count() > 0) {
+            buffer = await formRAM.screenshot().catch(() => null);
         }
     } catch(e) {}
+
+    if (!buffer) {
+        try {
+            const bodyLoc = contentFrame.locator('body').first();
+            if (await bodyLoc.count() > 0) {
+                buffer = await bodyLoc.screenshot().catch(() => null);
+            }
+        } catch(e) {}
+    }
+
+    if (!buffer) {
+        try {
+            if (await tabla.count() > 0 && await tabla.isVisible()) {
+                buffer = await tabla.screenshot().catch(() => null);
+            }
+        } catch(e) {}
+    }
 
     if (!buffer) {
         console.log(c.amarillo('    📸 Capturando página completa como respaldo...'));

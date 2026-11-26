@@ -212,15 +212,58 @@ async function capturarRAMDeJardin({ page, ascObj, jardinObj, mesAtencion = 'Nov
         tablaVisible = true;
     } catch(e) {}
 
-    // Scroll para enfocar
+    // Hacer clic en el lápiz para habilitar la vista de chulitos resaltados (modo edición)
+    const lapiz = contentFrame.locator('input[title*="Editar" i], img[title*="Editar" i], a:has(img[src*="edit"]), input[src*="edit"], a#btnEditar, a#btnModificar, input[type="image"][id*="btnEditar" i], input[type="image"][id*="btnModificar" i], img[title*="Modificar" i], img[alt*="Editar" i], img[alt*="Modificar" i], a:has(img[src*="lapiz"])').first();
+    if (await lapiz.count() > 0 && await lapiz.isVisible()) {
+        await lapiz.click().catch(() => {});
+        await page.waitForTimeout(600);
+        contentFrame = page.frame({ name: 'frameContent' }) || page.frames().find(f => f.name() === 'frameContent') || page;
+    }
+
+    // Resaltar chulitos con color vibrante
     await contentFrame.evaluate(() => {
-        const t = document.querySelector('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid');
-        if (t) t.scrollIntoView({ behavior: 'instant', block: 'center' });
+        const cbs = document.querySelectorAll('input[type="checkbox"]');
+        cbs.forEach(cb => {
+            cb.removeAttribute('disabled');
+            cb.disabled = false;
+            if (cb.checked) {
+                cb.style.accentColor = '#0b66c2';
+                cb.style.transform = 'scale(1.15)';
+                cb.style.filter = 'drop-shadow(0 0 1px rgba(0,0,0,0.5))';
+            }
+        });
     }).catch(() => {});
     await page.waitForTimeout(300);
 
     let buffer = null;
-    if (tablaVisible) {
+    try {
+        const formRAM = contentFrame.locator('form#form1, form').first();
+        const dimensiones = await contentFrame.evaluate(() => {
+            const t = document.querySelector('table[id*="grdConsulta"], table[id*="gvLista"], table[id*="GridView"], table.mGrid');
+            if (!t) return null;
+            const rect = t.getBoundingClientRect();
+            return {
+                bottom: Math.ceil(rect.bottom + window.scrollY + 14),
+                width: Math.ceil(Math.max(rect.right + window.scrollX, document.body.scrollWidth))
+            };
+        }).catch(() => null);
+
+        if (dimensiones && await formRAM.count() > 0) {
+            buffer = await formRAM.screenshot({
+                clip: {
+                    x: 0,
+                    y: 0,
+                    width: dimensiones.width,
+                    height: dimensiones.bottom
+                }
+            }).catch(() => null);
+        }
+        if (!buffer && await formRAM.count() > 0) {
+            buffer = await formRAM.screenshot().catch(() => null);
+        }
+    } catch(e) {}
+
+    if (!buffer && tablaVisible) {
         buffer = await tablaRAM.screenshot().catch(() => null);
     }
     if (!buffer) {
