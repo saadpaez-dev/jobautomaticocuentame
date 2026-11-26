@@ -58,9 +58,16 @@ function parsearFecha(input) {
         }
     }
     
-    // Si ya viene en formato DD/MM/YYYY o YYYY-MM-DD
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(txt) || /^\d{4}-\d{2}-\d{2}$/.test(txt)) {
-        return txt; // Devolver tal cual
+    // Si viene en formato DD/MM/YYYY o D/M/YYYY
+    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(txt)) {
+        const p = txt.split(/[\/\-]/);
+        return `${p[0].padStart(2, '0')}/${p[1].padStart(2, '0')}/${p[2]}`;
+    }
+    
+    // Si viene en formato YYYY-MM-DD o YYYY/MM/DD
+    if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(txt)) {
+        const p = txt.split(/[\/\-]/);
+        return `${p[2].padStart(2, '0')}/${p[1].padStart(2, '0')}/${p[0]}`;
     }
     
     return txt; // Fallback
@@ -806,7 +813,7 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             // Normativa ICBF: Perimetro Braquial solo aplica entre 6 y 59 meses de edad (menores de 5 anos)
             const aplicaPerimetro = (edadMeses === null || (edadMeses >= 6 && edadMeses < 60));
 
-            let fechaUso = datos.fecha;
+            let fechaUso = parsearFecha(datos.fecha) || datos.fecha;
 
             // Detectar Fecha de Inicio de Atencion en el formulario de Cuentame usando DOM estandar
             const fechaInicioAtencion = await f.evaluate(() => {
@@ -831,15 +838,16 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                 return '';
             }).catch(() => '');
 
-            if (fechaInicioAtencion && /^\d{2}\/\d{2}\/\d{4}$/.test(fechaInicioAtencion) && datos.fecha && /^\d{2}\/\d{2}\/\d{4}$/.test(datos.fecha)) {
+            if (fechaInicioAtencion && datos.fecha) {
                 const parseF = (str) => {
-                    const [d, m, y] = str.split('/').map(Number);
-                    return new Date(y, m - 1, d);
+                    const m = String(str).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+                    if (!m) return null;
+                    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
                 };
                 const fAtencion = parseF(fechaInicioAtencion);
-                const fDatos = parseF(datos.fecha);
-                if (fDatos < fAtencion) {
-                    console.log(c.amarillo(`    ⚠️ Fecha de excel (${datos.fecha}) es anterior a Fecha de inicio de atencion (${fechaInicioAtencion}) → Ajustando fecha a ${fechaInicioAtencion}`));
+                const fDatos = parseF(fechaUso);
+                if (fAtencion && fDatos && fDatos < fAtencion) {
+                    console.log(c.amarillo(`    ⚠️ Fecha de excel (${fechaUso}) es anterior a Fecha de inicio de atencion (${fechaInicioAtencion}) → Ajustando fecha a ${fechaInicioAtencion}`));
                     fechaUso = fechaInicioAtencion;
                 }
             }

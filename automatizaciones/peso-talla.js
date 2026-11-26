@@ -1532,7 +1532,16 @@ async function main() {
                           console.log(c.amarillo(`     - Fecha: ${targetFechaNorm} (Ya tiene una toma registrada para esta fecha).`));
                           console.log(c.amarillo(`     ➡️¡ï¸ Omitiendo nino (${consecutivosDuplicados} consecutivo(s)).`));
 
-                          if (consecutivosDuplicados >= 3) {
+                          const ninoTarget = ninosExcel[idxNinoExcelActual] || ninoSeleccionado;
+                          if (ninoTarget) {
+                              ninosProcesados.push({
+                                  ...ninoTarget,
+                                  estado: 'OMITIDO (TOMA DUPLICADA)',
+                                  observacion: `Cuentame ya tenia registrada una toma para la fecha ${targetFechaNorm}.`
+                              });
+                          }
+
+                          if (consecutivosDuplicados >= 3 && !payloadModoAuto) {
                               console.log(c.rojo('\n  ========================================================================================'));
                               console.log(c.rojo('  â›” SE VALIDO EN 3 REGISTROS CONSECUTIVOS FECHA, PESO Y TALLA IGUAL (O TOMA DUPLICADA).'));
                               console.log(c.rojo('  âš ï¸  FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
@@ -1604,6 +1613,9 @@ async function main() {
                               preFiltroBeneficiario = null;
                               break;
                           } else {
+                              if (consecutivosDuplicados >= 3 && payloadModoAuto) {
+                                  console.log(c.amarillo(`  ℹ️ [MODO AUTOMÁTICO] ${consecutivosDuplicados} tomas duplicadas consecutivas detectadas. Continuando con los demás niños de la UDS...`));
+                              }
                               idxNinoExcelActual++;
                               console.log(c.amarillo('  â³ Volviendo a la consulta de ninos para el siguiente en el Excel...'));
                               await page.waitForTimeout(800);
@@ -2142,8 +2154,12 @@ async function main() {
                           console.log(c.rojo('  ⚠️ FAVOR VALIDAR LOS SIGUIENTES REGISTROS MANUALMENTE.'));
                           console.log(c.rojo('  ========================================================================================\n'));
 
-                          preFiltroBeneficiario = null;
-                          modoExcel = null;
+                          if (!payloadModoAuto) {
+                              preFiltroBeneficiario = null;
+                              modoExcel = null;
+                          } else {
+                              console.log(c.amarillo('  ℹ️ [MODO AUTOMÁTICO] Continuando evaluación con los demás beneficiarios...'));
+                          }
                       }
                   } else if (guardadoConfirmado) {
                       consecutivosDuplicados = 0;
