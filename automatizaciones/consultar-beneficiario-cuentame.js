@@ -329,27 +329,31 @@ async function main() {
                         const celdas = await filas[j].locator('td').allInnerTexts().catch(() => []);
                         if (celdas.length >= 15) {
                             const info = celdas.map(t => t.trim().replace(/\s+/g, ' '));
-                            registros.push({
-                                regional: info[1] || '',
-                                entidad: info[2] || '',
-                                vigencia: info[3] || '',
-                                contrato: info[4] || '',
-                                codigoUds: info[5] || '',
-                                nombreUds: info[6] || '',
-                                servicioUds: info[7] || '',
-                                direccionUds: info[8] || '',
-                                tipoBeneficiario: info[9] || '',
-                                tipoDoc: info[10] || '',
-                                numDoc: info[11] || '',
-                                primerNombre: info[12] || '',
-                                segundoNombre: info[13] || '',
-                                primerApellido: info[14] || '',
-                                segundoApellido: info[15] || '',
-                                nombreCompleto: `${info[12] || ''} ${info[13] || ''} ${info[14] || ''} ${info[15] || ''}`.replace(/\s+/g, ' ').trim(),
-                                fechaAtencion: info[16] || '',
-                                fechaDesvinculacion: info[17] || '',
-                                estado: info[18] || ''
-                            });
+                            const docFila = (info[11] || '').replace(/\D/g, '');
+                            // Validar que la fila contenga un número de documento válido
+                            if (docFila && docFila.length >= 5) {
+                                registros.push({
+                                    regional: info[1] || '',
+                                    entidad: info[2] || '',
+                                    vigencia: info[3] || '',
+                                    contrato: info[4] || '',
+                                    codigoUds: info[5] || '',
+                                    nombreUds: info[6] || '',
+                                    servicioUds: info[7] || '',
+                                    direccionUds: info[8] || '',
+                                    tipoBeneficiario: info[9] || '',
+                                    tipoDoc: info[10] || '',
+                                    numDoc: info[11] || '',
+                                    primerNombre: info[12] || '',
+                                    segundoNombre: info[13] || '',
+                                    primerApellido: info[14] || '',
+                                    segundoApellido: info[15] || '',
+                                    nombreCompleto: `${info[12] || ''} ${info[13] || ''} ${info[14] || ''} ${info[15] || ''}`.replace(/\s+/g, ' ').trim(),
+                                    fechaAtencion: info[16] || '',
+                                    fechaDesvinculacion: info[17] || '',
+                                    estado: info[18] || ''
+                                });
+                            }
                         }
                     }
                     if (registros.length > 0) break;
