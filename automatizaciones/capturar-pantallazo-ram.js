@@ -139,23 +139,20 @@ function buscarJardinFlexible(jardinQuery, codigoUdsQuery, jList) {
 
 function filtrarServiciosPorAsociacion(servOptions, ascNombre, tipoServicio) {
     let options2026 = servOptions.filter(o => /-2026\b/.test(o.text) || o.text.endsWith("2026"));
-    let options = options2026.length > 0 ? options2026 : servOptions;
+    let pool = options2026.length > 0 ? options2026 : servOptions;
     const ascUpper = removeAccentsStr(ascNombre);
 
-    if (ascUpper.includes("DELICIAS DEL CARMEN")) {
-        options = options.filter(o => o.text.includes("420269") || o.text.toUpperCase().includes("JARDIN COMUNITARIO"));
-    } else if (ascUpper.includes("BARRIOS UNIDOS") || 
-               ascUpper.includes("PROGRESO INFANTIL") || 
-               ascUpper.includes("BRISAS DE BUENAVISTA")) {
-        options = options.filter(o => o.text.includes("420267") || o.text.toUpperCase().includes("HCB"));
+    const agrupados = pool.filter(o => o.text.includes("420269") || o.text.toUpperCase().includes("JARDIN COMUNITARIO"));
+    const tradicionales = pool.filter(o => o.text.includes("420267") || o.text.toUpperCase().includes("HCB"));
+    const otros = pool.filter(o => !agrupados.some(a => a.value === o.value) && !tradicionales.some(t => t.value === o.value));
+
+    // Si es Agrupado o Delicias del Carmen, probar agrupados primero; en caso contrario tradicionales primero.
+    // NUNCA descartar ningún servicio: todos permanecen como candidatos.
+    if (ascUpper.includes("DELICIAS DEL CARMEN") || tipoServicio === 'Agrupado') {
+        return [...agrupados, ...tradicionales, ...otros];
     } else {
-        if (tipoServicio === 'Individual') {
-            options = options.filter(o => (o.text.includes("420267") || o.text.toUpperCase().includes("HCB")) && !o.text.includes("420269"));
-        } else if (tipoServicio === 'Agrupado') {
-            options = options.filter(o => o.text.includes("420269") || o.text.toUpperCase().includes("JARDIN COMUNITARIO"));
-        }
+        return [...tradicionales, ...agrupados, ...otros];
     }
-    return options.length > 0 ? options : servOptions;
 }
 
 async function sincronizarPantallazoConServidores(payload) {
@@ -424,26 +421,37 @@ async function main() {
             await mainPage.waitForTimeout(100);
         }
 
-        const esAgrupado = (jardinArg || '').toUpperCase().includes('SALA CUNA') || (jardinArg || '').toUpperCase().includes('AGRUPADO');
+        const jMod = (jardinObj && jardinObj.modalidad ? jardinObj.modalidad : '').toUpperCase();
+        const jNom = (jardinObj && (jardinObj.nombreUds || jardinObj.nombre) ? (jardinObj.nombreUds || jardinObj.nombre) : (jardinArg || '')).toUpperCase();
+        const esAgrupado = jMod.includes('JARDIN') || jMod.includes('AGRUPAD') ||
+                           jNom.includes('SALA') || jNom.includes('GRUPAL') || 
+                           jNom.includes('MARAVILLAS') || jNom.includes('ESTRELLITAS') || 
+                           jNom.includes('SOLECITO') || jNom.includes('ANGELITOS') ||
+                           jNom.includes('AGRUPADO');
         const tipoServ = esAgrupado ? 'Agrupado' : 'Individual';
         let servValidos = filtrarServiciosPorAsociacion(servOpts, ascObj ? ascObj.nombreCorto : '', tipoServ);
         if (servValidos.length === 0) servValidos = servOpts;
 
         const uLoc = contentFrame.locator('select[id*="ddlIdContratoUnidadServicioNombreUds"], select[id*="Uds"], select[id*="UDS"], select[id*="Unidad"]').first();
         let udsValue = null;
+        let servicioElegido = null;
         const codigoSearch = String(codigoUdsArg || '').trim();
         const nombreSearch = removeAccentsStr(jardinArg || '');
 
         for (const serv of servValidos) {
+            console.log(c.gris(`    • Probando servicio: ${serv.text}...`));
             const curServ = await servicioLocator.evaluate(s => s.value);
             if (curServ !== serv.value) {
                 await seleccionarDropdownReactivo(mainPage, contentFrame, servicioLocator, serv.value, { dependienteSelector: 'select[id*="ddlIdContratoUnidadServicioNombreUds"]', nombreEtiqueta: 'Servicio' });
+                await mainPage.waitForTimeout(600);
             }
 
-            for (let r = 0; r < 20; r++) {
+            for (let r = 0; r < 25; r++) {
                 udsValue = await uLoc.evaluate((s, { code, name }) => {
                     const validOpts = Array.from(s.options).filter(o => o.value && o.value !== "0" && o.value !== "-1" && o.value !== "" && !o.text.toUpperCase().includes("SELECCIONE"));
                     if (validOpts.length === 0) return null;
+
+                    if (!code && !name) return validOpts[0].value;
 
                     let opt = validOpts.find(o => {
                         const textNorm = o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
@@ -465,16 +473,31 @@ async function main() {
                 }, { code: codigoSearch, name: nombreSearch });
 
                 if (udsValue) break;
-                await mainPage.waitForTimeout(100);
+                await mainPage.waitForTimeout(150);
             }
-            if (udsValue) break;
+
+            if (udsValue) {
+                servicioElegido = serv;
+                break;
+            }
         }
 
         if (udsValue) {
-            console.log(c.verde(`    ✓ UDS encontrada en opciones de Cuéntame.`));
+            console.log(c.verde(`    ✓ UDS encontrada en servicio "${servicioElegido ? servicioElegido.text : 'Activo'}" (Valor: ${udsValue}).`));
             await seleccionarDropdownReactivo(mainPage, contentFrame, uLoc, udsValue, { nombreEtiqueta: 'UDS' });
+
+            await mainPage.waitForTimeout(400);
+            const curValUds = await uLoc.evaluate(s => s.value).catch(() => '');
+            if (curValUds !== udsValue) {
+                console.log(c.amarillo(`    ⚠️ Re-confirmando selección directa en dropdown de UDS...`));
+                await uLoc.evaluate((s, target) => {
+                    s.value = target;
+                    s.dispatchEvent(new Event('change', { bubbles: true }));
+                }, udsValue);
+            }
         } else {
-            console.log(c.amarillo(`    ⚠️ No se encontró la UDS específica en los dropdowns. Se intentará continuar.`));
+            console.error(c.rojo(`    ❌ No se encontró la UDS "${jardinArg}" (${codigoUdsArg}) en ningún servicio disponible de ${ascObj ? ascObj.nombreCorto : 'la asociación'}.`));
+            throw new Error(`UDS no encontrada en Cuéntame: ${jardinArg || codigoUdsArg}`);
         }
     }
 

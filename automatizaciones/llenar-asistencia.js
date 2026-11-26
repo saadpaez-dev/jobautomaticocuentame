@@ -1910,7 +1910,11 @@ async function ejecutarFase3(asociaciones, mesAtencion) {
                         await mainPage.waitForTimeout(100);
                     }
 
-                    const esAgrupado = (ramData.jardin || '').toUpperCase().includes('SALA CUNA') || (ramData.jardin || '').toUpperCase().includes('AGRUPADO');
+                    const jNom = (ramData.jardin || '').toUpperCase();
+                    const esAgrupado = jNom.includes('SALA CUNA') || jNom.includes('AGRUPADO') || 
+                                       jNom.includes('MARAVILLAS') || jNom.includes('ESTRELLITAS') || 
+                                       jNom.includes('SOLECITO') || jNom.includes('ANGELITOS') || 
+                                       jNom.includes('GRUPAL');
                     const tipoServ = esAgrupado ? 'Agrupado' : 'Individual';
                     let servValidos = filtrarServiciosPorAsociacion(servOpts, ascObj.nombreCorto, tipoServ);
                     if (servValidos.length === 0) servValidos = servOpts;

@@ -265,40 +265,59 @@ async function capturarJardin({ page, ascObj, jardinObj, forzar = false }) {
     const selectServicio = contentFrame.locator('select[id*="ddlServicio"], select[id*="Servicio"]').first();
     const servOpts = await waitForAndSelect(page, selectServicio);
 
+    const selectUds = contentFrame.locator('select[id*="ddlUDS"], select[id*="UDS"], select[id*="Unidad"]').first();
+
     if (servOpts && servOpts.length > 0) {
         const jMod = (jardinObj.modalidad || '').toUpperCase();
         const jNom = (jardinObj.nombreUds || jardinObj.nombre || '').toUpperCase();
-        const esAgrupado = jMod.includes('JARDIN') || jMod.includes('AGRUPAD') || jNom.includes('SALA') || jNom.includes('GRUPAL') || jNom.includes('MARAVILLAS') || jNom.includes('ESTRELLITAS') || jNom.includes('SOLECITO') || jNom.includes('ANGELITOS');
+        const esAgrupado = jMod.includes('JARDIN') || jMod.includes('AGRUPAD') || 
+                           jNom.includes('SALA') || jNom.includes('GRUPAL') || 
+                           jNom.includes('MARAVILLAS') || jNom.includes('ESTRELLITAS') || 
+                           jNom.includes('SOLECITO') || jNom.includes('ANGELITOS') ||
+                           jNom.includes('AGRUPADO');
         
         const servOpts2026 = servOpts.filter(o => /-2026\b/.test(o.t) || o.t.endsWith("2026"));
         const poolServ = servOpts2026.length > 0 ? servOpts2026 : servOpts;
 
-        let matchServ = null;
-        if (esAgrupado) {
-            matchServ = poolServ.find(o => o.t.toUpperCase().includes("420269") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
-        } else {
-            matchServ = poolServ.find(o => o.t.toUpperCase().includes("420267") || o.t.toUpperCase().includes("HCB"));
-        }
-        if (!matchServ) matchServ = poolServ[0];
+        const servAgrupados = poolServ.filter(o => o.t.includes("420269") || o.t.toUpperCase().includes("JARDIN COMUNITARIO"));
+        const servTradicionales = poolServ.filter(o => o.t.includes("420267") || o.t.toUpperCase().includes("HCB"));
+        const servOtros = poolServ.filter(o => !servAgrupados.some(a => a.v === o.v) && !servTradicionales.some(t => t.v === o.v));
 
-        const valActual = await selectServicio.inputValue().catch(() => '');
-        if (valActual !== matchServ.v) {
-            console.log(c.gris(`    • Cambiando Servicio a: ${matchServ.t}...`));
-            await seleccionarDropdownReactivo(page, contentFrame, selectServicio, matchServ.v, { dependienteSelector: 'select[id*="ddlUDS"], select[id*="UDS"]' });
+        const candidatosServ = esAgrupado 
+            ? [...servAgrupados, ...servTradicionales, ...servOtros]
+            : [...servTradicionales, ...servAgrupados, ...servOtros];
+
+        let udsSeleccionada = false;
+
+        for (const serv of candidatosServ) {
+            const valActual = await selectServicio.inputValue().catch(() => '');
+            if (valActual !== serv.v) {
+                console.log(c.gris(`    • Probando Servicio: ${serv.t}...`));
+                await seleccionarDropdownReactivo(page, contentFrame, selectServicio, serv.v, { dependienteSelector: 'select[id*="ddlUDS"], select[id*="UDS"]' });
+                await page.waitForTimeout(400);
+            }
+
+            console.log(c.gris(`    • Seleccionando UDS: ${nombreJardin}...`));
+            if (codigoJardin) {
+                await waitForAndSelect(page, selectUds, codigoJardin);
+            }
+            let valSel = await selectUds.inputValue().catch(() => '');
+            if (!valSel || valSel === '0' || valSel === '-1') {
+                await waitForAndSelect(page, selectUds, nombreJardin);
+                valSel = await selectUds.inputValue().catch(() => '');
+            }
+
+            if (valSel && valSel !== '0' && valSel !== '-1') {
+                udsSeleccionada = true;
+                break;
+            }
+        }
+
+        if (!udsSeleccionada) {
+            console.log(c.amarillo(`    ⚠️ No se pudo seleccionar la UDS "${nombreJardin}" en los dropdowns.`));
         }
     }
-
-    // 6. Seleccionar UDS
-    console.log(c.gris(`    • Seleccionando UDS: ${nombreJardin}...`));
-    const selectUds = contentFrame.locator('select[id*="ddlUDS"], select[id*="UDS"], select[id*="Unidad"]').first();
-    if (codigoJardin) {
-        await waitForAndSelect(page, selectUds, codigoJardin);
-    }
-    const valSel = await selectUds.inputValue().catch(() => '');
-    if (!valSel || valSel === '0' || valSel === '-1') {
-        await waitForAndSelect(page, selectUds, nombreJardin);
-    }
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(400);
 
     // 7. Ingresar Fecha de Retiro simulada (si está vacía)
     const inputFecha = contentFrame.locator('input[type="text"][id*="FechaRetiro"], input[id*="txtFechaRetiro"]').first();
