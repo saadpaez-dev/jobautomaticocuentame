@@ -596,6 +596,7 @@ async function main() {
       let idxNinoExcelActual = 0;
       let listaArchivosPendientes = [];
       let idxArchivoActual = 0;
+      let consecutivosDuplicados = 0;
 
       ascSeleccionada = null;
       jardinSeleccionado = null;
@@ -1177,7 +1178,7 @@ async function main() {
       let content = currentContentFrame || page;
 
       idxNinoExcelActual = 0;
-      let consecutivosDuplicados = 0;
+      consecutivosDuplicados = 0;
       ninosProcesados = [];
 
       while (true) {
