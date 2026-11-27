@@ -93,6 +93,117 @@ async function descartarAlertasInformativas(target) {
     } catch(e) {}
 }
 
+// Caché global de valores de lactancia para que todas las etapas usen exactamente los mismos números
+let globalLactanciaValores = null;
+
+async function asegurarRadiosSaludYDesarrollo(page, frame) {
+    const framesToCheck = [];
+    if (frame) framesToCheck.push(frame);
+    if (page && page.frames) {
+        for (const f of page.frames()) {
+            if (!framesToCheck.includes(f)) framesToCheck.push(f);
+        }
+    }
+    if (framesToCheck.length === 0 && page) framesToCheck.push(page);
+
+    // 1. Clics con Playwright para disparar eventos nativos de ASP.NET
+    if (frame) {
+        try {
+            // Carnet de vacunacion -> Si (dispara updatepanel si aplica)
+            const locVac = frame.locator('input[type="radio"][id*="CarnetVacun" i][id$="_0"], input[type="radio"][name*="CarnetVacun" i][value="1"], input[type="radio"][id*="Vacun" i][id$="_0"]').first();
+            if (await locVac.count() > 0 && !await locVac.isChecked().catch(() => false)) {
+                await locVac.check({ force: true }).catch(async () => { await locVac.click({ force: true }); });
+                await page.waitForTimeout(250);
+            }
+            // Dosis al dia -> Si
+            const locDosis = frame.locator('input[type="radio"][id*="Dosis" i][id$="_0"], input[type="radio"][name*="Dosis" i][value="1"]').first();
+            if (await locDosis.count() > 0 && !await locDosis.isChecked().catch(() => false)) {
+                await locDosis.check({ force: true }).catch(async () => { await locDosis.click({ force: true }); });
+            }
+            // Crecimiento y desarrollo -> Si
+            const locCrec = frame.locator('input[type="radio"][id*="CarnetCrecim" i][id$="_0"], input[type="radio"][name*="CarnetCrecim" i][value="1"], input[type="radio"][id*="Crecim" i][id$="_0"]').first();
+            if (await locCrec.count() > 0 && !await locCrec.isChecked().catch(() => false)) {
+                await locCrec.check({ force: true }).catch(async () => { await locCrec.click({ force: true }); });
+            }
+            // Prematurez -> No siempre
+            const locPrem = frame.locator('input[type="radio"][id*="Prematur" i][id$="_1"], input[type="radio"][name*="Prematur" i][value="0"]').first();
+            if (await locPrem.count() > 0 && !await locPrem.isChecked().catch(() => false)) {
+                await locPrem.check({ force: true }).catch(async () => { await locPrem.click({ force: true }); });
+            }
+        } catch(e) {}
+    }
+
+    // 2. Verificación y asignación exhaustiva en DOM (por Name, ID y Texto de fila)
+    for (const frm of framesToCheck) {
+        try {
+            await frm.evaluate(() => {
+                const normalize = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, ' ');
+
+                function marcar(radios, esSi) {
+                    if (!radios || radios.length < 2) return false;
+                    const rTarget = radios.find(r => esSi 
+                        ? (r.value === '1' || r.value.toLowerCase() === 'si' || r.id.endsWith('_0'))
+                        : (r.value === '0' || r.value.toLowerCase() === 'no' || r.id.endsWith('_1'))
+                    ) || radios[esSi ? 0 : 1];
+                    if (rTarget && !rTarget.disabled) {
+                        rTarget.checked = true;
+                        rTarget.click();
+                        rTarget.dispatchEvent(new Event('change', { bubbles: true }));
+                        return true;
+                    }
+                    return false;
+                }
+
+                // A. Agrupados por nombre / ID
+                const todos = Array.from(document.querySelectorAll('input[type="radio"]'));
+                const grupos = {};
+                todos.forEach(r => {
+                    const key = r.name || r.id.replace(/_\d+$/, '');
+                    if (!grupos[key]) grupos[key] = [];
+                    grupos[key].push(r);
+                });
+
+                Object.keys(grupos).forEach(k => {
+                    const kl = k.toLowerCase();
+                    if (kl.includes('vacun')) marcar(grupos[k], true);
+                    if (kl.includes('dosis')) marcar(grupos[k], true);
+                    if (kl.includes('crecim')) marcar(grupos[k], true);
+                    if (kl.includes('prematur')) marcar(grupos[k], false);
+                });
+
+                // B. Búsqueda por texto visible de la fila
+                const filas = Array.from(document.querySelectorAll('tr, .form-group, table'));
+                for (const fila of filas) {
+                    const txt = normalize(fila.innerText);
+                    if (!txt || txt.length > 350) continue;
+                    const rds = Array.from(fila.querySelectorAll('input[type="radio"]'));
+                    if (rds.length < 2) continue;
+
+                    if (txt.includes('cuenta con el carnet de vacunacion') || txt.includes('carnet de vacunacion?')) {
+                        marcar(rds, true);
+                    } else if (txt.includes('dosis que corresponden') || txt.includes('se encuentra al dia')) {
+                        marcar(rds, true);
+                    } else if (txt.includes('carnet de crecimiento y desarrollo')) {
+                        marcar(rds, true);
+                    } else if (txt.includes('antecedente de prematurez') || txt.includes('prematurez')) {
+                        marcar(rds, false);
+                    }
+                }
+
+                // C. Controles de crecimiento = 1
+                const ddlControles = document.querySelector('select[id*="ControlesCrecim" i], select[id*="Controles" i]');
+                if (ddlControles && (!ddlControles.value || ddlControles.value === '0' || ddlControles.value === '')) {
+                    const opt1 = Array.from(ddlControles.options).find(o => o.text.trim() === '1' || o.value === '1');
+                    if (opt1) {
+                        ddlControles.value = opt1.value;
+                        ddlControles.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            });
+        } catch(e) {}
+    }
+}
+
 async function asegurarRadioOpcion(page, frame, idPattern, valorDeseado) {
     const isSi = (String(valorDeseado).toLowerCase() === 'si' || valorDeseado === '1');
     const suffix = isSi ? '_0' : '_1';
@@ -107,7 +218,6 @@ async function asegurarRadioOpcion(page, frame, idPattern, valorDeseado) {
             frame.locator(`input[type="radio"][id*="${idPattern}" i][value="${targetVal}"]`).first()
         ];
 
-        let clicked = false;
         for (const loc of locators) {
             if (await loc.count() > 0 && !await loc.isDisabled().catch(() => false)) {
                 const isChecked = await loc.isChecked().catch(() => false);
@@ -116,7 +226,6 @@ async function asegurarRadioOpcion(page, frame, idPattern, valorDeseado) {
                         await loc.click({ force: true });
                     });
                 }
-                clicked = true;
                 break;
             }
         }
@@ -136,31 +245,11 @@ async function asegurarRadioOpcion(page, frame, idPattern, valorDeseado) {
                     target.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
-
-            // Si es prematurez, buscar por texto de contenedor
-            if (patternNorm.includes('prematur')) {
-                const allElements = Array.from(document.querySelectorAll('label, td, span, div, tr'));
-                for (const el of allElements) {
-                    const txt = (el.innerText || '').toLowerCase();
-                    if (txt.includes('prematurez') || txt.includes('prematur')) {
-                        const premRadios = Array.from(el.querySelectorAll('input[type="radio"]'));
-                        if (premRadios.length >= 2) {
-                            const radioNo = premRadios.find(r => r.value === '0' || r.id.endsWith('_1')) || premRadios[1];
-                            if (radioNo && !radioNo.disabled && !radioNo.checked) {
-                                radioNo.checked = true;
-                                radioNo.click();
-                                radioNo.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
         }, { idPattern, isSi, targetVal }).catch(() => {});
     } catch(e) {}
 }
 
-async function asegurarLactanciaCampos(page, frame, etapa = 'General') {
+async function asegurarLactanciaCampos(page, frame, etapa = 'General', valores = null) {
     const framesToCheck = [];
     if (frame) framesToCheck.push(frame);
     if (page && page.frames) {
@@ -170,8 +259,16 @@ async function asegurarLactanciaCampos(page, frame, etapa = 'General') {
     }
     if (framesToCheck.length === 0 && page) framesToCheck.push(page);
 
-    const valExclusiva = String(Math.floor(Math.random() * (6 - 4 + 1)) + 4); // 4 a 6 (mismo número)
-    const valTotal = String(Math.floor(Math.random() * (15 - 11 + 1)) + 11); // 11 a 15 (mismo número)
+    if (valores && valores.valExclusiva && valores.valTotal) {
+        globalLactanciaValores = valores;
+    } else if (!globalLactanciaValores) {
+        globalLactanciaValores = {
+            valExclusiva: String(Math.floor(Math.random() * (6 - 4 + 1)) + 4), // 4 a 6 (mismo número)
+            valTotal: String(Math.floor(Math.random() * (15 - 11 + 1)) + 11)   // 11 a 15 (mismo número)
+        };
+    }
+
+    const { valExclusiva, valTotal } = globalLactanciaValores;
 
     for (const frm of framesToCheck) {
         try {
@@ -199,45 +296,49 @@ async function asegurarLactanciaCampos(page, frame, etapa = 'General') {
                     }
                 });
 
-                // 2. Inputs por proximidad textual
-                const normalize = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                const allTextContainers = Array.from(document.querySelectorAll('label, td, span, div, p'));
+                // 2. Inputs por proximidad textual (buscar en td/div/tr)
+                const normalize = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, ' ');
+                const allTextContainers = Array.from(document.querySelectorAll('tr, .form-group, td'));
                 
                 for (const el of allTextContainers) {
                     const txt = normalize(el.innerText);
-                    if (!txt || txt.length > 250) continue;
+                    if (!txt || txt.length > 300) continue;
 
-                    if (txt.includes('duracion lactancia materna exclusiva') || txt.includes('exclusivamente con leche materna')) {
-                        const tr = el.closest('tr') || el.closest('.form-group') || el.parentElement;
-                        if (tr) {
-                            const inp = tr.querySelector('input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"])');
-                            if (inp && (!inp.value || inp.value === '0')) {
-                                if (setInp(inp, vExc)) count++;
-                            }
-                        }
+                    // Campo 1: Duracion lactancia materna exclusiva (4-6)
+                    if (txt.includes('duracion lactancia materna exclusiva')) {
+                        const inp = el.querySelector('input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"])');
+                        if (inp) { if (setInp(inp, vExc)) count++; }
                     }
 
-                    if (txt.includes('introdujo alimentos diferentes') || txt.includes('duracion lactancia materna total') || txt.includes('lactancia total')) {
-                        const tr = el.closest('tr') || el.closest('.form-group') || el.parentElement;
-                        if (tr) {
-                            const inp = tr.querySelector('input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"])');
-                            if (inp && (!inp.value || inp.value === '0')) {
-                                if (setInp(inp, vTot)) count++;
-                            }
-                        }
+                    // Campo 2: Hasta que edad fue alimentado exclusivamente (debe ser el MISMO 4-6)
+                    if (txt.includes('hasta que edad fue alimentado') || (txt.includes('alimentado exclusivamente') && !txt.includes('duracion lactancia'))) {
+                        const inp = el.querySelector('input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"])');
+                        if (inp) { if (setInp(inp, vExc)) count++; }
+                    }
+
+                    // Campo 3: A que edad introdujo alimentos diferentes (11-15)
+                    if (txt.includes('introdujo alimentos diferentes') || txt.includes('alimentos diferentes a la leche')) {
+                        const inp = el.querySelector('input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"])');
+                        if (inp) { if (setInp(inp, vTot)) count++; }
+                    }
+
+                    // Campo 4: Duracion lactancia materna total (debe ser el MISMO 11-15)
+                    if (txt.includes('duracion lactancia materna total') || txt.includes('lactancia materna total') || txt.includes('lactancia total')) {
+                        const inp = el.querySelector('input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"])');
+                        if (inp) { if (setInp(inp, vTot)) count++; }
                     }
                 }
 
-                // 3. Dropdown "¿Recibe leche materna?"
+                // 3. Dropdown "¿Recibe leche materna?" (Mantener "Si" o seleccionar "Si")
                 const allSelects = Array.from(document.querySelectorAll('select'));
                 for (const sel of allSelects) {
                     const idLow = sel.id.toLowerCase();
                     const txtParent = normalize(sel.closest('tr') ? sel.closest('tr').innerText : (sel.parentElement ? sel.parentElement.innerText : ''));
                     if (idLow.includes('recibeleche') || idLow.includes('lechamaterna') || txtParent.includes('recibe leche materna')) {
                         const opts = Array.from(sel.options);
-                        const optNo = opts.find(o => normalize(o.text) === 'no' || o.value === '0' || o.value === '2');
-                        if (optNo && sel.value !== optNo.value) {
-                            sel.value = optNo.value;
+                        const optSi = opts.find(o => normalize(o.text) === 'si' || o.value === '1');
+                        if (optSi && sel.value !== optSi.value) {
+                            sel.value = optSi.value;
                             if (typeof sel.onchange === 'function') { try { sel.onchange(); } catch(e) {} }
                             sel.dispatchEvent(new Event('change', { bubbles: true }));
                         }
@@ -248,7 +349,7 @@ async function asegurarLactanciaCampos(page, frame, etapa = 'General') {
             }, { vExc: valExclusiva, vTot: valTotal }).catch(() => null);
 
             if (res && res.count > 0) {
-                console.log(c.verde(`    ✅ [Lactancia - ${etapa}] Exclusiva = ${res.vExc} meses | Total = ${res.vTot} meses (${res.count} campos asignados)`));
+                console.log(c.verde(`    ✅ [Lactancia - ${etapa}] Exclusiva/Alimentado = ${res.vExc} meses | Alimentos/Total = ${res.vTot} meses (${res.count} campos asignados)`));
                 return true;
             }
         } catch(e) {}
@@ -788,8 +889,8 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         }
 
         // 1. Vacunacion y Desarrollo (SIEMPRE ASEGURAR QUE ESTEN ACTIVADOS)
-        await safeFillRadio('beneficiario cuenta con el carnet de vacunacion', 'Si', 0);
-        await page.waitForTimeout(100); 
+        await asegurarRadiosSaludYDesarrollo(page, f);
+        await page.waitForTimeout(200);
         
         await safeFillText('esquema de vacunacion', datos.fecha);
         await safeFillRadio('dosis que corresponden a la edad', 'Si', 0);
@@ -850,15 +951,18 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
             console.log(c.cyan(`    ℹ️ Edad calculada al momento de la toma: ${edadMeses} meses (${(edadMeses / 12).toFixed(1)} años) [Nac: ${fechaNac || 'N/D'}]`));
         }
 
-        // 4. Lactancia: 4 a 6 (exclusiva / alimentado) y 11 a 15 (alimentos diferentes / total)
-        const valExclusiva = String(Math.floor(Math.random() * (6 - 4 + 1)) + 4);
-        const valTotal = String(Math.floor(Math.random() * (15 - 11 + 1)) + 11);
+        // 4. Lactancia: 4 a 6 (exclusiva / alimentado) y 11 a 15 (alimentos diferentes / total) - PARES IDÉNTICOS
+        const valExclusiva = (datos._lactanciaValores && datos._lactanciaValores.valExclusiva) 
+            || String(Math.floor(Math.random() * (6 - 4 + 1)) + 4);
+        const valTotal = (datos._lactanciaValores && datos._lactanciaValores.valTotal) 
+            || String(Math.floor(Math.random() * (15 - 11 + 1)) + 11);
+        datos._lactanciaValores = { valExclusiva, valTotal };
         
         await safeFillText('exclusiva (meses)', valExclusiva);
         await safeFillText('Hasta que edad fue alimentado', valExclusiva);
         await safeFillText('introdujo alimentos diferentes', valTotal);
         await safeFillText('total (meses)', valTotal);
-        await asegurarLactanciaCampos(page, f, 'Intermedio');
+        await asegurarLactanciaCampos(page, f, 'Intermedio', datos._lactanciaValores);
         
         // ==========================================
         // 5. CAMPOS CONFLICTIVOS (LLENADOS AL FINAL Y MODO NATIVO)
@@ -870,11 +974,9 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         
         f = await getFrame(); // Obtener frame directamente para llamadas de Playwright
 
-        // A0. Vacunación y Crecimiento (Asegurar SIEMPRE marcados en Si para TODOS)
-        await asegurarRadioOpcion(page, f, 'rbTieneCarnetVacunacion', 'Si');
-        await asegurarRadioOpcion(page, f, 'rbTieneDosisEdad', 'Si');
-        await asegurarRadioOpcion(page, f, 'rbTieneCarnetCrecimiento', 'Si');
-        await page.waitForTimeout(300);
+        // A0. Vacunación y Crecimiento (Asegurar SIEMPRE marcados en Si para TODOS, Prematurez en No)
+        await asegurarRadiosSaludYDesarrollo(page, f);
+        await page.waitForTimeout(200);
         f = await getFrame();
 
         try {
@@ -1005,42 +1107,9 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
                         }
                     });
 
-                    // Verificacion de seguridad: radios de vacunacion y crecimiento SIEMPRE marcados en Si para todos
-                    const listRadios = ['rbTieneCarnetVacunacion', 'rbTieneDosisEdad', 'rbTieneCarnetCrecimiento'];
-                    listRadios.forEach(namePart => {
-                        const radios = Array.from(document.querySelectorAll(`input[type="radio"][id*="${namePart}"]`));
-                        if (radios.length > 0) {
-                            const radioSi = radios.find(r => r.value === '1' || r.id.endsWith('_0')) || radios[0];
-                            if (radioSi && !radioSi.disabled && !radioSi.checked) {
-                                radioSi.checked = true;
-                                radioSi.click();
-                                radioSi.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                        }
-                    });
-
-                    // Controles de crecimiento = 1
-                    const ddlCont = document.querySelector('select[id*="ddlControlesCrecimDesarrollo"], select[id*="ControlesCrecimiento"]');
-                    if (ddlCont && (!ddlCont.value || ddlCont.value === '0' || ddlCont.value === '')) {
-                        const opt1 = Array.from(ddlCont.options).find(o => o.text.trim() === '1' || o.value === '1');
-                        if (opt1) {
-                            ddlCont.value = opt1.value;
-                            ddlCont.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    }
-
-                    // Antecedente de prematurez = No SIEMPRE
-                    const rbPrem = Array.from(document.querySelectorAll('input[type="radio"][id*="AntecedentePrematurez"], input[type="radio"][id*="Prematur" i]'));
-                    if (rbPrem.length > 1) {
-                        const radioNo = rbPrem.find(r => r.value === '0' || r.id.endsWith('_1')) || rbPrem[1];
-                        if (radioNo && !radioNo.disabled && !radioNo.checked) {
-                            radioNo.checked = true;
-                            radioNo.click();
-                            radioNo.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    }
                 }, { fDate: fechaUso }).catch(() => {});
                 console.log(c.verde(`    ✅ [Texto] Sincronizadas Fechas con Fecha de la Toma Nutricional (${fechaUso})`));
+                await asegurarRadiosSaludYDesarrollo(page, f);
                 await page.waitForTimeout(300);
             }
 
@@ -1072,10 +1141,11 @@ async function llenarFormularioNutricion(browser, content, datos, hasHistory = f
         } catch(e) {}
         await page.waitForTimeout(100);
 
-        // 4. Salvaguarda final: Re-asegurar que Peso, Talla, Fecha, Desnutrición y Lactancia queden firmes antes de guardar
+        // 4. Salvaguarda final: Re-asegurar que Peso, Talla, Fecha, Radios, Desnutrición y Lactancia queden firmes antes de guardar
         await asegurarAntropometria('Final');
         await asegurarDesnutricion('Final');
-        await asegurarLactanciaCampos(page, f, 'Final');
+        await asegurarRadiosSaludYDesarrollo(page, f);
+        await asegurarLactanciaCampos(page, f, 'Final', datos._lactanciaValores);
         await page.waitForTimeout(200);
         
         console.log(c.verde('\n  ✅ Llenado automatico completado!'));
@@ -1090,5 +1160,6 @@ module.exports = {
     parsearFecha,
     llenarFormularioNutricion,
     asegurarDesnutricionAguda,
-    asegurarLactanciaCampos
+    asegurarLactanciaCampos,
+    asegurarRadiosSaludYDesarrollo
 };
